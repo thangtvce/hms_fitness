@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "hms_3do",
+    "slug": "hms_3do",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "permissions": [
+      "MOTION"
+    ],
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "custom photos permission",
+          "cameraPermission": "Allow HSM to open the camera",
+          "microphonePermission": false
+        }
+      ],
+      "expo-video"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hms3do.app",
+      "infoPlist": {
+        "NSMotionUsageDescription": "This app uses the pedometer to count your steps."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.hms3do.app",
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b514b7d2-35fb-402a-9f6b-b7e1c04d0e10"
+      }
+    },
+    "owner": "letankim2003"
+    
+  }
+}

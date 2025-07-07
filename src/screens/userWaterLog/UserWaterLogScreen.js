@@ -1,0 +1,2023 @@
+"use client"
+import { useState, useEffect, useCallback } from "react"
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+  Dimensions,
+  Platform,
+  Modal,
+  TextInput,
+  ScrollView,
+  Animated,
+} from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import Slider from "@react-native-community/slider"
+import { apiUserWaterLogService } from "services/apiUserWaterLogService"
+import { useAuth } from "context/AuthContext"
+import { useFocusEffect } from "@react-navigation/native"
+import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
+import { theme } from "theme/color"
+import { LinearGradient } from "expo-linear-gradient"
+import FloatingMenuButton from "components/FloatingMenuButton"
+import { StatusBar } from "expo-status-bar"
+import { SafeAreaView } from "react-native-safe-area-context"
+import DateTimePicker from "@react-native-community/datetimepicker"
+
+const { width, height } = Dimensions.get("window")
+const RECOMMENDED_DAILY_INTAKE = 2000
+const MINIMUM_DAILY_INTAKE = 1200
+const MAXIMUM_SAFE_INTAKE = 3500
+
+export default function UserWaterLogScreen({ navigation }) {
+  const { user, authToken } = useAuth()
+  const [waterLogs, setWaterLogs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [filterModalVisible, setFilterModalVisible] = useState(false)
+  const [customDaysModalVisible, setCustomDaysModalVisible] = useState(false)
+  const [selectedQuickFilter, setSelectedQuickFilter] = useState("7")
+  const [customDaysInput, setCustomDaysModalInput] = useState("")
+  const [showAllLogs, setShowAllLogs] = useState(false)
+  const [filters, setFilters] = useState({
+    pageNumber: 1,
+    pageSize: 50,
+    startDate: null,
+    endDate: null,
+    searchTerm: "",
+    status: "active",
+  })
+  const [tempFilters, setTempFilters] = useState({ ...filters })
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false)
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false)
+  const [timePeriod, setTimePeriod] = useState("week")
+  const [customDays, setCustomDays] = useState(7)
+  const [chartData, setChartData] = useState({ labels: [], datasets: [] })
+  const [averageIntake, setAverageIntake] = useState(0)
+  const [hydrationStatus, setHydrationStatus] = useState("")
+  const [todayIntake, setTodayIntake] = useState(0)
+  const [weeklyAverage, setWeeklyAverage] = useState(0)
+  const [animatedValue] = useState(new Animated.Value(0))
+
+  // Quick log form state
+  const [quickLogForm, setQuickLogForm] = useState({
+    amountMl: 250,
+    consumptionDate: new Date(),
+    notes: "",
+    status: "active",
+  })
+  const [logging, setLogging] = useState(false)
+  const [quickLogStatus, setQuickLogStatus] = useState({ status: "idle", message: "" })
+
+  const quickFilterOptions = [
+    { id: "today", label: "Today", days: 0 },
+    { id: "3", label: "3 Days", days: 3 },
+    { id: "5", label: "5 Days", days: 5 },
+    { id: "7", label: "7 Days", days: 7 },
+    { id: "custom", label: "Custom", days: null },
+  ]
+
+  // Generate water amount options for iOS-style picker
+  const generateWaterAmounts = () => {
+    const amounts = []
+    for (let i = 0; i <= 3500; i += 50) {
+      amounts.push(i)
+    }
+    return amounts
+  }
+
+  const waterAmounts = generateWaterAmounts()
+
+  // Modern iOS-style Quick Log card
+  const renderQuickLogCard = () => {
+    const currentIndex = waterAmounts.findIndex(amount => amount >= quickLogForm.amountMl)
+    const selectedIndex = currentIndex >= 0 ? currentIndex : 0
+
+    return (
+      <View style={styles.quickLogCard}>
+        <LinearGradient 
+          colors={["#FFFFFF", "#F8FAFC"]} 
+          style={styles.quickLogGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.quickLogHeader}>
+            <View style={styles.quickLogIconContainer}>
+              <LinearGradient
+                colors={["#06B6D4", "#0EA5E9"]}
+                style={styles.iconGradient}
+              >
+                <Ionicons name="water" size={28} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+            <View style={styles.quickLogTitleContainer}>
+              <Text style={styles.quickLogTitle}>Quick Log</Text>
+              <Text style={styles.quickLogSubtitle}>Track your hydration instantly</Text>
+            </View>
+          </View>
+          
+          <View style={styles.quickLogContent}>
+            {/* Modern Amount Selector */}
+            <View style={styles.amountSelectorContainer}>
+              <Text style={styles.amountLabel}>Select Amount</Text>
+              
+              <View style={styles.modernAmountContainer}>
+                {/* Current Amount Display */}
+                <View style={styles.currentAmountDisplay}>
+                  <View style={styles.amountCircle}>
+                    <LinearGradient
+                      colors={["#06B6D4", "#0EA5E9"]}
+                      style={styles.amountCircleGradient}
+                    >
+                      <Text style={styles.currentAmountText}>{quickLogForm.amountMl}</Text>
+                      <Text style={styles.currentAmountUnit}>ml</Text>
+                    </LinearGradient>
+                  </View>
+                </View>
+
+                {/* iOS-style Picker */}
+                <View style={styles.pickerContainer}>
+                  <View style={styles.pickerWrapper}>
+                    <View style={styles.pickerHighlight} />
+                    <ScrollView
+                      style={styles.pickerScrollView}
+                      showsVerticalScrollIndicator={false}
+                      snapToInterval={50}
+                      decelerationRate="fast"
+                      contentContainerStyle={styles.pickerContent}
+                      onMomentumScrollEnd={(event) => {
+                        const y = event.nativeEvent.contentOffset.y
+                        const index = Math.round(y / 50)
+                        const selectedAmount = waterAmounts[index] || 0
+                        setQuickLogForm(f => ({ ...f, amountMl: selectedAmount }))
+                      }}
+                    >
+                      {waterAmounts.map((amount, index) => (
+                        <TouchableOpacity
+                          key={amount}
+                          style={styles.pickerItem}
+                          onPress={() => setQuickLogForm(f => ({ ...f, amountMl: amount }))}
+                        >
+                          <Text 
+                            style={[
+                              styles.pickerItemText,
+                              amount === quickLogForm.amountMl && styles.pickerItemTextSelected
+                            ]}
+                          >
+                            {amount}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+
+                {/* Đã xóa các nút chọn nhanh 250ml 500ml 750ml 1000ml */}
+              </View>
+            </View>
+
+            {/* Modern Log Button */}
+            <TouchableOpacity
+              style={[styles.modernLogButton, logging && styles.modernLogButtonDisabled]}
+              onPress={handleQuickLog}
+              disabled={logging}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={logging ? ["#94A3B8", "#CBD5E1"] : ["#06B6D4", "#0EA5E9"]}
+                style={styles.modernLogButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {logging ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <View style={styles.modernLogButtonIcon}>
+                      <Ionicons name="add" size={24} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.modernLogButtonText}>Log Water</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </View>
+    )
+  }
+
+  const safeNavigate = (screen, params = {}) => {
+    try {
+      if (navigation && typeof navigation.navigate === "function") {
+        navigation.navigate(screen, params)
+      } else {
+        Alert.alert("Error", "Navigation is not available")
+      }
+    } catch (error) {}
+  }
+
+  const safeGoBack = () => {
+    try {
+      if (navigation && typeof navigation.goBack === "function") {
+        navigation.goBack()
+      } else if (navigation && typeof navigation.navigate === "function") {
+        navigation.navigate("Home")
+      }
+    } catch (error) {}
+  }
+
+  const getDateRangeForDays = (days) => {
+    const endDate = new Date()
+    endDate.setHours(23, 59, 59, 999)
+    let startDate
+    if (days === 0) {
+      startDate = new Date()
+      startDate.setHours(0, 0, 0, 0)
+    } else {
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() - (days - 1))
+      startDate.setHours(0, 0, 0, 0)
+    }
+    return { startDate, endDate }
+  }
+
+  const handleQuickFilter = (filterId) => {
+    setSelectedQuickFilter(filterId)
+    if (filterId === "custom") {
+      setCustomDaysModalVisible(true)
+      return
+    }
+    const option = quickFilterOptions.find((opt) => opt.id === filterId)
+    if (option) {
+      const { startDate, endDate } = getDateRangeForDays(option.days)
+      const newFilters = {
+        ...filters,
+        startDate,
+        endDate,
+      }
+      setFilters(newFilters)
+      fetchWaterLogs(true, newFilters)
+    }
+  }
+
+  const handleCustomDaysSubmit = () => {
+    const days = Number.parseInt(customDaysInput)
+    if (isNaN(days) || days < 1 || days > 365) {
+      Alert.alert("Invalid Input", "Please enter a number between 1 and 365")
+      return
+    }
+    const { startDate, endDate } = getDateRangeForDays(days)
+    const newFilters = {
+      ...filters,
+      startDate,
+      endDate,
+    }
+    setFilters(newFilters)
+    fetchWaterLogs(true, newFilters)
+    setCustomDaysModalVisible(false)
+    setCustomDaysModalInput("")
+  }
+
+  const fetchWaterLogs = async (showLoading = true, appliedFilters = filters) => {
+    try {
+      if (showLoading) setLoading(true)
+      if (!user || !authToken) {
+        return
+      }
+      const queryParams = {
+        pageNumber: appliedFilters.pageNumber,
+        pageSize: appliedFilters.pageSize,
+        startDate: appliedFilters.startDate ? appliedFilters.startDate.toISOString().split("T")[0] : undefined,
+        endDate: appliedFilters.endDate ? appliedFilters.endDate.toISOString().split("T")[0] : undefined,
+        searchTerm: appliedFilters.searchTerm || undefined,
+        status: appliedFilters.status || undefined,
+        validPageSize: appliedFilters.pageSize,
+      }
+
+      if (typeof apiUserWaterLogService?.getMyWaterLogs !== "function") {
+        throw new Error("Water log service not available")
+      }
+
+      const response = await apiUserWaterLogService.getMyWaterLogs(queryParams)
+      if (response?.statusCode === 200 && response?.data) {
+        const sortedLogs = (response.data.records || []).sort(
+          (a, b) => new Date(b.consumptionDate) - new Date(a.consumptionDate),
+        )
+        setWaterLogs(sortedLogs)
+        updateChartData(sortedLogs)
+        calculateHealthMetrics(sortedLogs)
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to load water logs.")
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  const updateChartData = (logs) => {
+    if (!Array.isArray(logs)) {
+      setChartData({ labels: [], datasets: [] })
+      return
+    }
+    const dataPoints = []
+    let labels = []
+    const today = new Date()
+    try {
+      if (timePeriod === "week") {
+        labels = Array.from({ length: 7 }, (_, i) => {
+          const date = new Date(today)
+          date.setDate(today.getDate() - (6 - i))
+          return date.toLocaleDateString("en-US", { weekday: "short" })
+        })
+        dataPoints.push(
+          ...Array.from({ length: 7 }, (_, i) => {
+            const date = new Date(today)
+            date.setDate(today.getDate() - (6 - i))
+            date.setHours(0, 0, 0, 0)
+            const nextDay = new Date(date)
+            nextDay.setDate(date.getDate() + 1)
+            return logs
+              .filter(
+                (log) =>
+                  log.consumptionDate &&
+                  new Date(log.consumptionDate) >= date &&
+                  new Date(log.consumptionDate) < nextDay,
+              )
+              .reduce((sum, log) => sum + (log.amountMl || 0), 0)
+          }),
+        )
+      }
+      setChartData({
+        labels,
+        datasets: [
+          {
+            data: dataPoints,
+            borderColor: "#2563EB",
+            backgroundColor: "rgba(37, 99, 235, 0.1)",
+            fill: true,
+          },
+        ],
+      })
+    } catch (error) {
+      setChartData({ labels: [], datasets: [] })
+    }
+  }
+
+  const calculateHealthMetrics = (logs) => {
+    if (!Array.isArray(logs) || logs.length === 0) {
+      setAverageIntake(0)
+      setHydrationStatus("No data")
+      setTodayIntake(0)
+      setWeeklyAverage(0)
+      return
+    }
+    try {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const tomorrow = new Date(today)
+      tomorrow.setDate(today.getDate() + 1)
+      const todayLogs = logs.filter((log) => {
+        const logDate = new Date(log.consumptionDate)
+        return logDate >= today && logDate < tomorrow
+      })
+      const todayTotal = todayLogs.reduce((sum, log) => sum + (log.amountMl || 0), 0)
+      setTodayIntake(todayTotal)
+
+      const weekAgo = new Date(today)
+      weekAgo.setDate(today.getDate() - 7)
+      const weekLogs = logs.filter((log) => {
+        const logDate = new Date(log.consumptionDate)
+        return logDate >= weekAgo && logDate < tomorrow
+      })
+      const weeklyTotal = weekLogs.reduce((sum, log) => sum + (log.amountMl || 0), 0)
+      const weeklyAvg = weeklyTotal / 7
+      setWeeklyAverage(weeklyAvg)
+
+      const totalIntake = logs.reduce((sum, log) => sum + (log.amountMl || 0), 0)
+      const uniqueDays = new Set(
+        logs.filter((log) => log.consumptionDate).map((log) => new Date(log.consumptionDate).toDateString()),
+      ).size
+      const avgIntake = uniqueDays > 0 ? totalIntake / uniqueDays : 0
+      setAverageIntake(avgIntake)
+
+      if (weeklyAvg < MINIMUM_DAILY_INTAKE) {
+        setHydrationStatus("Severely Dehydrated")
+      } else if (weeklyAvg < RECOMMENDED_DAILY_INTAKE * 0.7) {
+        setHydrationStatus("Underhydrated")
+      } else if (weeklyAvg >= RECOMMENDED_DAILY_INTAKE * 0.7 && weeklyAvg <= MAXIMUM_SAFE_INTAKE) {
+        setHydrationStatus("Well-hydrated")
+      } else {
+        setHydrationStatus("Overhydrated")
+      }
+    } catch (error) {
+      setAverageIntake(0)
+      setHydrationStatus("No data")
+      setTodayIntake(0)
+      setWeeklyAverage(0)
+    }
+  }
+
+  const getIntakeWarning = (amount, date) => {
+    const logDate = new Date(date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const logDay = new Date(logDate)
+    logDay.setHours(0, 0, 0, 0)
+
+    if (amount > MAXIMUM_SAFE_INTAKE) {
+      return {
+        type: "danger",
+        message: "Excessive intake - Consult doctor",
+        icon: "warning",
+        color: "#EF4444",
+      }
+    } else if (amount > RECOMMENDED_DAILY_INTAKE * 1.5) {
+      return {
+        type: "warning",
+        message: "High intake - Monitor closely",
+        icon: "alert-circle",
+        color: "#F59E0B",
+      }
+    } else if (amount < MINIMUM_DAILY_INTAKE && logDay.getTime() === today.getTime()) {
+      return {
+        type: "info",
+        message: "Low intake - Drink more water",
+        icon: "information-circle",
+        color: "#3B82F6",
+      }
+    }
+    return null
+  }
+
+  const getHydrationColor = () => {
+    switch (hydrationStatus) {
+      case "Well-hydrated":
+        return "#10B981"
+      case "Underhydrated":
+        return "#F59E0B"
+      case "Severely Dehydrated":
+        return "#EF4444"
+      case "Overhydrated":
+        return "#8B5CF6"
+      default:
+        return "#64748B"
+    }
+  }
+
+  const getHydrationIcon = () => {
+    switch (hydrationStatus) {
+      case "Well-hydrated":
+        return "checkmark-circle"
+      case "Underhydrated":
+        return "alert-circle"
+      case "Severely Dehydrated":
+        return "warning"
+      case "Overhydrated":
+        return "information-circle"
+      default:
+        return "help-circle"
+    }
+  }
+
+  const applyFilters = () => {
+    setFilters({ ...tempFilters })
+    fetchWaterLogs(true, tempFilters)
+    setFilterModalVisible(false)
+  }
+
+  const resetFilters = () => {
+    const defaultFilters = {
+      pageNumber: 1,
+      pageSize: 50,
+      startDate: null,
+      endDate: null,
+      searchTerm: "",
+      status: "active",
+    }
+    setTempFilters(defaultFilters)
+    setFilters(defaultFilters)
+    setSelectedQuickFilter("7")
+    fetchWaterLogs(true, defaultFilters)
+    setFilterModalVisible(false)
+  }
+
+  const handleQuickLog = async () => {
+    let userId = null
+    if (user && typeof user === "object") {
+      userId = user.id || user._id || user.userId
+      if (typeof userId === "string") userId = Number.parseInt(userId, 10)
+    }
+
+    if (!userId || isNaN(userId) || userId <= 0) {
+      Alert.alert("Error", "Unable to identify user. Please log in again.")
+      return
+    }
+
+    const amount = quickLogForm.amountMl
+    if (isNaN(amount) || amount < 0 || amount > 3500) {
+      Alert.alert("Error", "Please select a valid water amount (0–3500 ml).")
+      return
+    }
+
+    setLogging(true)
+    try {
+      if (typeof apiUserWaterLogService?.addWaterLog !== "function") {
+        throw new Error("Water log service not available.")
+      }
+
+      const today = new Date()
+      const logData = {
+        logId: 0,
+        userId: userId,
+        amountMl: amount,
+        consumptionDate: today.toISOString().split("T")[0],
+        recordedAt: today.toISOString(),
+        notes: "",
+        status: "active",
+      }
+
+      const response = await apiUserWaterLogService.addWaterLog(logData)
+      if (response?.statusCode === 200) {
+        Alert.alert("Success", "Water logged successfully!")
+        setQuickLogForm({ amountMl: 250, consumptionDate: new Date(), notes: "", status: "active" })
+        await fetchWaterLogs(true)
+        return
+      }
+
+      if (response?.message) {
+        throw new Error(response.message)
+      }
+      throw new Error("Server error, please try again later.")
+    } catch (error) {
+      Alert.alert("Error", error.message || "Unable to log water.")
+    } finally {
+      setLogging(false)
+    }
+  }
+
+  // Get today's logs for limited display
+  const getTodayLogs = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(today.getDate() + 1)
+    const todayLogs = waterLogs.filter((log) => {
+      const logDate = new Date(log.consumptionDate)
+      return logDate >= today && logDate < tomorrow
+    })
+    return showAllLogs ? todayLogs : todayLogs.slice(0, 3)
+  }
+
+  const getTodayLogsCount = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(today.getDate() + 1)
+    return waterLogs.filter((log) => {
+      const logDate = new Date(log.consumptionDate)
+      return logDate >= today && logDate < tomorrow
+    }).length
+  }
+
+  // Display today's water intake progress
+  const renderHealthCard = () => (
+    <View style={styles.healthCard}>
+      <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.healthCardGradient}>
+        <View style={styles.healthCardHeader}>
+          <Ionicons name="water" size={24} color="#FFFFFF" />
+          <Text style={styles.healthCardTitle}>Today's Hydration</Text>
+        </View>
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBackground}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  width: animatedValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["0%", "100%"],
+                  }),
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressText}>
+            {todayIntake} / {RECOMMENDED_DAILY_INTAKE} ml
+          </Text>
+        </View>
+        <View style={styles.healthStats}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{Math.round((todayIntake / RECOMMENDED_DAILY_INTAKE) * 100)}%</Text>
+            <Text style={styles.statLabel}>Daily Goal</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{Math.round(weeklyAverage)}</Text>
+            <Text style={styles.statLabel}>Weekly Avg</Text>
+          </View>
+        </View>
+      </LinearGradient>
+    </View>
+  )
+
+  // Display hydration status
+  const renderStatusCard = () => (
+    <View style={styles.statusCard}>
+      <View style={styles.statusHeader}>
+        <Ionicons name={getHydrationIcon()} size={24} color={getHydrationColor()} />
+        <Text style={styles.statusTitle}>Hydration Status</Text>
+      </View>
+      <Text style={[styles.statusValue, { color: getHydrationColor() }]}>{hydrationStatus}</Text>
+      {hydrationStatus === "Underhydrated" && (
+        <View style={styles.recommendationContainer}>
+          <Ionicons name="bulb" size={16} color="#F59E0B" />
+          <Text style={styles.recommendationText}>
+            Try to drink {Math.round(RECOMMENDED_DAILY_INTAKE - todayIntake)} ml more today
+          </Text>
+        </View>
+      )}
+      {hydrationStatus === "Overhydrated" && (
+        <View style={styles.recommendationContainer}>
+          <Ionicons name="warning" size={16} color="#8B5CF6" />
+          <Text style={styles.recommendationText}>Consider reducing intake and consult a healthcare professional</Text>
+        </View>
+      )}
+    </View>
+  )
+
+  useEffect(() => {
+    handleQuickFilter("7")
+    Animated.timing(animatedValue, {
+      toValue: Math.min(todayIntake / RECOMMENDED_DAILY_INTAKE, 1),
+      duration: 1000,
+      useNativeDriver: false,
+    }).start()
+  }, [user, authToken, todayIntake])
+
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedQuickFilter) {
+        handleQuickFilter(selectedQuickFilter)
+      }
+    }, []),
+  )
+
+  const onRefresh = () => {
+    setRefreshing(true)
+    fetchWaterLogs(false)
+  }
+
+  const handleAddWaterLog = () => {
+    safeNavigate("AddWaterLogScreen")
+  }
+
+  const handleEditWaterLog = (item) => {
+    safeNavigate("EditWaterLogScreen", { waterLog: item })
+  }
+
+  const handleDeleteWaterLog = (logId) => {
+    Alert.alert("Delete Water Log", "Are you sure you want to delete this water log?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            if (typeof apiUserWaterLogService?.deleteWaterLog !== "function") {
+              throw new Error("Delete service not available")
+            }
+            const response = await apiUserWaterLogService.deleteWaterLog(logId)
+            if (response?.statusCode === 200) {
+              fetchWaterLogs()
+              Alert.alert("Success", "Water log deleted successfully.")
+            }
+          } catch (error) {
+            Alert.alert("Error", "Failed to delete water log.")
+          }
+        },
+      },
+    ])
+  }
+
+  const renderQuickFilters = () => (
+    <View style={styles.quickFiltersContainer}>
+      <Text style={styles.quickFiltersTitle}>Quick Filters</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.quickFiltersScrollContainer}
+      >
+        {quickFilterOptions.map((option) => (
+          <TouchableOpacity
+            key={option.id}
+            style={[styles.quickFilterButton, selectedQuickFilter === option.id && styles.quickFilterButtonSelected]}
+            onPress={() => handleQuickFilter(option.id)}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.quickFilterButtonText,
+                selectedQuickFilter === option.id && styles.quickFilterButtonTextSelected,
+              ]}
+            >
+              {option.label}
+            </Text>
+            {option.id === "custom" && (
+              <Ionicons
+                name="settings-outline"
+                size={16}
+                color={selectedQuickFilter === option.id ? "#FFFFFF" : "#64748B"}
+                style={{ marginLeft: 4 }}
+              />
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  )
+
+  const renderCustomDaysModal = () => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={customDaysModalVisible}
+      onRequestClose={() => setCustomDaysModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.customDaysModalContent}>
+          <View style={styles.customDaysModalHeader}>
+            <Ionicons name="calendar-outline" size={24} color="#2563EB" />
+            <Text style={styles.customDaysModalTitle}>Custom Days</Text>
+          </View>
+          <Text style={styles.customDaysLabel}>Enter number of days (1-365):</Text>
+          <TextInput
+            style={styles.customDaysInput}
+            value={customDaysInput}
+            onChangeText={setCustomDaysModalInput}
+            placeholder="e.g., 14"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="numeric"
+            maxLength={3}
+            autoFocus={true}
+          />
+          <View style={styles.customDaysButtons}>
+            <TouchableOpacity
+              style={styles.customDaysCancelButton}
+              onPress={() => {
+                setCustomDaysModalVisible(false)
+                setCustomDaysModalInput("")
+                setSelectedQuickFilter("7")
+              }}
+            >
+              <Text style={styles.customDaysCancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.customDaysApplyButton} onPress={handleCustomDaysSubmit}>
+              <Text style={styles.customDaysApplyButtonText}>Apply</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  )
+
+  const renderFilterModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={filterModalVisible}
+      onRequestClose={() => setFilterModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Ionicons name="filter" size={24} color="#2563EB" />
+            <Text style={styles.modalTitle}>Advanced Filters</Text>
+            <TouchableOpacity onPress={() => setFilterModalVisible(false)} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalBody}>
+            <Text style={styles.filterLabel}>Search Term</Text>
+            <TextInput
+              style={styles.input}
+              value={tempFilters.searchTerm || ""}
+              onChangeText={(text) => setTempFilters({ ...tempFilters, searchTerm: text })}
+              placeholder="Enter search term"
+              placeholderTextColor="#9CA3AF"
+            />
+            <Text style={styles.filterLabel}>Status</Text>
+            <View style={styles.statusButtons}>
+              {["active", "inactive"].map((status) => (
+                <TouchableOpacity
+                  key={status}
+                  style={[styles.statusButton, tempFilters.status === status && styles.statusButtonSelected]}
+                  onPress={() => setTempFilters({ ...tempFilters, status })}
+                >
+                  <Text
+                    style={[styles.statusButtonText, tempFilters.status === status && styles.statusButtonTextSelected]}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.filterLabel}>Start Date</Text>
+            <TouchableOpacity style={styles.dateButton} onPress={() => setShowStartDatePicker(true)}>
+              <Ionicons name="calendar-outline" size={20} color="#64748B" />
+              <Text style={styles.dateButtonText}>
+                {tempFilters.startDate ? tempFilters.startDate.toLocaleDateString() : "Select Start Date"}
+              </Text>
+            </TouchableOpacity>
+            {showStartDatePicker && (
+              <DateTimePicker
+                value={tempFilters.startDate || new Date()}
+                mode="date"
+                display="default"
+                onChange={(event, date) => {
+                  setShowStartDatePicker(false)
+                  if (date) {
+                    setTempFilters({ ...tempFilters, startDate: date })
+                  }
+                }}
+              />
+            )}
+            <Text style={styles.filterLabel}>End Date</Text>
+            <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndDatePicker(true)}>
+              <Ionicons name="calendar-outline" size={20} color="#64748B" />
+              <Text style={styles.dateButtonText}>
+                {tempFilters.endDate ? tempFilters.endDate.toLocaleDateString() : "Select End Date"}
+              </Text>
+            </TouchableOpacity>
+            {showEndDatePicker && (
+              <DateTimePicker
+                value={tempFilters.endDate || new Date()}
+                mode="date"
+                display="default"
+                onChange={(event, date) => {
+                  setShowEndDatePicker(false)
+                  if (date) {
+                    setTempFilters({ ...tempFilters, endDate: date })
+                  }
+                }}
+              />
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
+                <Text style={styles.resetButtonText}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
+                <Text style={styles.applyButtonText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  )
+
+  const renderItem = ({ item }) => {
+    // Use recordedAt for time display, fallback to consumptionDate if missing
+    const recordedAt = item.recordedAt || item.consumptionDate
+    if (!item || !recordedAt) {
+      return null
+    }
+
+    // Parse and convert to Vietnam timezone (UTC+7)
+    const date = new Date(recordedAt)
+    // Format date as local Vietnam time
+    const formattedDate = date.toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      timeZone: "Asia/Ho_Chi_Minh",
+    })
+    // Format time as 12h with AM/PM in Vietnam timezone
+    const formattedTime = date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Ho_Chi_Minh",
+    })
+
+    const warning = getIntakeWarning(item.amountMl, recordedAt)
+
+    return (
+      <TouchableOpacity style={styles.logCard} onPress={() => handleEditWaterLog(item)} activeOpacity={0.7}>
+        {warning && (
+          <View style={[styles.warningBanner, { backgroundColor: warning.color }]}>
+            <Ionicons name={warning.icon} size={16} color="#FFFFFF" />
+            <Text style={styles.warningText}>{warning.message}</Text>
+          </View>
+        )}
+        <View style={styles.logCardHeader}>
+          <View style={styles.dateTimeContainer}>
+            <Text style={styles.logDate}>{formattedDate}</Text>
+            <Text style={styles.logTime}>{formattedTime}</Text>
+          </View>
+          <View style={styles.logActions}>
+            <TouchableOpacity style={styles.editButton} onPress={() => handleEditWaterLog(item)}>
+              <Ionicons name="pencil" size={18} color="#2563EB" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteWaterLog(item.logId)}>
+              <Ionicons name="trash" size={18} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.logContent}>
+          <View style={styles.amountDisplay}>
+            <Ionicons name="water" size={32} color="#2563EB" />
+            <View style={styles.amountInfo}>
+              <Text style={styles.amountValue}>{item.amountMl || 0}</Text>
+              <Text style={styles.amountUnit}>ml</Text>
+            </View>
+          </View>
+          <View style={styles.statusBadge}>
+            <View
+              style={[styles.statusIndicator, { backgroundColor: item.status === "active" ? "#10B981" : "#EF4444" }]}
+            />
+            <Text style={styles.statusText}>
+              {item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : "Unknown"}
+            </Text>
+          </View>
+        </View>
+        {item.notes && (
+          <View style={styles.notesSection}>
+            <Ionicons name="document-text" size={16} color="#64748B" />
+            <Text style={styles.notesText}>{item.notes}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    )
+  }
+
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <DynamicStatusBar backgroundColor={theme.primaryColor} />
+        <View style={styles.loadingContent}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={styles.loadingText}>Loading your hydration data...</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  const displayLogs = getTodayLogs()
+  const totalTodayLogs = getTodayLogsCount()
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <DynamicStatusBar backgroundColor={theme.primaryColor} />
+      <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
+        <View style={styles.headerContent}>
+          <TouchableOpacity onPress={safeGoBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Water Intake Logs</Text>
+            <Text style={styles.headerSubtitle}>Track your daily hydration</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.compareButton} onPress={() => safeNavigate("WaterComparison")}>
+              <Ionicons name="analytics" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.filterButton} onPress={() => setFilterModalVisible(true)}>
+              <Ionicons name="filter" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </LinearGradient>
+
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2563EB"]} tintColor="#2563EB" />
+        }
+      >
+        <View style={styles.cardsContainer}>
+          {renderHealthCard()}
+          {renderQuickLogCard()}
+          {renderStatusCard()}
+        </View>
+
+        {renderQuickFilters()}
+
+        <View style={styles.logsSection}>
+          <View style={styles.logsSectionHeader}>
+            <Text style={styles.logsSectionTitle}>Today's Logs</Text>
+            <Text style={styles.logsCount}>{totalTodayLogs} entries</Text>
+          </View>
+          {displayLogs.length > 0 ? (
+            <>
+              <FlatList
+                data={displayLogs}
+                renderItem={renderItem}
+                keyExtractor={(item) => (item.logId ? item.logId.toString() : Math.random().toString())}
+                scrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+              />
+              {totalTodayLogs > 3 && !showAllLogs && (
+                <TouchableOpacity style={styles.showMoreButton} onPress={() => setShowAllLogs(true)}>
+                  <Text style={styles.showMoreText}>Show {totalTodayLogs - 3} more logs</Text>
+                  <Ionicons name="chevron-down" size={16} color="#2563EB" />
+                </TouchableOpacity>
+              )}
+              {showAllLogs && totalTodayLogs > 3 && (
+                <TouchableOpacity style={styles.showMoreButton} onPress={() => setShowAllLogs(false)}>
+                  <Text style={styles.showMoreText}>Show less</Text>
+                  <Ionicons name="chevron-up" size={16} color="#2563EB" />
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="water-outline" size={64} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>No Water Logs Yet</Text>
+              <Text style={styles.emptyText}>
+                Start tracking your daily water intake to maintain optimal hydration levels
+              </Text>
+              <TouchableOpacity style={styles.emptyButton} onPress={handleAddWaterLog}>
+                <Ionicons name="add" size={20} color="#FFFFFF" />
+                <Text style={styles.emptyButtonText}>Add First Log</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      <TouchableOpacity style={styles.fab} onPress={handleAddWaterLog} activeOpacity={0.8}>
+        <LinearGradient colors={["#4F46E5", "#6366F1"]} style={styles.fabGradient}>
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {renderFilterModal()}
+      {renderCustomDaysModal()}
+
+      <FloatingMenuButton
+        initialPosition={{ x: width - 70, y: height - 180 }}
+        autoHide={true}
+        navigation={navigation}
+        autoHideDelay={4000}
+      />
+    </SafeAreaView>
+  )
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.primaryColor,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#2563EB",
+    fontWeight: "500",
+  },
+  header: {
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+    paddingBottom: 16,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 2,
+  },
+  filterButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardsContainer: {
+    padding: 20,
+    paddingBottom: 10,
+  },
+  healthCard: {
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#4F46E5",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  healthCardGradient: {
+    padding: 24,
+  },
+  healthCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  healthCardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginLeft: 12,
+  },
+  progressContainer: {
+    marginBottom: 20,
+  },
+  progressBackground: {
+    height: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  healthStats: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    marginHorizontal: 20,
+  },
+  // Modern iOS-style Quick Log styles
+  quickLogCard: {
+    borderRadius: 28,
+    marginBottom: 16,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#06B6D4",
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.15,
+        shadowRadius: 24,
+      },
+      android: {
+        elevation: 12,
+      },
+    }),
+  },
+  quickLogGradient: {
+    padding: 32,
+  },
+  quickLogHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 28,
+  },
+  quickLogIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 20,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#06B6D4",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  iconGradient: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  quickLogTitleContainer: {
+    flex: 1,
+  },
+  quickLogTitle: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#0F172A",
+    marginBottom: 4,
+    letterSpacing: -0.8,
+  },
+  quickLogSubtitle: {
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "600",
+    letterSpacing: -0.2,
+  },
+  quickLogContent: {
+    gap: 24,
+  },
+  amountSelectorContainer: {
+    alignItems: "center",
+  },
+  amountLabel: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#374151",
+    marginBottom: 20,
+    letterSpacing: -0.4,
+  },
+  modernAmountContainer: {
+    width: "100%",
+    alignItems: "center",
+    gap: 20,
+  },
+  currentAmountDisplay: {
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  amountCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#06B6D4",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  amountCircleGradient: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  currentAmountText: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    lineHeight: 36,
+    letterSpacing: -1,
+  },
+  currentAmountUnit: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.8)",
+    letterSpacing: 0.5,
+    marginTop: -2,
+  },
+  pickerContainer: {
+    width: "100%",
+    alignItems: "center",
+  },
+  pickerWrapper: {
+    width: 200,
+    height: 150,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 20,
+    overflow: "hidden",
+    position: "relative",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  pickerHighlight: {
+    position: "absolute",
+    top: "50%",
+    left: 0,
+    right: 0,
+    height: 50,
+    backgroundColor: "rgba(6, 182, 212, 0.1)",
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: "#06B6D4",
+    zIndex: 1,
+    transform: [{ translateY: -25 }],
+  },
+  pickerScrollView: {
+    flex: 1,
+  },
+  pickerContent: {
+    paddingVertical: 50,
+  },
+  pickerItem: {
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pickerItemText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#9CA3AF",
+    letterSpacing: -0.3,
+  },
+  pickerItemTextSelected: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#06B6D4",
+    letterSpacing: -0.5,
+  },
+  quickAmountButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    gap: 12,
+  },
+  quickAmountButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderWidth: 2,
+    borderColor: "rgba(6, 182, 212, 0.2)",
+    alignItems: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#06B6D4",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  quickAmountButtonSelected: {
+    backgroundColor: "#06B6D4",
+    borderColor: "#06B6D4",
+    transform: [{ scale: 1.05 }],
+  },
+  quickAmountButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#06B6D4",
+    letterSpacing: -0.2,
+  },
+  quickAmountButtonTextSelected: {
+    color: "#FFFFFF",
+  },
+  modernLogButton: {
+    borderRadius: 24,
+    overflow: "hidden",
+    marginTop: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#06B6D4",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 12,
+      },
+    }),
+  },
+  modernLogButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 40,
+    gap: 16,
+  },
+  modernLogButtonIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modernLogButtonText: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    letterSpacing: -0.4,
+  },
+  modernLogButtonDisabled: {
+    opacity: 0.7,
+  },
+  statusCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  statusHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  statusTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginLeft: 8,
+  },
+  statusValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  recommendationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+    padding: 12,
+    borderRadius: 8,
+  },
+  recommendationText: {
+    fontSize: 14,
+    color: "#92400E",
+    marginLeft: 8,
+    flex: 1,
+  },
+  quickFiltersContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  quickFiltersTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginBottom: 12,
+  },
+  quickFiltersScrollContainer: {
+    paddingRight: 20,
+  },
+  quickFilterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    minWidth: 80,
+    justifyContent: "center",
+  },
+  quickFilterButtonSelected: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  quickFilterButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  quickFilterButtonTextSelected: {
+    color: "#FFFFFF",
+  },
+  customDaysModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 24,
+    width: "85%",
+    maxWidth: 320,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  customDaysModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  customDaysModalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginLeft: 12,
+  },
+  customDaysLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#64748B",
+    marginBottom: 8,
+  },
+  customDaysInput: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: "#1E293B",
+    marginBottom: 20,
+    backgroundColor: "#FFFFFF",
+    textAlign: "center",
+  },
+  customDaysButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  customDaysCancelButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  customDaysCancelButtonText: {
+    fontSize: 16,
+    color: "#475569",
+    fontWeight: "600",
+  },
+  customDaysApplyButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  customDaysApplyButtonText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  logsSection: {
+    padding: 20,
+    paddingTop: 10,
+  },
+  logsSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  logsSectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  logsCount: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  showMoreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2563EB",
+    marginRight: 4,
+  },
+  logCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    marginBottom: 12,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  warningBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    paddingHorizontal: 16,
+  },
+  warningText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginLeft: 6,
+  },
+  logCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    paddingBottom: 8,
+  },
+  dateTimeContainer: {
+    flex: 1,
+  },
+  logDate: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  logTime: {
+    fontSize: 14,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  logActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  editButton: {
+    padding: 8,
+    marginRight: 4,
+  },
+  deleteButton: {
+    padding: 8,
+  },
+  logContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  amountDisplay: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  amountInfo: {
+    marginLeft: 12,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  notesSection: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#F8FAFC",
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 8,
+  },
+  notesText: {
+    fontSize: 14,
+    color: "#475569",
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 20,
+  },
+  emptyState: {
+    alignItems: "center",
+    padding: 40,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  emptyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2563EB",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  emptyButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  fab: {
+    position: "absolute",
+    bottom: 24,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#4F46E5",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  fabGradient: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    width: "100%",
+    maxHeight: "80%",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginLeft: 12,
+    flex: 1,
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: "#1E293B",
+    marginBottom: 16,
+    backgroundColor: "#FFFFFF",
+  },
+  statusButtons: {
+    flexDirection: "row",
+    marginBottom: 16,
+  },
+  statusButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  statusButtonSelected: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  statusButtonText: {
+    fontSize: 14,
+    color: "#475569",
+    fontWeight: "600",
+  },
+  statusButtonTextSelected: {
+    color: "#FFFFFF",
+  },
+  dateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    backgroundColor: "#FFFFFF",
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: "#1E293B",
+    marginLeft: 8,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 24,
+  },
+  resetButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  resetButtonText: {
+    fontSize: 16,
+    color: "#475569",
+    fontWeight: "600",
+  },
+  applyButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  applyButtonText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  compareButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+})
+
