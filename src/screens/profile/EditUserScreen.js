@@ -1,4 +1,4 @@
-import { useState,useRef,useEffect,createContext,useContext } from "react"
+import { useState,useRef,useEffect,useContext } from "react"
 import {
   View,
   Text,
@@ -24,8 +24,8 @@ import { useFonts,Inter_400Regular,Inter_600SemiBold,Inter_700Bold } from "@expo
 import DateTimePicker from "@react-native-community/datetimepicker"
 import apiUserService from "services/apiUserService"
 import { apiUploadImageCloudService } from 'services/apiUploadImageCloudService';
-import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
-import { theme } from "theme/color"
+import Header from "components/Header"
+import { ThemeContext } from "components/theme/ThemeContext"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { AuthContext } from "context/AuthContext"
@@ -51,6 +51,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
   }
 
   const { user } = useContext(AuthContext);
+  const { colors } = useContext(ThemeContext);
   const [formData,setFormData] = useState({
     userId: route.params?.user?.userId || mockUser.userId,
     fullName: route.params?.user?.fullName || mockUser.fullName,
@@ -189,8 +190,8 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
   if (!fontsLoaded) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0056d2" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.primary }]}> 
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )
   }
@@ -455,21 +456,16 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <DynamicStatusBar backgroundColor="#fff" />
-
-      <View style={[styles.header, { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5EAF0' }]}> 
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.06)' }]} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#222" />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: '#111' }]}>Edit User Information</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background || '#fff' }]}> 
+      <Header
+        title="Edit User Information"
+        canGoBack
+        onBack={() => navigation.goBack()}
+        rightActions={[]}
+      />
 
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: colors.backgroundCard || '#F8FAFC', marginTop: 32 }]}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
@@ -481,8 +477,8 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
           <View style={styles.avatarSection}>
             <View style={styles.avatarContainer}>
               {imageUploading ? (
-                <View style={styles.avatarLoading}>
-                  <ActivityIndicator size="large" color="#4F46E5" />
+                <View style={[styles.avatarLoading, { backgroundColor: colors.card || '#E2E8F0' }]}> 
+                  <ActivityIndicator size="large" color={colors.primary} />
                 </View>
               ) : (
                 <Image
@@ -494,7 +490,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
                 />
               )}
               <TouchableOpacity
-                style={styles.changeAvatarButton}
+                style={[styles.changeAvatarButton, { backgroundColor: '#0056d2' }]}
                 onPress={() => setShowImageOptions(true)}
                 disabled={imageUploading}
               >
@@ -507,7 +503,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
           <View style={styles.formCard}>
             <View style={styles.formSection}>
               <View style={styles.sectionHeaderContainer}>
-                <Ionicons name="person-outline" size={24} color="#4F46E5" style={styles.sectionIcon} />
+                <Ionicons name="person-outline" size={24} color={colors.primary} style={styles.sectionIcon} />
                 <Text style={styles.sectionTitle}>Personal Information</Text>
               </View>
 
@@ -617,23 +613,23 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.saveButton,loading ? styles.saveButtonDisabled : null]}
-            onPress={handleSave}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="save-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-                <Text style={styles.saveButtonText}>Save Changes</Text>
-              </>
-            )}
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: '#0056d2' }, loading ? styles.saveButtonDisabled : null]}
+                onPress={handleSave}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="save-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                  </>
+                )}
+              </TouchableOpacity>
 
           <View style={styles.tipContainer}>
-            <Ionicons name="information-circle-outline" size={20} color="#4F46E5" />
+            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.tipText}>
               Keeping your profile information up to date helps us provide better service and ensures we can contact you
               if needed.
@@ -681,18 +677,18 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
             </View>
 
             <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
-              <Ionicons name="camera-outline" size={24} color="#4F46E5" style={styles.modalOptionIcon} />
-              <Text style={styles.modalOptionText}>Take Photo</Text>
+              <Ionicons name="camera-outline" size={24} color={colors.primary} style={styles.modalOptionIcon} />
+              <Text style={[styles.modalOptionText, { color: colors.primary }]}>Take Photo</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.modalOption} onPress={handlePickImage}>
-              <Ionicons name="image-outline" size={24} color="#4F46E5" style={styles.modalOptionIcon} />
-              <Text style={styles.modalOptionText}>Choose from Gallery</Text>
+              <Ionicons name="image-outline" size={24} color={colors.primary} style={styles.modalOptionIcon} />
+              <Text style={[styles.modalOptionText, { color: colors.primary }]}>Choose from Gallery</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.modalOption} onPress={handleUrlImage}>
-              <Ionicons name="link-outline" size={24} color="#4F46E5" style={styles.modalOptionIcon} />
-              <Text style={styles.modalOptionText}>Enter Image URL</Text>
+              <Ionicons name="link-outline" size={24} color={colors.primary} style={styles.modalOptionIcon} />
+              <Text style={[styles.modalOptionText, { color: colors.primary }]}>Enter Image URL</Text>
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
@@ -763,7 +759,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
                 ) : null}
               </View>
 
-              <TouchableOpacity style={styles.urlConfirmButton} onPress={confirmUrlImage}>
+              <TouchableOpacity style={[styles.urlConfirmButton, { backgroundColor: colors.primary }]} onPress={confirmUrlImage}>
                 <Text style={styles.urlConfirmButtonText}>Confirm</Text>
               </TouchableOpacity>
             </Animated.View>
@@ -805,14 +801,14 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Gender</Text>
               <TouchableOpacity onPress={() => setShowGenderOptions(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={colors.textSecondary || "#64748B"} />
               </TouchableOpacity>
             </View>
 
             {GENDER_OPTIONS.map((gender) => (
               <TouchableOpacity key={gender} style={styles.modalOption} onPress={() => handleGenderSelect(gender)}>
-                <Text style={styles.modalOptionText}>{gender}</Text>
-                {formData.gender === gender && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                <Text style={[styles.modalOptionText, { color: colors.primary }]}>{gender}</Text>
+                {formData.gender === gender && <Ionicons name="checkmark" size={20} color={colors.primary} />}
               </TouchableOpacity>
             ))}
           </Animated.View>
@@ -855,7 +851,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Birth Date</Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={colors.textSecondary || "#64748B"} />
               </TouchableOpacity>
             </View>
 
@@ -871,10 +867,10 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
             </View>
 
             <View style={styles.datePickerActions}>
-              <TouchableOpacity style={styles.datePickerCancelButton} onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.datePickerCancelText}>Cancel</Text>
+              <TouchableOpacity style={[styles.datePickerCancelButton, { backgroundColor: colors.card || '#F1F5F9' }]} onPress={() => setShowDatePicker(false)}>
+                <Text style={[styles.datePickerCancelText, { color: colors.textSecondary || '#64748B' }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.datePickerConfirmButton} onPress={() => setShowDatePicker(false)}>
+              <TouchableOpacity style={[styles.datePickerConfirmButton, { backgroundColor: colors.primary }]} onPress={() => setShowDatePicker(false)}>
                 <Text style={styles.datePickerConfirmText}>Confirm</Text>
               </TouchableOpacity>
             </View>
@@ -888,13 +884,11 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.primaryColor,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#4F46E5",
   },
   header: {
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
@@ -959,7 +953,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "#0056d2",
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -1077,7 +1070,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#0056d2",
     paddingVertical: 16,
     borderRadius: 12,
     marginHorizontal: 16,
@@ -1192,7 +1184,6 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontFamily: "Inter_500Medium",
     fontSize: 16,
-    color: "#0056d2",
   },
   urlInputContainer: {
     marginBottom: 20,
@@ -1208,7 +1199,6 @@ const styles = StyleSheet.create({
     color: "#0F172A",
   },
   urlConfirmButton: {
-    backgroundColor: "#0056d2",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
@@ -1249,7 +1239,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginLeft: 8,
     borderRadius: 8,
-    backgroundColor: "#0056d2",
     alignItems: "center",
   },
   datePickerCancelText: {

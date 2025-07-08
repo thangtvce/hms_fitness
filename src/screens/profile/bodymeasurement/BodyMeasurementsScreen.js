@@ -19,7 +19,7 @@ import { useAuth } from 'context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import { theme } from 'theme/color';
-import { LinearGradient } from 'expo-linear-gradient';
+import Header from 'components/Header';
 import FloatingMenuButton from 'components/FloatingMenuButton';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -313,7 +313,7 @@ export default function BodyMeasurementsScreen({ navigation }) {
               style={styles.editButton}
               onPress={() => handleEditMeasurement(item)}
             >
-              <Ionicons name="pencil-outline" size={20} color="#2563EB" />
+              <Ionicons name="pencil-outline" size={22} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.deleteButton}
@@ -425,34 +425,30 @@ export default function BodyMeasurementsScreen({ navigation }) {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <View style={styles.loadingContainer}>
         <DynamicStatusBar backgroundColor={theme.primaryColor} />
         <ActivityIndicator size="large" color="#2563EB" />
         <Text style={styles.loadingText}>Loading measurements...</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
       <View style={styles.container}>
-        <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Body Measurements</Text>
-            <View style={styles.headerRight} />
-          </View>
-        </LinearGradient>
+        <Header
+          title="Body Measurements"
+          canGoBack
+          onBack={() => navigation.goBack()}
+        />
 
         {measurements.length > 0 ? (
           <FlatList
             data={measurements}
             renderItem={renderItem}
             keyExtractor={(item) => item.measurementId.toString()}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { marginTop: 90 }]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
@@ -481,7 +477,7 @@ export default function BodyMeasurementsScreen({ navigation }) {
 
         {measurements.length > 0 && (
           <TouchableOpacity
-            style={styles.fab}
+            style={[styles.fab, { backgroundColor: '#0056d2' }]}
             onPress={handleAddMeasurement}
             activeOpacity={0.8}
           >
@@ -497,7 +493,7 @@ export default function BodyMeasurementsScreen({ navigation }) {
         navigation={navigation}
         autoHideDelay={4000}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -521,29 +517,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2563EB',
     fontWeight: '500',
-  },
-  header: {
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
-    paddingBottom: 16,
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    color: "#fff"
-  },
-  headerTitle: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 18,
-    color: "#FFFFFF",
-    textAlign: "center",
   },
   listContent: {
     padding: 16,
@@ -607,8 +580,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FECACA',
   },
   editButton: {
-    padding: 4,
+    padding: 10,
     marginRight: 8,
+    backgroundColor: '#0056d2',
+    borderRadius: 8,
+    borderWidth: 0,
   },
   deleteButton: {
     padding: 4,

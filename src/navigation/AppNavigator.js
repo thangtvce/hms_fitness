@@ -126,6 +126,7 @@ import UserList from 'screens/trainer/user/UserList';
 
 import AIRecommendedScreen from 'screens/workout/AIRecommendedScreen';
 import UserGoalPlansScreen from 'screens/profile/UserGoalPlansScreen';
+import WeeklyProgressScreen from 'screens/home/WeeklyProgressScreen';
 
 
 
@@ -324,6 +325,7 @@ const notificationListener = useRef();
 
     <Stack.Screen name="AIRecommendedScreen" component={AIRecommendedScreen} options={{ headerShown: false }} />
     <Stack.Screen name="UserGoalPlansScreen" component={UserGoalPlansScreen} options={{ title: 'User Goal Plans' }} />
+    <Stack.Screen name="WeeklyProgressScreen" component={WeeklyProgressScreen} options={{ title: 'Weekly Progress' }} />
 
 
     </Stack.Navigator>

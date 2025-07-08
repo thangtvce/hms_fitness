@@ -1,4 +1,4 @@
-import { useState,useRef,useEffect } from "react"
+import React, { useState, useRef, useEffect, useContext } from "react"
 import {
   View,
   Text,
@@ -11,15 +11,16 @@ import {
   Platform,
   Animated,
   ActivityIndicator,
+  theme,
+  Modal,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { profileService } from "services/apiProfileService"
 import { useAuth } from "context/AuthContext"
 import { LinearGradient } from "expo-linear-gradient"
-import { useFonts,Inter_400Regular,Inter_600SemiBold,Inter_700Bold } from "@expo-google-fonts/inter"
-import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
-import { theme } from "theme/color"
-import { StatusBar } from "expo-status-bar"
+import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter"
+import Header from "components/Header"
+import { ThemeContext } from "components/theme/ThemeContext"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 const ACTIVITY_LEVELS = ["Sedentary","Lightly Active","Moderately Active","Very Active","Extremely Active"]
@@ -44,8 +45,9 @@ const FITNESS_GOALS = [
   "Athletic Performance",
 ]
 
-export default function EditProfileScreen({ navigation,route }) {
+export default function EditProfileScreen({ navigation, route }) {
   const { user } = useAuth()
+  const { colors } = useContext(ThemeContext)
   const initialProfile = route.params?.profile || {}
 
   const [formData,setFormData] = useState({
@@ -104,8 +106,8 @@ export default function EditProfileScreen({ navigation,route }) {
 
   if (!fontsLoaded) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.primary }]}> 
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )
   }
@@ -261,21 +263,16 @@ export default function EditProfileScreen({ navigation,route }) {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <DynamicStatusBar backgroundColor={theme.primaryColor} />
-
-      <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </LinearGradient>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background || '#fff' }]}> 
+      <Header
+        title="Edit Profile"
+        canGoBack
+        onBack={() => navigation.goBack()}
+        rightActions={[]}
+      />
 
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: colors.backgroundCard || '#F8FAFC', marginTop: 32 }]}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
@@ -283,11 +280,10 @@ export default function EditProfileScreen({ navigation,route }) {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          onScrollBeginDrag={closeAllDropdowns}
         >
           <View style={styles.formSection}>
             <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="body-outline" size={24} color="#4F46E5" style={styles.sectionIcon} />
+              <Ionicons name="body-outline" size={24} color={colors.primary} style={styles.sectionIcon} />
               <Text style={styles.sectionTitle}>Body Metrics</Text>
             </View>
 
@@ -378,13 +374,13 @@ export default function EditProfileScreen({ navigation,route }) {
             {bmiValue && (
               <View style={styles.bmiContainer}>
                 <View style={styles.bmiHeader}>
-                  <Ionicons name="analytics-outline" size={20} color="#4F46E5" />
+                <Ionicons name="analytics-outline" size={20} color={colors.primary} />
                   <Text style={styles.bmiTitle}>BMI Calculation</Text>
                 </View>
                 <View style={styles.bmiContent}>
                   <View style={styles.bmiValueContainer}>
                     <Text style={styles.bmiValue}>{bmiValue}</Text>
-                    <View style={[styles.bmiCategoryBadge,{ backgroundColor: `${bmiCategory.color}20` }]}>
+                    <View style={[styles.bmiCategoryBadge,{ backgroundColor: `${bmiCategory.color}20` }]}> 
                       <Text style={[styles.bmiCategoryText,{ color: bmiCategory.color }]}>{bmiCategory.text}</Text>
                     </View>
                   </View>
@@ -398,7 +394,7 @@ export default function EditProfileScreen({ navigation,route }) {
 
           <View style={styles.formSection}>
             <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="fitness-outline" size={24} color="#4F46E5" style={styles.sectionIcon} />
+              <Ionicons name="fitness-outline" size={24} color={colors.primary} style={styles.sectionIcon} />
               <Text style={styles.sectionTitle}>Fitness Profile</Text>
             </View>
 
@@ -409,18 +405,43 @@ export default function EditProfileScreen({ navigation,route }) {
               </View>
               <TouchableOpacity
                 style={[styles.selectContainer,formData.activityLevel ? styles.filledSelect : {}]}
-                onPress={() => {
-                  setShowActivityOptions(!showActivityOptions)
-                  setShowDietaryOptions(false)
-                  setShowGoalOptions(false)
-                }}
+                onPress={() => setShowActivityOptions(true)}
               >
                 <Text style={[styles.selectText,!formData.activityLevel && styles.placeholderText]}>
                   {formData.activityLevel || "Select activity level"}
                 </Text>
-                <Ionicons name={showActivityOptions ? "chevron-up" : "chevron-down"} size={20} color="#64748B" />
+                <Ionicons name="chevron-down" size={20} color="#64748B" />
               </TouchableOpacity>
-              {showActivityOptions && renderOptionsList(ACTIVITY_LEVELS,"activityLevel")}
+              {/* Custom Select Modal for Activity Level */}
+              <Modal
+                visible={showActivityOptions}
+                transparent={true}
+                animationType="none"
+                onRequestClose={() => setShowActivityOptions(false)}
+              >
+                <Animated.View style={styles.modalOverlay}>
+                  <TouchableOpacity style={styles.modalBackground} onPress={() => setShowActivityOptions(false)} />
+                  <Animated.View style={[styles.modalContainer, { transform: [{ translateY: showActivityOptions ? 0 : 300 }] }] }>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Select Activity Level</Text>
+                      <TouchableOpacity onPress={() => setShowActivityOptions(false)}>
+                        <Ionicons name="close" size={24} color={colors.textSecondary || "#64748B"} />
+                      </TouchableOpacity>
+                    </View>
+                    <ScrollView style={{ maxHeight: 320 }}>
+                      {ACTIVITY_LEVELS.map((option, idx) => (
+                        <React.Fragment key={option}>
+                          <TouchableOpacity style={styles.modalOption} onPress={() => { setFormData({ ...formData, activityLevel: option }); setShowActivityOptions(false); }}>
+                            <Text style={[styles.modalOptionText, { color: colors.primary }]}>{option}</Text>
+                            {formData.activityLevel === option && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+                          </TouchableOpacity>
+                          {idx !== ACTIVITY_LEVELS.length - 1 && <View style={styles.modalDivider} />}
+                        </React.Fragment>
+                      ))}
+                    </ScrollView>
+                  </Animated.View>
+                </Animated.View>
+              </Modal>
             </View>
 
             <View style={styles.inputGroup}>
@@ -430,18 +451,43 @@ export default function EditProfileScreen({ navigation,route }) {
               </View>
               <TouchableOpacity
                 style={[styles.selectContainer,formData.dietaryPreference ? styles.filledSelect : {}]}
-                onPress={() => {
-                  setShowDietaryOptions(!showDietaryOptions)
-                  setShowActivityOptions(false)
-                  setShowGoalOptions(false)
-                }}
+                onPress={() => setShowDietaryOptions(true)}
               >
                 <Text style={[styles.selectText,!formData.dietaryPreference && styles.placeholderText]}>
                   {formData.dietaryPreference || "Select diet preference"}
                 </Text>
-                <Ionicons name={showDietaryOptions ? "chevron-up" : "chevron-down"} size={20} color="#64748B" />
+                <Ionicons name="chevron-down" size={20} color="#64748B" />
               </TouchableOpacity>
-              {showDietaryOptions && renderOptionsList(DIETARY_PREFERENCES,"dietaryPreference")}
+              {/* Custom Select Modal for Diet Preference */}
+              <Modal
+                visible={showDietaryOptions}
+                transparent={true}
+                animationType="none"
+                onRequestClose={() => setShowDietaryOptions(false)}
+              >
+                <Animated.View style={styles.modalOverlay}>
+                  <TouchableOpacity style={styles.modalBackground} onPress={() => setShowDietaryOptions(false)} />
+                  <Animated.View style={[styles.modalContainer, { transform: [{ translateY: showDietaryOptions ? 0 : 300 }] }] }>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Select Diet Preference</Text>
+                      <TouchableOpacity onPress={() => setShowDietaryOptions(false)}>
+                        <Ionicons name="close" size={24} color={colors.textSecondary || "#64748B"} />
+                      </TouchableOpacity>
+                    </View>
+                    <ScrollView style={{ maxHeight: 320 }}>
+                      {DIETARY_PREFERENCES.map((option, idx) => (
+                        <React.Fragment key={option}>
+                          <TouchableOpacity style={styles.modalOption} onPress={() => { setFormData({ ...formData, dietaryPreference: option }); setShowDietaryOptions(false); }}>
+                            <Text style={[styles.modalOptionText, { color: colors.primary }]}>{option}</Text>
+                            {formData.dietaryPreference === option && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+                          </TouchableOpacity>
+                          {idx !== DIETARY_PREFERENCES.length - 1 && <View style={styles.modalDivider} />}
+                        </React.Fragment>
+                      ))}
+                    </ScrollView>
+                  </Animated.View>
+                </Animated.View>
+              </Modal>
             </View>
 
             <View style={styles.inputGroup}>
@@ -451,24 +497,49 @@ export default function EditProfileScreen({ navigation,route }) {
               </View>
               <TouchableOpacity
                 style={[styles.selectContainer,formData.fitnessGoal ? styles.filledSelect : {}]}
-                onPress={() => {
-                  setShowGoalOptions(!showGoalOptions)
-                  setShowActivityOptions(false)
-                  setShowDietaryOptions(false)
-                }}
+                onPress={() => setShowGoalOptions(true)}
               >
                 <Text style={[styles.selectText,!formData.fitnessGoal && styles.placeholderText]}>
                   {formData.fitnessGoal || "Select fitness goal"}
                 </Text>
-                <Ionicons name={showGoalOptions ? "chevron-up" : "chevron-down"} size={20} color="#64748B" />
+                <Ionicons name="chevron-down" size={20} color="#64748B" />
               </TouchableOpacity>
-              {showGoalOptions && renderOptionsList(FITNESS_GOALS,"fitnessGoal")}
+              {/* Custom Select Modal for Fitness Goal */}
+              <Modal
+                visible={showGoalOptions}
+                transparent={true}
+                animationType="none"
+                onRequestClose={() => setShowGoalOptions(false)}
+              >
+                <Animated.View style={styles.modalOverlay}>
+                  <TouchableOpacity style={styles.modalBackground} onPress={() => setShowGoalOptions(false)} />
+                  <Animated.View style={[styles.modalContainer, { transform: [{ translateY: showGoalOptions ? 0 : 300 }] }] }>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Select Fitness Goal</Text>
+                      <TouchableOpacity onPress={() => setShowGoalOptions(false)}>
+                        <Ionicons name="close" size={24} color={colors.textSecondary || "#64748B"} />
+                      </TouchableOpacity>
+                    </View>
+                    <ScrollView style={{ maxHeight: 320 }}>
+                      {FITNESS_GOALS.map((option, idx) => (
+                        <React.Fragment key={option}>
+                          <TouchableOpacity style={styles.modalOption} onPress={() => { setFormData({ ...formData, fitnessGoal: option }); setShowGoalOptions(false); }}>
+                            <Text style={[styles.modalOptionText, { color: colors.primary }]}>{option}</Text>
+                            {formData.fitnessGoal === option && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+                          </TouchableOpacity>
+                          {idx !== FITNESS_GOALS.length - 1 && <View style={styles.modalDivider} />}
+                        </React.Fragment>
+                      ))}
+                    </ScrollView>
+                  </Animated.View>
+                </Animated.View>
+              </Modal>
             </View>
           </View>
 
           <TouchableOpacity
             onPress={handleSubmit}
-            style={[styles.submitButton,isLoading ? styles.submitButtonDisabled : null]}
+            style={[styles.submitButton, { backgroundColor: '#0056d2' }, isLoading ? styles.submitButtonDisabled : null]}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -482,7 +553,7 @@ export default function EditProfileScreen({ navigation,route }) {
           </TouchableOpacity>
 
           <View style={styles.tipContainer}>
-            <Ionicons name="information-circle-outline" size={20} color="#4F46E5" />
+            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.tipText}>
               Keeping your profile up to date helps us provide more accurate health recommendations and tracking.
             </Text>
@@ -496,13 +567,11 @@ export default function EditProfileScreen({ navigation,route }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.primaryColor,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#4F46E5",
   },
   header: {
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
@@ -792,5 +861,69 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#64748B",
     lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 32,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 18,
+    color: "#1E293B",
+  },
+  modalOption: {
+    paddingVertical: 15,
+    // paddingHorizontal: 16, // Remove default horizontal padding
+    paddingLeft: 0, // Remove left padding
+    paddingRight: 16, // Keep right padding for icon
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFF",
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginLeft: 16,
+    marginRight: 16,
+  },
+  modalOptionText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 16,
+    color: "#334155",
   },
 })

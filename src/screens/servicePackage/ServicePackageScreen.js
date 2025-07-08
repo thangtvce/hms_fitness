@@ -1,5 +1,4 @@
-"use client"
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback, useContext } from "react";
 import {
   View,
   Text,
@@ -14,218 +13,278 @@ import {
   Dimensions,
   ScrollView,
   Image,
-} from "react-native"
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { useAuth } from "context/AuthContext"
-import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
-import { theme } from "theme/color"
-import { StatusBar } from "expo-status-bar"
-import { SafeAreaView } from "react-native-safe-area-context"
-import trainerService from "services/apiTrainerService"
+} from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useAuth } from "context/AuthContext";
+import { ThemeContext } from "components/theme/ThemeContext";
+import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
+import Header from "components/Header";
+import trainerService from "services/apiTrainerService";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const { width, height } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window");
 
-const ServicePackageScreen = ({ navigation }) => {
-  const { user } = useAuth()
-  const [packages, setPackages] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [showFilterModal, setShowFilterModal] = useState(false)
-  const [pageNumber, setPageNumber] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalItems, setTotalItems] = useState(0)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [hasMore, setHasMore] = useState(true)
+export default function ServicePackageScreen({ navigation }) {
+  const { user } = useAuth();
+  const { colors } = useContext(ThemeContext);
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [tempSearchTerm, setTempSearchTerm] = useState("");
+  const [hasMore, setHasMore] = useState(true);
   const [filters, setFilters] = useState({
     minPrice: "",
     maxPrice: "",
     sortBy: "packageId",
     sortDescending: true,
-  })
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const [tempFilters, setTempFilters] = useState(filters)
-  const [trainerRatings, setTrainerRatings] = useState({})
-  const [trainerClients, setTrainerClients] = useState({})
-  const [trainerExperience, setTrainerExperience] = useState({})
+  });
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const bannerAnim = useRef(new Animated.Value(0)).current;
+  const [tempFilters, setTempFilters] = useState(filters);
+  const [trainerRatings, setTrainerRatings] = useState({});
+  const [trainerClients, setTrainerClients] = useState({});
+  const [trainerExperience, setTrainerExperience] = useState({});
 
   // Fetch packages from API
-  const fetchPackages = async () => {
-    setLoading(true)
-    try {
-      const res = await trainerService.getAllActiveServicePackage()
-      const data = res.data?.packages || []
-      setPackages(data)
-      setTotalPages(res.data?.totalPages || 1)
-      setTotalItems(res.data?.totalCount || data.length)
-      setHasMore(res.data?.pageNumber < res.data?.totalPages)
-      
-      const trainerClientsMap = calculateTrainerClients(data)
-      setTrainerClients(trainerClientsMap)
-      fetchTrainerRatings(data)
-      fetchTrainerExperience(data)
-    } catch (e) {
-      setPackages([])
-      setTotalPages(1)
-      setTotalItems(0)
-      setHasMore(false)
-    }
-    setLoading(false)
-  }
+  const fetchPackages = useCallback(
+    async (search = "", page = 1) => {
+      if (!user?.userId) {
+        setPackages([]);
+        setTotalPages(1);
+        setTotalItems(0);
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const params = {
+          search,
+          pageNumber: page,
+          pageSize,
+          minPrice: filters.minPrice ? parseFloat(filters.minPrice) : undefined,
+          maxPrice: filters.maxPrice ? parseFloat(filters.maxPrice) : undefined,
+          sortBy: filters.sortBy,
+          sortDescending: filters.sortDescending,
+        };
+        const res = await trainerService.getAllActiveServicePackage(params);
+        const data = res.data?.packages || [];
+        setPackages((prev) => (page === 1 ? data : [...prev, ...data]));
+        setTotalPages(res.data?.totalPages || 1);
+        setTotalItems(res.data?.totalCount || data.length);
+        setHasMore(res.data?.pageNumber < res.data?.totalPages);
+        const trainerClientsMap = calculateTrainerClients(data);
+        setTrainerClients(trainerClientsMap);
+        await fetchTrainerRatings(data);
+        await fetchTrainerExperience(data);
+      } catch (e) {
+        setPackages([]);
+        setTotalPages(1);
+        setTotalItems(0);
+        setHasMore(false);
+      }
+      setLoading(false);
+    },
+    [user?.userId, filters, pageSize],
+  );
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
-    }).start()
-  }, [])
+    }).start();
+    // Banner animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bannerAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bannerAnim, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
 
   useEffect(() => {
-    fetchPackages()
-  }, [])
+    fetchPackages();
+  }, [fetchPackages]);
 
   const calculateTrainerClients = (packages) => {
-    const trainerClients = {}
+    const trainerClients = {};
     packages.forEach((pkg) => {
       if (!trainerClients[pkg.trainerId]) {
-        trainerClients[pkg.trainerId] = 0
+        trainerClients[pkg.trainerId] = 0;
       }
-      trainerClients[pkg.trainerId] += pkg.currentSubscribers
-    })
-    return trainerClients
-  }
+      trainerClients[pkg.trainerId] += pkg.currentSubscribers;
+    });
+    return trainerClients;
+  };
 
   const fetchTrainerRatings = async (packages) => {
-    const ratingsMap = {}
-    const trainerIds = [...new Set(packages.map((pkg) => pkg.trainerId))]
+    const ratingsMap = {};
+    const trainerIds = [...new Set(packages.map((pkg) => pkg.trainerId))];
     await Promise.all(
       trainerIds.map(async (trainerId) => {
         try {
-          const res = await trainerService.getTrainerAverageRating(trainerId)
-          let avg = res.data
+          const res = await trainerService.getTrainerAverageRating(trainerId);
+          let avg = res.data;
           if (typeof avg === "object" && avg !== null && avg.averageRating !== undefined) {
-            avg = avg.averageRating
+            avg = avg.averageRating;
           }
-          ratingsMap[trainerId] = avg || 0
+          ratingsMap[trainerId] = avg || 0;
         } catch (e) {
-          ratingsMap[trainerId] = 0
+          ratingsMap[trainerId] = 0;
         }
       }),
-    )
-    setTrainerRatings(ratingsMap)
-  }
+    );
+    setTrainerRatings(ratingsMap);
+  };
 
   const fetchTrainerExperience = async (packages) => {
-    const experienceMap = {}
-    const trainerIds = [...new Set(packages.map((pkg) => pkg.trainerId))]
+    const experienceMap = {};
+    const trainerIds = [...new Set(packages.map((pkg) => pkg.trainerId))];
     await Promise.all(
       trainerIds.map(async (trainerId) => {
         try {
-          const res = await trainerService.getApprovedTrainerApplication(trainerId)
-          const years = res.data?.yearsOfExperience ?? res.data?.experienceYears ?? 0
-          experienceMap[trainerId] = years
+          const res = await trainerService.getApprovedTrainerApplication(trainerId);
+          const years = res.data?.yearsOfExperience ?? res.data?.experienceYears ?? 0;
+          experienceMap[trainerId] = years;
         } catch (e) {
-          experienceMap[trainerId] = 0
+          experienceMap[trainerId] = 0;
         }
       }),
-    )
-    setTrainerExperience(experienceMap)
-  }
+    );
+    setTrainerExperience(experienceMap);
+  };
 
-  const onRefresh = () => {
-    setRefreshing(true)
-    fetchPackages().finally(() => setRefreshing(false))
-  }
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setPageNumber(1);
+    fetchPackages(searchTerm, 1).finally(() => setRefreshing(false));
+  }, [fetchPackages, searchTerm]);
 
-  const handleSearch = async (text) => {
-    setSearchTerm(text)
-    setPageNumber(1)
-    setLoading(true)
-    try {
-      const res = await trainerService.getAllActiveServicePackage({ search: text })
-      const data = res.data?.packages || []
-      setPackages(data)
-      setTotalItems(res.data?.totalCount || data.length)
-      setTotalPages(Math.ceil((res.data?.totalCount || data.length) / pageSize))
-      setHasMore(res.data?.pageNumber < res.data?.totalPages)
-      const trainerClientsMap = calculateTrainerClients(data)
-      setTrainerClients(trainerClientsMap)
-      fetchTrainerRatings(data)
-      fetchTrainerExperience(data)
-    } catch (e) {
-      setPackages([])
-      setTotalItems(0)
-      setTotalPages(1)
-      setHasMore(false)
-    }
-    setLoading(false)
-  }
+  const handleSearch = useCallback(() => {
+    setSearchTerm(tempSearchTerm);
+    setPageNumber(1);
+    fetchPackages(tempSearchTerm, 1);
+  }, [fetchPackages, tempSearchTerm]);
 
   const getPackageIcon = (packageName) => {
-    if (!packageName) return "fitness"
-    const name = packageName.toLowerCase()
-    if (name.includes("yoga")) return "yoga"
-    if (name.includes("diet") || name.includes("nutrition")) return "nutrition"
-    if (name.includes("cardio")) return "cardio"
-    return "fitness"
-  }
+    if (!packageName) return "fitness";
+    const name = packageName.toLowerCase();
+    if (name.includes("yoga")) return "yoga";
+    if (name.includes("diet") || name.includes("nutrition")) return "nutrition";
+    if (name.includes("cardio")) return "cardio";
+    return "fitness";
+  };
 
   const renderPackageIcon = (type) => {
-    const iconProps = { size: 20 }
+    const iconProps = { size: 22 };
     switch (type) {
       case "yoga":
-        return <MaterialCommunityIcons name="yoga" color="#10B981" {...iconProps} />
+        return <MaterialCommunityIcons name="yoga" color="#8B5CF6" {...iconProps} />;
       case "nutrition":
-        return <Ionicons name="nutrition" color="#F59E0B" {...iconProps} />
+        return <Ionicons name="nutrition" color="#F59E0B" {...iconProps} />;
       case "cardio":
-        return <Ionicons name="heart" color="#EF4444" {...iconProps} />
+        return <Ionicons name="heart" color="#EF4444" {...iconProps} />;
       default:
-        return <MaterialCommunityIcons name="dumbbell" color="#6366F1" {...iconProps} />
+        return <MaterialCommunityIcons name="dumbbell" color="#3B82F6" {...iconProps} />;
     }
-  }
+  };
 
   const renderStars = (rating) => {
-    const stars = []
-    const fullStars = Math.floor(rating)
-    const hasHalfStar = rating % 1 !== 0
-    
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
     for (let i = 0; i < fullStars; i++) {
-      stars.push(<Ionicons key={i} name="star" size={14} color="#FFD700" />)
+      stars.push(<Ionicons key={i} name="star" size={14} color="#FFD700" />);
     }
     if (hasHalfStar) {
-      stars.push(<Ionicons key="half" name="star-half" size={14} color="#FFD700" />)
+      stars.push(<Ionicons key="half" name="star-half" size={14} color="#FFD700" />);
     }
-    const remainingStars = 5 - Math.ceil(rating)
+    const remainingStars = 5 - Math.ceil(rating);
     for (let i = 0; i < remainingStars; i++) {
-      stars.push(<Ionicons key={`empty-${i}`} name="star-outline" size={14} color="#D1D5DB" />)
+      stars.push(<Ionicons key={`empty-${i}`} name="star-outline" size={14} color="#D1D5DB" />);
     }
-    return stars
-  }
+    return stars;
+  };
+
+  const renderPromoBanner = () => {
+    const scaleAnim = bannerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 1.02],
+    });
+
+    return (
+      <Animated.View style={[styles.promoBanner, { transform: [{ scale: scaleAnim }] }]}>
+        <LinearGradient
+          colors={['#FF6B6B', '#FF8E53']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.bannerGradient}
+        >
+          <View style={styles.bannerContent}>
+            <View style={styles.bannerLeft}>
+              <View style={styles.saleIcon}>
+                <Ionicons name="flash" size={20} color="#FFFFFF" />
+              </View>
+              <View style={styles.bannerText}>
+                <Text style={styles.bannerTitle}>MEGA SALE 50% OFF</Text>
+                <Text style={styles.bannerSubtitle}>Limited time offer • Ends in 2 days</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.bannerButton}>
+              <Text style={styles.bannerButtonText}>Claim Now</Text>
+              <Ionicons name="arrow-forward" size={14} color="#FF6B6B" />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </Animated.View>
+    );
+  };
 
   const renderPackage = ({ item }) => {
-    const packageType = getPackageIcon(item.packageName)
-    const isFull = item.currentSubscribers >= item.maxSubscribers
-    const averageRating = trainerRatings[item.trainerId] || 0
-    const totalClients = trainerClients[item.trainerId] || 0
-    const yearsExperience = trainerExperience[item.trainerId] || 0
+    const packageType = getPackageIcon(item.packageName);
+    const isFull = item.currentSubscribers >= item.maxSubscribers;
+    const averageRating = trainerRatings[item.trainerId] || 0;
+    const totalClients = trainerClients[item.trainerId] || 0;
+    const yearsExperience = trainerExperience[item.trainerId] || 0;
 
     return (
       <Animated.View style={[styles.packageItem, { opacity: fadeAnim }]}>
         <TouchableOpacity
           style={[styles.packageCard, isFull && styles.packageCardDisabled]}
           onPress={() => {
-            if (!isFull) navigation.navigate("PackageDetail", { package: item, totalClients })
+            if (!isFull) navigation.navigate("PackageDetail", { package: item, totalClients });
           }}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
           disabled={isFull}
         >
           <LinearGradient
             colors={isFull ? ["#F8FAFC", "#F1F5F9"] : ["#FFFFFF", "#FAFBFC"]}
             style={styles.cardGradient}
           >
-            {/* Header Section */}
+            {/* Popular Badge */}
+            {item.currentSubscribers > item.maxSubscribers * 0.7 && !isFull && (
+              <View style={styles.popularBadge}>
+                <Ionicons name="flame" size={12} color="#FFFFFF" />
+                <Text style={styles.popularBadgeText}>POPULAR</Text>
+              </View>
+            )}
+
             <View style={styles.cardHeader}>
               <View style={styles.packageTypeContainer}>
                 {renderPackageIcon(packageType)}
@@ -239,47 +298,54 @@ const ServicePackageScreen = ({ navigation }) => {
               )}
             </View>
 
-            {/* Package Info */}
             <View style={styles.packageContent}>
               <Text style={styles.packageTitle} numberOfLines={2}>
                 {item.packageName || "Premium Training Package"}
               </Text>
               
               {item.description && (
-                <Text style={styles.packageDescription} numberOfLines={2}>
+                <Text style={styles.packageDescription} numberOfLines={3}>
                   {item.description.replace(/<[^>]+>/g, "")}
                 </Text>
               )}
 
-              {/* Package Stats */}
+              {/* Simple Price Section */}
+              <View style={styles.priceSection}>
+                <Text style={styles.currentPrice}>${item.price || "0"}</Text>
+                <Text style={styles.priceLabel}>/ {item.durationDays} days</Text>
+              </View>
+
               <View style={styles.packageStats}>
                 <View style={styles.statItem}>
-                  <Ionicons name="pricetag" size={16} color="#6366F1" />
-                  <Text style={styles.statText}>${item.price || "0"}</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="calendar" size={16} color="#10B981" />
+                  <Ionicons name="calendar-outline" size={16} color="#10B981" />
                   <Text style={styles.statText}>{item.durationDays || "N/A"} days</Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Ionicons name="people" size={16} color={isFull ? "#EF4444" : "#0EA5E9"} />
-                  <Text style={[styles.statText, isFull && { color: "#EF4444" }]}>
-                    {item.currentSubscribers}/{item.maxSubscribers}
+                  <Ionicons name="people-outline" size={16} color={isFull ? "#EF4444" : "#3B82F6"} />
+                  <Text style={[styles.statText, { color: isFull ? "#EF4444" : "#374151" }]}>
+                    {item.currentSubscribers}/{item.maxSubscribers} spots
                   </Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color="#8B5CF6" />
+                  <Text style={styles.statText}>Guaranteed</Text>
                 </View>
               </View>
             </View>
 
-            {/* Trainer Section - Integrated */}
+            {/* Enhanced Trainer Section */}
             <View style={styles.trainerSection}>
               <View style={styles.trainerInfo}>
                 <View style={styles.trainerLeft}>
                   <View style={styles.trainerAvatarContainer}>
                     <Image
-                      source={{ uri: item.trainerAvatar || "/placeholder.svg?height=44&width=44" }}
+                      source={{ uri: item.trainerAvatar || "/placeholder.svg?height=48&width=48" }}
                       style={styles.trainerAvatar}
                     />
                     <View style={styles.onlineIndicator} />
+                    <View style={styles.verifiedBadge}>
+                      <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                    </View>
                   </View>
                   <View style={styles.trainerDetails}>
                     <Text style={styles.trainerName} numberOfLines={1}>
@@ -289,13 +355,13 @@ const ServicePackageScreen = ({ navigation }) => {
                       <View style={styles.starsContainer}>{renderStars(averageRating)}</View>
                       <Text style={styles.ratingText}>({averageRating.toFixed(1)})</Text>
                     </View>
+                    <Text style={styles.trainerTitle}>Certified Trainer</Text>
                   </View>
                 </View>
-                
                 <View style={styles.trainerStats}>
                   <View style={styles.miniStat}>
                     <Text style={styles.miniStatNumber}>{yearsExperience}+</Text>
-                    <Text style={styles.miniStatLabel}>Exp</Text>
+                    <Text style={styles.miniStatLabel}>Years</Text>
                   </View>
                   <View style={styles.miniStat}>
                     <Text style={styles.miniStatNumber}>{totalClients}</Text>
@@ -305,21 +371,28 @@ const ServicePackageScreen = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Action Indicator */}
-            <View style={styles.actionIndicator}>
-              <Ionicons 
-                name={isFull ? "lock-closed" : "chevron-forward"} 
-                size={20} 
-                color={isFull ? "#DC2626" : "#94A3B8"} 
-              />
+            {/* Call to Action */}
+            <View style={styles.ctaSection}>
+              <TouchableOpacity
+                style={[styles.ctaButton, isFull && styles.ctaButtonDisabled]}
+                onPress={() => {
+                  if (!isFull) navigation.navigate("PackageDetail", { package: item, totalClients });
+                }}
+                disabled={isFull}
+              >
+                <Text style={[styles.ctaButtonText, isFull && styles.ctaButtonTextDisabled]}>
+                  {isFull ? "Package Full" : "Start Training"}
+                </Text>
+                {!isFull && <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />}
+              </TouchableOpacity>
             </View>
 
             {isFull && <View style={styles.disabledOverlay} />}
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
-    )
-  }
+    );
+  };
 
   const renderFilterModal = () => {
     return (
@@ -338,13 +411,13 @@ const ServicePackageScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalContent}>
-              {/* Price Range */}
               <View style={styles.filterSection}>
                 <Text style={styles.sectionTitle}>Price Range</Text>
                 <View style={styles.priceInputs}>
                   <TextInput
                     style={styles.priceInput}
                     placeholder="Min"
+                    placeholderTextColor="#94A3B8"
                     value={tempFilters.minPrice}
                     onChangeText={(text) => setTempFilters({ ...tempFilters, minPrice: text })}
                     keyboardType="numeric"
@@ -353,13 +426,13 @@ const ServicePackageScreen = ({ navigation }) => {
                   <TextInput
                     style={styles.priceInput}
                     placeholder="Max"
+                    placeholderTextColor="#94A3B8"
                     value={tempFilters.maxPrice}
                     onChangeText={(text) => setTempFilters({ ...tempFilters, maxPrice: text })}
                     keyboardType="numeric"
                   />
                 </View>
               </View>
-              {/* Sort Options */}
               <View style={styles.filterSection}>
                 <Text style={styles.sectionTitle}>Sort By</Text>
                 <View style={styles.sortOptions}>
@@ -371,7 +444,10 @@ const ServicePackageScreen = ({ navigation }) => {
                   ].map((option) => (
                     <TouchableOpacity
                       key={option.value}
-                      style={[styles.sortOption, tempFilters.sortBy === option.value && styles.sortOptionActive]}
+                      style={[
+                        styles.sortOption,
+                        tempFilters.sortBy === option.value && styles.sortOptionActive,
+                      ]}
                       onPress={() => setTempFilters({ ...tempFilters, sortBy: option.value })}
                     >
                       <Text
@@ -387,12 +463,11 @@ const ServicePackageScreen = ({ navigation }) => {
                 </View>
               </View>
             </ScrollView>
-            {/* Actions */}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.clearButton}
                 onPress={() => {
-                  setTempFilters({ minPrice: "", maxPrice: "", sortBy: "packageId", sortDescending: true })
+                  setTempFilters({ minPrice: "", maxPrice: "", sortBy: "packageId", sortDescending: true });
                 }}
               >
                 <Text style={styles.clearButtonText}>Clear</Text>
@@ -400,9 +475,10 @@ const ServicePackageScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.applyButton}
                 onPress={() => {
-                  setFilters(tempFilters)
-                  setShowFilterModal(false)
-                  fetchPackages()
+                  setFilters(tempFilters);
+                  setShowFilterModal(false);
+                  setPageNumber(1);
+                  fetchPackages(searchTerm, 1);
                 }}
               >
                 <Text style={styles.applyButtonText}>Apply</Text>
@@ -411,8 +487,8 @@ const ServicePackageScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    )
-  }
+    );
+  };
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -420,50 +496,62 @@ const ServicePackageScreen = ({ navigation }) => {
       <Text style={styles.emptyTitle}>No Packages Found</Text>
       <Text style={styles.emptyText}>Try adjusting your search or filters</Text>
     </View>
-  )
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#FFFFFF" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#1E293B" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Training Packages</Text>
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-            <Ionicons name="options-outline" size={24} color="#1E293B" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Training Packages"
+        onBack={() => navigation.goBack()}
+        rightActions={[
+          { icon: "options-outline", onPress: () => setShowFilterModal(true), color: "#3B82F6" },
+        ]}
+      />
 
-      {/* Search */}
+      {/* Enhanced Search Section */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color="#64748B" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search packages..."
-            value={searchTerm}
-            onChangeText={handleSearch}
-            placeholderTextColor="#94A3B8"
-          />
-          {searchTerm ? (
-            <TouchableOpacity onPress={() => handleSearch("")}>
-              <Ionicons name="close-circle" size={20} color="#94A3B8" />
-            </TouchableOpacity>
-          ) : null}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={20} color="#64748B" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search training packages..."
+              placeholderTextColor="#94A3B8"
+              value={tempSearchTerm}
+              onChangeText={setTempSearchTerm}
+              onSubmitEditing={handleSearch}
+            />
+            {tempSearchTerm ? (
+              <TouchableOpacity onPress={() => {
+                setTempSearchTerm("");
+                setSearchTerm("");
+                fetchPackages("", 1);
+              }}>
+                <Ionicons name="close-circle" size={20} color="#94A3B8" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+            <Ionicons name="search" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
-        <Text style={styles.resultsText}>{totalItems} packages available</Text>
+        <View style={styles.resultsContainer}>
+          <Text style={styles.resultsText}>{totalItems} packages available</Text>
+          <View style={styles.featuredIndicator}>
+            <Ionicons name="star" size={12} color="#FFD700" />
+            <Text style={styles.featuredText}>Featured packages</Text>
+          </View>
+        </View>
       </View>
 
-      {/* Content */}
+      {/* Promo Banner - Now positioned after search */}
+      {renderPromoBanner()}
+
       {loading && pageNumber === 1 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366F1" />
-          <Text style={styles.loadingText}>Loading packages...</Text>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Finding perfect packages...</Text>
         </View>
       ) : (
         <FlatList
@@ -475,12 +563,13 @@ const ServicePackageScreen = ({ navigation }) => {
           refreshing={refreshing}
           onRefresh={onRefresh}
           showsVerticalScrollIndicator={false}
+          style={styles.flatList}
         />
       )}
 
       {renderFilterModal()}
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -488,48 +577,89 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
-  header: {
-    backgroundColor: "#FFFFFF",
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+  promoBanner: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 15,
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#FF6B6B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  headerContent: {
+  bannerGradient: {
+    padding: 16,
+  },
+  bannerContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 16,
   },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1E293B",
+  bannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
-    textAlign: "center",
   },
-  filterButton: {
-    padding: 8,
+  saleIcon: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  bannerText: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginBottom: 2,
+  },
+  bannerSubtitle: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "500",
+  },
+  bannerButton: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  bannerButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FF6B6B",
   },
   searchContainer: {
     padding: 20,
+    marginTop: 55,
     backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
   },
   searchBox: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginBottom: 8,
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
@@ -539,54 +669,102 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     marginLeft: 12,
   },
+  searchButton: {
+    backgroundColor: "#3B82F6",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#3B82F6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  resultsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   resultsText: {
     fontSize: 14,
     color: "#64748B",
-    textAlign: "center",
+  },
+  featuredIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  featuredText: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  flatList: {
+    // Removed marginTop since banner is now above the list
   },
   listContainer: {
     padding: 20,
     paddingBottom: 100,
   },
   packageItem: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   packageCard: {
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
   packageCardDisabled: {
-    opacity: 0.8,
+    opacity: 0.7,
   },
   cardGradient: {
-    padding: 20,
     position: "relative",
+  },
+  popularBadge: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    backgroundColor: "#EF4444",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  popularBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginLeft: 4,
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    padding: 20,
+    paddingBottom: 16,
   },
   packageTypeContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
   packageTypeText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#475569",
     marginLeft: 6,
     letterSpacing: 0.5,
   },
@@ -605,24 +783,42 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   packageContent: {
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   packageTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "800",
     color: "#1E293B",
     marginBottom: 8,
-    lineHeight: 26,
+    lineHeight: 28,
   },
   packageDescription: {
+    fontSize: 15,
+    color: "#64748B",
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  priceSection: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginBottom: 16,
+  },
+  currentPrice: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#1E293B",
+    marginRight: 6,
+  },
+  priceLabel: {
     fontSize: 14,
     color: "#64748B",
-    lineHeight: 20,
-    marginBottom: 12,
+    fontWeight: "500",
   },
   packageStats: {
     flexDirection: "row",
     justifyContent: "space-between",
+    gap: 8,
   },
   statItem: {
     flexDirection: "row",
@@ -632,7 +828,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
     flex: 1,
-    marginHorizontal: 2,
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
@@ -644,10 +839,9 @@ const styles = StyleSheet.create({
   },
   trainerSection: {
     backgroundColor: "#FAFBFC",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
   },
   trainerInfo: {
     flexDirection: "row",
@@ -664,21 +858,34 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   trainerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#F1F5F9",
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
   onlineIndicator: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
+    bottom: 2,
+    right: 2,
     width: 12,
     height: 12,
     borderRadius: 6,
     backgroundColor: "#10B981",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  verifiedBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#3B82F6",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
@@ -694,6 +901,7 @@ const styles = StyleSheet.create({
   trainerRating: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 2,
   },
   starsContainer: {
     flexDirection: "row",
@@ -704,6 +912,11 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontWeight: "600",
   },
+  trainerTitle: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "500",
+  },
   trainerStats: {
     flexDirection: "row",
     gap: 12,
@@ -711,15 +924,15 @@ const styles = StyleSheet.create({
   miniStat: {
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    minWidth: 40,
+    minWidth: 50,
   },
   miniStatNumber: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "700",
     color: "#1E293B",
   },
@@ -728,10 +941,37 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontWeight: "500",
   },
-  actionIndicator: {
-    position: "absolute",
-    top: 20,
-    right: 20,
+  ctaSection: {
+    padding: 20,
+    paddingTop: 16,
+  },
+  ctaButton: {
+    backgroundColor: "#3B82F6",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 16,
+    shadowColor: "#3B82F6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  ctaButtonDisabled: {
+    backgroundColor: "#E2E8F0",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  ctaButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginRight: 8,
+  },
+  ctaButtonTextDisabled: {
+    color: "#94A3B8",
+    marginRight: 0,
   },
   disabledOverlay: {
     position: "absolute",
@@ -740,7 +980,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "rgba(0, 0, 0, 0.05)",
-    borderRadius: 20,
+    borderRadius: 24,
   },
   loadingContainer: {
     flex: 1,
@@ -750,7 +990,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: "#6366F1",
+    color: "#3B82F6",
     marginTop: 12,
     fontWeight: "500",
   },
@@ -843,8 +1083,8 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
   },
   sortOptionActive: {
-    backgroundColor: "#6366F1",
-    borderColor: "#6366F1",
+    backgroundColor: "#3B82F6",
+    borderColor: "#3B82F6",
   },
   sortOptionText: {
     fontSize: 14,
@@ -859,6 +1099,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 20,
     gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
   },
   clearButton: {
     flex: 1,
@@ -876,7 +1118,7 @@ const styles = StyleSheet.create({
   },
   applyButton: {
     flex: 1,
-    backgroundColor: "#6366F1",
+    backgroundColor: "#3B82F6",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
@@ -886,6 +1128,4 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
-})
-
-export default ServicePackageScreen
+});

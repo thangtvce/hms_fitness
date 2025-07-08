@@ -16,8 +16,9 @@ import {
     Alert,
     Animated,
 } from "react-native";
-import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import Header from "components/Header";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { apiUserService } from "services/apiUserService";
 import { theme } from "theme/color";
@@ -205,7 +206,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
             ]}
         >
             <LinearGradient
-                colors={["#4F46E5","#6366F1","#818CF8"]}
+                colors={["#0056d2","#0056d2","#0056d2"]}
                 style={styles.statsGradient}
                 start={{ x: 0,y: 0 }}
                 end={{ x: 1,y: 1 }}
@@ -383,9 +384,12 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                         <Ionicons
                                             name={option.icon}
                                             size={24}
-                                            color={tempFilters.sortBy === option.key ? "#4F46E5" : "#64748B"}
+                                            color={tempFilters.sortBy === option.key ? "#0056d2" : "#64748B"}
                                         />
-                                        <Text style={[styles.sortOptionText,tempFilters.sortBy === option.key && styles.selectedSortText]}>
+                                        <Text style={[
+                                            styles.sortOptionText,
+                                            tempFilters.sortBy === option.key && { color: '#0056d2', fontWeight: '600' },
+                                        ]}>
                                             {option.label}
                                         </Text>
                                     </TouchableOpacity>
@@ -396,22 +400,22 @@ const LeaderboardScreenModern = ({ navigation }) => {
                             <Text style={styles.filterSectionTitle}>Sort Order</Text>
                             <View style={styles.sortDirectionContainer}>
                                 <TouchableOpacity
-                                    style={[styles.sortDirectionButton,tempFilters.sortOrder === "asc" && styles.selectedSortDirection]}
-                                    onPress={() => setTempFilters({ ...tempFilters,sortOrder: "asc" })}
+                                    style={[styles.sortDirectionButton, tempFilters.sortOrder === "asc" && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
+                                    onPress={() => setTempFilters({ ...tempFilters, sortOrder: "asc" })}
                                 >
                                     <Ionicons name="arrow-up" size={20} color={tempFilters.sortOrder === "asc" ? "#FFFFFF" : "#64748B"} />
                                     <Text
                                         style={[
                                             styles.sortDirectionText,
-                                            tempFilters.sortOrder === "asc" && styles.selectedSortDirectionText,
+                                            tempFilters.sortOrder === "asc" && { color: '#fff', fontWeight: '600' },
                                         ]}
                                     >
                                         Ascending
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={[styles.sortDirectionButton,tempFilters.sortOrder === "desc" && styles.selectedSortDirection]}
-                                    onPress={() => setTempFilters({ ...tempFilters,sortOrder: "desc" })}
+                                    style={[styles.sortDirectionButton, tempFilters.sortOrder === "desc" && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
+                                    onPress={() => setTempFilters({ ...tempFilters, sortOrder: "desc" })}
                                 >
                                     <Ionicons
                                         name="arrow-down"
@@ -421,7 +425,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                     <Text
                                         style={[
                                             styles.sortDirectionText,
-                                            tempFilters.sortOrder === "desc" && styles.selectedSortDirectionText,
+                                            tempFilters.sortOrder === "desc" && { color: '#fff', fontWeight: '600' },
                                         ]}
                                     >
                                         Descending
@@ -435,13 +439,13 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                 {pageSizeOptions.map((option) => (
                                     <TouchableOpacity
                                         key={option.value}
-                                        style={[styles.pageSizeCard,tempFilters.pageSize === option.value && styles.selectedPageSizeCard]}
+                                        style={[styles.pageSizeCard, tempFilters.pageSize === option.value && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
                                         onPress={() => setTempFilters({ ...tempFilters,pageSize: option.value })}
                                     >
                                         <Text
                                             style={[
                                                 styles.pageSizeCardText,
-                                                tempFilters.pageSize === option.value && styles.selectedPageSizeCardText,
+                                                tempFilters.pageSize === option.value && { color: '#fff' },
                                             ]}
                                         >
                                             {option.label}
@@ -449,7 +453,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                         <Text
                                             style={[
                                                 styles.pageSizeCardLabel,
-                                                tempFilters.pageSize === option.value && styles.selectedPageSizeCardLabel,
+                                                tempFilters.pageSize === option.value && { color: 'rgba(255,255,255,0.8)' },
                                             ]}
                                         >
                                             users
@@ -505,8 +509,8 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                     <TouchableOpacity style={styles.datePickerCancelButton} onPress={() => setShowStartDatePicker(false)}>
                                         <Text style={styles.datePickerCancelText}>Cancel</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.datePickerConfirmButton} onPress={() => setShowStartDatePicker(false)}>
-                                        <Text style={styles.datePickerConfirmText}>Done</Text>
+                                    <TouchableOpacity style={[styles.datePickerConfirmButton, { backgroundColor: '#0056d2' }]} onPress={() => setShowStartDatePicker(false)}>
+                                        <Text style={[styles.datePickerConfirmText, { color: '#fff' }]}>Done</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
@@ -548,8 +552,8 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                     <TouchableOpacity style={styles.datePickerCancelButton} onPress={() => setShowEndDatePicker(false)}>
                                         <Text style={styles.datePickerCancelText}>Cancel</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.datePickerConfirmButton} onPress={() => setShowEndDatePicker(false)}>
-                                        <Text style={styles.datePickerConfirmText}>Done</Text>
+                                    <TouchableOpacity style={[styles.datePickerConfirmButton, { backgroundColor: '#0056d2' }]} onPress={() => setShowEndDatePicker(false)}>
+                                        <Text style={[styles.datePickerConfirmText, { color: '#fff' }]}>Done</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
@@ -597,30 +601,32 @@ const LeaderboardScreenModern = ({ navigation }) => {
     return (
         <SafeAreaView style={styles.safeArea}>
             <DynamicStatusBar backgroundColor={theme.primaryColor} />
-            <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <View style={styles.headerTextContainer}>
-                        <Text style={styles.headerTitle}>Health Leaderboard</Text>
-                        <Text style={styles.headerSubtitle}>Compete with the community</Text>
-                    </View>
-                    <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowFilterModal(true)}>
-                        <Ionicons name="options-outline" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient>
+            <Header
+                title="Health Leaderboard"
+                onBack={() => navigation.goBack()}
+                
+                rightActions={[
+                    {
+                        icon: "options-outline",
+                        onPress: () => setShowFilterModal(true),
+                    },
+                ]}
+                containerStyle={{ paddingTop: 0, paddingBottom: 0, borderBottomWidth: 0 }}
+            />
+            <View style={{ height: 70 }} />
             <Animated.View
                 style={[
                     styles.searchContainer,
                     {
                         opacity: fadeAnim,
                         transform: [{ translateY: slideAnim }],
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
                     },
                 ]}
             >
-                <View style={styles.searchInputContainer}>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 16, marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
                     <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
@@ -637,23 +643,26 @@ const LeaderboardScreenModern = ({ navigation }) => {
                             <Ionicons name="close-circle" size={20} color="#94A3B8" />
                         </TouchableOpacity>
                     ) : null}
-                    <TouchableOpacity onPress={handleSearch} style={styles.searchButton}>
-                        <Ionicons name="search" size={18} color="#FFFFFF" />
-                    </TouchableOpacity>
                 </View>
-                <View style={styles.resultsInfo}>
-                    <Text style={styles.resultsText}>
-                        {totalUsers} users • Page {currentPage} of {totalPages}
-                    </Text>
-                </View>
+                <TouchableOpacity onPress={handleSearch} style={{ backgroundColor: '#0056d2', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, marginLeft: 8, shadowColor: '#0056d2', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 }}>
+                    <Ionicons name="search" size={18} color="#fff" />
+                </TouchableOpacity>
             </Animated.View>
+            <LinearGradient
+                colors={["#E6F0FA", "#E6F0FA", "#E6F0FA"]}
+                style={{ borderRadius: 16, marginHorizontal: 16, marginTop: 16, marginBottom: 10, padding: 16, alignItems: 'center' }}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            >
+                <Text style={{ fontSize: 16, color: '#0056d2', fontWeight: '700' }}>{totalUsers} users • Page {currentPage} of {totalPages}</Text>
+            </LinearGradient>
             {loading && currentPage === 1 ? (
-                <Animated.View style={[styles.loaderContainer,{ opacity: loaderFadeAnim }]}>
+                <Animated.View style={[styles.loaderContainer, { opacity: loaderFadeAnim }]}>
                     <LinearGradient
-                        colors={["#4F46E5","#6366F1"]}
+                        colors={["#4F46E5", "#6366F1"]}
                         style={styles.loaderGradient}
-                        start={{ x: 0,y: 0 }}
-                        end={{ x: 1,y: 1 }}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
                     >
                         <ActivityIndicator size="large" color="#FFFFFF" />
                         <Text style={styles.loaderText}>Fetching leaderboard data...</Text>

@@ -170,9 +170,9 @@ function CustomTabBar({ state,descriptors,navigation }) {
                 <Icon
                   name={isFocused ? iconName : `${iconName}-outline`}
                   size={24}
-                  color={isFocused ? "#FF5722" : "#94A3B8"}
+                  color={isFocused ? "#0056d2" : "#94A3B8"}
                 />
-                <Text style={[styles.tabLabel,{ color: isFocused ? "#FF5722" : "#94A3B8" }]}>{label}</Text>
+                <Text style={[styles.tabLabel,{ color: isFocused ? "#0056d2" : "#94A3B8" }]}>{label}</Text>
               </TouchableOpacity>
             )
           })}
@@ -222,9 +222,9 @@ function CustomTabBar({ state,descriptors,navigation }) {
                 <Icon
                   name={isFocused ? iconName : `${iconName}-outline`}
                   size={24}
-                  color={isFocused ? "#FF5722" : "#94A3B8"}
+                  color={isFocused ? "#0056d2" : "#94A3B8"}
                 />
-                <Text style={[styles.tabLabel,{ color: isFocused ? "#FF5722" : "#94A3B8" }]}>{label}</Text>
+                <Text style={[styles.tabLabel,{ color: isFocused ? "#0056d2" : "#94A3B8" }]}>{label}</Text>
               </TouchableOpacity>
             )
           })}
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#FF5722",
+    backgroundColor: "#0056d2",
     justifyContent: "center",
     alignItems: "center",
     ...Platform.select({

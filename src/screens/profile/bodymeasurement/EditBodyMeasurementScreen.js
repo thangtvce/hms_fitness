@@ -21,6 +21,7 @@ import { theme } from 'theme/color';
 import FloatingMenuButton from 'components/FloatingMenuButton';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Header from 'components/Header';
 
 const { width,height } = Dimensions.get("window")
 
@@ -221,15 +222,11 @@ export default function EditBodyMeasurementScreen({ navigation,route }) {
     return (
         <SafeAreaView style={styles.safeArea}>
             <DynamicStatusBar backgroundColor={theme.primaryColor} />
-            <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Add Body Measurement</Text>
-                    <View style={styles.headerRight} />
-                </View>
-            </LinearGradient>
+            <Header
+                title="Edit Body Measurement"
+                canGoBack
+                onBack={() => navigation.goBack()}
+            />
             <KeyboardAvoidingView
                 style={styles.container}
                 behavior={Platform.OS === 'ios' ? 'padding' : null}
@@ -237,7 +234,7 @@ export default function EditBodyMeasurementScreen({ navigation,route }) {
             >
                 <ScrollView
                     style={styles.form}
-                    contentContainerStyle={styles.formContent}
+                    contentContainerStyle={[styles.formContent, { marginTop: 50 }]}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
@@ -445,14 +442,14 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#4F46E5",
+        backgroundColor: "#0056d2",
         paddingVertical: 16,
         borderRadius: 12,
         marginHorizontal: 16,
         marginTop: 8,
         ...Platform.select({
             ios: {
-                shadowColor: "#4F46E5",
+                shadowColor: "#0056d2",
                 shadowOffset: { width: 0,height: 4 },
                 shadowOpacity: 0.3,
                 shadowRadius: 8,

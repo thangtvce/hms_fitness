@@ -1,17 +1,17 @@
-import { useState,useEffect,useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
-    View,
-    Text,
-    StyleSheet,
-    FlatList,
-    TouchableOpacity,
-    Alert,
-    Dimensions,
-    RefreshControl,
-    ActivityIndicator,
-    Platform,
-    Modal,
-    ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  Dimensions,
+  RefreshControl,
+  ActivityIndicator,
+  Platform,
+  Modal,
+  ScrollView,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { weightHistoryService } from "services/apiWeightHistoryService"
@@ -19,9 +19,10 @@ import { useAuth } from "context/AuthContext"
 import { LineChart } from "react-native-chart-kit"
 import { useFocusEffect } from "@react-navigation/native"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
+import Header from "components/Header"
+import { useContext } from "react"
+import { ThemeContext } from "components/theme/ThemeContext"
 import { theme } from "theme/color"
-import { LinearGradient } from "expo-linear-gradient"
-import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 const screenWidth = Dimensions.get("window").width
@@ -34,10 +35,19 @@ const WEIGHT_WARNING_THRESHOLDS = {
 
 export default function WeightHistoryScreen({ navigation }) {
     const { user,authToken } = useAuth()
+    const { colors } = useContext(ThemeContext)
     const [history,setHistory] = useState([])
     const [loading,setLoading] = useState(true)
     const [refreshing,setRefreshing] = useState(false)
-    const [timeFrame,setTimeFrame] = useState("all")
+    const [timeFrame, setTimeFrame] = useState("all")
+    const timeFrameOptions = [
+      { key: "all", label: "All" },
+      { key: "7days", label: "7D" },
+      { key: "1m", label: "1M" },
+      { key: "3m", label: "3M" },
+      { key: "6m", label: "6M" },
+      { key: "1y", label: "1Y" },
+    ]
     const [warningModalVisible,setWarningModalVisible] = useState(false)
     const [selectedWarning,setSelectedWarning] = useState(null)
     const [stats,setStats] = useState({
@@ -47,6 +57,7 @@ export default function WeightHistoryScreen({ navigation }) {
         average: 0,
         change: 0,
     })
+    // ...existing code...
 
     const fetchWeightHistory = async (showLoading = true) => {
         try {
@@ -154,22 +165,37 @@ export default function WeightHistoryScreen({ navigation }) {
     }
 
     const filterHistoryByTimeFrame = (data) => {
-        const now = new Date()
-        switch (timeFrame) {
-            case "7days":
-                return data.filter((item) => {
-                    const itemDate = new Date(item.recordedAt)
-                    return now - itemDate <= 7 * 24 * 60 * 60 * 1000
-                })
-            case "30days":
-                return data.filter((item) => {
-                    const itemDate = new Date(item.recordedAt)
-                    return now - itemDate <= 30 * 24 * 60 * 60 * 1000
-                })
-            case "all":
-            default:
-                return data
-        }
+      const now = new Date()
+      switch (timeFrame) {
+        case "7days":
+          return data.filter((item) => {
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 7 * 24 * 60 * 60 * 1000
+          })
+        case "1m":
+          return data.filter((item) => {
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 30 * 24 * 60 * 60 * 1000
+          })
+        case "3m":
+          return data.filter((item) => {
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 90 * 24 * 60 * 60 * 1000
+          })
+        case "6m":
+          return data.filter((item) => {
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 180 * 24 * 60 * 60 * 1000
+          })
+        case "1y":
+          return data.filter((item) => {
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 365 * 24 * 60 * 60 * 1000
+          })
+        case "all":
+        default:
+          return data
+      }
     }
 
     const getDaysBetweenDates = (date1,date2) => {
@@ -461,7 +487,7 @@ export default function WeightHistoryScreen({ navigation }) {
 
                     <View style={styles.actions}>
                         <TouchableOpacity onPress={() => handleEdit(item)} style={styles.actionButton}>
-                            <Ionicons name="create-outline" size={22} color="#4F46E5" />
+                            <Ionicons name="create-outline" size={22} color={colors.primary || "#0056d2"} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleDelete(item.historyId)} style={styles.actionButton}>
                             <Ionicons name="trash-outline" size={22} color="#E53E3E" />
@@ -475,48 +501,47 @@ export default function WeightHistoryScreen({ navigation }) {
     const filteredHistory = filterHistoryByTimeFrame(history)
 
     const chartData = {
-        labels: filteredHistory
-            .slice(0,10)
-            .reverse()
-            .map((item) => new Date(item.recordedAt).toLocaleDateString("en-US",{ month: "short",day: "numeric" })),
-        datasets: [
-            {
-                data:
-                    filteredHistory.length > 0
-                        ? filteredHistory
-                            .slice(0,10)
-                            .reverse()
-                            .map((item) => item.weight)
-                        : [0],
-            },
-        ],
+      labels: filteredHistory
+        .slice(0, 10)
+        .reverse()
+        .map((item) => new Date(item.recordedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })),
+      datasets: [
+        {
+          data:
+            filteredHistory.length > 0
+              ? filteredHistory
+                  .slice(0, 10)
+                  .reverse()
+                  .map((item) => item.weight)
+              : [0],
+        },
+      ],
     }
 
     if (loading && !refreshing) {
         return (
             <SafeAreaView style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#4F46E5" />
-                <Text style={styles.loadingText}>Loading weight history...</Text>
+                <ActivityIndicator size="large" color={colors.primary || "#0056d2"} />
+                <Text style={[styles.loadingText, { color: colors.primary || "#0056d2" }]}>Loading weight history...</Text>
             </SafeAreaView>
         )
     }
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <DynamicStatusBar backgroundColor={theme.primaryColor} />
-            <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Weight History</Text>
-                    <TouchableOpacity onPress={handleAddWeight} style={styles.addButton}>
-                        <Ionicons name="add" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient>
-            <View style={styles.container}>
-                <FlatList
+      <SafeAreaView style={styles.safeArea}>
+        <Header
+          title="Weight History"
+          onBack={() => navigation.goBack()}
+          rightActions={[{
+            icon: "add",
+            onPress: handleAddWeight,
+            color: colors.primary || "#0056d2",
+          }]}
+          backgroundColor={colors.headerBackground || "#FFFFFF"}
+          textColor={colors.headerText || colors.primary || "#0056d2"}
+        />
+        <View style={[styles.container, { paddingTop: 80 }]}> 
+          <FlatList
                     data={filteredHistory}
                     renderItem={renderItem}
                     keyExtractor={(item) => item.historyId.toString()}
@@ -548,34 +573,35 @@ export default function WeightHistoryScreen({ navigation }) {
 
                             <View style={styles.chartContainer}>
                                 {filteredHistory.length > 0 ? (
-                                    <LineChart
-                                        data={chartData}
-                                        width={screenWidth - 32}
-                                        height={220}
-                                        yAxisLabel=""
-                                        yAxisSuffix=" kg"
-                                        chartConfig={{
-                                            backgroundColor: "#FFFFFF",
-                                            backgroundGradientFrom: "#FFFFFF",
-                                            backgroundGradientTo: "#FFFFFF",
-                                            decimalPlaces: 1,
-                                            color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
-                                            labelColor: (opacity = 1) => `rgba(31, 41, 55, ${opacity})`,
-                                            style: {
-                                                borderRadius: 16,
-                                            },
-                                            propsForDots: {
-                                                r: "5",
-                                                strokeWidth: "2",
-                                                stroke: "#4F46E5",
-                                            },
-                                            propsForLabels: {
-                                                fontSize: 10,
-                                            },
-                                        }}
-                                        bezier
-                                        style={styles.chart}
-                                    />
+                                  <LineChart
+                                    data={chartData}
+                                    width={screenWidth - 48}
+                                    height={220}
+                                    yAxisLabel=""
+                                    yAxisSuffix=" kg"
+                                    chartConfig={{
+                                      backgroundColor: "#FFFFFF",
+                                      backgroundGradientFrom: "#FFFFFF",
+                                      backgroundGradientTo: "#FFFFFF",
+                                      decimalPlaces: 1,
+                                      color: (opacity = 1) => `#0056d2`,
+                                      labelColor: (opacity = 1) => `rgba(31, 41, 55, ${opacity})`,
+                                      style: {
+                                        borderRadius: 16,
+                                      },
+                                      propsForDots: {
+                                        r: "3",
+                                        strokeWidth: "1",
+                                        stroke: "#0056d2",
+                                      },
+                                      propsForLabels: {
+                                        fontSize: 10,
+                                      },
+                                      strokeWidth: 1.5,
+                                    }}
+                                    bezier
+                                    style={[styles.chart, { marginRight: 0 }]}
+                                  />
                                 ) : (
                                     <View style={styles.noChartDataContainer}>
                                         <Ionicons name="analytics-outline" size={48} color="#CBD5E1" />
@@ -585,30 +611,17 @@ export default function WeightHistoryScreen({ navigation }) {
                             </View>
 
                             <View style={styles.filterContainer}>
+                              {timeFrameOptions.map((option) => (
                                 <TouchableOpacity
-                                    style={[styles.filterButton,timeFrame === "all" && styles.filterButtonActive]}
-                                    onPress={() => setTimeFrame("all")}
+                                  key={option.key}
+                                  style={[styles.filterButton, timeFrame === option.key && styles.filterButtonActive]}
+                                  onPress={() => setTimeFrame(option.key)}
                                 >
-                                    <Text style={[styles.filterButtonText,timeFrame === "all" && styles.filterButtonTextActive]}>
-                                        All Time
-                                    </Text>
+                                  <Text style={[styles.filterButtonText, timeFrame === option.key && styles.filterButtonTextActive]}>
+                                    {option.label}
+                                  </Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.filterButton,timeFrame === "30days" && styles.filterButtonActive]}
-                                    onPress={() => setTimeFrame("30days")}
-                                >
-                                    <Text style={[styles.filterButtonText,timeFrame === "30days" && styles.filterButtonTextActive]}>
-                                        30 Days
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.filterButton,timeFrame === "7days" && styles.filterButtonActive]}
-                                    onPress={() => setTimeFrame("7days")}
-                                >
-                                    <Text style={[styles.filterButtonText,timeFrame === "7days" && styles.filterButtonTextActive]}>
-                                        7 Days
-                                    </Text>
-                                </TouchableOpacity>
+                              ))}
                             </View>
 
                             {filteredHistory.length > 0 ? <Text style={styles.historyTitle}>Weight Entries</Text> : null}
@@ -627,7 +640,12 @@ export default function WeightHistoryScreen({ navigation }) {
                         </View>
                     }
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#4F46E5"]} tintColor="#4F46E5" />
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[colors.primary || "#0056d2"]}
+                            tintColor={colors.primary || "#0056d2"}
+                        />
                     }
                 />
                 {renderWarningModal()}
@@ -654,38 +672,9 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 12,
         fontSize: 16,
-        color: "#4F46E5",
         fontWeight: "500",
     },
-    header: {
-        paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
-        paddingBottom: 16,
-    },
-    headerContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: 16,
-        paddingTop: 16,
-    },
-    backButton: {
-        padding: 8,
-        borderRadius: 20,
-        backgroundColor: "rgba(255, 255, 255, 0.2)",
-        color: "#fff",
-    },
-    headerTitle: {
-        fontFamily: "Inter_600SemiBold",
-        fontSize: 18,
-        color: "#FFFFFF",
-        textAlign: "center",
-    },
-    addButton: {
-        padding: 8,
-        backgroundColor: "rgba(255, 255, 255, 0.2)",
-        borderRadius: 20,
-        color: "#FFFFFF",
-    },
+    // header styles removed (now using Header.js)
     statsContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -773,7 +762,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 4,
     },
     filterButtonActive: {
-        backgroundColor: "#4F46E5",
+        backgroundColor: "#0056d2",
     },
     filterButtonText: {
         fontSize: 14,
@@ -913,7 +902,7 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     emptyButton: {
-        backgroundColor: "#4F46E5",
+        backgroundColor: "#0056d2",
         paddingVertical: 12,
         paddingHorizontal: 24,
         borderRadius: 8,

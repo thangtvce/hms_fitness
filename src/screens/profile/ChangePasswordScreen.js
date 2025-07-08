@@ -21,6 +21,7 @@ import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { theme } from "theme/color"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Header from "components/Header"
 
 export default function ChangePasswordScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -237,23 +238,17 @@ export default function ChangePasswordScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Change Password</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </LinearGradient>
+      <DynamicStatusBar backgroundColor="#0056d2" />
+      <Header
+        title="Change Password"
+        onBack={() => navigation.goBack()}
+      />
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.container}>
+          <View style={[styles.container, { marginTop: 40 }]}> 
             <View style={styles.iconContainer}>
-              <Ionicons name="lock-closed" size={40} color="#4F46E5" />
+              <Ionicons name="lock-closed" size={40} color="#0056d2" />
             </View>
 
             <Text style={styles.title}>Reset Your Password</Text>
@@ -300,7 +295,7 @@ export default function ChangePasswordScreen({ navigation }) {
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>OTP Code</Text>
                     <View style={[styles.inputContainer,errors.otpCode ? styles.inputError : null]}>
-                      <Ionicons name="key-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                    <Ionicons name="key-outline" size={20} color="#64748B" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Enter OTP code"
@@ -335,7 +330,7 @@ export default function ChangePasswordScreen({ navigation }) {
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>New Password</Text>
                     <View style={[styles.inputContainer,errors.newPassword ? styles.inputError : null]}>
-                      <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                    <Ionicons name="lock-closed-outline" size={20} color="#0056d2" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Create new password"
@@ -381,7 +376,7 @@ export default function ChangePasswordScreen({ navigation }) {
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Confirm Password</Text>
                     <View style={[styles.inputContainer,errors.confirmPassword ? styles.inputError : null]}>
-                      <Ionicons name="shield-checkmark-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                    <Ionicons name="shield-checkmark-outline" size={20} color="#64748B" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Confirm new password"
@@ -411,7 +406,11 @@ export default function ChangePasswordScreen({ navigation }) {
               )}
 
               <TouchableOpacity
-                style={[styles.submitButton,isLoading ? styles.submitButtonDisabled : null]}
+                style={[
+                  styles.submitButton,
+                  { backgroundColor: '#0056d2' },
+                  isLoading ? styles.submitButtonDisabled : null
+                ]}
                 onPress={otpRequested ? handleSubmit : handleRequestOtp}
                 disabled={isLoading}
               >
@@ -431,7 +430,7 @@ export default function ChangePasswordScreen({ navigation }) {
               </TouchableOpacity>
 
               <View style={styles.securityNoteContainer}>
-                <Ionicons name="shield-checkmark-outline" size={18} color="#4F46E5" />
+                <Ionicons name="shield-checkmark-outline" size={18} color="#0056d2" />
                 <Text style={styles.securityNoteText}>
                   For your security, the password must be at least 6 characters long and include a mix of letters,
                   numbers, and symbols.

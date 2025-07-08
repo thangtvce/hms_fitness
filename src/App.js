@@ -1,27 +1,34 @@
 import * as React from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useAuth } from './context/AuthContext';
-import { ThemeProvider } from 'components/theme/ThemeContext'; // Import ThemeProvider
+import { ThemeProvider } from 'components/theme/ThemeContext';
 import AppNavigator from 'navigation/AppNavigator';
+import { StepTrackerProvider } from 'context/StepTrackerContext';
+
 
 function RootNavigator() {
-    const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-    if (authLoading) {
-        return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#2563EB" />
-            </View>
-        );
-    }
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#2563EB" />
+      </View>
+    );
+  }
 
-    return <AppNavigator initialRouteName={user ? 'Main' : 'Login'} />;
+  // Không cần truyền userId, StepTrackerProvider sẽ tự lấy từ AuthContext
+  return (
+    <StepTrackerProvider>
+      <AppNavigator initialRouteName={user ? 'Main' : 'Login'} />
+    </StepTrackerProvider>
+  );
 }
 
 export default function App() {
-    return (
-        <ThemeProvider>
-            <RootNavigator />
-        </ThemeProvider>
-    );
+  return (
+    <ThemeProvider>
+      <RootNavigator />
+    </ThemeProvider>
+  );
 }

@@ -39,7 +39,7 @@ export const ThemeProvider = ({ children }) => {
             background: '#F8FAFC',
             textPrimary: '#1E293B',
             textSecondary: '#64748B',
-            accent: '#4F46E5',
+            accent: '#0056d2',
             accentSecondary: '#6366F1',
             accentTertiary: '#818CF8',
             warning: '#F59E0B',
@@ -61,7 +61,9 @@ export const ThemeProvider = ({ children }) => {
             // --- Header ---
             headerBackground: '#fff',
             headerShadow: '#4F46E5',
-            headerText: '#0056d2',
+            headerText: '#1E293B',
+            textFilter: '#ffffff',
+
             // --- Misc ---
             searchBarBackground: '#F9FAFB',
             iconColor: '#6B7280',

@@ -17,7 +17,7 @@ import { bodyMeasurementService } from 'services/apiBodyMeasurementService';
 import { useAuth } from 'context/AuthContext';
 import { theme } from 'theme/color';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
-import { LinearGradient } from 'expo-linear-gradient';
+import Header from 'components/Header';
 import FloatingMenuButton from 'components/FloatingMenuButton';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -212,15 +212,12 @@ export default function AddBodyMeasurementScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Body Measurement</Text>
-          <View style={styles.headerRight} />
-        </View>
-      </LinearGradient>
+      <Header
+        title="Add Body Measurement"
+        canGoBack
+        onBack={() => navigation.goBack()}
+        rightActions={[]}
+      />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -284,7 +281,7 @@ export default function AddBodyMeasurementScreen({ navigation }) {
 
           <TouchableOpacity
             onPress={handleSubmit}
-            style={styles.submitButton}
+            style={[styles.submitButton, { backgroundColor: '#0056d2' }]}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
@@ -317,6 +314,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+    marginTop: 90,
   },
   header: {
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
@@ -406,7 +404,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   activeInput: {
-    borderColor: '#2563EB',
+    borderColor: '#0056d2',
     borderWidth: 2,
   },
   input: {

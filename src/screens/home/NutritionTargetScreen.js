@@ -7,13 +7,12 @@ import {
   StyleSheet, 
   Alert,
   Dimensions,
-  StatusBar
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import Slider from "@react-native-community/slider";
-
+import Header from "../../components/Header";
 const { width } = Dimensions.get('window');
 
 // Expanded preset targets (50+ options)
@@ -167,24 +166,19 @@ const NutritionTargetScreen = () => {
     </View>
   );
 
+
+  // Macro selection state
+  const macroOptions = [
+    { key: 'calories', label: 'Calories', color: '#FF6B6B', max: 5000, unit: '' },
+    { key: 'carbs', label: 'Carbs', color: '#4ECDC4', max: 500, unit: 'g' },
+    { key: 'protein', label: 'Protein', color: '#45B7D1', max: 300, unit: 'g' },
+    { key: 'fats', label: 'Fats', color: '#F9CA24', max: 200, unit: 'g' },
+  ];
+  const [selectedMacro, setSelectedMacro] = useState('calories');
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: 50 }]}> 
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nutrition Targets</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <Header title="Nutrition Targets" onBack={navigation.goBack} />
 
       <ScrollView 
         style={styles.scrollView}
@@ -197,69 +191,60 @@ const NutritionTargetScreen = () => {
             <Text style={styles.currentTargetTitle}>Current Target</Text>
             <View style={styles.macroSummary}>
               <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{lastSaved.calories}</Text>
+                <Text style={[styles.macroValue, { color: '#FF6B6B' }]}>{lastSaved.calories}</Text>
                 <Text style={styles.macroLabel}>Calories</Text>
               </View>
               <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{lastSaved.carbs}g</Text>
+                <Text style={[styles.macroValue, { color: '#4ECDC4' }]}>{lastSaved.carbs}g</Text>
                 <Text style={styles.macroLabel}>Carbs</Text>
               </View>
               <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{lastSaved.protein}g</Text>
+                <Text style={[styles.macroValue, { color: '#45B7D1' }]}>{lastSaved.protein}g</Text>
                 <Text style={styles.macroLabel}>Protein</Text>
               </View>
               <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{lastSaved.fats}g</Text>
+                <Text style={[styles.macroValue, { color: '#F9CA24' }]}>{lastSaved.fats}g</Text>
                 <Text style={styles.macroLabel}>Fats</Text>
               </View>
             </View>
           </View>
         )}
 
-        {/* Macro Sliders */}
-        <View style={styles.slidersSection}>
-          <Text style={styles.sectionTitle}>Custom Targets</Text>
-          
-          <MacroSlider
-            label="Calories"
-            value={target.calories}
-            max={5000}
-            color="#FF6B6B"
-            onChange={(v) => { setTarget({ ...target, calories: v }); setSelectedPreset(null); }}
-          />
-          
-          <MacroSlider
-            label="Carbs"
-            value={target.carbs}
-            max={500}
-            color="#4ECDC4"
-            unit="g"
-            onChange={(v) => { setTarget({ ...target, carbs: v }); setSelectedPreset(null); }}
-          />
-          
-          <MacroSlider
-            label="Protein"
-            value={target.protein}
-            max={300}
-            color="#45B7D1"
-            unit="g"
-            onChange={(v) => { setTarget({ ...target, protein: v }); setSelectedPreset(null); }}
-          />
-          
-          <MacroSlider
-            label="Fats"
-            value={target.fats}
-            max={200}
-            color="#F9CA24"
-            unit="g"
-            onChange={(v) => { setTarget({ ...target, fats: v }); setSelectedPreset(null); }}
-          />
+        {/* Macro Select Row */}
+        <View style={styles.macroSelectRow}>
+          {macroOptions.map((macro) => (
+            <TouchableOpacity
+              key={macro.key}
+              style={[styles.macroSelectButton, selectedMacro === macro.key && { backgroundColor: macro.color + '22' }]}
+              onPress={() => setSelectedMacro(macro.key)}
+            >
+              <Text style={[styles.macroSelectLabel, selectedMacro === macro.key && { color: macro.color }]}>{macro.label}</Text>
+              <Text style={[styles.macroSelectValue, selectedMacro === macro.key && { color: macro.color }]}>
+                {target[macro.key]}{macro.unit}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
+        {/* Macro Slider for selected macro only */}
+        <View style={styles.slidersSection}>
+          <Text style={styles.sectionTitle}>Adjust {macroOptions.find(m => m.key === selectedMacro).label}</Text>
+          <Slider
+            style={styles.slider}
+            minimumValue={0}
+            maximumValue={macroOptions.find(m => m.key === selectedMacro).max}
+            step={selectedMacro === 'calories' ? 10 : 1}
+            minimumTrackTintColor={macroOptions.find(m => m.key === selectedMacro).color}
+            maximumTrackTintColor="#E5E7EB"
+            thumbTintColor={macroOptions.find(m => m.key === selectedMacro).color}
+            value={target[selectedMacro]}
+            onValueChange={(v) => { setTarget({ ...target, [selectedMacro]: v }); setSelectedPreset(null); }}
+          />
           <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
             <Text style={styles.resetButtonText}>↻ Reset to Saved</Text>
           </TouchableOpacity>
         </View>
-
+  
         {/* Filter Section */}
         <View style={styles.filterSection}>
           <Text style={styles.sectionTitle}>Quick Presets</Text>
@@ -371,6 +356,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    marginTop: 90,
     paddingBottom: 100,
   },
   header: {
@@ -404,7 +390,7 @@ const styles = StyleSheet.create({
     margin: 20,
     padding: 20,
     backgroundColor: '#F8FAFC',
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -435,52 +421,51 @@ const styles = StyleSheet.create({
   },
   slidersSection: {
     margin: 20,
-    padding: 20,
+    padding: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: '#374151',
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  sliderContainer: {
-    marginBottom: 24,
+  slider: {
+    width: '100%',
+    height: 32,
   },
   sliderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   sliderLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#374151',
   },
   valueChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: 12,
   },
   valueText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
-  },
-  slider: {
-    width: '100%',
-    height: 40,
   },
   resetButton: {
     backgroundColor: '#F3F4F6',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
@@ -490,7 +475,7 @@ const styles = StyleSheet.create({
   resetButtonText: {
     color: '#374151',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 13,
   },
   filterSection: {
     marginHorizontal: 20,
@@ -532,7 +517,7 @@ const styles = StyleSheet.create({
   presetCard: {
     backgroundColor: '#FFFFFF',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 0,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -596,19 +581,19 @@ const styles = StyleSheet.create({
   },
   saveButtonContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 20, 
     left: 0,
     right: 0,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
   saveButton: {
     backgroundColor: '#3B82F6',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 4 },
@@ -622,6 +607,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
+  macroSelectRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    marginTop: 8,
+    gap: 8,
+  },
+  macroSelectButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 0,
+    backgroundColor: '#F3F4F6',
+    marginHorizontal: 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  macroSelectLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
+  },
+  macroSelectValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+
 });
 
 export default NutritionTargetScreen;

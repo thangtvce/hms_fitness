@@ -1,4 +1,4 @@
-import React,{ useState,useEffect } from 'react';
+import React,{ useState,useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -17,15 +17,18 @@ import { useAuth } from 'context/AuthContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
-import { theme } from 'theme/color';
+import { ThemeContext } from 'components/theme/ThemeContext';
+import Header from 'components/Header';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 const { width } = Dimensions.get('window');
 
 export default function AddWeightHistoryScreen({ navigation }) {
   const { user } = useAuth();
+  const { colors } = useContext(ThemeContext);
   const [formData,setFormData] = useState({
     weight: '',
     recordedAt: new Date()
@@ -242,17 +245,14 @@ export default function AddWeightHistoryScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Weight</Text>
-          <View style={styles.headerRight} />
-        </View>
-      </LinearGradient>
-      <View style={styles.container}>
+      <DynamicStatusBar backgroundColor={colors.headerBackground || "#FFFFFF"} />
+      <Header
+        title="Add Weight"
+        onBack={() => navigation.goBack()}
+        backgroundColor={colors.headerBackground || "#FFFFFF"}
+        textColor={colors.headerText || colors.primary || "#0056d2"}
+      />
+      <View style={[styles.container, { paddingTop: 80 }]}> 
 
 
         <ScrollView
@@ -313,7 +313,7 @@ export default function AddWeightHistoryScreen({ navigation }) {
 
             <TouchableOpacity
               onPress={handleSubmit}
-              style={styles.submitButton}
+              style={[styles.submitButton, { backgroundColor: colors.primary || '#0056d2' }]}
               disabled={loading}
             >
               {loading ? (
@@ -331,7 +331,7 @@ export default function AddWeightHistoryScreen({ navigation }) {
             <Text style={styles.sectionTitle}>Recent Weight Trend</Text>
             {loading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#2563EB" />
+                <ActivityIndicator size="large" color={colors.primary || "#0056d2"} />
               </View>
             ) : (
               renderWeightChart()
@@ -341,15 +341,15 @@ export default function AddWeightHistoryScreen({ navigation }) {
           <View style={styles.tipsCard}>
             <Text style={styles.sectionTitle}>Weight Tracking Tips</Text>
             <View style={styles.tipItem}>
-              <Ionicons name="time-outline" size={20} color="#2563EB" style={styles.tipIcon} />
+              <Ionicons name="time-outline" size={20} color={colors.primary || "#0056d2"} style={styles.tipIcon} />
               <Text style={styles.tipText}>Weigh yourself at the same time each day for consistency</Text>
             </View>
             <View style={styles.tipItem}>
-              <Ionicons name="water-outline" size={20} color="#2563EB" style={styles.tipIcon} />
+              <Ionicons name="water-outline" size={20} color={colors.primary || "#0056d2"} style={styles.tipIcon} />
               <Text style={styles.tipText}>Stay hydrated, but avoid weighing right after drinking large amounts</Text>
             </View>
             <View style={styles.tipItem}>
-              <Ionicons name="trending-up-outline" size={20} color="#2563EB" style={styles.tipIcon} />
+              <Ionicons name="trending-up-outline" size={20} color={colors.primary || "#0056d2"} style={styles.tipIcon} />
               <Text style={styles.tipText}>Focus on long-term trends rather than daily fluctuations</Text>
             </View>
           </View>
@@ -529,13 +529,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4F46E5',
     paddingVertical: 14,
     borderRadius: 10,
     marginTop: 8,
     ...Platform.select({
       ios: {
-        shadowColor: '#2563EB',
+        shadowColor: '#0056d2',
         shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 4,

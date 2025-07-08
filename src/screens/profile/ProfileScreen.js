@@ -1,5 +1,5 @@
-import { useState,useCallback,useMemo,useEffect,useRef } from "react"
-import { useFocusEffect } from "@react-navigation/native"
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -13,124 +13,118 @@ import {
   Modal,
   PanResponder,
   Animated,
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { useAuth } from "context/AuthContext"
-import { profileService } from "services/apiProfileService"
-import { bodyMeasurementService } from "services/apiBodyMeasurementService"
-import { weightHistoryService } from "services/apiWeightHistoryService"
-import { apiUserService } from "services/apiUserService"
-import { theme } from "theme/color"
-import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
-import { SafeAreaView,useSafeAreaInsets } from "react-native-safe-area-context"
-import FloatingMenuButton from "components/FloatingMenuButton"
-import CheckInModal from "components/checkin/CheckInModel"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { StatusBar } from "expo-status-bar"
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "context/AuthContext";
+import { profileService } from "services/apiProfileService";
+import { bodyMeasurementService } from "services/apiBodyMeasurementService";
+import { weightHistoryService } from "services/apiWeightHistoryService";
+import { apiUserService } from "services/apiUserService";
+import { theme } from "theme/color";
+import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import FloatingMenuButton from "components/FloatingMenuButton";
+import CheckInModal from "components/checkin/CheckInModel";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { StatusBar } from "expo-status-bar";
 
-const { width,height: screenHeight } = Dimensions.get("window")
+const { width, height: screenHeight } = Dimensions.get("window");
 
 const calculateXPRequired = (level) => {
-  return Math.floor(100 * Math.pow(1.2,level - 1))
-}
+  return Math.floor(100 * Math.pow(1.2, level - 1));
+};
 
-const calculateLevelUp = (currentLevel,currentXP,xpToAdd) => {
-  let newLevel = currentLevel
-  let newXP = currentXP + xpToAdd
-
+const calculateLevelUp = (currentLevel, currentXP, xpToAdd) => {
+  let newLevel = currentLevel;
+  let newXP = currentXP + xpToAdd;
   while (true) {
-    const xpRequired = calculateXPRequired(newLevel)
+    const xpRequired = calculateXPRequired(newLevel);
     if (newXP >= xpRequired) {
-      newXP -= xpRequired
-      newLevel += 1
+      newXP -= xpRequired;
+      newLevel += 1;
     } else {
-      break
+      break;
     }
   }
+  return { newLevel, newXP };
+};
 
-  return { newLevel,newXP }
-}
-
-const ImageZoomViewer = ({ visible,imageUri,onClose,showDeleteButton = false }) => {
-  const scale = useRef(new Animated.Value(1)).current
-  const translateX = useRef(new Animated.Value(0)).current
-  const translateY = useRef(new Animated.Value(0)).current
-  const [isZoomed,setIsZoomed] = useState(false)
-  const [lastTap,setLastTap] = useState(null)
+const ImageZoomViewer = ({ visible, imageUri, onClose, showDeleteButton = false }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [lastTap, setLastTap] = useState(null);
 
   const resetTransform = () => {
     Animated.parallel([
-      Animated.spring(scale,{ toValue: 1,useNativeDriver: true }),
-      Animated.spring(translateX,{ toValue: 0,useNativeDriver: true }),
-      Animated.spring(translateY,{ toValue: 0,useNativeDriver: true }),
-    ]).start()
-    setIsZoomed(false)
-  }
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
+      Animated.spring(translateX, { toValue: 0, useNativeDriver: true }),
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true }),
+    ]).start();
+    setIsZoomed(false);
+  };
 
   const handleDoubleTap = () => {
-    const now = Date.now()
-    const DOUBLE_PRESS_DELAY = 300
-
+    const now = Date.now();
+    const DOUBLE_PRESS_DELAY = 300;
     if (lastTap && now - lastTap < DOUBLE_PRESS_DELAY) {
       if (isZoomed) {
-        resetTransform()
+        resetTransform();
       } else {
-        Animated.spring(scale,{ toValue: 2,useNativeDriver: true }).start()
-        setIsZoomed(true)
+        Animated.spring(scale, { toValue: 2, useNativeDriver: true }).start();
+        setIsZoomed(true);
       }
     } else {
-      setLastTap(now)
+      setLastTap(now);
     }
-  }
+  };
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (evt,gestureState) => {
-        return isZoomed || Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        return isZoomed || Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2;
       },
       onMoveShouldSetPanResponderCapture: () => false,
       onPanResponderGrant: () => {
-        translateX.setOffset(translateX._value)
-        translateY.setOffset(translateY._value)
-        scale.setOffset(scale._value)
+        translateX.setOffset(translateX._value);
+        translateY.setOffset(translateY._value);
+        scale.setOffset(scale._value);
       },
-      onPanResponderMove: (evt,gestureState) => {
+      onPanResponderMove: (evt, gestureState) => {
         if (evt.nativeEvent.touches.length === 2) {
-          const touch1 = evt.nativeEvent.touches[0]
-          const touch2 = evt.nativeEvent.touches[1]
+          const touch1 = evt.nativeEvent.touches[0];
+          const touch2 = evt.nativeEvent.touches[1];
           const distance = Math.sqrt(
-            Math.pow(touch2.pageX - touch1.pageX,2) + Math.pow(touch2.pageY - touch1.pageY,2),
-          )
-
-          const newScale = Math.min(Math.max(distance / 200,0.5),5)
-          scale.setValue(newScale)
-          setIsZoomed(newScale > 1.1)
+            Math.pow(touch2.pageX - touch1.pageX, 2) + Math.pow(touch2.pageY - touch1.pageY, 2)
+          );
+          const newScale = Math.min(Math.max(distance / 200, 0.5), 5);
+          scale.setValue(newScale);
+          setIsZoomed(newScale > 1.1);
         } else if (isZoomed && evt.nativeEvent.touches.length === 1) {
-          const maxTranslate = 100
-          translateX.setValue(Math.min(Math.max(gestureState.dx,-maxTranslate),maxTranslate))
-          translateY.setValue(Math.min(Math.max(gestureState.dy,-maxTranslate),maxTranslate))
+          const maxTranslate = 100;
+          translateX.setValue(Math.min(Math.max(gestureState.dx, -maxTranslate), maxTranslate));
+          translateY.setValue(Math.min(Math.max(gestureState.dy, -maxTranslate), maxTranslate));
         }
       },
       onPanResponderRelease: () => {
-        translateX.flattenOffset()
-        translateY.flattenOffset()
-        scale.flattenOffset()
-
-        const currentScale = scale._value
+        translateX.flattenOffset();
+        translateY.flattenOffset();
+        scale.flattenOffset();
+        const currentScale = scale._value;
         if (currentScale < 1.1 && currentScale > 0.9) {
-          resetTransform()
+          resetTransform();
         }
       },
-    }),
-  ).current
+    })
+  ).current;
 
   const handleClose = () => {
-    resetTransform()
-    onClose()
-  }
+    resetTransform();
+    onClose();
+  };
 
-  if (!visible) return null
+  if (!visible) return null;
 
   return (
     <Modal
@@ -149,13 +143,12 @@ const ImageZoomViewer = ({ visible,imageUri,onClose,showDeleteButton = false }) 
             </TouchableOpacity>
             <Text style={zoomStyles.headerTitle}>Profile Picture</Text>
           </View>
-
           <View style={zoomStyles.imageContainer}>
             <Animated.View
               style={[
                 zoomStyles.imageWrapper,
                 {
-                  transform: [{ scale },{ translateX },{ translateY }],
+                  transform: [{ scale }, { translateX }, { translateY }],
                 },
               ]}
               {...panResponder.panHandlers}
@@ -166,14 +159,13 @@ const ImageZoomViewer = ({ visible,imageUri,onClose,showDeleteButton = false }) 
                   style={zoomStyles.image}
                   resizeMode="contain"
                   onError={() => {
-                    Alert.alert("Error","Failed to load image")
-                    handleClose()
+                    Alert.alert("Error", "Failed to load image");
+                    handleClose();
                   }}
                 />
               </TouchableOpacity>
             </Animated.View>
           </View>
-
           <View style={zoomStyles.footer}>
             <View style={zoomStyles.zoomInfo}>
               <Ionicons name="search-outline" size={16} color="#FFFFFF" />
@@ -185,105 +177,109 @@ const ImageZoomViewer = ({ visible,imageUri,onClose,showDeleteButton = false }) 
         </View>
       </View>
     </Modal>
-  )
-}
+  );
+};
 
-const useProfileData = (user,authToken,authLoading,navigation) => {
-  const [data,setData] = useState({
+const useProfileData = (user, authToken, authLoading, navigation) => {
+  const [data, setData] = useState({
     userData: null,
     profile: null,
     bodyMeasurements: [],
     weightHistory: [],
-  })
-  const [loading,setLoading] = useState({
+  });
+  const [loading, setLoading] = useState({
     userData: true,
     profile: true,
     bodyMeasurements: true,
     weightHistory: true,
-  })
-  const [refreshing,setRefreshing] = useState(false)
+  });
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchUserData = useCallback(
     async (abortController) => {
       try {
         if (!user || !user.userId || !authToken) return;
-        setLoading((prev) => ({ ...prev,userData: true }))
-        const userRes = await apiUserService.getUserById(user.userId,{ signal: abortController.signal })
+        setLoading((prev) => ({ ...prev, userData: true }));
+        const userRes = await apiUserService.getUserById(user.userId, { signal: abortController.signal });
         if (userRes.statusCode === 200) {
-          setData((prev) => ({ ...prev,userData: userRes.data }))
+          setData((prev) => ({ ...prev, userData: userRes.data }));
         }
       } catch (error) {
         if (error.name !== "AbortError") {
+          // Handle error silently
         }
       } finally {
-        setLoading((prev) => ({ ...prev,userData: false }))
+        setLoading((prev) => ({ ...prev, userData: false }));
       }
     },
-    [user,authToken],
-  )
+    [user, authToken]
+  );
 
   const fetchProfile = useCallback(
     async (abortController) => {
       try {
-        if (!user?.userId || !authToken) return
-        setLoading((prev) => ({ ...prev,profile: true }))
-        const profileRes = await profileService.getLatestProfile(user.userId,{ signal: abortController.signal })
+        if (!user?.userId || !authToken) return;
+        setLoading((prev) => ({ ...prev, profile: true }));
+        const profileRes = await profileService.getLatestProfile(user.userId, { signal: abortController.signal });
         if (profileRes.statusCode === 200) {
-          setData((prev) => ({ ...prev,profile: profileRes.data.profile }))
+          setData((prev) => ({ ...prev, profile: profileRes.data.profile }));
         }
       } catch (error) {
         if (error.name !== "AbortError") {
+          // Handle error silently
         }
       } finally {
-        setLoading((prev) => ({ ...prev,profile: false }))
+        setLoading((prev) => ({ ...prev, profile: false }));
       }
     },
-    [user,authToken],
-  )
+    [user, authToken]
+  );
 
   const fetchBodyMeasurements = useCallback(
     async (abortController) => {
       try {
-        if (!user?.userId || !authToken) return
-        setLoading((prev) => ({ ...prev,bodyMeasurements: true }))
+        if (!user?.userId || !authToken) return;
+        setLoading((prev) => ({ ...prev, bodyMeasurements: true }));
         const measurementsRes = await bodyMeasurementService.getMyMeasurements(
-          { pageNumber: 1,pageSize: 5 },
-          { signal: abortController.signal },
-        )
+          { pageNumber: 1, pageSize: 5 },
+          { signal: abortController.signal }
+        );
         if (measurementsRes.statusCode === 200) {
-          setData((prev) => ({ ...prev,bodyMeasurements: measurementsRes.data.records || [] }))
+          setData((prev) => ({ ...prev, bodyMeasurements: measurementsRes.data.records || [] }));
         }
       } catch (error) {
         if (error.name !== "AbortError") {
+          // Handle error silently
         }
       } finally {
-        setLoading((prev) => ({ ...prev,bodyMeasurements: false }))
+        setLoading((prev) => ({ ...prev, bodyMeasurements: false }));
       }
     },
-    [user,authToken],
-  )
+    [user, authToken]
+  );
 
   const fetchWeightHistory = useCallback(
     async (abortController) => {
       try {
-        if (!user?.userId || !authToken) return
-        setLoading((prev) => ({ ...prev,weightHistory: true }))
+        if (!user?.userId || !authToken) return;
+        setLoading((prev) => ({ ...prev, weightHistory: true }));
         const weightRes = await weightHistoryService.getMyWeightHistory(
-          { pageNumber: 1,pageSize: 5 },
-          { signal: abortController.signal },
-        )
+          { pageNumber: 1, pageSize: 5 },
+          { signal: abortController.signal }
+        );
         if (weightRes.statusCode === 200) {
-          setData((prev) => ({ ...prev,weightHistory: weightRes.data.records || [] }))
+          setData((prev) => ({ ...prev, weightHistory: weightRes.data.records || [] }));
         }
       } catch (error) {
         if (error.name !== "AbortError") {
+          // Handle error silently
         }
       } finally {
-        setLoading((prev) => ({ ...prev,weightHistory: false }))
+        setLoading((prev) => ({ ...prev, weightHistory: false }));
       }
     },
-    [user,authToken],
-  )
+    [user, authToken]
+  );
 
   const fetchAllData = useCallback(
     async (abortController) => {
@@ -293,164 +289,202 @@ const useProfileData = (user,authToken,authLoading,navigation) => {
           fetchProfile(abortController),
           fetchBodyMeasurements(abortController),
           fetchWeightHistory(abortController),
-        ])
+        ]);
       }
-      // Nếu không có user thì không làm gì, không hiện alert
     },
-    [authLoading,user,authToken,navigation,fetchUserData,fetchProfile,fetchBodyMeasurements,fetchWeightHistory],
-  )
+    [authLoading, user, authToken, navigation, fetchUserData, fetchProfile, fetchBodyMeasurements, fetchWeightHistory]
+  );
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true)
-    const abortController = new AbortController()
-    fetchAllData(abortController).finally(() => setRefreshing(false))
-    return () => abortController.abort()
-  },[fetchAllData])
+    setRefreshing(true);
+    const abortController = new AbortController();
+    fetchAllData(abortController).finally(() => setRefreshing(false));
+    return () => abortController.abort();
+  }, [fetchAllData]);
 
   useFocusEffect(
     useCallback(() => {
-      const abortController = new AbortController()
-      fetchAllData(abortController)
-      return () => abortController.abort()
-    },[fetchAllData]),
-  )
+      const abortController = new AbortController();
+      fetchAllData(abortController);
+      return () => abortController.abort();
+    }, [fetchAllData])
+  );
 
-  return { ...data,loading,refreshing,onRefresh }
-}
+  return { ...data, loading, refreshing, onRefresh };
+};
 
-const ProfileHeader = ({ userData,onEdit,onLayout,headerHeight,onAvatarPress }) => {
-  const userLevel = userData?.levelAccount || 1
-  const experience = userData?.experience || 0
-  const currentStreak = userData?.currentStreak || 0
-  const xpRequired = calculateXPRequired(userLevel)
-  const progress = Math.min(100,(experience / xpRequired) * 100)
-  const insets = useSafeAreaInsets()
+const ProfileHeader = ({ userData, onEdit, onLayout, headerHeight, onAvatarPress, onTabPress }) => {
+  const userLevel = userData?.levelAccount || 1;
+  const experience = userData?.experience || 0;
+  const currentStreak = userData?.currentStreak || 0;
+  const xpRequired = calculateXPRequired(userLevel);
+  const progress = Math.min(100, (experience / xpRequired) * 100);
+  const insets = useSafeAreaInsets();
 
   const getStreakMessage = (streak) => {
-    if (streak === 0) return "Start your journey!"
-    if (streak < 7) return `${streak} day${streak > 1 ? 's' : ''} strong!`
-    if (streak < 30) return `${streak} days - Amazing!`
-    if (streak < 100) return `${streak} days - Incredible!`
-    return `${streak} days - Legendary!`
-  }
+    if (streak === 0) return "Start your journey!";
+    if (streak === 1) return "1 day strong!";
+    if (streak < 7) return `${streak} days strong!`;
+    if (streak < 30) return `${streak} days - Amazing!`;
+    if (streak < 100) return `${streak} days - Incredible!`;
+    return `${streak} days - Legendary!`;
+  };
 
   const getStreakEmoji = (streak) => {
-    if (streak === 0) return "🌱"
-    if (streak < 7) return "🔥"
-    if (streak < 30) return "💪"
-    if (streak < 100) return "🏆"
-    return "👑"
+    if (streak === 0) return "🌱";
+    if (streak < 7) return "🔥";
+    if (streak < 30) return "💪";
+    if (streak < 100) return "🏆";
+    return "👑";
+  };
+
+  const navigation = useRef(null);
+  // Accept navigation as prop if not already
+  if (!ProfileHeader.navigation && typeof globalThis.navigation !== 'undefined') {
+    ProfileHeader.navigation = globalThis.navigation;
   }
 
   return (
-    <>
-      <View style={[styles.profileHeaderContainer, { height: headerHeight, paddingTop: insets.top, backgroundColor: '#fff' }]} onLayout={onLayout}>
-        <View style={[styles.profileHeader, { backgroundColor: '#fff' }]}> 
-          <View style={styles.profileHeaderContent}>
+    <View
+      style={[
+        styles.profileHeaderContainer,
+        {
+          height: headerHeight,
+          paddingTop: insets.top + 10,
+          backgroundColor: "#0056d2",
+        },
+      ]}
+      onLayout={onLayout}
+    >
+      <View style={styles.profileHeader}>
+        <View style={styles.profileHeaderContent}>
+          {/* Avatar Section */}
+          <View style={styles.avatarSection}>
             <View style={styles.avatarContainer}>
               {userData?.avatar ? (
-                <TouchableOpacity onPress={onAvatarPress}>
-                  <Image
-                    source={{ uri: userData.avatar }}
-                    style={styles.profileAvatar}
-                  />
+                <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.8}>
+                  <Image source={{ uri: userData.avatar }} style={styles.profileAvatar} />
                 </TouchableOpacity>
               ) : (
                 <View style={styles.avatarFallback}>
-                  <Text style={[styles.avatarFallbackText, { color: '#0056d2' }]}>
+                  <Text style={styles.avatarFallbackText}>
                     {userData?.fullName ? userData.fullName.charAt(0).toUpperCase() : "U"}
                   </Text>
                 </View>
               )}
-              <View style={[styles.levelBadge, { backgroundColor: '#0056d2', borderColor: '#fff' }]}> 
-                <Text style={[styles.levelText, { color: '#fff' }]}>{userLevel}</Text>
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>{userLevel}</Text>
               </View>
-            </View>
-
-            <View style={styles.profileInfoBox}>
-              <Text numberOfLines={1} style={[styles.profileName, { color: '#0056d2' }]}>{userData?.fullName || "User"}</Text>
-              <Text numberOfLines={1} style={[styles.profileEmail, { color: '#0056d2', opacity: 0.7 }]}>{userData?.email || "N/A"}</Text>
-
-              {/* XP Progress */}
-              <View style={styles.levelProgressContainer}>
-                <View style={[styles.levelProgressBar, { backgroundColor: '#E5EAF0' }]}> 
-                  <Animated.View style={[styles.levelProgressFill, { width: `${progress}%`, backgroundColor: '#0056d2' }]} />
-                </View>
-                <Text style={[styles.levelProgressText, { color: '#0056d2', opacity: 0.8 }]}>
-                  {experience}/{xpRequired} XP • Level {userLevel}
-                </Text>
-              </View>
-
-              {/* Streak Display */}
-              <View style={[styles.streakContainer, { backgroundColor: '#F3F6FA' }]}> 
-                <Text style={[styles.streakEmoji, { color: '#0056d2' }]}>{getStreakEmoji(currentStreak)}</Text>
-                <Text style={[styles.streakText, { color: '#0056d2' }]}>{getStreakMessage(currentStreak)}</Text>
-              </View>
-            </View>
-
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={onEdit} style={[styles.editProfileButton, { backgroundColor: '#0056d2' }]}> 
-                <Ionicons name="pencil" size={18} color="#fff" />
-              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Action Buttons */}
-          <View style={styles.profileTabs}>
-            <TouchableOpacity style={[styles.profileTab, styles.activeTab]}> 
-              <Ionicons name="person" size={20} color="#0056d2" />
-              <Text style={[styles.activeTabText, { color: '#0056d2' }]}>Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.profileTab}>
-              <Ionicons name="trophy-outline" size={20} color="#0056d2" style={{ opacity: 0.5 }} />
-              <Text style={[styles.tabText, { color: '#0056d2', opacity: 0.5 }]}>Achievements</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.profileTab}>
-              <Ionicons name="analytics-outline" size={20} color="#0056d2" style={{ opacity: 0.5 }} />
-              <Text style={[styles.tabText, { color: '#0056d2', opacity: 0.5 }]}>Progress</Text>
+          {/* Profile Info Section */}
+          <View style={styles.profileInfoSection}>
+            <View style={styles.userInfoContainer}>
+              <Text numberOfLines={1} style={styles.profileName}>
+                {userData?.fullName || "User"}
+              </Text>
+              <Text numberOfLines={1} style={styles.profileEmail}>
+                {userData?.email || "N/A"}
+              </Text>
+            </View>
+
+            {/* XP Progress */}
+            <View style={styles.xpContainer}>
+              <View style={styles.xpHeader}>
+                <Text style={styles.xpText}>
+                  {experience}/{xpRequired} XP
+                </Text>
+                <Text style={styles.levelIndicator}>Level {userLevel}</Text>
+              </View>
+              <View style={styles.progressBarContainer}>
+                <View style={styles.progressBar}>
+                  <Animated.View style={[styles.progressFill, { width: `${progress}%` }]} />
+                </View>
+              </View>
+            </View>
+
+            {/* Streak Display */}
+            <View style={styles.streakContainer}>
+              <Text style={styles.streakEmoji}>{getStreakEmoji(currentStreak)}</Text>
+              <Text style={styles.streakText}>{getStreakMessage(currentStreak)}</Text>
+            </View>
+          </View>
+
+          {/* Edit Button */}
+          <View style={styles.actionSection}>
+            <TouchableOpacity onPress={onEdit} style={styles.editButton} activeOpacity={0.7}>
+              <Ionicons name="pencil" size={16} color="#0056d2" />
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </>
-  )
-}
 
-const HealthSummaryCard = ({ profile,latestWeight,latestMeasurement,navigation,loading }) => {
+        {/* Navigation Tabs */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity style={[styles.tab, styles.activeTab]}>
+            <Ionicons name="person" size={18} color="#FFFFFF" />
+            <Text style={styles.activeTabText}>Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={onTabPress ? () => onTabPress('LeaderboardScreen') : undefined}
+            disabled={!onTabPress}
+          >
+            <Ionicons name="trophy-outline" size={18} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.tabText}>Leaderboard</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={onTabPress ? () => onTabPress('WeeklyProgressScreen') : undefined}
+            disabled={!onTabPress}
+          >
+            <Ionicons name="analytics-outline" size={18} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.tabText}>Progress</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const HealthSummaryCard = ({ profile, latestWeight, latestMeasurement, navigation, loading }) => {
   const bmi = useMemo(() => {
     if (profile?.height && profile?.weight) {
-      const heightInMeters = profile.height / 100
-      return (profile.weight / (heightInMeters * heightInMeters)).toFixed(1)
+      const heightInMeters = profile.height / 100;
+      return (profile.weight / (heightInMeters * heightInMeters)).toFixed(1);
     }
-    return null
-  },[profile])
+    return null;
+  }, [profile]);
 
   const getBmiCategory = (bmiValue) => {
-    if (!bmiValue) return { text: "N/A",color: "#64748B" }
-    const value = Number.parseFloat(bmiValue)
-    if (value < 18.5) return { text: "Underweight",color: "#FBBF24" }
-    if (value < 25) return { text: "Normal",color: "#10B981" }
-    if (value < 30) return { text: "Overweight",color: "#F59E0B" }
-    return { text: "Obese",color: "#EF4444" }
-  }
+    if (!bmiValue) return { text: "N/A", color: "#64748B" };
+    const value = Number.parseFloat(bmiValue);
+    if (value < 18.5) return { text: "Underweight", color: "#FBBF24" };
+    if (value < 25) return { text: "Normal", color: "#10B981" };
+    if (value < 30) return { text: "Overweight", color: "#F59E0B" };
+    return { text: "Obese", color: "#EF4444" };
+  };
 
-  const bmiCategory = getBmiCategory(bmi)
+  const bmiCategory = getBmiCategory(bmi);
 
   const handleEditProfileMetric = () => {
-    navigation.navigate("EditProfile",{ profile })
-  }
+    navigation.navigate("EditProfile", { profile });
+  };
 
   if (loading) {
-    return <SkeletonLoader />
+    return <SkeletonLoader />;
   }
 
   return (
     <View style={styles.healthSummaryCard}>
       <View style={styles.healthSummaryHeader}>
         <Text style={styles.healthSummaryTitle}>Health Summary</Text>
-        <TouchableOpacity onPress={handleEditProfileMetric} style={[styles.editMetricButton, { backgroundColor: '#E6F0FA' }]}> 
+        <TouchableOpacity
+          onPress={handleEditProfileMetric}
+          style={[styles.editMetricButton, { backgroundColor: "#E6F0FA", flexDirection: "row", alignItems: "center" }]}
+        >
           <Ionicons name="pencil" size={16} color="#0056d2" />
-          <Text style={[styles.editMetricText, { color: '#0056d2' }]}>Edit</Text>
+          <Text style={[styles.editMetricText, { color: "#0056d2", marginLeft: 4 }]}>Edit</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.lastUpdatedContainer}>
@@ -461,14 +495,14 @@ const HealthSummaryCard = ({ profile,latestWeight,latestMeasurement,navigation,l
       </View>
       <View style={styles.healthMetricsGrid}>
         <View style={styles.healthMetricItem}>
-          <View style={[styles.metricIconContainer,{ backgroundColor: "#EEF2FF" }]}>
+          <View style={[styles.metricIconContainer, { backgroundColor: "#EEF2FF" }]}>
             <Ionicons name="resize-outline" size={20} color="#0056d2" />
           </View>
           <Text style={styles.metricLabel}>Height</Text>
           <Text style={styles.metricValue}>{profile?.height ? `${profile.height} cm` : "N/A"}</Text>
         </View>
         <View style={styles.healthMetricItem}>
-          <View style={[styles.metricIconContainer,{ backgroundColor: "#F0FDF4" }]}>
+          <View style={[styles.metricIconContainer, { backgroundColor: "#F0FDF4" }]}>
             <Ionicons name="scale-outline" size={20} color="#10B981" />
           </View>
           <Text style={styles.metricLabel}>Weight</Text>
@@ -477,44 +511,44 @@ const HealthSummaryCard = ({ profile,latestWeight,latestMeasurement,navigation,l
           </Text>
         </View>
         <View style={styles.healthMetricItem}>
-          <View style={[styles.metricIconContainer,{ backgroundColor: "#EFF6FF" }]}>
+          <View style={[styles.metricIconContainer, { backgroundColor: "#EFF6FF" }]}>
             <Ionicons name="analytics-outline" size={20} color="#3B82F6" />
           </View>
           <Text style={styles.metricLabel}>BMI</Text>
           <View style={styles.bmiContainer}>
             <Text style={styles.metricValue}>{bmi || "N/A"}</Text>
             {bmi && (
-              <View style={[styles.bmiCategoryBadge,{ backgroundColor: `${bmiCategory.color}20` }]}>
-                <Text style={[styles.bmiCategoryText,{ color: bmiCategory.color }]}>{bmiCategory.text}</Text>
+              <View style={[styles.bmiCategoryBadge, { backgroundColor: `${bmiCategory.color}20` }]}>
+                <Text style={[styles.bmiCategoryText, { color: bmiCategory.color }]}>{bmiCategory.text}</Text>
               </View>
             )}
           </View>
         </View>
         <View style={styles.healthMetricItem}>
-          <View style={[styles.metricIconContainer,{ backgroundColor: "#FEF2F2" }]}>
+          <View style={[styles.metricIconContainer, { backgroundColor: "#FEF2F2" }]}>
             <Ionicons name="water-outline" size={20} color="#EF4444" />
           </View>
           <Text style={styles.metricLabel}>Body Fat</Text>
           <Text style={styles.metricValue}>
             {profile?.bodyFatPercentage
               ? `${profile.bodyFatPercentage}%`
-              : profile?.bodyFatPercentage
-                ? `${latestMeasurement.bodyFatPercentage}%`
-                : "N/A"}
+              : latestMeasurement?.bodyFatPercentage
+              ? `${latestMeasurement.bodyFatPercentage}%`
+              : "N/A"}
           </Text>
         </View>
       </View>
     </View>
-  )
-}
+  );
+};
 
-const SectionCard = ({ title,onAction,actionIcon,actionText,children,loading }) => {
+const SectionCard = ({ title, onAction, actionIcon, actionText, children, loading }) => {
   if (loading) {
     return (
       <View style={styles.sectionCard}>
         <View style={styles.skeletonCard} />
       </View>
-    )
+    );
   }
 
   return (
@@ -522,9 +556,9 @@ const SectionCard = ({ title,onAction,actionIcon,actionText,children,loading }) 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {onAction && (
-          <TouchableOpacity onPress={onAction} style={[styles.actionButton, { backgroundColor: '#E6F0FA' }]}> 
+          <TouchableOpacity onPress={onAction} style={[styles.actionButton, { backgroundColor: "#E6F0FA" }]}>
             {actionText ? (
-              <Text style={[styles.actionButtonText, { color: '#0056d2' }]}>{actionText}</Text>
+              <Text style={[styles.actionButtonText, { color: "#0056d2" }]}>{actionText}</Text>
             ) : (
               <Ionicons name={actionIcon} size={18} color="#0056d2" />
             )}
@@ -533,29 +567,29 @@ const SectionCard = ({ title,onAction,actionIcon,actionText,children,loading }) 
       </View>
       <View style={styles.cardContent}>{children}</View>
     </View>
-  )
-}
+  );
+};
 
 const BodyMeasurementItem = ({ item }) => {
   const fields = [
-    { key: "weight",label: "Weight",unit: "kg" },
-    { key: "height",label: "height",unit: "cm" },
-    { key: "bodyFatPercentage",label: "Body Fat",unit: "%" },
-    { key: "neckCm",label: "Neck",unit: "cm" },
-    { key: "chestCm",label: "Chest",unit: "cm" },
-    { key: "bicepCm",label: "Bicep",unit: "cm" },
-    { key: "waistCm",label: "Waist",unit: "cm" },
-    { key: "hipCm",label: "Hip",unit: "cm" },
-    { key: "thighCm",label: "Thigh",unit: "cm" },
-  ]
+    { key: "weight", label: "Weight", unit: "kg" },
+    { key: "height", label: "Height", unit: "cm" },
+    { key: "bodyFatPercentage", label: "Body Fat", unit: "%" },
+    { key: "neckCm", label: "Neck", unit: "cm" },
+    { key: "chestCm", label: "Chest", unit: "cm" },
+    { key: "bicepCm", label: "Bicep", unit: "cm" },
+    { key: "waistCm", label: "Waist", unit: "cm" },
+    { key: "hipCm", label: "Hip", unit: "cm" },
+    { key: "thighCm", label: "Thigh", unit: "cm" },
+  ];
 
   return (
     <View style={styles.measurementItem}>
       <View style={styles.measurementHeader}>
-        <View style={styles.measurementDateContainer}>
-          <Ionicons name="calendar-outline" size={16} color="#4F46E5" />
-          <Text style={styles.measurementHeaderDate}>
-            {new Date(item.measurementDate).toLocaleDateString("en-US",{
+        <View style={[styles.measurementDateContainer, { backgroundColor: "#E6F0FA" }]}>
+          <Ionicons name="calendar-outline" size={16} color="#0056d2" />
+          <Text style={[styles.measurementHeaderDate, { color: "#0056d2" }]}>
+            {new Date(item.measurementDate).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric",
@@ -565,7 +599,7 @@ const BodyMeasurementItem = ({ item }) => {
       </View>
       <View style={styles.measurementGrid}>
         {fields.map(
-          ({ key,label,unit }) =>
+          ({ key, label, unit }) =>
             item[key] != null && (
               <View key={key} style={styles.measurementField}>
                 <Text style={styles.measurementLabel}>{label}</Text>
@@ -574,37 +608,49 @@ const BodyMeasurementItem = ({ item }) => {
                   {unit}
                 </Text>
               </View>
-            ),
+            )
         )}
       </View>
     </View>
-  )
-}
+  );
+};
 
-const WeightHistoryItem = ({ item,previousWeight }) => {
-  const weightChange = previousWeight ? (item.weight - previousWeight).toFixed(1) : null
-  const isGain = weightChange > 0
+const WeightHistoryItem = ({ item, previousWeight }) => {
+  const weightChange = previousWeight ? (item.weight - previousWeight).toFixed(1) : null;
+  const isGain = weightChange > 0;
 
   return (
     <View style={styles.weightHistoryItem}>
       <View style={styles.weightHistoryContent}>
         <View style={styles.weightIconContainer}>
-          <Ionicons name="scale-outline" size={22} color="#4F46E5" />
+          <Ionicons name="scale-outline" size={22} color="#0056d2" />
         </View>
         <View style={styles.weightInfoContainer}>
           <Text style={styles.weightHistoryText}>{item.weight} kg</Text>
           {weightChange && (
-            <View style={[styles.weightChangeBadge,{ backgroundColor: isGain ? "#FEF2F2" : "#F0FDF4" }]}>
+            <View style={[styles.weightChangeBadge, { backgroundColor: isGain ? "#FEF2F2" : "#F0FDF4" }]}>
               <Ionicons name={isGain ? "arrow-up" : "arrow-down"} size={12} color={isGain ? "#EF4444" : "#10B981"} />
-              <Text style={[styles.weightChangeText,{ color: isGain ? "#EF4444" : "#10B981" }]}>
+              <Text style={[styles.weightChangeText, { color: isGain ? "#EF4444" : "#10B981" }]}>
                 {Math.abs(weightChange)} kg
               </Text>
             </View>
           )}
-          <View style={styles.weightDateContainer}>
-            <Ionicons name="calendar-outline" size={14} color="#64748B" />
-            <Text style={styles.weightHistoryDate}>
-              {new Date(item.recordedAt).toLocaleDateString("en-US",{
+          <View
+            style={[
+              styles.weightDateContainer,
+              {
+                backgroundColor: "#E6F0FA",
+                borderRadius: 12,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                flexDirection: "row",
+                alignItems: "center",
+              },
+            ]}
+          >
+            <Ionicons name="calendar-outline" size={14} color="#0056d2" />
+            <Text style={[styles.weightHistoryDate, { color: "#0056d2", marginLeft: 4 }]}>
+              {new Date(item.recordedAt).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
@@ -614,10 +660,10 @@ const WeightHistoryItem = ({ item,previousWeight }) => {
         </View>
       </View>
     </View>
-  )
-}
+  );
+};
 
-const HealthGoalsCard = ({ profile,navigation,loading }) => {
+const HealthGoalsCard = ({ profile, navigation, loading }) => {
   const goals = [
     {
       id: "1",
@@ -629,7 +675,7 @@ const HealthGoalsCard = ({ profile,navigation,loading }) => {
       color: "#3B82F6",
       progress:
         profile?.weight && profile?.weightGoal
-          ? Math.min(100,Math.max(0,(profile.weight / profile.weightGoal) * 100))
+          ? Math.min(100, Math.max(0, (profile.weight / profile.weightGoal) * 100))
           : 0,
     },
     {
@@ -642,145 +688,158 @@ const HealthGoalsCard = ({ profile,navigation,loading }) => {
       color: "#EF4444",
       progress:
         profile?.bodyFatPercentage && profile?.bodyFatGoal
-          ? Math.min(100,Math.max(0,(profile.bodyFatPercentage / profile.bodyFatGoal) * 100))
+          ? Math.min(100, Math.max(0, (profile.bodyFatPercentage / profile.bodyFatGoal) * 100))
           : 0,
     },
-  ]
+  ];
 
   if (loading) {
-    return <SkeletonLoader />
+    return <SkeletonLoader />;
   }
 
   return (
     <View style={styles.goalsCard}>
       <View style={styles.goalsHeader}>
         <Text style={styles.goalsTitle}>Health Goals</Text>
-        <TouchableOpacity style={[styles.goalsEditButton, { backgroundColor: '#E6F0FA' }]} onPress={() => navigation.navigate("HealthGoals")}> 
-          <Text style={[styles.goalsEditText, { color: '#0056d2' }]}>Edit Goals</Text>
+        <TouchableOpacity
+          style={[styles.goalsEditButton, { backgroundColor: "#E6F0FA", flexDirection: "row", alignItems: "center" }]}
+          onPress={() => navigation.navigate("EditProfile", { profile })}
+        >
+          <Ionicons name="pencil" size={16} color="#0056d2" />
+          <Text style={[styles.goalsEditText, { color: "#0056d2", marginLeft: 4 }]}>Edit</Text>
         </TouchableOpacity>
       </View>
       {goals.map((goal) => (
         <View key={goal.id} style={styles.goalItem}>
           <View style={styles.goalHeader}>
-          <View style={styles.goalTitleContainer}>
-            <Ionicons name={goal.icon} size={18} color="#0056d2" />
-            <Text style={styles.goalTitle}>{goal.title}</Text>
-          </View>
+            <View style={styles.goalTitleContainer}>
+              <Ionicons name={goal.icon} size={18} color="#0056d2" />
+              <Text style={styles.goalTitle}>{goal.title}</Text>
+            </View>
             <Text style={styles.goalProgress}>
               {goal.current} / {goal.target} {goal.unit}
             </Text>
           </View>
           <View style={styles.goalProgressBar}>
-            <View style={[styles.goalProgressFill,{ width: `${goal.progress}%`,backgroundColor: '#0056d2' }]} />
+            <View style={[styles.goalProgressFill, { width: `${goal.progress}%`, backgroundColor: "#0056d2" }]} />
           </View>
         </View>
       ))}
     </View>
-  )
-}
+  );
+};
 
 const SkeletonLoader = () => (
   <View style={styles.loadingContainer}>
     <View style={styles.skeletonCard} />
   </View>
-)
+);
 
 export default function ProfileScreen({ navigation }) {
-  const { user,authToken,authLoading } = useAuth()
+  const { user, authToken, authLoading } = useAuth();
   const checkInModalRef = useRef(null);
-  const [hasCheckedIn,setHasCheckedIn] = useState(false);
+  const [hasCheckedIn, setHasCheckedIn] = useState(false);
 
   const handleOpenCheckIn = () => {
     if (checkInModalRef.current) {
       checkInModalRef.current.show();
     }
   };
-  const { userData,profile,bodyMeasurements,weightHistory,loading,refreshing,onRefresh } = useProfileData(
+
+  const { userData, profile, bodyMeasurements, weightHistory, loading, refreshing, onRefresh } = useProfileData(
     user,
     authToken,
     authLoading,
-    navigation,
-  )
-  const [headerHeight,setHeaderHeight] = useState(120)
-  const [showImageViewer,setShowImageViewer] = useState(false)
-  const insets = useSafeAreaInsets()
+    navigation
+  );
 
-  const handleEditProfile = () => navigation.navigate("EditUserScreen",{ user: userData })
-  const handleEditBody = () => navigation.navigate("EditProfile",{ profile })
-  const handleAddBodyMeasurement = () => navigation.navigate("AddBodyMeasurement")
-  const handleAddWeightHistory = () => navigation.navigate("AddWeightHistory")
-  const handleChangePassword = () => navigation.navigate("ChangePassword")
+  const [headerHeight, setHeaderHeight] = useState(200);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  const handleEditProfile = () => navigation.navigate("EditUserScreen", { user: userData });
+  const handleEditBody = () => navigation.navigate("EditProfile", { profile });
+  const handleAddBodyMeasurement = () => navigation.navigate("AddBodyMeasurement");
+  const handleAddWeightHistory = () => navigation.navigate("AddWeightHistory");
+  const handleChangePassword = () => navigation.navigate("ChangePassword");
+
+  // Tab navigation handlers
+  const handleTabPress = (tab) => {
+    if (tab === 'LeaderboardScreen') {
+      navigation.navigate('LeaderboardScreen');
+    } else if (tab === 'WeeklyProgressScreen') {
+      navigation.navigate('WeeklyProgressScreen');
+    }
+  };
 
   const handleReset = () => {
     Alert.alert(
       "Reset Progress",
       "Are you sure you want to reset your level, XP, and streak? This action cannot be undone.",
       [
-        { text: "Cancel",style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Reset",
           style: "destructive",
           onPress: async () => {
             try {
-              await apiUserService.resetProgress(user.userId)
-              Alert.alert("Success","Your progress has been reset!")
-              onRefresh()
+              await apiUserService.resetProgress(user.userId);
+              Alert.alert("Success", "Your progress has been reset!");
+              onRefresh();
             } catch (error) {
-              Alert.alert("Error","Failed to reset progress. Please try again.")
+              Alert.alert("Error", "Failed to reset progress. Please try again.");
             }
           },
         },
       ]
-    )
-  }
+    );
+  };
 
   useEffect(() => {
     const checkCheckInStatus = async () => {
       try {
         const lastDate = await AsyncStorage.getItem("lastCheckInDate");
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toISOString().split("T")[0];
         setHasCheckedIn(lastDate === today);
-      } catch (err) {
-      }
+      } catch (err) {}
     };
     checkCheckInStatus();
-  },[]);
+  }, []);
 
   const latestMeasurement = useMemo(() => {
-    if (bodyMeasurements.length === 0) return null
-    return bodyMeasurements.reduce((latest,current) =>
-      new Date(current.measurementDate).getTime() > new Date(latest.measurementDate).getTime() ? current : latest,
-    )
-  },[bodyMeasurements])
+    if (bodyMeasurements.length === 0) return null;
+    return bodyMeasurements.reduce((latest, current) =>
+      new Date(current.measurementDate).getTime() > new Date(latest.measurementDate).getTime() ? current : latest
+    );
+  }, [bodyMeasurements]);
 
   const latestWeight = useMemo(() => {
-    if (weightHistory.length === 0) return null
-    return weightHistory.reduce((latest,current) =>
-      new Date(current.recordedAt).getTime() > new Date(latest.recordedAt).getTime() ? current : latest,
-    )
-  },[weightHistory])
+    if (weightHistory.length === 0) return null;
+    return weightHistory.reduce((latest, current) =>
+      new Date(current.recordedAt).getTime() > new Date(latest.recordedAt).getTime() ? current : latest
+    );
+  }, [weightHistory]);
 
   const previousWeight = useMemo(() => {
-    if (weightHistory.length <= 1) return null
+    if (weightHistory.length <= 1) return null;
     const sortedWeights = [...weightHistory].sort(
-      (a,b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime(),
-    )
-    return sortedWeights[1]?.weight || null
-  },[weightHistory])
+      (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
+    );
+    return sortedWeights[1]?.weight || null;
+  }, [weightHistory]);
 
   const handleHeaderLayout = (event) => {
     // const { height } = event.nativeEvent.layout;
     // setHeaderHeight(height);
-  }
+  };
 
   const handleAvatarPress = () => {
     if (userData?.avatar) {
-      setShowImageViewer(true)
+      setShowImageViewer(true);
     }
-  }
+  };
 
-  useEffect(() => {
-  },[headerHeight])
+  useEffect(() => {}, [headerHeight]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -795,105 +854,118 @@ export default function ProfileScreen({ navigation }) {
         onReset={handleReset}
         hasCheckedIn={hasCheckedIn}
         setHasCheckedIn={setHasCheckedIn}
+        onTabPress={handleTabPress}
       />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.scrollContent,{ paddingTop: headerHeight || insets.top + 200 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight || insets.top + 200 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#4F46E5"]} />}
       >
-      <HealthSummaryCard
-        profile={profile}
-        navigation={navigation}
-        latestWeight={latestWeight}
-        latestMeasurement={latestMeasurement}
-        loading={loading.profile || loading.weightHistory || loading.bodyMeasurements}
-        primaryColor="#0056d2"
-      />
-      <HealthGoalsCard profile={profile} navigation={navigation} loading={loading.profile} />
-      <View style={styles.goalsCard}>
-        <View style={styles.goalsHeader}>
-          <Text style={styles.goalsTitle}>Body Metrics</Text>
-          <TouchableOpacity style={[styles.goalsEditButton, { backgroundColor: '#E6F0FA' }]} onPress={handleEditBody}>
-            <Text style={[styles.goalsEditText, { color: '#0056d2' }]}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.metricsGrid}>
-          <View style={styles.metricRow}>
-            <Text style={styles.metricRowLabel}>Activity Level</Text>
-            <Text style={styles.metricRowValue}>{profile?.activityLevel || "Not set"}</Text>
-          </View>
-          <View style={styles.metricRow}>
-            <Text style={styles.metricRowLabel}>Dietary Preference</Text>
-            <Text style={styles.metricRowValue}>{profile?.dietaryPreference || "Not set"}</Text>
-          </View>
-          <View style={styles.metricRow}>
-            <Text style={styles.metricRowLabel}>Fitness Goal</Text>
-            <Text style={styles.metricRowValue}>{profile?.fitnessGoal || "Not set"}</Text>
-          </View>
-        </View>
-      </View>
-      <SectionCard
-        title="Latest Body Measurement"
-        onAction={handleAddBodyMeasurement}
-        actionIcon="add"
-        loading={loading.bodyMeasurements}
-      >
-        {latestMeasurement ? (
-          <BodyMeasurementItem item={latestMeasurement} />
-        ) : (
-          <View style={styles.noDataContainer}>
-            <Ionicons name="body-outline" size={40} color="#CBD5E1" />
-            <Text style={styles.noDataText}>No body measurements available.</Text>
-            <TouchableOpacity style={[styles.addFirstButton, { backgroundColor: '#E6F0FA' }]} onPress={handleAddBodyMeasurement}>
-              <Text style={[styles.addFirstButtonText, { color: '#0056d2' }]}>Add Your First Measurement</Text>
+        <HealthSummaryCard
+          profile={profile}
+          navigation={navigation}
+          latestWeight={latestWeight}
+          latestMeasurement={latestMeasurement}
+          loading={loading.profile || loading.weightHistory || loading.bodyMeasurements}
+          primaryColor="#0056d2"
+        />
+        <HealthGoalsCard profile={profile} navigation={navigation} loading={loading.profile} />
+        <View style={styles.goalsCard}>
+          <View style={styles.goalsHeader}>
+            <Text style={styles.goalsTitle}>Body Metrics</Text>
+            <TouchableOpacity
+              style={[
+                styles.goalsEditButton,
+                { backgroundColor: "#E6F0FA", flexDirection: "row", alignItems: "center" },
+              ]}
+              onPress={handleEditBody}
+            >
+              <Ionicons name="pencil" size={16} color="#0056d2" />
+              <Text style={[styles.goalsEditText, { color: "#0056d2", marginLeft: 4 }]}>Edit</Text>
             </TouchableOpacity>
           </View>
-        )}
-        {latestMeasurement && (
-          <TouchableOpacity onPress={() => navigation.navigate("BodyMeasurements")} style={styles.viewAllButton}>
-            <Text style={styles.viewAllText}>View All Measurements</Text>
-            <Ionicons name="chevron-forward" size={16} color="#0056d2" />
-          </TouchableOpacity>
-        )}
-      </SectionCard>
-      <SectionCard
-        title="Latest Weight"
-        onAction={handleAddWeightHistory}
-        actionIcon="add"
-        loading={loading.weightHistory}
-      >
-        {latestWeight ? (
-          <WeightHistoryItem item={latestWeight} previousWeight={previousWeight} />
-        ) : (
-          <View style={styles.noDataContainer}>
-            <Ionicons name="scale-outline" size={40} color="#CBD5E1" />
-            <Text style={styles.noDataText}>No weight history available.</Text>
-            <TouchableOpacity style={[styles.addFirstButton, { backgroundColor: '#E6F0FA' }]} onPress={handleAddWeightHistory}>
-              <Text style={[styles.addFirstButtonText, { color: '#0056d2' }]}>Add Your First Weight</Text>
-            </TouchableOpacity>
+          <View style={styles.metricsGrid}>
+            <View style={styles.metricRow}>
+              <Text style={styles.metricRowLabel}>Activity Level</Text>
+              <Text style={styles.metricRowValue}>{profile?.activityLevel || "Not set"}</Text>
+            </View>
+            <View style={styles.metricRow}>
+              <Text style={styles.metricRowLabel}>Dietary Preference</Text>
+              <Text style={styles.metricRowValue}>{profile?.dietaryPreference || "Not set"}</Text>
+            </View>
+            <View style={styles.metricRow}>
+              <Text style={styles.metricRowLabel}>Fitness Goal</Text>
+              <Text style={styles.metricRowValue}>{profile?.fitnessGoal || "Not set"}</Text>
+            </View>
           </View>
-        )}
-        {latestWeight && (
-          <TouchableOpacity onPress={() => navigation.navigate("WeightHistory")} style={styles.viewAllButton}>
-            <Text style={styles.viewAllText}>View All Weight History</Text>
-            <Ionicons name="chevron-forward" size={16} color="#0056d2" />
+        </View>
+        <SectionCard
+          title="Latest Body Measurement"
+          onAction={handleAddBodyMeasurement}
+          actionIcon="add"
+          loading={loading.bodyMeasurements}
+        >
+          {latestMeasurement ? (
+            <BodyMeasurementItem item={latestMeasurement} />
+          ) : (
+            <View style={styles.noDataContainer}>
+              <Ionicons name="body-outline" size={40} color="#CBD5E1" />
+              <Text style={styles.noDataText}>No body measurements available.</Text>
+              <TouchableOpacity
+                style={[styles.addFirstButton, { backgroundColor: "#E6F0FA" }]}
+                onPress={handleAddBodyMeasurement}
+              >
+                <Text style={[styles.addFirstButtonText, { color: "#0056d2" }]}>Add Your First Measurement</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {latestMeasurement && (
+            <TouchableOpacity onPress={() => navigation.navigate("BodyMeasurements")} style={styles.viewAllButton}>
+              <Text style={styles.viewAllText}>View All Measurements</Text>
+              <Ionicons name="chevron-forward" size={16} color="#0056d2" />
+            </TouchableOpacity>
+          )}
+        </SectionCard>
+        <SectionCard
+          title="Latest Weight"
+          onAction={handleAddWeightHistory}
+          actionIcon="add"
+          loading={loading.weightHistory}
+        >
+          {latestWeight ? (
+            <WeightHistoryItem item={latestWeight} previousWeight={previousWeight} />
+          ) : (
+            <View style={styles.noDataContainer}>
+              <Ionicons name="scale-outline" size={40} color="#CBD5E1" />
+              <Text style={styles.noDataText}>No weight history available.</Text>
+              <TouchableOpacity
+                style={[styles.addFirstButton, { backgroundColor: "#E6F0FA" }]}
+                onPress={handleAddWeightHistory}
+              >
+                <Text style={[styles.addFirstButtonText, { color: "#0056d2" }]}>Add Your First Weight</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {latestWeight && (
+            <TouchableOpacity onPress={() => navigation.navigate("WeightHistory")} style={styles.viewAllButton}>
+              <Text style={styles.viewAllText}>View All Weight History</Text>
+              <Ionicons name="chevron-forward" size={16} color="#0056d2" />
+            </TouchableOpacity>
+          )}
+        </SectionCard>
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity onPress={handleChangePassword} style={styles.changePasswordButton}>
+            <Ionicons name="lock-closed-outline" size={18} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.actionButtonText}>Change Password</Text>
           </TouchableOpacity>
-        )}
-      </SectionCard>
-      <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity onPress={handleChangePassword} style={styles.changePasswordButton}>
-          <Ionicons name="lock-closed-outline" size={18} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.actionButtonText}>Change Password</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("HealthInsights")} style={styles.insightsButton}>
-          <Ionicons name="bulb-outline" size={18} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.actionButtonText}>Health Insights</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity onPress={() => navigation.navigate("HealthConsultationScreen")} style={styles.insightsButton}>
+            <Ionicons name="bulb-outline" size={18} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.actionButtonText}>Health Insights</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.bottomPadding} />
       </ScrollView>
-
       {userData?.avatar && (
         <ImageZoomViewer
           visible={showImageViewer}
@@ -903,14 +975,14 @@ export default function ProfileScreen({ navigation }) {
         />
       )}
       <FloatingMenuButton
-        initialPosition={{ x: width - 70,y: screenHeight - 150 }}
+        initialPosition={{ x: width - 70, y: screenHeight - 150 }}
         autoHide={true}
         navigation={navigation}
         autoHideDelay={4000}
       />
       <CheckInModal ref={checkInModalRef} setHasCheckedIn={setHasCheckedIn} />
     </SafeAreaView>
-  )
+  );
 }
 
 // Zoom Viewer Styles
@@ -984,7 +1056,7 @@ const zoomStyles = StyleSheet.create({
     marginLeft: 8,
     opacity: 0.8,
   },
-})
+});
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -1004,131 +1076,165 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1000,
+    backgroundColor: "#0056d2",
   },
   profileHeader: {
-    overflow: "hidden",
-    paddingBottom: 0,
+    flex: 1,
+    paddingBottom: 8,
   },
   profileHeaderContent: {
     flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    paddingBottom: 16,
+    alignItems: "flex-start",
+    paddingHorizontal: 20,
+    paddingVertical: 2,
+    minHeight: 90,
+  },
+  avatarSection: {
+    marginRight: 14,
+    justifyContent: "flex-start",
   },
   avatarContainer: {
     position: "relative",
   },
   profileAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.8)",
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
+    borderWidth: 2.5,
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
   avatarFallback: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.8)",
+    borderWidth: 2.5,
+    borderColor: "rgba(255, 255, 255, 0.3)",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarFallbackText: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   levelBadge: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: "#10B981",
-    borderWidth: 3,
-    borderColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   levelText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "700",
-    color: "#fff",
+    color: "#FFFFFF",
   },
-  profileInfoBox: {
+  profileInfoSection: {
     flex: 1,
-    marginLeft: 16,
+    justifyContent: "flex-start",
+    paddingTop: 2,
+  },
+  userInfoContainer: {
+    marginBottom: 6,
   },
   profileName: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "700",
-    color: "#fff",
+    color: "#FFFFFF",
+    marginBottom: 1,
   },
   profileEmail: {
-    fontSize: 15,
-    color: "rgba(255, 255, 255, 0.9)",
-    marginTop: 4,
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.8)",
   },
-  levelProgressContainer: {
-    marginTop: 8,
+  xpContainer: {
+    marginBottom: 6,
   },
-  levelProgressBar: {
-    height: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    borderRadius: 3,
-    overflow: "hidden",
-    marginBottom: 4,
+  xpHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 3,
   },
-  levelProgressFill: {
-    height: "100%",
-    backgroundColor: "#10B981",
-    borderRadius: 3,
-  },
-  levelProgressText: {
+  xpText: {
     fontSize: 12,
     color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "600",
+  },
+  levelIndicator: {
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.7)",
     fontWeight: "500",
+  },
+  progressBarContainer: {
+    width: "100%",
+  },
+  progressBar: {
+    height: 3,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 1.5,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#10B981",
+    borderRadius: 1.5,
   },
   streakContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 3,
+    borderRadius: 10,
     alignSelf: "flex-start",
+    maxWidth: "90%",
   },
   streakEmoji: {
-    fontSize: 16,
+    fontSize: 12,
     marginRight: 4,
   },
   streakText: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#FFFFFF",
     fontWeight: "600",
+    flexShrink: 1,
   },
-  headerActions: {
-    alignItems: "center",
+  actionSection: {
+    justifyContent: "flex-start",
+    paddingTop: 2,
+    marginLeft: 8,
   },
-  editProfileButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginLeft: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  editButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  profileTabs: {
+  tabsContainer: {
     flexDirection: "row",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    borderTopColor: "rgba(255, 255, 255, 0.2)",
+    marginTop: 4,
   },
-  profileTab: {
+  tab: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -1137,28 +1243,28 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: "#fff",
+    borderBottomColor: "#FFFFFF",
   },
   tabText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    marginLeft: 6,
+    color: "rgba(255, 255, 255, 0.6)",
+    marginLeft: 4,
     fontSize: 14,
+    fontWeight: "500",
   },
   activeTabText: {
-    color: "#fff",
-    marginLeft: 6,
+    color: "#FFFFFF",
+    marginLeft: 4,
     fontSize: 14,
     fontWeight: "600",
   },
   healthSummaryCard: {
     marginHorizontal: 16,
-    marginTop: 100,
     backgroundColor: "#fff",
     borderRadius: 20,
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
-    shadowOffset: { width: 0,height: 4 },
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
     padding: 16,
     zIndex: 10,
@@ -1231,7 +1337,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E6F0FA",
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 5,
   },
   editMetricText: {
     fontSize: 14,
@@ -1257,7 +1363,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
-    shadowOffset: { width: 0,height: 4 },
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
     padding: 16,
   },
@@ -1273,9 +1379,9 @@ const styles = StyleSheet.create({
     color: "#0F172A",
   },
   goalsEditButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 5,
     backgroundColor: "#E6F0FA",
   },
   goalsEditText: {
@@ -1323,7 +1429,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 8,
-    shadowOffset: { width: 0,height: 2 },
+    shadowOffset: { width: 0, height: 2 },
     elevation: 3,
     overflow: "hidden",
   },
@@ -1419,7 +1525,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.03,
     shadowRadius: 4,
-    shadowOffset: { width: 0,height: 1 },
+    shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
   measurementLabel: {
@@ -1431,17 +1537,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#0F172A",
-  },
-  dateContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 12,
-  },
-  measurementDate: {
-    fontSize: 14,
-    color: "#64748B",
-    marginLeft: 4,
   },
   weightHistoryItem: {
     backgroundColor: "#F8FAFC",
@@ -1547,7 +1642,7 @@ const styles = StyleSheet.create({
     shadowColor: "#0056d2",
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    shadowOffset: { width: 0,height: 2 },
+    shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
   insightsButton: {
@@ -1561,7 +1656,7 @@ const styles = StyleSheet.create({
     shadowColor: "#10B981",
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    shadowOffset: { width: 0,height: 2 },
+    shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
   buttonIcon: {
@@ -1583,7 +1678,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
-    shadowOffset: { width: 0,height: 4 },
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
     padding: 16,
     height: 100,
@@ -1594,4 +1689,4 @@ const styles = StyleSheet.create({
     backgroundColor: "#E2E8F0",
     borderRadius: 16,
   },
-})
+});

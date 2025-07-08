@@ -15,7 +15,7 @@ import {
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
-import { LinearGradient } from "expo-linear-gradient"
+import Header from "components/Header"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import axios from "axios"
 import { GEMINI_API_KEY } from "@env"
@@ -241,91 +241,87 @@ const HealthConsultationScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        {/* Header */}
-        <LinearGradient colors={["#4F46E5", "#6366F1"]} style={styles.header}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <View style={styles.headerInfo}>
-              <Text style={styles.headerTitle}>Health Assistant</Text>
-              <Text style={styles.headerSubtitle}>Ask me anything about health</Text>
-            </View>
-            <View style={styles.headerAvatar}>
-              <Ionicons name="medical" size={24} color="#FFFFFF" />
-            </View>
-          </View>
-        </LinearGradient>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: '#fff' }]}> 
+      <Header
+        title="Health Assistant"
+        onBack={() => navigation.goBack()}
+        backgroundColor="#fff"
+        textColor="#1E293B"
+        rightActions={[]}
+      />
+      <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
+        <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '500' }}>Ask me anything about health</Text>
+      </View>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={{ flex: 1 }}>
+          {/* Chat Messages */}
+          <View style={styles.chatContainer}>
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={loadConsultations}>
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
-        {/* Chat Messages */}
-        <View style={styles.chatContainer}>
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={loadConsultations}>
-                <Text style={styles.retryButtonText}>Retry</Text>
+            <FlatList
+              ref={flatListRef}
+              data={consultations}
+              renderItem={renderChatMessage}
+              keyExtractor={(item) => item.consultationId}
+              contentContainerStyle={styles.chatList}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#4F46E5"]} />}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
+                  <Text style={styles.emptyTitle}>Start a conversation</Text>
+                  <Text style={styles.emptyText}>Ask your first health question below</Text>
+                </View>
+              }
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            />
+
+            {sendingMessage && (
+              <View style={styles.typingIndicator}>
+                <View style={styles.typingBubble}>
+                  <View style={styles.aiAvatar}>
+                    <Ionicons name="medical" size={16} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.typingDots}>
+                    <View style={[styles.dot, styles.dot1]} />
+                    <View style={[styles.dot, styles.dot2]} />
+                    <View style={[styles.dot, styles.dot3]} />
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Input Area */}
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.textInput}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Ask a health question..."
+                multiline
+                maxLength={500}
+                editable={!sendingMessage}
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, (!query.trim() || sendingMessage) && styles.sendButtonDisabled]}
+                onPress={handleAskQuestion}
+                disabled={!query.trim() || sendingMessage}
+              >
+                {sendingMessage ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="send" size={20} color="#FFFFFF" />
+                )}
               </TouchableOpacity>
             </View>
-          )}
-
-          <FlatList
-            ref={flatListRef}
-            data={consultations}
-            renderItem={renderChatMessage}
-            keyExtractor={(item) => item.consultationId}
-            contentContainerStyle={styles.chatList}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#4F46E5"]} />}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
-                <Text style={styles.emptyTitle}>Start a conversation</Text>
-                <Text style={styles.emptyText}>Ask your first health question below</Text>
-              </View>
-            }
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          />
-
-          {sendingMessage && (
-            <View style={styles.typingIndicator}>
-              <View style={styles.typingBubble}>
-                <View style={styles.aiAvatar}>
-                  <Ionicons name="medical" size={16} color="#FFFFFF" />
-                </View>
-                <View style={styles.typingDots}>
-                  <View style={[styles.dot, styles.dot1]} />
-                  <View style={[styles.dot, styles.dot2]} />
-                  <View style={[styles.dot, styles.dot3]} />
-                </View>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Input Area */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.textInput}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Ask a health question..."
-              multiline
-              maxLength={500}
-              editable={!sendingMessage}
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, (!query.trim() || sendingMessage) && styles.sendButtonDisabled]}
-              onPress={handleAskQuestion}
-              disabled={!query.trim() || sendingMessage}
-            >
-              {sendingMessage ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="send" size={20} color="#FFFFFF" />
-              )}
-            </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -336,46 +332,12 @@ const HealthConsultationScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#fff",
   },
   container: {
     flex: 1,
   },
-  header: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    marginRight: 16,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 2,
-  },
-  headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  // header styles removed (now handled by Header.js)
   chatContainer: {
     flex: 1,
     backgroundColor: "#F9FAFB",
@@ -394,14 +356,17 @@ const styles = StyleSheet.create({
     maxWidth: width * 0.8,
   },
   userMessage: {
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#E6F0FA", // lighter than #0056d2
     alignSelf: "flex-end",
     borderBottomRightRadius: 4,
+    borderWidth: 1,
+    borderColor: "#0056d2",
   },
   userMessageText: {
-    color: "#FFFFFF",
+    color: "#0056d2",
     fontSize: 16,
     lineHeight: 22,
+    fontWeight: "600",
   },
   aiMessage: {
     backgroundColor: "#FFFFFF",
@@ -439,7 +404,7 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.7)",
+    color: "#64748B", // đổi màu thời gian sang xám xanh đậm
     marginTop: 4,
   },
   messageActions: {

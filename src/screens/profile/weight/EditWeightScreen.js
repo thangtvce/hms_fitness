@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useContext } from "react"
 import {
     View,
     Text,
@@ -16,13 +16,14 @@ import { Ionicons } from "@expo/vector-icons"
 import { weightHistoryService } from "services/apiWeightHistoryService"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
-import { theme } from "theme/color"
-import { LinearGradient } from "expo-linear-gradient"
-import { StatusBar } from "expo-status-bar"
+import { ThemeContext } from "components/theme/ThemeContext"
+import Header from "components/Header"
+
 import { SafeAreaView } from "react-native-safe-area-context"
 
 export default function EditWeightScreen({ navigation,route }) {
     const { historyId,weight,recordedAt,userId } = route.params
+    const { colors } = useContext(ThemeContext)
     const [formData,setFormData] = useState({
         weight: weight.toString(),
         recordedAt: new Date(recordedAt),
@@ -132,6 +133,7 @@ export default function EditWeightScreen({ navigation,route }) {
         }
     }
 
+
     const formatDate = (date) => {
         return date.toLocaleDateString("en-US",{
             year: "numeric",
@@ -142,17 +144,14 @@ export default function EditWeightScreen({ navigation,route }) {
 
     return (
         <SafeAreaView style={styles.safeArea}>
-            <DynamicStatusBar backgroundColor={theme.primaryColor} />
-            <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Edit Weight</Text>
-                    <View style={styles.headerRight} />
-                </View>
-            </LinearGradient>
-            <View style={styles.container}>
+            <DynamicStatusBar backgroundColor={colors.headerBackground || "#FFFFFF"} />
+            <Header
+                title="Edit Weight"
+                onBack={() => navigation.goBack()}
+                backgroundColor={colors.headerBackground || "#FFFFFF"}
+                textColor={colors.headerText || colors.primary || "#0056d2"}
+            />
+            <View style={[styles.container, { paddingTop: 80 }]}> 
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
@@ -244,7 +243,7 @@ export default function EditWeightScreen({ navigation,route }) {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.saveButton,isLoading && styles.saveButtonDisabled]}
+                                style={[styles.saveButton, { backgroundColor: colors.primary || '#0056d2' }, isLoading && styles.saveButtonDisabled]}
                                 onPress={handleSave}
                                 disabled={isLoading}
                             >
@@ -262,7 +261,7 @@ export default function EditWeightScreen({ navigation,route }) {
 
                     <View style={styles.infoCard}>
                         <View style={styles.infoHeader}>
-                            <Ionicons name="information-circle-outline" size={20} color="#2563EB" />
+                            <Ionicons name="information-circle-outline" size={20} color={colors.primary || "#0056d2"} />
                             <Text style={styles.infoTitle}>Weight Tracking Tips</Text>
                         </View>
                         <Text style={styles.infoText}>
@@ -425,12 +424,11 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#4F46E5",
         paddingVertical: 12,
         borderRadius: 8,
         ...Platform.select({
             ios: {
-                shadowColor: "#2563EB",
+                shadowColor: "#0056d2",
                 shadowOffset: { width: 0,height: 2 },
                 shadowOpacity: 0.2,
                 shadowRadius: 3,
@@ -457,7 +455,7 @@ const styles = StyleSheet.create({
         padding: 16,
         marginBottom: 16,
         borderLeftWidth: 4,
-        borderLeftColor: "#2563EB",
+        borderLeftColor: "#0056d2",
     },
     infoHeader: {
         flexDirection: "row",
