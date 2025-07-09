@@ -57,6 +57,45 @@ export default function HomeScreen({ navigation }) {
   const [weightStats, setWeightStats] = useState({ current: 0, lowest: 0, highest: 0, average: 0, change: 0 });
   const [weightTimeFrame, setWeightTimeFrame] = useState('3m');
 
+  // StepCounter AsyncStorage values
+  const [stepCounterData, setStepCounterData] = useState({ steps: 0, calories: 0, distance: 0, target: 10000 });
+
+  // Helper to get today's key (same as StepCounterScreen)
+  const getTodayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+  };
+
+  // Load step/calo/distance from AsyncStorage (StepCounterScreen logic)
+  useEffect(() => {
+    const loadStepCounterData = async () => {
+      try {
+        const userId = user?.userId || 'unknown';
+        const todayKey = `stepcounter_${userId}_${getTodayStr()}`;
+        const data = await AsyncStorage.getItem(todayKey);
+        if (data) {
+          const parsed = JSON.parse(data);
+          const steps = Number(parsed.steps) || 0;
+          const duration = Number(parsed.duration) || 0;
+          const target = Number(parsed.target) || 10000;
+          // Calculate distance and calories as in StepCounterScreen
+          const distance = (steps * 0.762) / 1000;
+          let calPerStep = 0.04;
+          if (user && user.gender) {
+            if (user.gender.toLowerCase() === 'female' || user.gender.toLowerCase() === 'nữ') calPerStep = 0.03;
+          }
+          const calories = Math.round(steps * calPerStep);
+          setStepCounterData({ steps, calories, distance, target });
+        } else {
+          setStepCounterData({ steps: 0, calories: 0, distance: 0, target: 10000 });
+        }
+      } catch {
+        setStepCounterData({ steps: 0, calories: 0, distance: 0, target: 10000 });
+      }
+    };
+    loadStepCounterData();
+  }, [user]);
+
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const currentDayIndex = currentDate.getDay();
 
@@ -71,34 +110,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   // Step Preview Section
-  const StepPreview = () => (
-    <View style={[styles.healthCard, { marginBottom: 20 }]}>
-      <LinearGradient
-        colors={theme === 'dark' ? ['#18181B', '#18181B'] : ['#FFFFFF', '#FFFFFF']}
-        style={styles.healthCardGradient}
-      >
-        <View style={styles.healthCardHeader}>
-          <Feather name="activity" size={22} color={theme === 'dark' ? '#FFFFFF' : '#1E293B'} />
-          <Text style={[styles.healthCardTitle, { color: theme === 'dark' ? '#FFFFFF' : '#1E293B' }]}>Today's Steps</Text>
-        </View>
-        {isReady ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 10 }}>
-            <Text style={{ fontSize: 32, fontWeight: 'bold', color: colors.primary || '#0056d2', marginRight: 16 }}>
-              {steps}
-            </Text>
-            <Text style={{ fontSize: 16, color: theme === 'dark' ? '#D1D5DB' : '#64748B' }}>steps</Text>
-          </View>
-        ) : (
-          <Text style={{ fontSize: 16, color: theme === 'dark' ? '#D1D5DB' : '#64748B', marginTop: 10 }}>
-            Loading steps...
-          </Text>
-        )}
-        <Text style={{ fontSize: 14, color: theme === 'dark' ? '#D1D5DB' : '#64748B', marginBottom: 8 }}>
-          Duration: {formatDuration(duration)}
-        </Text>
-      </LinearGradient>
-    </View>
-  );
+
 
   useEffect(() => {
     navigation.setOptions({
@@ -1350,68 +1362,46 @@ export default function HomeScreen({ navigation }) {
                     <Feather name="activity" size={20} color={theme === 'dark' ? '#6366F1' : '#4F46E5'} />
                   </View>
                   <Text
-                    style={[
-                      styles.statValue,
-                      { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') },
-                    ]}
+                    style={[styles.statValue, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') }]}
                   >
-                    {steps}
+                    {stepCounterData.steps}
                   </Text>
                   <Text
-                    style={[
-                      styles.statLabel,
-                      { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B'), opacity: 0.7 },
-                    ]}
+                    style={[styles.statLabel, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B'), opacity: 0.7 }]}
                   >
                     Steps Today
                   </Text>
                 </View>
-                <View
-                  style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || '#E2E8F0' }]}
-                />
+                <View style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || '#E2E8F0' }]} />
                 <View style={styles.statItem}>
                   <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || '#F3F4F6' }]}>
                     <Feather name="zap" size={20} color={theme === 'dark' ? '#FBBF24' : '#F59E0B'} />
                   </View>
                   <Text
-                    style={[
-                      styles.statValue,
-                      { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') },
-                    ]}
+                    style={[styles.statValue, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') }]}
                   >
-                    {dashboardData.activitySummary.burnedCalories}
+                    {stepCounterData.calories}
                   </Text>
                   <Text
-                    style={[
-                      styles.statLabel,
-                      { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B'), opacity: 0.7 },
-                    ]}
+                    style={[styles.statLabel, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B'), opacity: 0.7 }]}
                   >
                     Calories Burned
                   </Text>
                 </View>
-                <View
-                  style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || '#E2E8F0' }]}
-                />
+                <View style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || '#E2E8F0' }]} />
                 <View style={styles.statItem}>
                   <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || '#F3F4F6' }]}>
                     <Feather name="target" size={20} color={theme === 'dark' ? '#34D399' : '#10B981'} />
                   </View>
                   <Text
-                    style={[
-                      styles.statValue,
-                      { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') },
-                    ]}
+                    style={[styles.statValue, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') }]}
                   >
-                    {Math.round((steps / dashboardData.activitySummary.target) * 100)}%
+                    {stepCounterData.distance < 1 ? `${Math.round(stepCounterData.distance * 1000)} m` : `${stepCounterData.distance.toFixed(2)} km`}
                   </Text>
                   <Text
-                    style={[
-                      styles.statLabel,
-                      { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B'), opacity: 0.7 },
-                    ]}
+                    style={[styles.statLabel, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B'), opacity: 0.7 }]}
                   >
-                    Goal Progress
+                    Distance
                   </Text>
                 </View>
               </View>
@@ -1500,7 +1490,7 @@ export default function HomeScreen({ navigation }) {
 
             <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
               <View style={styles.sectionHeader}></View>
-              <StepPreview />
+         
             </Animated.View>
 
             <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>

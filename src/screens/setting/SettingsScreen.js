@@ -37,8 +37,6 @@ const menuItems = [
   { id: "3", title: "Body Measurements", icon: "body-outline", description: "View your body measurements" },
   { id: "4", title: "My Subscriptions", icon: "card-outline", description: "View your active and past subscriptions" },
   { id: "5", title: "Workout", icon: "barbell-outline", description: "View workout plans" },
-  { id: "6", title: "Nutrition", icon: "nutrition-outline", description: "Track your nutrition" },
-  { id: "7", title: "Health Goals", icon: "flag-outline", description: "Set and track your health goals" },
   { id: "8", title: "Leaderboard", icon: "trophy-outline", description: "View user rankings and achievements" },
   { id: "9", title: "Saved Packages", icon: "bookmark-outline", description: "View your saved fitness packages" },
   { id: "10", title: "History Report", icon: "document-text-outline", description: "View your report history" },

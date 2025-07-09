@@ -124,13 +124,29 @@ const NutritionTargetScreen = () => {
     setSelectedPreset(idx);
   };
 
+  // Helper to get YYYY-MM-DD string for today
+  const getTodayKey = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const handleSave = async () => {
     if (!target.calories || !target.carbs || !target.protein || !target.fats) {
       Alert.alert("Missing Values", "Please set all nutrition targets before saving");
       return;
     }
 
+    // Save as latest
     await AsyncStorage.setItem("nutritionTarget", JSON.stringify(target));
+    // Save as per-day
+    const todayKey = getTodayKey();
+    await AsyncStorage.setItem(`nutritionTarget_${todayKey}`, JSON.stringify(target));
+
+    setLastSaved(target); // update UI immediately
+
     Alert.alert(
       "Success!", 
       "Your nutrition targets have been saved successfully!", 

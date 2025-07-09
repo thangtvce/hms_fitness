@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { ThemeProvider } from 'components/theme/ThemeContext';
 import AppNavigator from 'navigation/AppNavigator';
 import { StepTrackerProvider } from 'context/StepTrackerContext';
+import { WaterTotalProvider } from './context/WaterTotalContext';
 
 
 function RootNavigator() {
@@ -28,7 +29,9 @@ function RootNavigator() {
 export default function App() {
   return (
     <ThemeProvider>
-      <RootNavigator />
+      <WaterTotalProvider>
+        <RootNavigator />
+      </WaterTotalProvider>
     </ThemeProvider>
   );
 }

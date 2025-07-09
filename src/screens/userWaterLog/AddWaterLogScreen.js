@@ -23,6 +23,7 @@ import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import FloatingMenuButton from "components/FloatingMenuButton"
 import { SafeAreaView } from "react-native-safe-area-context"
 import DateTimePicker from "@react-native-community/datetimepicker"
+import Header from "components/Header"
 
 const { width,height } = Dimensions.get("window")
 
@@ -217,14 +218,14 @@ export default function AddWaterLogScreen({ navigation }) {
         <SafeAreaView style={styles.safeArea}>
             <DynamicStatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
 
-            {/* Minimal Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#1F2937" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Log Water Intake</Text>
-                <View style={styles.headerRight} />
-            </View>
+            {/* Use shared Header component */}
+            <Header
+                title="Log Water Intake"
+                onBack={() => navigation.goBack()}
+                backgroundColor="#FFFFFF"
+                titleColor="#1F2937"
+                // You can add rightActions if needed
+            />
 
             <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
                 <Animated.View style={[styles.content,{ opacity: fadeAnim }]}>
@@ -245,16 +246,16 @@ export default function AddWaterLogScreen({ navigation }) {
                                         key={amount.value}
                                         style={[
                                             styles.quickAmountPill,
-                                            selectedQuickAmount === amount.value && styles.quickAmountPillSelected,
+                                            selectedQuickAmount === amount.value && { backgroundColor: '#0056d2', borderColor: '#0056d2' },
                                         ]}
                                         onPress={() => handleQuickAmountSelect(amount.value)}
                                         activeOpacity={0.7}
                                     >
                                         <Text
-                                            style={[
-                                                styles.quickAmountText,
-                                                selectedQuickAmount === amount.value && styles.quickAmountTextSelected,
-                                            ]}
+                                        style={[
+                                            styles.quickAmountText,
+                                            selectedQuickAmount === amount.value && { color: '#fff' },
+                                        ]}
                                         >
                                             {amount.label}
                                         </Text>
@@ -263,9 +264,12 @@ export default function AddWaterLogScreen({ navigation }) {
                             </ScrollView>
 
                             {/* Amount Input */}
-                            <View style={styles.amountInputContainer}>
+                            <View style={[
+                                styles.amountInputContainer,
+                                activeField === "amountMl" && { borderColor: '#0056d2' }
+                            ]}>
                                 <TextInput
-                                    style={[styles.amountInput,activeField === "amountMl" && styles.inputFocused]}
+                                    style={styles.amountInput}
                                     placeholder="Enter custom amount"
                                     placeholderTextColor="#9CA3AF"
                                     keyboardType="numeric"
@@ -323,7 +327,10 @@ export default function AddWaterLogScreen({ navigation }) {
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Notes (Optional)</Text>
                             <TextInput
-                                style={[styles.notesInput,activeField === "notes" && styles.inputFocused]}
+                                style={[
+                                    styles.notesInput,
+                                    activeField === "notes" && { borderColor: '#0056d2' }
+                                ]}
                                 placeholder="Add a note about this intake..."
                                 placeholderTextColor="#9CA3AF"
                                 multiline={true}
@@ -340,7 +347,7 @@ export default function AddWaterLogScreen({ navigation }) {
                         {/* Submit Button */}
                         <TouchableOpacity
                             onPress={handleSubmit}
-                            style={[styles.submitButton,isSubmitting && styles.submitButtonDisabled]}
+                            style={[styles.submitButton, { backgroundColor: '#0056d2' }, isSubmitting && styles.submitButtonDisabled]}
                             disabled={isSubmitting}
                             activeOpacity={0.8}
                         >
@@ -349,7 +356,7 @@ export default function AddWaterLogScreen({ navigation }) {
                             ) : (
                                 <>
                                     <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                                    <Text style={styles.submitButtonText}>Save Entry</Text>
+                                    <Text style={[styles.submitButtonText, { color: '#FFFFFF' }]}>Save Entry</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -395,7 +402,7 @@ export default function AddWaterLogScreen({ navigation }) {
                             <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDatePickerModal(false)}>
                                 <Text style={styles.modalCancelText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalConfirmButton} onPress={() => setShowDatePickerModal(false)}>
+                            <TouchableOpacity style={[styles.modalConfirmButton, { backgroundColor: '#0056d2' }]} onPress={() => setShowDatePickerModal(false)}>
                                 <Text style={styles.modalConfirmText}>Confirm</Text>
                             </TouchableOpacity>
                         </View>
@@ -473,6 +480,7 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         paddingHorizontal: 20,
+        marginTop: 55,
     },
     section: {
         marginTop: 32,

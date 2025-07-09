@@ -102,18 +102,27 @@ export default function WaterComparisonScreen({ navigation }) {
         const dateGroups = {};
 
         logs.forEach(log => {
-            const date = new Date(log.consumptionDate);
-            const dateKey = date.toISOString().split('T')[0];
+            // Parse yyyy-mm-dd as local time to avoid UTC shift
+            let dateKey = '';
+            let dateObj = null;
+            if (log.consumptionDate && typeof log.consumptionDate === 'string' && log.consumptionDate.length >= 10) {
+                const [y, m, d] = log.consumptionDate.slice(0, 10).split('-').map(Number);
+                dateObj = new Date(y, m - 1, d);
+                dateKey = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            } else {
+                dateObj = new Date(log.consumptionDate);
+                dateKey = dateObj.toISOString().split('T')[0];
+            }
 
             if (!dateGroups[dateKey]) {
                 dateGroups[dateKey] = {
                     date: dateKey,
-                    displayDate: date.toLocaleDateString('en-US',{
+                    displayDate: dateObj.toLocaleDateString('en-US',{
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric'
                     }),
-                    fullDate: date,
+                    fullDate: dateObj,
                     totalAmount: 0,
                     logCount: 0,
                     logs: []
@@ -482,11 +491,15 @@ export default function WaterComparisonScreen({ navigation }) {
                 </View>
 
                 <View style={styles.dateItemContent}>
-                    <View style={styles.amountContainer}>
-                        <Text style={[styles.amountValue,isSelected && styles.amountValueSelected]}>
+                    <View style={[styles.amountContainer, { alignItems: 'center', flexDirection: 'row', gap: 2 }]}> 
+                        <Text style={[styles.amountValue, isSelected && styles.amountValueSelected]}>
                             {item.totalAmount}
                         </Text>
-                        <Text style={[styles.amountUnit,isSelected && styles.amountUnitSelected]}>ml</Text>
+                        <Text style={[
+                            styles.amountUnit,
+                            isSelected && styles.amountUnitSelected,
+                            { marginLeft: 2, fontSize: 16, fontWeight: '500', paddingBottom: 1 }
+                        ]}>ml</Text>
                     </View>
 
                     <View style={styles.progressBarContainer}>

@@ -1,4 +1,3 @@
-"use client"
 import { useState, useEffect, useCallback } from "react"
 import {
   View,
@@ -28,6 +27,10 @@ import FloatingMenuButton from "components/FloatingMenuButton"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
 import DateTimePicker from "@react-native-community/datetimepicker"
+import Header from "components/Header"
+
+import { getGeminiHealthAdvice } from "../../utils/gemini"
+import { useWaterTotal } from "../../context/WaterTotalContext"
 
 const { width, height } = Dimensions.get("window")
 const RECOMMENDED_DAILY_INTAKE = 2000
@@ -35,7 +38,13 @@ const MINIMUM_DAILY_INTAKE = 1200
 const MAXIMUM_SAFE_INTAKE = 3500
 
 export default function UserWaterLogScreen({ navigation }) {
+  // Khi vào screen này, tự động fetch lại water logs để cập nhật tổng lượng nước
+  useEffect(() => {
+    fetchWaterLogs(true);
+    // getTodayTotalIntake đã được gọi trong fetchWaterLogs
+  }, []);
   const { user, authToken } = useAuth()
+  const { allTimeTotalIntake, setAllTimeTotalIntake } = useWaterTotal();
   const [waterLogs, setWaterLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -62,6 +71,8 @@ export default function UserWaterLogScreen({ navigation }) {
   const [hydrationStatus, setHydrationStatus] = useState("")
   const [todayIntake, setTodayIntake] = useState(0)
   const [weeklyAverage, setWeeklyAverage] = useState(0)
+  // Tổng amountMl của tất cả log (không chỉ hôm nay)
+  const [allTimeTotalIntakeState, setAllTimeTotalIntakeState] = useState(0)
   const [animatedValue] = useState(new Animated.Value(0))
 
   // Quick log form state
@@ -73,6 +84,7 @@ export default function UserWaterLogScreen({ navigation }) {
   })
   const [logging, setLogging] = useState(false)
   const [quickLogStatus, setQuickLogStatus] = useState({ status: "idle", message: "" })
+  const [showSelectModal, setShowSelectModal] = useState(false)
 
   const quickFilterOptions = [
     { id: "today", label: "Today", days: 0 },
@@ -92,6 +104,7 @@ export default function UserWaterLogScreen({ navigation }) {
   }
 
   const waterAmounts = generateWaterAmounts()
+  const quickLogOptions = generateWaterAmounts().map(amount => ({ label: `${amount} ml`, value: amount }))
 
   // Modern iOS-style Quick Log card
   const renderQuickLogCard = () => {
@@ -312,6 +325,13 @@ export default function UserWaterLogScreen({ navigation }) {
         setWaterLogs(sortedLogs)
         updateChartData(sortedLogs)
         calculateHealthMetrics(sortedLogs)
+        // Tính tổng amountMl của tất cả log
+        const allTotal = sortedLogs.reduce((sum, log) => sum + (Number(log.amountMl) || 0), 0)
+        setAllTimeTotalIntake(allTotal)
+  
+        // Immediately update todayIntake and log the value after fetching logs
+        const todayTotal = getTodayTotalIntake();
+        setTodayIntake(todayTotal);
       }
     } catch (error) {
       Alert.alert("Error", "Failed to load water logs.")
@@ -400,7 +420,8 @@ export default function UserWaterLogScreen({ navigation }) {
       const weeklyAvg = weeklyTotal / 7
       setWeeklyAverage(weeklyAvg)
 
-      const totalIntake = logs.reduce((sum, log) => sum + (log.amountMl || 0), 0)
+      // Ensure amountMl is always a number and not NaN/null/undefined
+      const totalIntake = logs.reduce((sum, log) => sum + (Number(log.amountMl) || 0), 0)
       const uniqueDays = new Set(
         logs.filter((log) => log.consumptionDate).map((log) => new Date(log.consumptionDate).toDateString()),
       ).size
@@ -508,147 +529,205 @@ export default function UserWaterLogScreen({ navigation }) {
     setFilterModalVisible(false)
   }
 
-  const handleQuickLog = async () => {
-    let userId = null
-    if (user && typeof user === "object") {
-      userId = user.id || user._id || user.userId
-      if (typeof userId === "string") userId = Number.parseInt(userId, 10)
-    }
-
-    if (!userId || isNaN(userId) || userId <= 0) {
-      Alert.alert("Error", "Unable to identify user. Please log in again.")
-      return
-    }
-
-    const amount = quickLogForm.amountMl
-    if (isNaN(amount) || amount < 0 || amount > 3500) {
-      Alert.alert("Error", "Please select a valid water amount (0–3500 ml).")
-      return
-    }
-
-    setLogging(true)
-    try {
-      if (typeof apiUserWaterLogService?.addWaterLog !== "function") {
-        throw new Error("Water log service not available.")
-      }
-
-      const today = new Date()
-      const logData = {
-        logId: 0,
-        userId: userId,
-        amountMl: amount,
-        consumptionDate: today.toISOString().split("T")[0],
-        recordedAt: today.toISOString(),
-        notes: "",
-        status: "active",
-      }
-
-      const response = await apiUserWaterLogService.addWaterLog(logData)
-      if (response?.statusCode === 200) {
-        Alert.alert("Success", "Water logged successfully!")
-        setQuickLogForm({ amountMl: 250, consumptionDate: new Date(), notes: "", status: "active" })
-        await fetchWaterLogs(true)
-        return
-      }
-
-      if (response?.message) {
-        throw new Error(response.message)
-      }
-      throw new Error("Server error, please try again later.")
-    } catch (error) {
-      Alert.alert("Error", error.message || "Unable to log water.")
-    } finally {
-      setLogging(false)
-    }
+const handleQuickLog = async () => {
+  let userId = null;
+  if (user && typeof user === "object") {
+    userId = user.id || user._id || user.userId;
+    if (typeof userId === "string") userId = Number.parseInt(userId, 10);
   }
 
-  // Get today's logs for limited display
+  if (!userId || isNaN(userId) || userId <= 0) {
+    Alert.alert("Error", "Unable to identify user. Please log in again.");
+    return;
+  }
+
+  const amount = quickLogForm.amountMl;
+  if (isNaN(amount) || amount <= 0 || amount > 3500) {
+    Alert.alert("Error", "Please enter a valid water amount (1–3500 ml).");
+    return;
+  }
+
+  setLogging(true);
+  try {
+    if (typeof apiUserWaterLogService?.addWaterLog !== "function") {
+      Alert.alert("Error", "Unable to log water. Service unavailable.");
+      return;
+    }
+
+    // Always use today in Vietnam timezone (UTC+7)
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const vietnamDateObj = new Date(utc + 7 * 60 * 60000);
+    const consumptionDate = vietnamDateObj.toISOString().split("T")[0];
+
+    const logData = {
+      logId: 0,
+      userId: userId,
+      amountMl: amount,
+      consumptionDate: consumptionDate,
+      recordedAt: now.toISOString(),
+      notes: "",
+      status: "active",
+    };
+
+    const response = await apiUserWaterLogService.addWaterLog(logData);
+    if (
+      response?.statusCode === 200 ||
+      response?.statusCode === 201 ||
+      (typeof response?.message === "string" && response.message.toLowerCase().includes("success"))
+    ) {
+      setQuickLogForm({ amountMl: 250, consumptionDate: new Date(), notes: "", status: "active" });
+      await fetchWaterLogs(true);
+      Alert.alert("Success", "Water logged successfully!");
+      return;
+    } else if (response?.message) {
+      Alert.alert("Error", response.message);
+      return;
+    } else {
+      Alert.alert("Error", "Server error, please try again later.");
+      return;
+    }
+  } catch (error) {
+    Alert.alert("Error", error.message || "Unable to log water.");
+    return;
+  } finally {
+    setLogging(false);
+  }
+}
+
+  // Get today's logs for limited display (compare by yyyy-mm-dd string to avoid timezone issues)
   const getTodayLogs = () => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(today.getDate() + 1)
+    const todayStr = new Date().toISOString().split("T")[0];
     const todayLogs = waterLogs.filter((log) => {
-      const logDate = new Date(log.consumptionDate)
-      return logDate >= today && logDate < tomorrow
-    })
-    return showAllLogs ? todayLogs : todayLogs.slice(0, 3)
+      if (!log.consumptionDate) return false;
+      const logDateStr = log.consumptionDate.length >= 10 ? log.consumptionDate.slice(0, 10) : "";
+      return logDateStr === todayStr;
+    });
+    return showAllLogs ? todayLogs : todayLogs.slice(0, 3);
   }
+
+
+  // Calculate today's total water intake (sum of all logs for today, robust to timezones)
+  const getTodayTotalIntake = () => {
+    const now = new Date();
+    const localDateStr = now.toISOString().split("T")[0];
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const vietnamDateObj = new Date(utc + 7 * 60 * 60000);
+    const vietnamDateStr = vietnamDateObj.toISOString().split("T")[0];
+    const total = waterLogs
+      .filter((log) => {
+        if (!log.consumptionDate) return false;
+        const logDateStr = log.consumptionDate.length >= 10 ? log.consumptionDate.slice(0, 10) : "";
+        return logDateStr === localDateStr || logDateStr === vietnamDateStr;
+      })
+      .reduce((sum, log) => sum + (Number(log.amountMl) || 0), 0);
+    return total;
+  }
+
+  // Luôn cập nhật todayIntake khi waterLogs thay đổi
+  useEffect(() => {
+    setTodayIntake(getTodayTotalIntake());
+  }, [waterLogs]);
 
   const getTodayLogsCount = () => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(today.getDate() + 1)
+    const todayStr = new Date().toISOString().split("T")[0];
     return waterLogs.filter((log) => {
-      const logDate = new Date(log.consumptionDate)
-      return logDate >= today && logDate < tomorrow
-    }).length
+      if (!log.consumptionDate) return false;
+      const logDateStr = log.consumptionDate.length >= 10 ? log.consumptionDate.slice(0, 10) : "";
+      return logDateStr === todayStr;
+    }).length;
   }
 
-  // Display today's water intake progress
-  const renderHealthCard = () => (
-    <View style={styles.healthCard}>
-      <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.healthCardGradient}>
-        <View style={styles.healthCardHeader}>
-          <Ionicons name="water" size={24} color="#FFFFFF" />
-          <Text style={styles.healthCardTitle}>Today's Hydration</Text>
-        </View>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBackground}>
-            <Animated.View
-              style={[
-                styles.progressFill,
-                {
-                  width: animatedValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ["0%", "100%"],
-                  }),
-                },
-              ]}
-            />
+  // Display today's water intake progress (sum of all logs for today)
+  const renderHealthCard = () => {
+    const todayTotalIntake = getTodayTotalIntake();
+    return (
+      <View style={styles.healthCard}>
+        <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.healthCardGradient}>
+          <View style={styles.healthCardHeader}>
+            <Ionicons name="water" size={24} color="#FFFFFF" />
+            <Text style={styles.healthCardTitle}>Today's Hydration</Text>
           </View>
-          <Text style={styles.progressText}>
-            {todayIntake} / {RECOMMENDED_DAILY_INTAKE} ml
-          </Text>
-        </View>
-        <View style={styles.healthStats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{Math.round((todayIntake / RECOMMENDED_DAILY_INTAKE) * 100)}%</Text>
-            <Text style={styles.statLabel}>Daily Goal</Text>
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBackground}>
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: animatedValue.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ["0%", "100%"],
+                    }),
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {todayTotalIntake} / {RECOMMENDED_DAILY_INTAKE} ml
+            </Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{Math.round(weeklyAverage)}</Text>
-            <Text style={styles.statLabel}>Weekly Avg</Text>
+          <View style={styles.healthStats}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{Math.round((todayTotalIntake / RECOMMENDED_DAILY_INTAKE) * 100)}%</Text>
+              <Text style={styles.statLabel}>Daily Goal</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{Math.round(weeklyAverage)}</Text>
+              <Text style={styles.statLabel}>Weekly Avg</Text>
+            </View>
           </View>
-        </View>
-      </LinearGradient>
-    </View>
-  )
+        </LinearGradient>
+      </View>
+    );
+  }
 
-  // Display hydration status
+  // Display hydration status with Gemini AI advice (personalized with today's water log data)
+  const [geminiAdvice, setGeminiAdvice] = useState("");
+  useEffect(() => {
+    // Compose a detailed prompt for Gemini based on today's water intake
+    const status =
+      hydrationStatus === "Underhydrated" || hydrationStatus === "Severely Dehydrated"
+        ? "under"
+        : hydrationStatus === "Overhydrated"
+        ? "over"
+        : "normal";
+
+    // Always call Gemini for advice, pass todayIntake as the main value
+    const prompt = {
+      macro: "water",
+      status,
+      todayIntake,
+      hydrationStatus,
+      recommended: RECOMMENDED_DAILY_INTAKE,
+      min: MINIMUM_DAILY_INTAKE,
+      max: MAXIMUM_SAFE_INTAKE,
+      date: new Date().toISOString().split("T")[0],
+    };
+    getGeminiHealthAdvice(prompt).then((msg) => {
+      if (msg) {
+        // Only keep the first 2 non-empty lines
+        const lines = msg.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 2);
+        setGeminiAdvice(lines.join('\n'));
+      } else {
+        setGeminiAdvice("");
+      }
+    });
+  }, [todayIntake, hydrationStatus]);
+
   const renderStatusCard = () => (
     <View style={styles.statusCard}>
       <View style={styles.statusHeader}>
         <Ionicons name={getHydrationIcon()} size={24} color={getHydrationColor()} />
         <Text style={styles.statusTitle}>Hydration Status</Text>
       </View>
-      <Text style={[styles.statusValue, { color: getHydrationColor() }]}>{hydrationStatus}</Text>
-      {hydrationStatus === "Underhydrated" && (
-        <View style={styles.recommendationContainer}>
-          <Ionicons name="bulb" size={16} color="#F59E0B" />
-          <Text style={styles.recommendationText}>
-            Try to drink {Math.round(RECOMMENDED_DAILY_INTAKE - todayIntake)} ml more today
-          </Text>
-        </View>
-      )}
-      {hydrationStatus === "Overhydrated" && (
-        <View style={styles.recommendationContainer}>
-          <Ionicons name="warning" size={16} color="#8B5CF6" />
-          <Text style={styles.recommendationText}>Consider reducing intake and consult a healthcare professional</Text>
-        </View>
-      )}
+      <View style={{ marginTop: 8 }}>
+        {geminiAdvice ? (
+          <Text style={{ fontSize: 15, color: '#111', textAlign: 'justify', lineHeight: 22, fontWeight: '400', paddingHorizontal: 10, whiteSpace: 'pre-line' }}>{geminiAdvice.trim()}</Text>
+        ) : (
+          <Text style={{ fontSize: 15, color: '#111', textAlign: 'center', lineHeight: 22, fontWeight: '400' }}>{hydrationStatus}</Text>
+        )}
+      </View>
     </View>
   )
 
@@ -660,6 +739,10 @@ export default function UserWaterLogScreen({ navigation }) {
       useNativeDriver: false,
     }).start()
   }, [user, authToken, todayIntake])
+
+  useEffect(() => {
+    setAllTimeTotalIntake(allTimeTotalIntake);
+  }, [allTimeTotalIntake, setAllTimeTotalIntake])
 
   useFocusEffect(
     useCallback(() => {
@@ -975,26 +1058,21 @@ export default function UserWaterLogScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={safeGoBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Water Intake Logs</Text>
-            <Text style={styles.headerSubtitle}>Track your daily hydration</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.compareButton} onPress={() => safeNavigate("WaterComparison")}>
-              <Ionicons name="analytics" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.filterButton} onPress={() => setFilterModalVisible(true)}>
-              <Ionicons name="filter" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </LinearGradient>
-
+      <Header
+        title="Water Intake Logs"
+        onBack={safeGoBack}
+        rightActions={[
+          {
+            icon: "analytics",
+            onPress: () => safeNavigate("WaterComparison"),
+          },
+          {
+            icon: "filter",
+            onPress: () => setFilterModalVisible(true),
+          },
+        ]}
+     
+      />
       <ScrollView
         style={styles.container}
         refreshControl={
@@ -1002,8 +1080,113 @@ export default function UserWaterLogScreen({ navigation }) {
         }
       >
         <View style={styles.cardsContainer}>
-          {renderHealthCard()}
-          {renderQuickLogCard()}
+          {/* Health Card with new color */}
+          <View style={styles.healthCard}>
+            <View style={[styles.healthCardGradient, { backgroundColor: "#0056d2" }]}> 
+              <View style={styles.healthCardHeader}>
+                <Ionicons name="water" size={24} color="#FFFFFF" />
+                <Text style={styles.healthCardTitle}>Today's Hydration</Text>
+              </View>
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBackground}>
+                  <Animated.View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: animatedValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ["0%", "100%"],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {todayIntake} / {RECOMMENDED_DAILY_INTAKE} ml
+                </Text>
+              </View>
+              <View style={styles.healthStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{Math.round((todayIntake / RECOMMENDED_DAILY_INTAKE) * 100)}%</Text>
+                  <Text style={styles.statLabel}>Daily Goal</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{Math.round(weeklyAverage)}</Text>
+                  <Text style={styles.statLabel}>Weekly Avg</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+          {/* Simple Quick Log Card */}
+          <View style={styles.quickLogCard}>
+        
+            <View style={styles.quickLogContentSimple}>
+              <View style={{ width: '100%', marginBottom: 6, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#F1F5F9',
+                  borderWidth: 1,
+                  borderColor: '#E2E8F0',
+                  borderRadius: 12,
+                  paddingVertical: 0,
+                  paddingHorizontal: 0,
+                  width: 140,
+                  height: 48,
+                  justifyContent: 'center',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center' }}>
+                    <TextInput
+                      style={{
+                        backgroundColor: 'transparent',
+                        fontSize: 18,
+                        color: '#1E293B',
+                        textAlign: 'right',
+                        paddingVertical: 12,
+                        paddingHorizontal: 0,
+                        width: 70,
+                      }}
+                      value={quickLogForm.amountMl.toString()}
+                      onChangeText={val => {
+                        let num = parseInt(val.replace(/[^0-9]/g, '')) || 0;
+                        if (num > 3500) num = 3500;
+                        setQuickLogForm(f => ({ ...f, amountMl: num }));
+                      }}
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="numeric"
+                      maxLength={5}
+                      returnKeyType="done"
+                    />
+                    <Text style={{
+                      fontSize: 16,
+                      color: '#64748B',
+                      fontWeight: '500',
+                      marginLeft: 2,
+                      marginRight: 20,
+                    }}>ml</Text>
+                  </View>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.simpleLogButton,
+                  { backgroundColor: '#0056d2', marginTop: 4 },
+                  logging && styles.simpleLogButtonDisabled
+                ]}
+                onPress={handleQuickLog}
+                disabled={logging}
+                activeOpacity={0.8}
+              >
+                {logging ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.simpleLogButtonText}>Quick Log Water</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
           {renderStatusCard()}
         </View>
 
@@ -1052,10 +1235,38 @@ export default function UserWaterLogScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={handleAddWaterLog} activeOpacity={0.8}>
-        <LinearGradient colors={["#4F46E5", "#6366F1"]} style={styles.fabGradient}>
-          <Ionicons name="add" size={28} color="#FFFFFF" />
-        </LinearGradient>
+      <TouchableOpacity
+        style={[
+          styles.fab,
+          {
+            backgroundColor: '#0056d2',
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: '#0056d2',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.35,
+            shadowRadius: 16,
+            elevation: 12,
+          },
+        ]}
+        onPress={handleAddWaterLog}
+        activeOpacity={0.8}
+      >
+        <View style={{
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: '#fff',
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: '#0056d2',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.12,
+          shadowRadius: 8,
+          elevation: 4,
+        }}>
+          <Ionicons name="add" size={32} color="#0056d2" />
+        </View>
       </TouchableOpacity>
 
       {renderFilterModal()}
@@ -1140,6 +1351,8 @@ const styles = StyleSheet.create({
   cardsContainer: {
     padding: 20,
     paddingBottom: 10,
+    marginTop:55,
+
   },
   healthCard: {
     borderRadius: 20,
@@ -1218,7 +1431,6 @@ const styles = StyleSheet.create({
   },
   // Modern iOS-style Quick Log styles
   quickLogCard: {
-    borderRadius: 28,
     marginBottom: 16,
     overflow: "hidden",
     ...Platform.select({
@@ -1498,7 +1710,6 @@ const styles = StyleSheet.create({
   statusHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
   },
   statusTitle: {
     fontSize: 16,
@@ -2018,6 +2229,68 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
+  },
+  // New styles for SelectModal
+  selectAmountButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginBottom: 16,
+  },
+  selectAmountText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginRight: 8,
+  },
+  quickLogHeaderSimple: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  quickLogTitleSimple: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  quickLogContentSimple: {
+    alignItems: "center",
+  },
+  simpleLogButton: {
+    backgroundColor: "#2563EB",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#06B6D4",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  simpleLogButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  simpleLogButtonDisabled: {
+    opacity: 0.7,
   },
 })
 

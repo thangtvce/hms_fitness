@@ -20,6 +20,7 @@ import { apiUserWaterLogService } from "services/apiUserWaterLogService"
 import { useAuth } from "context/AuthContext"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Header from "components/Header"
 
 const { width,height } = Dimensions.get("window")
 
@@ -213,18 +214,14 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
         <SafeAreaView style={styles.safeArea}>
             <DynamicStatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#1F2937" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Edit Water Log</Text>
-                <View style={styles.headerRight}>
-                    <View style={styles.statusIndicator}>
-                        <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                    </View>
-                </View>
-            </View>
+
+            {/* Use shared Header component */}
+            <Header
+                title="Edit Water Log"
+                onBack={() => navigation.goBack()}
+                backgroundColor="#FFFFFF"
+                titleColor="#1F2937"
+            />
 
             <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
                 <Animated.View style={[styles.content,{ opacity: fadeAnim }]}>
@@ -245,16 +242,16 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                                         key={amount.value}
                                         style={[
                                             styles.quickAmountPill,
-                                            selectedQuickAmount === amount.value && styles.quickAmountPillSelected,
+                                            selectedQuickAmount === amount.value && { backgroundColor: '#0056d2', borderColor: '#0056d2' },
                                         ]}
                                         onPress={() => handleQuickAmountSelect(amount.value)}
                                         activeOpacity={0.7}
                                     >
                                         <Text
-                                            style={[
-                                                styles.quickAmountText,
-                                                selectedQuickAmount === amount.value && styles.quickAmountTextSelected,
-                                            ]}
+                                        style={[
+                                            styles.quickAmountText,
+                                            selectedQuickAmount === amount.value && { color: '#fff' },
+                                        ]}
                                         >
                                             {amount.label}
                                         </Text>
@@ -263,9 +260,12 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                             </ScrollView>
 
                             {/* Amount Input */}
-                            <View style={styles.amountInputContainer}>
+                            <View style={[
+                                styles.amountInputContainer,
+                                activeField === "amountMl" && { borderColor: '#0056d2' }
+                            ]}>
                                 <TextInput
-                                    style={[styles.amountInput,activeField === "amountMl" && styles.inputFocused]}
+                                    style={styles.amountInput}
                                     placeholder="Enter custom amount"
                                     placeholderTextColor="#9CA3AF"
                                     keyboardType="numeric"
@@ -322,7 +322,10 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Notes (Optional)</Text>
                             <TextInput
-                                style={[styles.notesInput,activeField === "notes" && styles.inputFocused]}
+                                style={[
+                                    styles.notesInput,
+                                    activeField === "notes" && { borderColor: '#0056d2' }
+                                ]}
                                 placeholder="Add a note about this intake..."
                                 placeholderTextColor="#9CA3AF"
                                 multiline={true}
@@ -339,7 +342,7 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                         {/* Save Button */}
                         <TouchableOpacity
                             onPress={handleSave}
-                            style={[styles.saveButton,loading && styles.saveButtonDisabled]}
+                            style={[styles.saveButton, { backgroundColor: '#0056d2' }, loading && styles.saveButtonDisabled]}
                             disabled={loading}
                             activeOpacity={0.8}
                         >
@@ -354,8 +357,8 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                         </TouchableOpacity>
 
                         {/* Info Card */}
-                        <View style={styles.infoCard}>
-                            <Ionicons name="information-circle" size={20} color="#4F46E5" />
+                        <View style={[styles.infoCard, { borderLeftColor: '#0056d2' }] }>
+                            <Ionicons name="information-circle" size={20} color="#0056d2" />
                             <Text style={styles.infoText}>Keep your hydration records accurate for better health tracking.</Text>
                         </View>
 
@@ -393,7 +396,7 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                             <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDatePickerModal(false)}>
                                 <Text style={styles.modalCancelText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalConfirmButton} onPress={() => setShowDatePickerModal(false)}>
+                            <TouchableOpacity style={[styles.modalConfirmButton, { backgroundColor: '#0056d2' }]} onPress={() => setShowDatePickerModal(false)}>
                                 <Text style={styles.modalConfirmText}>Confirm</Text>
                             </TouchableOpacity>
                         </View>
@@ -480,6 +483,7 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         paddingHorizontal: 20,
+        marginTop: 55,
     },
     section: {
         marginTop: 32,

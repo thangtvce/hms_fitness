@@ -71,6 +71,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
   const [showUrlInput,setShowUrlInput] = useState(false)
   const [showGenderOptions,setShowGenderOptions] = useState(false)
   const [showDatePicker,setShowDatePicker] = useState(false)
+  const [tempBirthDate, setTempBirthDate] = useState(null); // State for temporary birth date selection
   const [imageUrl,setImageUrl] = useState("")
   const [errors,setErrors] = useState({
     fullName: "",
@@ -174,6 +175,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
   useEffect(() => {
     if (showDatePicker) {
+      setTempBirthDate(formData.birthDate || new Date()); // Set temp date when opening
       Animated.timing(datePickerAnimation,{
         toValue: 1,
         duration: 300,
@@ -394,11 +396,16 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
   const handleDateChange = (event,selectedDate) => {
     if (selectedDate) {
-      setFormData((prev) => ({ ...prev,birthDate: selectedDate }))
+      setTempBirthDate(selectedDate);
       if (errors.birthDate) {
         setErrors((prev) => ({ ...prev,birthDate: "" }))
       }
     }
+  }
+
+  const handleConfirmBirthDate = () => {
+    setFormData((prev) => ({ ...prev, birthDate: tempBirthDate }));
+    setShowDatePicker(false);
   }
 
   const handleSave = async () => {
@@ -827,7 +834,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
             styles.modalOverlay,
             {
               opacity: datePickerAnimation,
-              justifyContent: "center",
+              justifyContent: "flex-end", // Sát xuống dưới màn hình
             },
           ]}
         >
@@ -845,6 +852,12 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
                     }),
                   },
                 ],
+                marginBottom: 0, // Sát dưới
+                width: '100%', // full width
+                maxWidth: '100%',
+                marginHorizontal: 0,
+                borderRadius: 0,
+                alignSelf: 'flex-end',
               },
             ]}
           >
@@ -857,7 +870,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
             <View style={styles.datePickerContainer}>
               <DateTimePicker
-                value={formData.birthDate || new Date()}
+                value={tempBirthDate || new Date()}
                 mode="date"
                 display={Platform.OS === "ios" ? "spinner" : "default"}
                 onChange={handleDateChange}
@@ -866,11 +879,11 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
               />
             </View>
 
-            <View style={styles.datePickerActions}>
+            <View style={[styles.datePickerActions, { marginBottom: 10 }]}> 
               <TouchableOpacity style={[styles.datePickerCancelButton, { backgroundColor: colors.card || '#F1F5F9' }]} onPress={() => setShowDatePicker(false)}>
                 <Text style={[styles.datePickerCancelText, { color: colors.textSecondary || '#64748B' }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.datePickerConfirmButton, { backgroundColor: colors.primary }]} onPress={() => setShowDatePicker(false)}>
+              <TouchableOpacity style={[styles.datePickerConfirmButton, { backgroundColor: '#0056d2' }]} onPress={handleConfirmBirthDate}>
                 <Text style={styles.datePickerConfirmText}>Confirm</Text>
               </TouchableOpacity>
             </View>
@@ -1204,11 +1217,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   datePickerModalContainer: {
-    borderRadius: 24,
-    marginHorizontal: 20,
-    maxWidth: 400,
-    width: "90%",
-    alignSelf: "center",
+    borderRadius: 0,
+    marginHorizontal: 0,
+    maxWidth: '100%',
+    width: '100%',
+    alignSelf: 'flex-end',
     maxHeight: "80%",
   },
   datePickerContainer: {

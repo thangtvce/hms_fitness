@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useContext } from "react"
 import { getGeminiHealthAdvice } from "../../utils/gemini"
 import {
   View,
@@ -17,16 +17,20 @@ import {
 } from "react-native"
 import { weightHistoryService } from "services/apiWeightHistoryService"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import { AuthContext } from "context/AuthContext"
 import { useTheme, useNavigation } from "@react-navigation/native"
 import Header from "components/Header"
 import { AnimatedCircularProgress } from "react-native-circular-progress"
 import { LineChart, BarChart } from "react-native-chart-kit"
 import { Ionicons } from "@expo/vector-icons"
 import SelectModal from "components/SelectModal"
+import { useWaterTotal } from "../../context/WaterTotalContext"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
 
 export default function WeeklyProgressScreen({ route }) {
+  const { user } = useContext(AuthContext);
+  const { allTimeTotalIntake } = useWaterTotal();
   // PanResponder for full-screen swipe navigation (only for Day filter, only changes offset, never navigates away)
   const getFullScreenPanResponder = (filter, offset, setOffset) => {
     if (filter !== "Day") return null;
@@ -36,9 +40,10 @@ export default function WeeklyProgressScreen({ route }) {
         return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 20;
       },
       onPanResponderRelease: (evt, gestureState) => {
-        if (gestureState.dx < -30) {
+        // Đảo ngược: kéo qua phải (dx > 30) là tăng ngày, kéo qua trái (dx < -30) là giảm ngày
+        if (gestureState.dx > 30) {
           setOffset(offset - 1);
-        } else if (gestureState.dx > 30) {
+        } else if (gestureState.dx < -30) {
           setOffset(offset + 1);
         }
       },
@@ -79,6 +84,7 @@ export default function WeeklyProgressScreen({ route }) {
   const [macrosData, setMacrosData] = useState(null)
   const [weightHistory, setWeightHistory] = useState([])
   const [stepsData, setStepsData] = useState([])
+  const [stepCounterSteps, setStepCounterSteps] = useState(null)
   const [waterData, setWaterData] = useState([])
   const [macroAdvice, setMacroAdvice] = useState("")
 
@@ -195,7 +201,7 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
     }
   }
 
-  // Fetch weight data
+  // Fetch weight data and stepcounter steps
   const fetchWeightData = async () => {
     setStepsData([{ steps: 0, date: getDateKey(weightFilter, weightOffset) }]);
     setWaterData([{ waterIntake: 0, date: getDateKey(weightFilter, weightOffset) }]);
@@ -214,42 +220,91 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
       console.log('[Weight/Water] Fetching for key:', `dailyStats_${dateKey}`)
       const raw = await AsyncStorage.getItem(`dailyStats_${dateKey}`)
 
+      let waterIntake = 0;
       if (raw) {
         const parsed = JSON.parse(raw)
         setStepsData([{ steps: parsed.steps || 0, date: dateKey }])
-        setWaterData([{ waterIntake: parsed.waterIntake || 0, date: dateKey }])
+        // Prefer waterIntake from UserWaterLog if available
+        if (parsed.waterIntake != null) {
+          waterIntake = Number(parsed.waterIntake) || 0;
+        }
       } else {
         setStepsData([{ steps: 0, date: dateKey }])
-        setWaterData([{ waterIntake: 0, date: dateKey }])
+      }
+
+      // Always try to get latest water logs from UserWaterLogScreen (if available in AsyncStorage)
+      try {
+        const waterLogKey = `userWaterLogs_${dateKey}`;
+        const waterLogRaw = await AsyncStorage.getItem(waterLogKey);
+        if (waterLogRaw) {
+          const logs = JSON.parse(waterLogRaw);
+          if (Array.isArray(logs)) {
+            // Sum all amountMl for this day
+            const sum = logs.reduce((acc, log) => acc + (Number(log.amountMl) || 0), 0);
+            if (sum > 0) waterIntake = sum;
+          }
+        }
+      } catch (err) {
+        // Ignore
+      }
+      setWaterData([{ waterIntake, date: dateKey }]);
+
+      // Fetch stepcounter steps from stepcounter_{userId}_{dateKey}
+      const userId = user?.userId || 'unknown';
+      const stepKey = `stepcounter_${userId}_${dateKey}`;
+      const stepRaw = await AsyncStorage.getItem(stepKey);
+      if (stepRaw) {
+        try {
+          const parsed = JSON.parse(stepRaw);
+          setStepCounterSteps(Number(parsed.steps) || 0);
+        } catch {
+          setStepCounterSteps(0);
+        }
+      } else {
+        setStepCounterSteps(0);
       }
     } catch (error) {
       console.error("Error fetching weight data:", error)
+      setStepCounterSteps(0);
     } finally {
       setLoading(false)
     }
   }
 
-  // Load nutrition target
+  // Load nutrition target for selected day (per-day), KHÔNG fallback về latest
   useEffect(() => {
     const loadNutritionTarget = async () => {
       try {
-        const raw = await AsyncStorage.getItem("nutritionTarget")
+        let filter, offset;
+        if (activeTab === 0) {
+          filter = caloriesFilter;
+          offset = caloriesOffset;
+        } else if (activeTab === 1) {
+          filter = macrosFilter;
+          offset = macrosOffset;
+        } else {
+          filter = caloriesFilter;
+          offset = caloriesOffset;
+        }
+        const dateKey = getDateKey(filter, offset);
+        let raw = await AsyncStorage.getItem(`nutritionTarget_${dateKey}`);
         if (raw) {
-          const target = JSON.parse(raw)
+          const target = JSON.parse(raw);
           setNutritionTarget({
             calories: isNaN(Number(target.calories)) ? null : Number(target.calories),
             carbs: isNaN(Number(target.carbs)) ? null : Number(target.carbs),
             protein: isNaN(Number(target.protein)) ? null : Number(target.protein),
             fats: isNaN(Number(target.fats)) ? null : Number(target.fats),
-          })
+          });
+        } else {
+          setNutritionTarget({ calories: null, carbs: null, protein: null, fats: null });
         }
       } catch (e) {
-        console.error("Error loading nutrition target:", e)
+        console.error("Error loading nutrition target:", e);
       }
-    }
-
-    loadNutritionTarget()
-  }, [])
+    };
+    loadNutritionTarget();
+  }, [activeTab, caloriesFilter, caloriesOffset, macrosFilter, macrosOffset]);
 
   // Fetch data when tab or filters change
   useEffect(() => {
@@ -261,6 +316,18 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
       fetchWeightData()
     }
   }, [activeTab, caloriesFilter, caloriesOffset, macrosFilter, macrosOffset, weightFilter, weightOffset])
+
+  // Always fetch latest data when entering the screen (mount/focus)
+  useEffect(() => {
+    if (activeTab === 0) {
+      fetchCaloriesData();
+    } else if (activeTab === 1) {
+      fetchMacrosData();
+    } else if (activeTab === 2) {
+      fetchWeightData();
+    }
+    // eslint-disable-next-line
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -323,11 +390,10 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
             return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 20
           },
           onPanResponderRelease: (evt, gestureState) => {
-            if (gestureState.dx < -30) {
-              // Swipe left: go to previous day (offset - 1)
+            // Đảo ngược: kéo qua phải (dx > 30) là tăng ngày, kéo qua trái (dx < -30) là giảm ngày
+            if (gestureState.dx > 30) {
               setOffset(offset - 1)
-            } else if (gestureState.dx > 30) {
-              // Swipe right: go to next day (offset + 1)
+            } else if (gestureState.dx < -30) {
               setOffset(offset + 1)
             }
           },
@@ -401,7 +467,8 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
                 <>
                   <View style={styles.circularProgressContainer}>
                     {(() => {
-                      const target = caloriesData.caloriesSummary.target ?? nutritionTarget.calories
+                      // Lấy target calories mới nhất từ nutritionTarget nếu có, ưu tiên nutritionTarget.calories
+                      const target = nutritionTarget.calories ?? caloriesData.caloriesSummary.target
                       const food =
                         typeof caloriesData.caloriesSummary.net === "number" ? caloriesData.caloriesSummary.net : 0
                       const exercise =
@@ -434,7 +501,7 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
                       <View style={styles.calorieStatItem}>
                         <Text style={styles.calorieStatLabel}>Target</Text>
                         <Text style={[styles.calorieStatValue, { color: "#1976D2" }]}> 
-                          {caloriesData.caloriesSummary.target ?? nutritionTarget.calories ?? "-"}
+                          {nutritionTarget.calories ?? caloriesData.caloriesSummary.target ?? "-"}
                         </Text>
                       </View>
                       <View style={styles.calorieStatItem}>
@@ -595,6 +662,10 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
   // Weight Tab Content
   const WeightTab = () => {
     const panResponder = getFullScreenPanResponder(weightFilter, weightOffset, setWeightOffset);
+    // Calculate total water intake (sum all waterData entries)
+    const totalWaterIntake = waterData && Array.isArray(waterData)
+      ? waterData.reduce((sum, entry) => sum + (Number(entry.waterIntake) || 0), 0)
+      : 0;
     return (
       <View style={{ flex: 1 }} {...(panResponder ? panResponder.panHandlers : {})}>
         <ScrollView
@@ -667,7 +738,7 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
                       propsForLabels: {},
                       propsForHorizontalLabels: {},
                       propsForVerticalLabels: {},
-                      propsForLine: { strokeWidth: 0.5 }, // Thinner line, but visible
+                      propsForLine: { strokeWidth: 0.5 },
                     }}
                     bezier
                     style={styles.chart}
@@ -685,10 +756,12 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
                 <Text style={styles.cardTitle}>Steps Today</Text>
                 <View style={styles.circularProgressContainer}>
                   {(() => {
-                    const steps = stepsData[0]?.steps || 0
-                    const target = 10000 // Default step target
-                    const percent = Math.round((steps / target) * 100)
-
+                    // Use stepCounterSteps if available, fallback to stepsData
+                    const steps = (stepCounterSteps !== null && stepCounterSteps !== undefined)
+                      ? stepCounterSteps
+                      : (stepsData[0]?.steps || 0);
+                    const target = 10000; // Default step target
+                    const percent = Math.round((steps / target) * 100);
                     return (
                       <AnimatedCircularProgress
                         size={120}
@@ -706,12 +779,12 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
                           </View>
                         )}
                       </AnimatedCircularProgress>
-                    )
+                    );
                   })()}
                 </View>
               </View>
 
-              {/* Water Bar Chart */}
+              {/* Water Bar Chart - show total water intake */}
               <View style={styles.dataCard}>
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                   <Text style={styles.cardTitle}>Water Intake</Text>
@@ -719,11 +792,15 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
                     <Ionicons name="add" size={20} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
-                {waterData.length > 0 && waterData[0].waterIntake > 0 ? (
+                {/* Tổng lượng nước uống mọi thời gian */}
+                {/* <View style={{alignItems:'center',marginBottom:8}}>
+                  <Text style={{fontWeight:'900',fontSize:20,color:'#1976D2',letterSpacing:0.5}}>Total Water Intake: {allTimeTotalIntake} ml</Text>
+                </View> */}
+                {totalWaterIntake > 0 ? (
                   <BarChart
                     data={{
-                      labels: ["Today"],
-                      datasets: [{ data: [waterData[0].waterIntake] }],
+                      labels: ["Total"],
+                      datasets: [{ data: [allTimeTotalIntake] }],
                     }}
                     width={SCREEN_WIDTH - 64}
                     height={180}
@@ -733,7 +810,7 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
                       backgroundGradientFrom: "#FFFFFF",
                       backgroundGradientTo: "#FFFFFF",
                       decimalPlaces: 0,
-                      color: (opacity = 1) => "rgba(14, 165, 233, 1)", // vivid blue
+                      color: (opacity = 1) => "rgba(14, 165, 233, 1)",
                       labelColor: (opacity = 1) => "#333333",
                       style: { borderRadius: 0 },
                       propsForBackgroundLines: { stroke: "#E0E0E0" },
@@ -752,7 +829,7 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
                 ) : (
                   <View style={styles.noDataContainer}>
                     <Ionicons name="water-outline" size={48} color="#E0E0E0" />
-                    <Text style={styles.noDataText}>No water data for today</Text>
+                    <Text style={styles.noDataText}>No water data available</Text>
                   </View>
                 )}
               </View>

@@ -210,14 +210,14 @@ export default function ServicePackageScreen({ navigation }) {
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 !== 0;
     for (let i = 0; i < fullStars; i++) {
-      stars.push(<Ionicons key={i} name="star" size={14} color="#FFD700" />);
+      stars.push(<Ionicons key={i} name="star" size={12} color="#FFD700" />);
     }
     if (hasHalfStar) {
-      stars.push(<Ionicons key="half" name="star-half" size={14} color="#FFD700" />);
+      stars.push(<Ionicons key="half" name="star-half" size={12} color="#FFD700" />);
     }
     const remainingStars = 5 - Math.ceil(rating);
     for (let i = 0; i < remainingStars; i++) {
-      stars.push(<Ionicons key={`empty-${i}`} name="star-outline" size={14} color="#D1D5DB" />);
+      stars.push(<Ionicons key={`empty-${i}`} name="star-outline" size={12} color="#D1D5DB" />);
     }
     return stars;
   };
@@ -227,7 +227,6 @@ export default function ServicePackageScreen({ navigation }) {
       inputRange: [0, 1],
       outputRange: [1, 1.02],
     });
-
     return (
       <Animated.View style={[styles.promoBanner, { transform: [{ scale: scaleAnim }] }]}>
         <LinearGradient
@@ -333,39 +332,23 @@ export default function ServicePackageScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Enhanced Trainer Section */}
+            {/* Simplified Trainer Section */}
             <View style={styles.trainerSection}>
               <View style={styles.trainerInfo}>
-                <View style={styles.trainerLeft}>
-                  <View style={styles.trainerAvatarContainer}>
-                    <Image
-                      source={{ uri: item.trainerAvatar || "/placeholder.svg?height=48&width=48" }}
-                      style={styles.trainerAvatar}
-                    />
-                    <View style={styles.onlineIndicator} />
-                    <View style={styles.verifiedBadge}>
-                      <Ionicons name="checkmark" size={10} color="#FFFFFF" />
-                    </View>
-                  </View>
-                  <View style={styles.trainerDetails}>
-                    <Text style={styles.trainerName} numberOfLines={1}>
-                      {item.trainerFullName || "Professional Trainer"}
-                    </Text>
-                    <View style={styles.trainerRating}>
-                      <View style={styles.starsContainer}>{renderStars(averageRating)}</View>
-                      <Text style={styles.ratingText}>({averageRating.toFixed(1)})</Text>
-                    </View>
-                    <Text style={styles.trainerTitle}>Certified Trainer</Text>
-                  </View>
+                <View style={styles.trainerAvatarContainer}>
+                  <Image
+                    source={{ uri: item.trainerAvatar || "/placeholder.svg?height=36&width=36" }}
+                    style={styles.trainerAvatar}
+                  />
+                  <View style={styles.onlineIndicator} />
                 </View>
-                <View style={styles.trainerStats}>
-                  <View style={styles.miniStat}>
-                    <Text style={styles.miniStatNumber}>{yearsExperience}+</Text>
-                    <Text style={styles.miniStatLabel}>Years</Text>
-                  </View>
-                  <View style={styles.miniStat}>
-                    <Text style={styles.miniStatNumber}>{totalClients}</Text>
-                    <Text style={styles.miniStatLabel}>Clients</Text>
+                <View style={styles.trainerDetails}>
+                  <Text style={styles.trainerName} numberOfLines={1}>
+                    {item.trainerFullName || "Professional Trainer"}
+                  </Text>
+                  <View style={styles.trainerRating}>
+                    <View style={styles.starsContainer}>{renderStars(averageRating)}</View>
+                    <Text style={styles.ratingText}>({averageRating.toFixed(1)})</Text>
                   </View>
                 </View>
               </View>
@@ -837,55 +820,37 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 6,
   },
+  // Simplified Trainer Section
   trainerSection: {
     backgroundColor: "#FAFBFC",
-    padding: 20,
+    padding: 16,
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
   },
   trainerInfo: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-  },
-  trainerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
   },
   trainerAvatarContainer: {
     position: "relative",
     marginRight: 12,
   },
   trainerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#F1F5F9",
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
   onlineIndicator: {
     position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: "#10B981",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-  verifiedBadge: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#3B82F6",
-    justifyContent: "center",
-    alignItems: "center",
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
@@ -893,7 +858,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   trainerName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: "#1E293B",
     marginBottom: 4,
@@ -901,45 +866,15 @@ const styles = StyleSheet.create({
   trainerRating: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 2,
   },
   starsContainer: {
     flexDirection: "row",
     marginRight: 6,
   },
   ratingText: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#6B7280",
     fontWeight: "600",
-  },
-  trainerTitle: {
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: "500",
-  },
-  trainerStats: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  miniStat: {
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    minWidth: 50,
-  },
-  miniStatNumber: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  miniStatLabel: {
-    fontSize: 10,
-    color: "#6B7280",
-    fontWeight: "500",
   },
   ctaSection: {
     padding: 20,
