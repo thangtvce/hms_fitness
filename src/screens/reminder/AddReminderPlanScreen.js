@@ -15,6 +15,7 @@ import { useAuth } from 'context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -384,7 +385,7 @@ export default function AddReminderPlanScreen({ navigation, route }) {
               <Ionicons 
                 name={freq.icon} 
                 size={24} 
-                color={form.frequency === freq.value ? '#06B6D4' : '#6B7280'} 
+                color={form.frequency === freq.value ? '#fff' : '#6B7280'} 
               />
               <Text style={[
                 styles.frequencyText,
@@ -459,13 +460,13 @@ export default function AddReminderPlanScreen({ navigation, route }) {
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={styles.createButton}
+          style={[styles.createButton, { backgroundColor: '#0056d2' }]}
           onPress={handleSubmit}
         >
-          <LinearGradient colors={['#06B6D4', '#0EA5E9']} style={styles.createButtonGradient}>
+          <View style={styles.createButtonGradient}>
             <Ionicons name="checkmark" size={20} color="#FFFFFF" />
             <Text style={styles.createButtonText}>Create Reminder</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
     </View>
@@ -473,16 +474,12 @@ export default function AddReminderPlanScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerBackButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Reminder</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header
+        title={<Text style={{ fontSize: 20, fontWeight: '700', color: '#1F2937', textAlign: 'center' }}>Create Reminder</Text>}
+        onBack={() => navigation.goBack()}
+        backgroundColor="#fff"
+        containerStyle={{ position: 'relative', zIndex: 10 }}
+      />
 
       {renderStepIndicator()}
 
@@ -562,7 +559,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepCircleActive: {
-    backgroundColor: '#06B6D4',
+    backgroundColor: '#0056d2',
   },
   stepCircleCompleted: {
     backgroundColor: '#10B981',
@@ -760,8 +757,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   quickAmountChipSelected: {
-    backgroundColor: '#06B6D4',
-    borderColor: '#06B6D4',
+    backgroundColor: '#0056d2',
+    borderColor: '#0056d2',
   },
   quickAmountText: {
     fontSize: 14,
@@ -796,8 +793,8 @@ const styles = StyleSheet.create({
     }),
   },
   frequencyCardSelected: {
-    borderColor: '#06B6D4',
-    backgroundColor: '#F0F9FF',
+    borderColor: '#0056d2',
+    backgroundColor: '#0056d2',
   },
   frequencyText: {
     fontSize: 14,
@@ -806,7 +803,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   frequencyTextSelected: {
-    color: '#06B6D4',
+    color: '#fff',
+    fontWeight: '700',
   },
   daysGrid: {
     flexDirection: 'row',
@@ -824,8 +822,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayChipSelected: {
-    backgroundColor: '#06B6D4',
-    borderColor: '#06B6D4',
+    backgroundColor: '#0056d2',
+    borderColor: '#0056d2',
   },
   dayText: {
     fontSize: 14,
@@ -872,7 +870,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   toggleActive: {
-    backgroundColor: '#06B6D4',
+    backgroundColor: '#0056d2',
   },
   toggleThumb: {
     width: 28,
@@ -920,7 +918,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#06B6D4',
+    backgroundColor: '#0056d2',
     gap: 8,
   },
   nextButtonText: {
@@ -949,6 +947,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
     gap: 8,
+    backgroundColor: '#0056d2',
   },
   createButtonText: {
     fontSize: 16,

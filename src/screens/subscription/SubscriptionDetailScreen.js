@@ -1,4 +1,4 @@
-import { useState,useEffect,useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     View,
     Text,
@@ -12,17 +12,23 @@ import {
     Share,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import Header from "components/Header";
+import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
+import apiTrainerService from "services/apiTrainerService";
+import { Image } from "react-native";
 import { theme } from "theme/color";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
-const SubscriptionDetailScreen = ({ route,navigation }) => {
+const SubscriptionDetailScreen = ({ route, navigation }) => {
     const { subscription } = route.params;
-    const [loading,setLoading] = useState(false);
-    const [showActions,setShowActions] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [showActions, setShowActions] = useState(false);
+    const [trainerRatingData, setTrainerRatingData] = useState(null);
+    const [trainerExperience, setTrainerExperience] = useState(null);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
@@ -46,24 +52,41 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
 
     useEffect(() => {
         Animated.parallel([
-            Animated.timing(fadeAnim,{
+            Animated.timing(fadeAnim, {
                 toValue: 1,
                 duration: 800,
                 useNativeDriver: true,
             }),
-            Animated.timing(slideAnim,{
+            Animated.timing(slideAnim, {
                 toValue: 0,
                 duration: 800,
                 useNativeDriver: true,
             }),
-            Animated.spring(scaleAnim,{
+            Animated.spring(scaleAnim, {
                 toValue: 1,
                 tension: 100,
                 friction: 8,
                 useNativeDriver: true,
             }),
         ]).start();
-    },[]);
+    }, []);
+
+    // Fetch trainer rating and experience (like PackageDetailScreen)
+    useEffect(() => {
+        const fetchTrainerData = async () => {
+            if (!subscription?.trainerId) return;
+            try {
+                const ratingData = await apiTrainerService.getTrainerAverageRating(subscription.trainerId);
+                setTrainerRatingData(ratingData.data);
+                const applicationData = await apiTrainerService.getApprovedTrainerApplication(subscription.trainerId);
+                setTrainerExperience(applicationData.data);
+            } catch (e) {
+                setTrainerRatingData(null);
+                setTrainerExperience(null);
+            }
+        };
+        fetchTrainerData();
+    }, [subscription?.trainerId]);
 
     const getStatusInfo = (status) => {
         switch (status?.toLowerCase()) {
@@ -207,50 +230,44 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
     const daysRemaining = getDaysRemaining();
     const isExpired = new Date(subscription.endDate) < new Date();
     const isActive = subscription.status?.toLowerCase() === "active";
-
     return (
         <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle={statusBarStyle} backgroundColor={theme.primaryColor} translucent={false} />
-            <LinearGradient
-                colors={[theme.secondaryColor,theme.accentColor]}
-                style={styles.header}
-            >
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color={theme.primaryColor} />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Subscription Details</Text>
-                        <Text style={styles.headerSubtitle}>Manage your package</Text>
-                    </View>
-                    <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-                        <Ionicons name="share-outline" size={24} color={theme.primaryColor} />
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient>
-
-            <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+            <DynamicStatusBar backgroundColor="#FFFFFF" />
+            <Header
+                title="Subscription Details"
+                onBack={() => navigation.goBack()}
+                backgroundColor="#FFFFFF"
+                textColor="#2D3748"
+                subtitle="Manage your package"
+                rightActions={[{
+                    icon: "share-outline",
+                    onPress: handleShare,
+                    color: "#2D3748"
+                }]}
+            />
+            <ScrollView style={[styles.container, { marginTop: 55 }]} showsVerticalScrollIndicator={false}>
+                {/* Hero Section (unchanged) */}
                 <Animated.View
                     style={[
                         styles.heroSection,
                         {
                             opacity: fadeAnim,
-                            transform: [{ translateY: slideAnim },{ scale: scaleAnim }],
+                            transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
                         },
                     ]}
                 >
-                    <LinearGradient colors={[theme.backgroundColor,theme.lightBackground]} style={styles.heroGradient}>
+                    <LinearGradient colors={[theme.backgroundColor, theme.lightBackground]} style={styles.heroGradient}>
                         <View style={styles.heroHeader}>
                             <View style={styles.packageIconContainer}>
-                                <MaterialCommunityIcons name="package-variant" size={32} color={theme.secondaryColor} />
+                                <MaterialCommunityIcons name="package-variant" size={32} color="#0056d2" />
                             </View>
                             <View style={styles.heroInfo}>
                                 <Text style={styles.packageName}>{subscription.packageName || "Fitness Package"}</Text>
                                 <Text style={styles.trainerName}>with {subscription.trainerFullName || "Professional Trainer"}</Text>
                             </View>
-                            <View style={[styles.statusBadge,{ backgroundColor: statusInfo.bgColor }]}>
+                            <View style={[styles.statusBadge, { backgroundColor: statusInfo.bgColor }]}> 
                                 <Ionicons name={statusInfo.icon} size={16} color={statusInfo.color} />
-                                <Text style={[styles.statusText,{ color: statusInfo.color }]}>{statusInfo.label}</Text>
+                                <Text style={[styles.statusText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
                             </View>
                         </View>
                         <Text style={styles.statusDescription}>{statusInfo.description}</Text>
@@ -262,7 +279,7 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                                 </View>
                                 <View style={styles.progressBarContainer}>
                                     <View style={styles.progressBar}>
-                                        <Animated.View style={[styles.progressFill,{ width: `${progress}%` }]} />
+                                        <Animated.View style={[styles.progressFill, { width: `${progress}%` }]} />
                                     </View>
                                 </View>
                                 <View style={styles.progressInfo}>
@@ -275,6 +292,7 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                     </LinearGradient>
                 </Animated.View>
 
+                {/* Package Info Section (unchanged) */}
                 <Animated.View
                     style={[
                         styles.infoSection,
@@ -288,7 +306,7 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                     <View style={styles.infoGrid}>
                         <View style={styles.infoCard}>
                             <View style={styles.infoIconContainer}>
-                                <Ionicons name="pricetag" size={20} color={theme.secondaryColor} />
+                                <Ionicons name="pricetag" size={20} color="#0056d2" />
                             </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Price</Text>
@@ -297,7 +315,7 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                         </View>
                         <View style={styles.infoCard}>
                             <View style={styles.infoIconContainer}>
-                                <Ionicons name="time" size={20} color={theme.secondaryColor} />
+                                <Ionicons name="time" size={20} color="#0056d2" />
                             </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Duration</Text>
@@ -311,7 +329,7 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Start Date</Text>
                                 <Text style={styles.infoValue}>
-                                    {new Date(subscription.startDate).toLocaleDateString("en-US",{
+                                    {new Date(subscription.startDate).toLocaleDateString("en-US", {
                                         month: "short",
                                         day: "numeric",
                                         year: "numeric",
@@ -325,8 +343,8 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                             </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>End Date</Text>
-                                <Text style={[styles.infoValue,isExpired && styles.expiredText]}>
-                                    {new Date(subscription.endDate).toLocaleDateString("en-US",{
+                                <Text style={[styles.infoValue, isExpired && styles.expiredText]}>
+                                    {new Date(subscription.endDate).toLocaleDateString("en-US", {
                                         month: "short",
                                         day: "numeric",
                                         year: "numeric",
@@ -337,6 +355,7 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                     </View>
                 </Animated.View>
 
+                {/* Your Trainer Section (fetches real data) */}
                 <Animated.View
                     style={[
                         styles.trainerSection,
@@ -346,31 +365,80 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                         },
                     ]}
                 >
-                    <Text style={styles.sectionTitle}>Your Trainer</Text>
-                    <View style={styles.trainerCard}>
-                        <View style={styles.trainerAvatar}>
-                            <MaterialCommunityIcons name="account" size={32} color={theme.secondaryColor} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 }}>
+                        <Ionicons name="person-outline" size={24} color="#0056d2" />
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: '#1F2937' }}>Your Trainer</Text>
+                    </View>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        style={{
+                            backgroundColor: '#F8FAFC',
+                            borderRadius: 20,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            padding: 18,
+                            shadowColor: '#0056d2',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.10,
+                            shadowRadius: 12,
+                            elevation: 4,
+                            marginBottom: 2,
+                            borderWidth: 1,
+                            borderColor: '#0056d2',
+                        }}
+                        onPress={() => {
+                            if (subscription?.trainerId) {
+                                navigation.navigate('TrainerDetailScreen', { trainerId: subscription.trainerId });
+                            }
+                        }}
+                    >
+                        <View style={{ width: 64, height: 64, borderRadius: 32, marginRight: 18, overflow: 'hidden', backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
+                            {subscription.trainerAvatar ? (
+                                <Image source={{ uri: subscription.trainerAvatar }} style={{ width: 64, height: 64, borderRadius: 32 }} />
+                            ) : (
+                                <Ionicons name="person" size={32} color="#94A3B8" />
+                            )}
+                            <View style={{ position: 'absolute', bottom: 4, right: 4, width: 16, height: 16, borderRadius: 8, backgroundColor: '#10B981', borderWidth: 2, borderColor: '#FFFFFF' }} />
                         </View>
-                        <View style={styles.trainerInfo}>
-                            <Text style={styles.trainerName}>{subscription.trainerFullName || "Professional Trainer"}</Text>
-                            <Text style={styles.trainerTitle}>Certified Fitness Trainer</Text>
-                            <View style={styles.trainerStats}>
-                                <View style={styles.trainerStat}>
-                                    <Ionicons name="star" size={14} color={theme.warningColor} />
-                                    <Text style={styles.trainerStatText}>4.9</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#1F2937', marginBottom: 2 }}>{subscription.trainerFullName || 'Professional Trainer'}</Text>
+                            <Text style={{ fontSize: 14, color: '#64748B', marginBottom: 6 }}>Certified Fitness Coach</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                    <Ionicons name="star" size={12} color="#F59E0B" />
+                                    <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '600' }}>
+                                        {trainerRatingData && typeof trainerRatingData === 'object' && typeof trainerRatingData.averageRating === 'number' && !isNaN(trainerRatingData.averageRating)
+                                            ? trainerRatingData.averageRating.toFixed(1)
+                                            : typeof trainerRatingData === 'number' && !isNaN(trainerRatingData)
+                                                ? trainerRatingData.toFixed(1)
+                                                : '0.0'}
+                                    </Text>
                                 </View>
-                                <View style={styles.trainerStat}>
-                                    <Ionicons name="people" size={14} color={theme.textSecondary} />
-                                    <Text style={styles.trainerStatText}>150+ clients</Text>
+                                <View style={{ width: 1, height: 14, backgroundColor: '#E2E8F0', marginHorizontal: 5 }} />
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                    <Ionicons name="people-outline" size={12} color="#64748B" />
+                                    <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '600' }}>
+                                        {trainerRatingData && trainerRatingData.currentSubscribers !== null
+                                            ? trainerRatingData.currentSubscribers
+                                            : '0'} clients
+                                    </Text>
+                                </View>
+                                <View style={{ width: 1, height: 14, backgroundColor: '#E2E8F0', marginHorizontal: 5 }} />
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                    <Ionicons name="time-outline" size={12} color="#10B981" />
+                                    <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '600' }}>
+                                        {trainerExperience && trainerExperience.experienceYears !== null
+                                            ? trainerExperience.experienceYears
+                                            : '0'} yrs
+                                    </Text>
                                 </View>
                             </View>
                         </View>
-                        <TouchableOpacity style={styles.contactButton} onPress={handleContactTrainer}>
-                            <Ionicons name="chatbubble" size={20} color={theme.secondaryColor} />
-                        </TouchableOpacity>
-                    </View>
+                        <Ionicons name="chevron-forward" size={22} color="#94A3B8" style={{ marginLeft: 8 }} />
+                    </TouchableOpacity>
                 </Animated.View>
 
+                {/* Timeline and Actions (unchanged) */}
                 <Animated.View
                     style={[
                         styles.timelineSection,
@@ -383,13 +451,13 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                     <Text style={styles.sectionTitle}>Subscription Timeline</Text>
                     <View style={styles.timeline}>
                         <View style={styles.timelineItem}>
-                            <View style={[styles.timelineIcon,{ backgroundColor: "#D1FAE5" }]}>
+                            <View style={[styles.timelineIcon, { backgroundColor: "#D1FAE5" }]}> 
                                 <Ionicons name="calendar" size={16} color={theme.successColor} />
                             </View>
                             <View style={styles.timelineContent}>
                                 <Text style={styles.timelineTitle}>Subscription Created</Text>
                                 <Text style={styles.timelineDate}>
-                                    {new Date(subscription.createdAt).toLocaleDateString("en-US",{
+                                    {new Date(subscription.createdAt).toLocaleDateString("en-US", {
                                         weekday: "long",
                                         year: "numeric",
                                         month: "long",
@@ -399,13 +467,13 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                             </View>
                         </View>
                         <View style={styles.timelineItem}>
-                            <View style={[styles.timelineIcon,{ backgroundColor: "#A7F3D0" }]}>
+                            <View style={[styles.timelineIcon, { backgroundColor: "#A7F3D0" }]}> 
                                 <Ionicons name="play" size={16} color="#059669" />
                             </View>
                             <View style={styles.timelineContent}>
                                 <Text style={styles.timelineTitle}>Subscription Started</Text>
                                 <Text style={styles.timelineDate}>
-                                    {new Date(subscription.startDate).toLocaleDateString("en-US",{
+                                    {new Date(subscription.startDate).toLocaleDateString("en-US", {
                                         weekday: "long",
                                         year: "numeric",
                                         month: "long",
@@ -415,13 +483,13 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
                             </View>
                         </View>
                         <View style={styles.timelineItem}>
-                            <View style={[styles.timelineIcon,{ backgroundColor: isExpired ? "#FEE2E2" : "#FEF3C7" }]}>
+                            <View style={[styles.timelineIcon, { backgroundColor: isExpired ? "#FEE2E2" : "#FEF3C7" }]}> 
                                 <Ionicons name={isExpired ? "stop" : "flag"} size={16} color={isExpired ? theme.dangerColor : theme.warningColor} />
                             </View>
                             <View style={styles.timelineContent}>
                                 <Text style={styles.timelineTitle}>{isExpired ? "Subscription Ended" : "Subscription Ends"}</Text>
-                                <Text style={[styles.timelineDate,isExpired && styles.expiredText]}>
-                                    {new Date(subscription.endDate).toLocaleDateString("en-US",{
+                                <Text style={[styles.timelineDate, isExpired && styles.expiredText]}>
+                                    {new Date(subscription.endDate).toLocaleDateString("en-US", {
                                         weekday: "long",
                                         year: "numeric",
                                         month: "long",
@@ -464,7 +532,7 @@ const SubscriptionDetailScreen = ({ route,navigation }) => {
             </ScrollView>
         </SafeAreaView>
     );
-};
+}
 
 const styles = StyleSheet.create({
     safeArea: {
@@ -495,13 +563,13 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
     },
     headerTitle: {
-        fontSize: 24,
+        fontSize: 18,
         fontWeight: "700",
         color: theme.primaryColor,
         textAlign: "center",
     },
     headerSubtitle: {
-        fontSize: 14,
+        fontSize: 11,
         color: "rgba(255, 255, 255, 0.8)",
         textAlign: "center",
         marginTop: 2,
@@ -552,13 +620,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     packageName: {
-        fontSize: 22,
+        fontSize: 16,
         fontWeight: "700",
         color: theme.textPrimary,
         marginBottom: 4,
     },
     trainerName: {
-        fontSize: 16,
+        fontSize: 12,
         color: theme.textSecondary,
         fontWeight: "500",
     },
@@ -571,14 +639,14 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     statusText: {
-        fontSize: 14,
+        fontSize: 11,
         fontWeight: "600",
     },
     statusDescription: {
-        fontSize: 16,
+        fontSize: 12,
         color: theme.textSecondary,
         marginBottom: 20,
-        lineHeight: 24,
+        lineHeight: 18,
     },
     progressSection: {
         backgroundColor: theme.lightBackground,
@@ -592,12 +660,12 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     progressTitle: {
-        fontSize: 16,
+        fontSize: 12,
         fontWeight: "600",
         color: theme.textPrimary,
     },
     progressPercentage: {
-        fontSize: 16,
+        fontSize: 12,
         fontWeight: "700",
         color: theme.secondaryColor,
     },
@@ -619,7 +687,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     progressText: {
-        fontSize: 14,
+        fontSize: 11,
         color: theme.textSecondary,
         fontWeight: "500",
     },
@@ -628,7 +696,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     sectionTitle: {
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: "700",
         color: theme.textPrimary,
         marginBottom: 16,
@@ -665,12 +733,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     infoLabel: {
-        fontSize: 12,
+        fontSize: 14,
         color: theme.textSecondary,
         marginBottom: 4,
     },
     infoValue: {
-        fontSize: 16,
+        fontSize: 12,
         fontWeight: "600",
         color: theme.textPrimary,
     },
@@ -706,7 +774,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     trainerTitle: {
-        fontSize: 14,
+        fontSize: 11,
         color: theme.textSecondary,
         marginBottom: 8,
     },
@@ -720,7 +788,7 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     trainerStatText: {
-        fontSize: 12,
+        fontSize: 10,
         color: theme.textSecondary,
         fontWeight: "500",
     },
@@ -763,13 +831,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     timelineTitle: {
-        fontSize: 16,
+        fontSize: 12,
         fontWeight: "600",
         color: theme.textPrimary,
         marginBottom: 4,
     },
     timelineDate: {
-        fontSize: 14,
+        fontSize: 11,
         color: theme.textSecondary,
     },
     actionsSection: {
@@ -792,7 +860,7 @@ const styles = StyleSheet.create({
         elevation: 4,
     },
     primaryButtonText: {
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: "600",
         color: theme.primaryColor,
     },
@@ -808,7 +876,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     secondaryButtonText: {
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: "600",
         color: theme.secondaryColor,
     },
@@ -822,7 +890,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     dangerButtonText: {
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: "600",
         color: theme.primaryColor,
     },

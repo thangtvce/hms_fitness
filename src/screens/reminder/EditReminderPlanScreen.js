@@ -17,6 +17,7 @@ import {
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useNavigation, useRoute } from "@react-navigation/native"
+import Header from 'components/Header';
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { apiReminderService } from "services/apiReminderService"
 import { AuthContext } from "context/AuthContext"
@@ -225,37 +226,32 @@ export default function EditReminderPlanScreen() {
   }
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={24} color="#1F2937" />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>Edit Reminder</Text>
-      <TouchableOpacity
-        style={[styles.saveHeaderButton, saving && styles.saveHeaderButtonDisabled]}
-        onPress={handleSave}
-        disabled={saving}
-      >
-        {saving ? (
-          <ActivityIndicator size="small" color="#06B6D4" />
-        ) : (
-          <Ionicons name="checkmark" size={20} color="#06B6D4" />
-        )}
-      </TouchableOpacity>
-    </View>
+    <Header
+      title={<Text style={{ fontSize: 20, fontWeight: '700', color: '#1F2937', textAlign: 'center' }}>Edit Reminder</Text>}
+      onBack={() => navigation.goBack()}
+      rightActions={[{
+        icon: saving ? undefined : 'checkmark',
+        onPress: handleSave,
+        color: '#0056d2',
+        loading: !!saving,
+      }]}
+      backgroundColor="#fff"
+      containerStyle={{ position: 'relative', zIndex: 10 }}
+    />
   )
 
   const renderSelectedType = () => {
-    const selectedType = getTypeConfig(plan.type)
+    const selectedType = getTypeConfig(plan.type);
 
     return (
       <View style={styles.selectedTypeContainer}>
         <Text style={styles.sectionTitle}>Reminder Type</Text>
         <View style={styles.selectedTypeCard}>
-          <LinearGradient colors={selectedType.gradient} style={styles.selectedTypeIcon}>
+          <LinearGradient colors={["#0056d2", "#0056d2"]} style={styles.selectedTypeIcon}>
             <Ionicons name={selectedType.icon} size={24} color="#FFFFFF" />
           </LinearGradient>
           <View style={styles.selectedTypeInfo}>
-            <Text style={styles.selectedTypeLabel}>{selectedType.label}</Text>
+            <Text style={[styles.selectedTypeLabel, { color: '#0056d2' }]}>{selectedType.label}</Text>
             <Text style={styles.selectedTypeDesc}>{selectedType.description}</Text>
           </View>
           <View style={styles.typeLockedBadge}>
@@ -264,8 +260,8 @@ export default function EditReminderPlanScreen() {
         </View>
         <Text style={styles.typeLockedText}>Reminder type cannot be changed after creation</Text>
       </View>
-    )
-  }
+    );
+  };
 
   const renderFrequencyPicker = () => (
     <Modal
@@ -299,8 +295,14 @@ export default function EditReminderPlanScreen() {
                 }))
                 setShowFrequencyPicker(false)
               }}
+              style={{
+                backgroundColor: '#0056d2',
+                borderRadius: 8,
+                paddingHorizontal: 16,
+                paddingVertical: 6,
+              }}
             >
-              <Text style={styles.frequencyPickerDone}>Done</Text>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Done</Text>
             </TouchableOpacity>
           </View>
 
@@ -310,36 +312,36 @@ export default function EditReminderPlanScreen() {
                 key={freq.value}
                 style={[
                   styles.frequencyOptionCard,
-                  pendingFrequency === freq.value && styles.frequencyOptionCardSelected,
+                  pendingFrequency === freq.value && {
+                    backgroundColor: '#0056d2',
+                    // Remove shadow if you want a flat look when selected
+                  },
                 ]}
                 onPress={() => setPendingFrequency(freq.value)}
                 activeOpacity={0.7}
               >
-                <LinearGradient
-                  colors={pendingFrequency === freq.value ? [freq.color, freq.color + "20"] : ["#FFFFFF", "#F8FAFC"]}
-                  style={styles.frequencyOptionGradient}
-                >
+                <View style={styles.frequencyOptionGradient}>
                   <View style={styles.frequencyOptionContent}>
                     <View
                       style={[
                         styles.frequencyIconContainer,
                         {
                           backgroundColor:
-                            pendingFrequency === freq.value ? "rgba(255,255,255,0.2)" : freq.color + "15",
+                            pendingFrequency === freq.value ? 'rgba(255,255,255,0.2)' : freq.color + '15',
                         },
                       ]}
                     >
                       <Ionicons
                         name={freq.icon}
                         size={24}
-                        color={pendingFrequency === freq.value ? "#FFFFFF" : freq.color}
+                        color={pendingFrequency === freq.value ? '#FFFFFF' : freq.color}
                       />
                     </View>
                     <View style={styles.frequencyTextContainer}>
                       <Text
                         style={[
                           styles.frequencyOptionText,
-                          pendingFrequency === freq.value && styles.frequencyOptionTextSelected,
+                          pendingFrequency === freq.value && { color: '#fff', fontWeight: '700' },
                         ]}
                       >
                         {freq.label}
@@ -347,7 +349,7 @@ export default function EditReminderPlanScreen() {
                       <Text
                         style={[
                           styles.frequencyOptionDescription,
-                          pendingFrequency === freq.value && styles.frequencyOptionDescriptionSelected,
+                          pendingFrequency === freq.value && { color: 'rgba(255,255,255,0.8)' },
                         ]}
                       >
                         {freq.description}
@@ -359,7 +361,7 @@ export default function EditReminderPlanScreen() {
                       <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
                     </View>
                   )}
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -370,62 +372,43 @@ export default function EditReminderPlanScreen() {
 
   const renderDaySelection = () => {
     // Allow day selection for Weekly and for Daily if daysOfWeek is not empty (custom days)
-    if (plan.frequency !== "Weekly" && plan.frequency !== "Daily") return null
+    if (plan.frequency !== "Weekly" && plan.frequency !== "Daily") return null;
 
-    const selectedDays = getSelectedDays()
+    const selectedDays = getSelectedDays();
 
     return (
       <View style={styles.formGroup}>
         <Text style={styles.label}>Select Days of Week</Text>
-        <Text style={styles.daySelectionSubtitle}>Choose which days you want to be reminded</Text>
-
-        <View style={styles.daysContainer}>
-          {DAYS_OF_WEEK.map((day, index) => {
-            const isSelected = selectedDays.includes(day.value)
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 12 }}>
+          {DAYS_OF_WEEK.map((day) => {
+            const isSelected = selectedDays.includes(day.value);
             return (
               <TouchableOpacity
                 key={day.value}
-                style={[styles.dayCard, isSelected && [styles.dayCardSelected, { borderColor: day.color }]]}
                 onPress={() => handleDayToggle(day.value)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: isSelected ? '#0056d2' : '#F3F4F6',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginHorizontal: 2,
+                  borderWidth: isSelected ? 2 : 1,
+                  borderColor: isSelected ? '#0056d2' : '#E5E7EB',
+                }}
                 activeOpacity={0.7}
               >
-                <LinearGradient
-                  colors={isSelected ? [day.color, day.color + "20"] : ["#FFFFFF", "#F8FAFC"]}
-                  style={styles.dayCardGradient}
-                >
-                  <View
-                    style={[
-                      styles.dayIconContainer,
-                      {
-                        backgroundColor: isSelected ? "rgba(255,255,255,0.2)" : day.color + "15",
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.dayShortText, { color: isSelected ? "#FFFFFF" : day.color }]}>
-                      {day.label}
-                    </Text>
-                  </View>
-                  <Text style={[styles.dayFullText, { color: isSelected ? "#FFFFFF" : "#1F2937" }]}>{day.full}</Text>
-                  {isSelected && (
-                    <View style={styles.dayCheckmark}>
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                    </View>
-                  )}
-                </LinearGradient>
+                <Text style={{ color: isSelected ? '#fff' : '#1F2937', fontWeight: '700' }}>{day.label}</Text>
               </TouchableOpacity>
-            )
+            );
           })}
         </View>
-
-        <View style={styles.selectedDaysInfo}>
-          <Text style={styles.selectedDaysLabel}>Selected Days:</Text>
-          <Text style={styles.selectedDaysText}>
-            {selectedDays.length > 0
-              ? selectedDays.map((d) => DAYS_OF_WEEK.find((dayObj) => dayObj.value === d)?.full || d).join(", ")
-              : "No days selected"}
-          </Text>
-        </View>
-
+        <Text style={{ color: '#6B7280', fontSize: 13, marginTop: 4, marginBottom: 0 }}>
+          {selectedDays.length > 0
+            ? selectedDays.map((d) => DAYS_OF_WEEK.find((dayObj) => dayObj.value === d)?.full || d).join(', ')
+            : 'No days selected'}
+        </Text>
         {selectedDays.length === 0 && (
           <View style={styles.warningContainer}>
             <Ionicons name="warning" size={16} color="#EF4444" />
@@ -433,8 +416,8 @@ export default function EditReminderPlanScreen() {
           </View>
         )}
       </View>
-    )
-  }
+    );
+  };
 
   if (loading) {
     return (
@@ -500,10 +483,10 @@ export default function EditReminderPlanScreen() {
                 {QUICK_AMOUNTS[plan.type].map((amount) => (
                   <TouchableOpacity
                     key={amount}
-                    style={[styles.quickAmountChip, plan.amount === amount && styles.quickAmountChipSelected]}
+                    style={[styles.quickAmountChip, plan.amount === amount && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
                     onPress={() => setPlan((prev) => ({ ...prev, amount: amount }))}
                   >
-                    <Text style={[styles.quickAmountText, plan.amount === amount && styles.quickAmountTextSelected]}>
+                    <Text style={[styles.quickAmountText, plan.amount === amount && { color: '#fff' }]}>
                       {amount}
                     </Text>
                   </TouchableOpacity>
@@ -605,7 +588,7 @@ export default function EditReminderPlanScreen() {
           disabled={saving}
           activeOpacity={0.8}
         >
-          <LinearGradient colors={["#06B6D4", "#0EA5E9"]} style={styles.saveButtonGradient}>
+          <View style={[styles.saveButtonGradient, { backgroundColor: '#0056d2' }]}> 
             {saving ? (
               <View style={styles.savingContent}>
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -617,7 +600,7 @@ export default function EditReminderPlanScreen() {
                 <Text style={styles.saveButtonText}>Update Reminder</Text>
               </View>
             )}
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </ScrollView>
 
@@ -1008,7 +991,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   toggleActive: {
-    backgroundColor: "#06B6D4",
+    backgroundColor: "#0056d2",
   },
   toggleThumb: {
     width: 28,

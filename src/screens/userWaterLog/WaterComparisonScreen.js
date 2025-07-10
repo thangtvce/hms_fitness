@@ -21,6 +21,7 @@ import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import { theme } from 'theme/color';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Header from 'components/Header';
 import { LineChart,BarChart } from 'react-native-chart-kit';
 
 const { width,height } = Dimensions.get('window');
@@ -465,28 +466,35 @@ export default function WaterComparisonScreen({ navigation }) {
     const renderDateItem = ({ item }) => {
         const isSelected = selectedDates.includes(item.date);
         const intakeStatus = getIntakeStatus(item.totalAmount);
-
         return (
             <TouchableOpacity
-                style={[styles.dateItem,isSelected && styles.dateItemSelected]}
+                style={[styles.dateItem, isSelected && styles.dateItemSelected]}
                 onPress={() => toggleDateSelection(item.date)}
                 activeOpacity={0.7}
             >
                 <View style={styles.dateItemHeader}>
                     <View style={styles.dateInfo}>
-                        <Text style={[styles.dateText,isSelected && styles.dateTextSelected]}>
+                        <Text style={[styles.dateText, isSelected && styles.dateTextSelected]}>
                             {item.displayDate}
                         </Text>
-                        <Text style={[styles.dateSubtext,isSelected && styles.dateSubtextSelected]}>
+                        <Text style={[styles.dateSubtext, isSelected && styles.dateSubtextSelected]}>
                             {item.logCount} log{item.logCount !== 1 ? 's' : ''}
                         </Text>
                     </View>
-                    <View style={styles.dateStatus}>
-                        <Ionicons
-                            name={intakeStatus.icon}
-                            size={20}
-                            color={isSelected ? '#FFFFFF' : intakeStatus.color}
-                        />
+                    {/* Show both status icon and checkmark side by side if selected */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View style={styles.dateStatus}>
+                            <Ionicons
+                                name={intakeStatus.icon}
+                                size={20}
+                                color={isSelected ? '#FFFFFF' : intakeStatus.color}
+                            />
+                        </View>
+                        {isSelected && (
+                            <View style={styles.selectedIndicatorHeader}>
+                                <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -508,23 +516,17 @@ export default function WaterComparisonScreen({ navigation }) {
                                 style={[
                                     styles.progressBarFill,
                                     {
-                                        width: `${Math.min((item.totalAmount / RECOMMENDED_DAILY_INTAKE) * 100,100)}%`,
+                                        width: `${Math.min((item.totalAmount / RECOMMENDED_DAILY_INTAKE) * 100, 100)}%`,
                                         backgroundColor: isSelected ? '#FFFFFF' : intakeStatus.color
                                     }
                                 ]}
                             />
                         </View>
-                        <Text style={[styles.progressText,isSelected && styles.progressTextSelected]}>
+                        <Text style={[styles.progressText, isSelected && styles.progressTextSelected]}>
                             {Math.round((item.totalAmount / RECOMMENDED_DAILY_INTAKE) * 100)}%
                         </Text>
                     </View>
                 </View>
-
-                {isSelected && (
-                    <View style={styles.selectedIndicator}>
-                        <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-                    </View>
-                )}
             </TouchableOpacity>
         );
     };
@@ -544,24 +546,15 @@ export default function WaterComparisonScreen({ navigation }) {
     return (
         <SafeAreaView style={styles.safeArea}>
             <DynamicStatusBar backgroundColor={theme.primaryColor} />
-
-            {/* Header */}
-            <LinearGradient colors={['#4F46E5','#6366F1','#818CF8']} style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity onPress={safeGoBack} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <View style={styles.headerTitleContainer}>
-                        <Text style={styles.headerTitle}>Water Intake Comparison</Text>
-                        <Text style={styles.headerSubtitle}>
-                            {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''} selected
-                        </Text>
-                    </View>
-                    <View style={styles.headerRight}>
-                        <Text style={styles.selectionCount}>{selectedDates.length}/10</Text>
-                    </View>
-                </View>
-            </LinearGradient>
+            <Header
+                title={`Water Intake Comparison`}
+                onBack={safeGoBack}
+                rightComponent={
+                    <Text style={styles.selectionCount}>{selectedDates.length}/10</Text>
+                }
+                subtitle={`${selectedDates.length} day${selectedDates.length !== 1 ? 's' : ''} selected`}
+                style={{ backgroundColor: '#4F46E5', marginTop: 40 }}
+            />
 
             <ScrollView
                 style={styles.container}
@@ -684,6 +677,7 @@ const styles = StyleSheet.create({
     },
     quickSelectionContainer: {
         margin: 20,
+        marginTop: 55, // Add more space from Header
         marginBottom: 16,
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
@@ -977,9 +971,13 @@ const styles = StyleSheet.create({
         color: 'rgba(255, 255, 255, 0.8)',
     },
     selectedIndicator: {
+        // No longer used for header checkmark, but keep for possible future use
         position: 'absolute',
         top: 12,
         right: 12,
+    },
+    selectedIndicatorHeader: {
+        marginLeft: 6,
     },
     emptyState: {
         alignItems: 'center',

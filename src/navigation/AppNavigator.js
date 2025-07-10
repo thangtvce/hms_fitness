@@ -74,6 +74,7 @@ import UserWaterLogScreen from 'screens/userWaterLog/UserWaterLogScreen';
 import WaterComparisonScreen from 'screens/userWaterLog/WaterComparisonScreen';
 import AddWaterLogScreen from 'screens/userWaterLog/AddWaterLogScreen';
 import EditWaterLogScreen from 'screens/userWaterLog/EditWaterLogScreen';
+import WaterLogAnalyticsScreen from 'screens/userWaterLog/WaterLogAnalyticsScreen';
 import UserPostsScreen from 'screens/community/UserPostsScreen';
 import MyReportsScreen from 'screens/community/MyReportsScreen';
 import FoodDailyLogScreen from 'screens/food/FoodDailyLogScreen';
@@ -251,6 +252,7 @@ const notificationListener = useRef();
       <Stack.Screen name="WaterComparison" component={WaterComparisonScreen} />
       <Stack.Screen name="AddWaterLogScreen" component={AddWaterLogScreen} />
       <Stack.Screen name="EditWaterLogScreen" component={EditWaterLogScreen} />
+      <Stack.Screen name="WaterLogAnalyticsScreen" component={WaterLogAnalyticsScreen} />
       <Stack.Screen name="UserPostsScreen" component={UserPostsScreen} />
       <Stack.Screen name="MyReportsScreen" component={MyReportsScreen} />
       <Stack.Screen name="FoodDailyLogScreen" component={FoodDailyLogScreen} />

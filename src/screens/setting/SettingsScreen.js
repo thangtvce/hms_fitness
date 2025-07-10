@@ -51,15 +51,6 @@ const menuItems = [
   { id: "20", title: "Reminder Plan List", icon: "alarm-outline", description: "View your reminder plans" },
   { id: "21", title: "My Trainer Applications", icon: "document-text-outline", description: "View your trainer applications" },
   { id: "22", title: "Theme Settings", icon: "color-palette-outline", description: "Change app theme" },
-
-  // Thêm các mục quản lý cho Trainer
-  { id: "30", title: "Service Packages", icon: "cube-outline", description: "Manage your service packages" },
-  { id: "31", title: "Exercise Management", icon: "barbell-outline", description: "Manage your exercises" },
-  { id: "32", title: "Workout Plan Management", icon: "clipboard-outline", description: "Manage your workout plans" },
-  { id: "33", title: "Payment History", icon: "cash-outline", description: "View your payment history" },
-  { id: "34", title: "Trainer Dashboard", icon: "speedometer-outline", description: "Go to trainer dashboard" },
-  { id: "35", title: "Student Management", icon: "people-outline", description: "Manage your students" },
-
   { id: "19", title: "Logout", icon: "log-out-outline", description: "Sign out of your account" },
 ];
 

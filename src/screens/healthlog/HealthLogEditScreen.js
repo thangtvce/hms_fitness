@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { healthyLogService } from "services/apiHealthyLogService"
 import { useNavigation, useRoute } from "@react-navigation/native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Header from "../../components/Header"
 
 const MOOD_OPTIONS = [
   { label: "Select your mood", value: "" },
@@ -277,7 +278,7 @@ export default function HealthLogEditScreen() {
       <View style={styles.inputContainer}>
         <View style={styles.inputHeader}>
           <View style={styles.inputLabelContainer}>
-            <Ionicons name={icon} size={20} color="#4F46E5" />
+            <Ionicons name={icon} size={20} color="#0056d2" />
             <Text style={styles.inputLabel}>{placeholder}</Text>
           </View>
           {status && (
@@ -316,7 +317,7 @@ export default function HealthLogEditScreen() {
     return (
       <View style={styles.inputContainer}>
         <View style={styles.inputLabelContainer}>
-          <Ionicons name={icon} size={20} color="#4F46E5" />
+          <Ionicons name={icon} size={20} color="#0056d2" />
           <Text style={styles.inputLabel}>{label}</Text>
         </View>
         <TouchableOpacity
@@ -351,13 +352,13 @@ export default function HealthLogEditScreen() {
             keyExtractor={(item) => item.value}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.optionItem, form[currentField] === item.value && styles.selectedOption]}
+                style={[styles.optionItem, form[currentField] === item.value && { ...styles.selectedOption, borderLeftWidth: 4, borderLeftColor: '#0056d2' }]}
                 onPress={() => selectOption(item.value)}
               >
-                <Text style={[styles.optionText, form[currentField] === item.value && styles.selectedOptionText]}>
+                <Text style={[styles.optionText, form[currentField] === item.value && { color: '#0056d2', fontWeight: '700' }]}>
                   {item.label}
                 </Text>
-                {form[currentField] === item.value && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                {form[currentField] === item.value && <Ionicons name="checkmark" size={20} color="#0056d2" />}
               </TouchableOpacity>
             )}
             showsVerticalScrollIndicator={false}
@@ -380,24 +381,21 @@ export default function HealthLogEditScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Unified Header, absolute/fixed at the top */}
+      <Header
+        title="Edit Health Log"
+        subtitle="Update your wellness data"
+        onBack={() => navigation.goBack()}
+        absolute
+      />
       <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Edit Health Log</Text>
-            <Text style={styles.headerSubtitle}>Update your wellness data</Text>
-          </View>
-          <View style={styles.headerSpacer} />
-        </View>
-
+        {/* Push content below header */}
+        <View style={{ height: 90 }} />
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {/* Vital Signs Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="heart" size={24} color="#EF4444" />
+              <Ionicons name="heart" size={24} color="#0056d2" />
               <Text style={styles.sectionTitle}>Vital Signs</Text>
             </View>
             <Text style={styles.sectionSubtitle}>Monitor your essential health metrics</Text>
@@ -409,7 +407,7 @@ export default function HealthLogEditScreen() {
           {/* Sleep & Wellness Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="bed" size={24} color="#8B5CF6" />
+              <Ionicons name="bed" size={24} color="#0056d2" />
               <Text style={styles.sectionTitle}>Sleep & Wellness</Text>
             </View>
             <Text style={styles.sectionSubtitle}>Track your rest and mental well-being</Text>
@@ -435,7 +433,7 @@ export default function HealthLogEditScreen() {
         {/* Submit Button */}
         <View style={styles.submitContainer}>
           <TouchableOpacity
-            style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+            style={[styles.submitButton, saving && styles.submitButtonDisabled, { backgroundColor: "#0056d2" }]}
             onPress={handleSubmit}
             disabled={saving}
           >
@@ -477,33 +475,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#6B7280",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1F2937",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginTop: 2,
-  },
-  headerSpacer: {
-    width: 40,
-  },
+  // Header styles are now handled by the shared Header component
   scrollView: {
     flex: 1,
   },
@@ -525,12 +497,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 16, // Đề mục lớn
     fontWeight: "bold",
     color: "#1F2937",
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 12, // Giá trị/Value
     color: "#6B7280",
     marginBottom: 20,
   },
@@ -549,7 +521,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   inputLabel: {
-    fontSize: 16,
+    fontSize: 14, // Label nhỏ
     fontWeight: "600",
     color: "#374151",
   },
@@ -559,7 +531,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 12, // Giá trị/Value
     fontWeight: "600",
     textTransform: "uppercase",
   },
@@ -574,7 +546,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     padding: 16,
-    fontSize: 16,
+    fontSize: 12, // Giá trị/Value
     color: "#1F2937",
   },
   inputError: {
@@ -582,7 +554,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEF2F2",
   },
   unitText: {
-    fontSize: 14,
+    fontSize: 12, // Giá trị/Value
     color: "#6B7280",
     paddingRight: 16,
     fontWeight: "500",
@@ -599,7 +571,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   customPickerText: {
-    fontSize: 16,
+    fontSize: 12, // Giá trị/Value
     color: "#1F2937",
     flex: 1,
   },
@@ -613,7 +585,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 12, // Giá trị/Value
     color: "#EF4444",
     flex: 1,
   },
@@ -632,12 +604,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tipsTitle: {
-    fontSize: 16,
+    fontSize: 16, // Đề mục lớn
     fontWeight: "600",
     color: "#92400E",
   },
   tipsText: {
-    fontSize: 14,
+    fontSize: 12, // Giá trị/Value
     color: "#92400E",
     lineHeight: 20,
   },
@@ -675,7 +647,7 @@ const styles = StyleSheet.create({
   },
   submitText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 14, // Label nhỏ
     fontWeight: "bold",
   },
   // Modal styles
@@ -707,7 +679,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 16, // Đề mục lớn
     fontWeight: "bold",
     color: "#1F2937",
   },
@@ -726,7 +698,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2FF",
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 12, // Giá trị/Value
     color: "#374151",
     flex: 1,
   },

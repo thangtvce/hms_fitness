@@ -11,13 +11,15 @@ import {
     Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
 import { theme } from "theme/color";
 import { Dimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Header from "components/Header";
 
 const { width,height } = Dimensions.get("window");
 
@@ -37,21 +39,28 @@ const SavedPackagesScreen = ({ navigation }) => {
     };
 
     const renderPackageIcon = (type,size = 24) => {
-        const iconProps = { size,color: "#FFFFFF" };
-        switch (type) {
-            case "yoga":
-                return <MaterialCommunityIcons name="yoga" {...iconProps} />;
-            case "nutrition":
-                return <Ionicons name="nutrition" {...iconProps} />;
-            case "cardio":
-                return <Ionicons name="heart" {...iconProps} />;
-            case "strength":
-                return <MaterialCommunityIcons name="weight-lifter" {...iconProps} />;
-            case "wellness":
-                return <MaterialCommunityIcons name="meditation" {...iconProps} />;
-            default:
-                return <MaterialCommunityIcons name="dumbbell" {...iconProps} />;
-        }
+        const iconProps = { size, color: "#FFFFFF" };
+        // All icons will have a #0056d2 background
+        return (
+            <View style={{ backgroundColor: "#0056d2", borderRadius: size / 2, padding: 6, justifyContent: 'center', alignItems: 'center' }}>
+                {(() => {
+                    switch (type) {
+                        case "yoga":
+                            return <MaterialCommunityIcons name="yoga" {...iconProps} />;
+                        case "nutrition":
+                            return <Ionicons name="nutrition" {...iconProps} />;
+                        case "cardio":
+                            return <Ionicons name="heart" {...iconProps} />;
+                        case "strength":
+                            return <MaterialCommunityIcons name="weight-lifter" {...iconProps} />;
+                        case "wellness":
+                            return <MaterialCommunityIcons name="meditation" {...iconProps} />;
+                        default:
+                            return <MaterialCommunityIcons name="dumbbell" {...iconProps} />;
+                    }
+                })()}
+            </View>
+        );
     };
 
     const getPackageGradient = (type) => {
@@ -105,23 +114,16 @@ const SavedPackagesScreen = ({ navigation }) => {
 
     const renderPackageItem = ({ item }) => {
         const packageType = getPackageIcon(item.packageName);
-        const gradientColors = getPackageGradient(packageType);
-
         return (
             <TouchableOpacity
                 style={styles.packageCard}
-                onPress={() => navigation.navigate("PackageDetail",{ package: item })}
+                onPress={() => navigation.navigate("PackageDetail", { package: item })}
                 activeOpacity={0.8}
             >
                 <View style={styles.cardContent}>
-                    <LinearGradient
-                        colors={gradientColors}
-                        style={styles.iconContainer}
-                        start={{ x: 0,y: 0 }}
-                        end={{ x: 1,y: 1 }}
-                    >
-                        {renderPackageIcon(packageType,24)}
-                    </LinearGradient>
+                    <View style={styles.iconContainer}>
+                        {renderPackageIcon(packageType, 24)}
+                    </View>
                     <View style={styles.packageInfo}>
                         <Text style={styles.packageName} numberOfLines={2}>
                             {item.packageName || "Service Package"}
@@ -130,11 +132,11 @@ const SavedPackagesScreen = ({ navigation }) => {
                             {item.trainerFullName || "Unknown Trainer"}
                         </Text>
                         <View style={styles.priceContainer}>
-                            <Text style={styles.packagePrice}>
+                            <Text style={styles.packagePriceCustom}>
                                 {item.price ? `$${item.price.toLocaleString()}` : "Contact"}
                             </Text>
                             <View style={styles.durationBadge}>
-                                <Ionicons name="time-outline" size={12} color="#64748B" />
+                                <Ionicons name="time-outline" size={12} color="#0056d2" />
                                 <Text style={styles.durationText}>{item.durationDays || "N/A"} days</Text>
                             </View>
                         </View>
@@ -180,16 +182,12 @@ const SavedPackagesScreen = ({ navigation }) => {
     return (
         <SafeAreaView style={styles.safeArea}>
             <DynamicStatusBar backgroundColor={theme.primaryColor} />
-            <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                    <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-                <View style={styles.headerTitleContainer}>
-                    <Text style={styles.headerTitle}>Saved Packages</Text>
-                    <Text style={styles.headerSubtitle}>Your favorite fitness services</Text>
-                </View>
-                <View style={styles.placeholder} />
-            </LinearGradient>
+            <Header
+                title="Saved Packages"
+                onBack={() => navigation.goBack()}
+                subtitle="Your favorite fitness services"
+            />
+            <View style={{ marginTop: 50 }} />
             <FlatList
                 data={savedPackages}
                 renderItem={renderPackageItem}
@@ -269,6 +267,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         marginRight: 16,
+        backgroundColor: "#0056d2",
     },
     packageInfo: {
         flex: 1,
@@ -290,9 +289,14 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     packagePrice: {
-        fontSize: 16,
+        fontSize: 12,
         fontWeight: "800",
         color: "#4F46E5",
+    },
+    packagePriceCustom: {
+        fontSize: 12,
+        fontWeight: "800",
+        color: "#0056d2",
     },
     durationBadge: {
         flexDirection: "row",
@@ -320,18 +324,18 @@ const styles = StyleSheet.create({
         minHeight: height - 200,
     },
     emptyTitle: {
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: "700",
         color: "#1E293B",
         marginTop: 16,
         marginBottom: 8,
     },
     emptyText: {
-        fontSize: 16,
+        fontSize: 14,
         color: "#64748B",
         textAlign: "center",
         marginBottom: 24,
-        lineHeight: 24,
+        lineHeight: 20,
     },
     exploreButton: {
         backgroundColor: "#4F46E5",
@@ -340,7 +344,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     exploreButtonText: {
-        fontSize: 16,
+        fontSize: 14,
         color: "#FFFFFF",
         fontWeight: "700",
     },

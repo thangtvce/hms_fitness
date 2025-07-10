@@ -15,6 +15,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from "expo-linear-gradient"
 import Icon from 'react-native-vector-icons/Ionicons';
+import Header from '../../components/Header';
 import ticketService from 'services/apiTicketService';
 import apiUserService from 'services/apiUserService';
 import { AuthContext } from 'context/AuthContext';
@@ -223,18 +224,13 @@ const TicketDetailScreen = ({ route }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={[styles.header, { backgroundColor: '#fff' }]}> 
-          <View style={styles.headerContent}>
-            <TouchableOpacity 
-              style={[styles.backButton, { backgroundColor: 'transparent' }]}
-              onPress={() => navigation.goBack()}
-            >
-              <Icon name="arrow-back" size={24} color="#111" />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: '#111' }]}>Ticket Details</Text>
-            <View style={styles.headerSpacer} />
-          </View>
-        </View>
+        <Header
+          title="Ticket Details"
+          subtitle={`#${ticketId}`}
+          onBack={() => navigation.goBack()}
+          absolute
+        />
+        <View style={{ height: 90 }} />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#4F46E5" />
           <Text style={styles.loadingText}>Loading ticket details...</Text>
@@ -246,18 +242,13 @@ const TicketDetailScreen = ({ route }) => {
   if (error || !ticket) {
     return (
       <SafeAreaView style={styles.container}>
-        <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Icon name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Ticket Details</Text>
-            <View style={styles.headerSpacer} />
-          </View>
-        </LinearGradient>
+        <Header
+          title="Ticket Details"
+          subtitle={`#${ticketId}`}
+          onBack={() => navigation.goBack()}
+          absolute
+        />
+        <View style={{ height: 90 }} />
         <View style={styles.centered}>
           <Icon name="alert-circle" size={64} color="#EF4444" />
           <Text style={styles.errorText}>{error || 'Ticket not found'}</Text>
@@ -275,21 +266,13 @@ const TicketDetailScreen = ({ route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: '#fff' }]}> 
-        <View style={styles.headerContent}>
-          <TouchableOpacity 
-            style={[styles.backButton, { backgroundColor: 'transparent' }]}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-back" size={24} color="#111" />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, { color: '#111' }]}>Ticket Details</Text>
-            <Text style={[styles.headerSubtitle, { color: '#6B7280' }]}>#{ticketId}</Text>
-          </View>
-          <View style={styles.headerSpacer} />
-        </View>
-      </View>
+      <Header
+        title="Ticket Details"
+        subtitle={`#${ticketId}`}
+        onBack={() => navigation.goBack()}
+        absolute
+      />
+      <View style={{ height: 90 }} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}

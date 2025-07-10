@@ -14,6 +14,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from "expo-linear-gradient"
 import Icon from 'react-native-vector-icons/Ionicons';
+import Header from 'components/Header';
 import ticketService from 'services/apiTicketService';
 import { AuthContext } from 'context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -194,35 +195,32 @@ const TicketListScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: '#fff', paddingTop: 10, paddingBottom: 20, paddingHorizontal: 16 }]}> 
-        <View style={styles.headerContent}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-back" size={24} color="#222" />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, { color: '#1F2937' }]}>My Tickets</Text>
-            <Text style={[styles.headerSubtitle, { color: '#64748B' }]}> 
-              {tickets.length} {tickets.length === 1 ? 'ticket' : 'tickets'}
-              {getActiveFiltersCount() > 0 && ` • ${getActiveFiltersCount()} filter${getActiveFiltersCount() > 1 ? 's' : ''}`}
-            </Text>
-          </View>
-          <TouchableOpacity 
-            style={[styles.menuButton, getActiveFiltersCount() > 0 && styles.menuButtonActive]}
+      {/* Header with sort/filter icon using shared Header.js */}
+      <Header
+        title="My Tickets"
+        subtitle={`${tickets.length} ${tickets.length === 1 ? 'ticket' : 'tickets'}${getActiveFiltersCount() > 0 ? ` • ${getActiveFiltersCount()} filter${getActiveFiltersCount() > 1 ? 's' : ''}` : ''}`}
+        onBack={() => navigation.goBack()}
+        rightActions={[
+          <TouchableOpacity
+            key="filter"
+            style={[
+              styles.menuButton,
+              getActiveFiltersCount() > 0 && styles.menuButtonActive,
+              { backgroundColor: 'transparent' }
+            ]}
             onPress={openFilterModal}
           >
-            <Icon name="options" size={24} color="#222" />
+            <Icon name="options" size={24} color="#0056d2" />
             {getActiveFiltersCount() > 0 && (
               <View style={styles.filterBadge}>
                 <Text style={styles.filterBadgeText}>{getActiveFiltersCount()}</Text>
               </View>
             )}
           </TouchableOpacity>
-        </View>
-      </View>
+        ]}
+        absolute
+      />
+      <View style={{ height: 90 }} />
 
       {/* Create Button */}
       <TouchableOpacity

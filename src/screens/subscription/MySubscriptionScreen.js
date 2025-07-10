@@ -15,6 +15,8 @@ import {
     Dimensions,
 } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
+// import { LinearGradient } from "expo-linear-gradient"
+import Header from "components/Header"
 import { Ionicons,MaterialCommunityIcons,Feather } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { AuthContext } from "context/AuthContext"
@@ -230,7 +232,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                         <View style={styles.cardHeader}>
                             <View style={styles.cardHeaderLeft}>
                                 <View style={styles.packageIconContainer}>
-                                    <MaterialCommunityIcons name="package-variant" size={24} color="#4F46E5" />
+                                    <MaterialCommunityIcons name="package-variant" size={24} color="#0056d2" />
                                 </View>
                                 <View style={styles.packageInfo}>
                                     <Text style={styles.packageName} numberOfLines={1}>
@@ -323,7 +325,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                             onPress={() => navigation.navigate("SubscriptionDetail",{ subscription: item })}
                         >
                             <Text style={styles.viewDetailsText}>View Details</Text>
-                            <Feather name="arrow-right" size={16} color="#4F46E5" />
+                            <Feather name="arrow-right" size={16} color="#0056d2" />
                         </TouchableOpacity>
                     </LinearGradient>
                 </TouchableOpacity>
@@ -381,7 +383,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                     <View style={styles.filterHeader}>
                         <View style={styles.filterHeaderLeft}>
                             <View style={styles.filterIconContainer}>
-                                <Ionicons name="options" size={24} color="#4F46E5" />
+                                <Ionicons name="options" size={24} color="#0056d2" />
                             </View>
                             <View>
                                 <Text style={styles.filterTitle}>Filter Subscriptions</Text>
@@ -403,7 +405,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                         {/* Date Range Section */}
                         <View style={styles.filterSection}>
                             <Text style={styles.filterSectionTitle}>
-                                <Feather name="calendar" size={16} color="#4F46E5" /> Date Range
+                                <Feather name="calendar" size={16} color="#0056d2" /> Date Range
                             </Text>
                             <View style={styles.rangeInputContainer}>
                                 <TouchableOpacity style={styles.dateInput} onPress={() => setShowCustomStartDatePicker(true)}>
@@ -423,7 +425,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                         {/* Status Section */}
                         <View style={styles.filterSection}>
                             <Text style={styles.filterSectionTitle}>
-                                <Feather name="activity" size={16} color="#4F46E5" /> Status
+                                <Feather name="activity" size={16} color="#0056d2" /> Status
                             </Text>
                             <View style={styles.statusGrid}>
                                 {[
@@ -458,7 +460,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                         {/* Items per Page Section */}
                         <View style={styles.filterSection}>
                             <Text style={styles.filterSectionTitle}>
-                                <Feather name="grid" size={16} color="#4F46E5" /> Items per Page
+                                <Feather name="grid" size={16} color="#0056d2" /> Items per Page
                             </Text>
                             <View style={styles.pageSizeGrid}>
                                 {[5,10,20,50].map((size) => (
@@ -492,7 +494,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                     {/* Filter Actions */}
                     <View style={styles.filterActions}>
                         <TouchableOpacity style={styles.clearFiltersButton} onPress={resetTempFilters}>
-                            <Feather name="refresh-cw" size={16} color="#4F46E5" />
+                            <Feather name="refresh-cw" size={16} color="#0056d2" />
                             <Text style={styles.clearFiltersText}>Reset</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.applyFiltersButton} onPress={applyTempFilters}>
@@ -600,30 +602,26 @@ const MySubscriptionScreen = ({ navigation }) => {
 
     return (
         <SafeAreaView style={styles.safeArea}>
-            <DynamicStatusBar backgroundColor={theme.primaryColor} />
-
-            {/* Modern Header */}
-            <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>My Subscriptions</Text>
-                        <Text style={styles.headerSubtitle}>
-                            {totalCount > 0 ? `${totalCount} subscription${totalCount > 1 ? "s" : ""}` : "Manage your packages"}
-                        </Text>
-                    </View>
-
-                    <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-                        <Ionicons name="options" size={24} color="#FFFFFF" />
-                        {(searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) && (
-                            <View style={styles.filterIndicator} />
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient>
+            <DynamicStatusBar backgroundColor="#0056d2" />
+            <Header
+                title="My Subscriptions"
+                onBack={() => navigation.goBack()}
+                subtitle={
+                    totalCount > 0
+                        ? `${totalCount} subscription${totalCount > 1 ? "s" : ""}`
+                        : "Manage your packages"
+                }
+                style={{ backgroundColor: '#0056d2', paddingTop: Platform.OS === "android" ? 40 : 20, paddingBottom: 10 }}
+            />
+            {/* Filter button below header for visibility */}
+            <View style={{ alignItems: 'flex-end', paddingHorizontal: 16, marginTop: 8 }}>
+                <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
+                    <Ionicons name="options" size={24} color="#FFFFFF" />
+                    {(searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) && (
+                        <View style={styles.filterIndicator} />
+                    )}
+                </TouchableOpacity>
+            </View>
 
             {/* Search Container */}
             <Animated.View
@@ -665,7 +663,7 @@ const MySubscriptionScreen = ({ navigation }) => {
             {/* Content */}
             {loading && pageNumber === 1 ? (
                 <View style={styles.loaderContainer}>
-                    <ActivityIndicator size="large" color="#4F46E5" />
+                    <ActivityIndicator size="large" color="#0056d2" />
                     <Text style={styles.loaderText}>Loading your subscriptions...</Text>
                 </View>
             ) : (
@@ -681,7 +679,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                     ListFooterComponent={
                         loading && pageNumber > 1 ? (
                             <View style={styles.footerLoader}>
-                                <ActivityIndicator size="small" color="#4F46E5" />
+                                <ActivityIndicator size="small" color="#0056d2" />
                                 <Text style={styles.footerLoaderText}>Loading more...</Text>
                             </View>
                         ) : null
@@ -708,7 +706,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                                 onPress={() => goToPage(pageNumber - 1)}
                                 disabled={pageNumber <= 1 || loading}
                             >
-                                <Ionicons name="chevron-back" size={20} color={pageNumber <= 1 ? "#CBD5E1" : "#4F46E5"} />
+                                <Ionicons name="chevron-back" size={20} color={pageNumber <= 1 ? "#CBD5E1" : "#0056d2"} />
                             </TouchableOpacity>
 
                             {/* Page Dots */}
@@ -720,7 +718,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                                 onPress={() => goToPage(pageNumber + 1)}
                                 disabled={pageNumber >= totalPages || loading}
                             >
-                                <Ionicons name="chevron-forward" size={20} color={pageNumber >= totalPages ? "#CBD5E1" : "#4F46E5"} />
+                                <Ionicons name="chevron-forward" size={20} color={pageNumber >= totalPages ? "#CBD5E1" : "#0056d2"} />
                             </TouchableOpacity>
                         </View>
 
@@ -881,7 +879,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     packageName: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: "700",
         color: "#1E293B",
         marginBottom: 2,
@@ -900,7 +898,7 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     statusText: {
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: "600",
     },
     priceContainer: {
@@ -915,12 +913,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     priceLabel: {
-        fontSize: 12,
+        fontSize: 14,
         color: "#64748B",
         marginBottom: 4,
     },
     priceValue: {
-        fontSize: 20,
+        fontSize: 12,
         fontWeight: "700",
         color: "#1E293B",
     },
@@ -929,14 +927,14 @@ const styles = StyleSheet.create({
         alignItems: "flex-end",
     },
     durationLabel: {
-        fontSize: 12,
+        fontSize: 14,
         color: "#64748B",
         marginBottom: 4,
     },
     durationValue: {
-        fontSize: 16,
+        fontSize: 12,
         fontWeight: "600",
-        color: "#4F46E5",
+        color: "#0056d2",
     },
     progressContainer: {
         marginBottom: 16,
@@ -953,8 +951,8 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     progressPercentage: {
-        fontSize: 14,
-        color: "#4F46E5",
+        fontSize: 12,
+        color: "#0056d2",
         fontWeight: "600",
     },
     progressBar: {
@@ -965,7 +963,7 @@ const styles = StyleSheet.create({
     },
     progressFill: {
         height: "100%",
-        backgroundColor: "#4F46E5",
+        backgroundColor: "#0056d2",
         borderRadius: 3,
     },
     dateContainer: {
@@ -983,12 +981,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     dateLabel: {
-        fontSize: 12,
+        fontSize: 14,
         color: "#64748B",
         marginBottom: 2,
     },
     dateValue: {
-        fontSize: 14,
+        fontSize: 12,
         color: "#1E293B",
         fontWeight: "600",
     },
@@ -1005,8 +1003,8 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     viewDetailsText: {
-        fontSize: 16,
-        color: "#4F46E5",
+        fontSize: 14,
+        color: "#0056d2",
         fontWeight: "600",
     },
     loaderContainer: {
@@ -1018,7 +1016,7 @@ const styles = StyleSheet.create({
     },
     loaderText: {
         fontSize: 16,
-        color: "#4F46E5",
+        color: "#0056d2",
         marginTop: 16,
         fontWeight: "500",
     },
@@ -1030,7 +1028,7 @@ const styles = StyleSheet.create({
     },
     footerLoaderText: {
         fontSize: 14,
-        color: "#4F46E5",
+        color: "#0056d2",
         marginLeft: 8,
         fontWeight: "500",
     },
@@ -1067,7 +1065,7 @@ const styles = StyleSheet.create({
     emptyActionButton: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#4F46E5",
+        backgroundColor: "#0056d2",
         paddingHorizontal: 24,
         paddingVertical: 12,
         borderRadius: 12,
@@ -1127,7 +1125,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     activePaginationDot: {
-        backgroundColor: "#4F46E5",
+        backgroundColor: "#0056d2",
     },
     paginationDotText: {
         fontSize: 14,
@@ -1272,8 +1270,8 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     selectedStatusCard: {
-        backgroundColor: "#4F46E5",
-        borderColor: "#4F46E5",
+        backgroundColor: "#0056d2",
+        borderColor: "#0056d2",
     },
     statusCardText: {
         fontSize: 14,
@@ -1298,8 +1296,8 @@ const styles = StyleSheet.create({
         borderColor: "#E2E8F0",
     },
     selectedPageSizeCard: {
-        backgroundColor: "#4F46E5",
-        borderColor: "#4F46E5",
+        backgroundColor: "#0056d2",
+        borderColor: "#0056d2",
     },
     pageSizeCardNumber: {
         fontSize: 20,
@@ -1337,7 +1335,7 @@ const styles = StyleSheet.create({
     },
     clearFiltersText: {
         fontSize: 16,
-        color: "#4F46E5",
+        color: "#0056d2",
         fontWeight: "600",
     },
     applyFiltersButton: {
@@ -1345,7 +1343,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#4F46E5",
+        backgroundColor: "#0056d2",
         paddingVertical: 14,
         borderRadius: 12,
         gap: 8,
@@ -1389,7 +1387,7 @@ const styles = StyleSheet.create({
         height: 200,
     },
     datePickerConfirm: {
-        backgroundColor: "#4F46E5",
+        backgroundColor: "#0056d2",
         borderRadius: 12,
         paddingVertical: 14,
         alignItems: "center",

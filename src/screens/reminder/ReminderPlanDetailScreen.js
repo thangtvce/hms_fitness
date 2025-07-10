@@ -12,9 +12,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiReminderService } from 'services/apiReminderService';
+import Header from 'components/Header';
 
 const TYPE_CONFIG = {
   drink: {
@@ -166,28 +167,22 @@ export default function ReminderPlanDetailScreen({ route }) {
     if (!plan) return null;
     const typeConfig = getTypeConfig(plan.type);
     return (
-      <SafeAreaView edges={['top']}>
-        <View style={[styles.headerGradient, { backgroundColor: '#FFFFFF' }]}> 
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={24} color="#222" />
-            </TouchableOpacity>
-            <View style={styles.headerTitleContainer}>
-              <Text style={[styles.headerTitle, { color: '#1F2937' }]}>Reminder Details</Text>
-              <Text style={[styles.headerSubtitle, { color: '#64748B' }]}>{typeConfig.label}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={handleEdit}
-            >
-              <Ionicons name="create" size={20} color="#222" />
-            </TouchableOpacity>
+      <Header
+        title={
+          <View>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#1F2937', textAlign: 'center' }}>Reminder Details</Text>
+            <Text style={{ fontSize: 14, color: '#64748B', marginTop: 2, textAlign: 'center' }}>{typeConfig.label}</Text>
           </View>
-        </View>
-      </SafeAreaView>
+        }
+        onBack={() => navigation.goBack()}
+        rightActions={[{
+          icon: 'create',
+          onPress: handleEdit,
+          color: '#222',
+        }]}
+        backgroundColor="#fff"
+        containerStyle={{ position: 'relative', zIndex: 10 }}
+      />
     );
   };
 
@@ -198,11 +193,11 @@ export default function ReminderPlanDetailScreen({ route }) {
       <View style={styles.reminderCard}>
         <View style={[styles.reminderCardHeader, { backgroundColor: '#fff' }]}> 
           <View style={styles.reminderIconContainer}>
-            <Ionicons name={typeConfig.icon} size={32} color="#222" />
+            <Ionicons name={typeConfig.icon} size={32} color="#0056d2" />
           </View>
           <View style={styles.reminderHeaderInfo}>
-            <Text style={[styles.reminderTitle, { color: '#222' }]}>{plan.title}</Text>
-            <Text style={[styles.reminderSubtitle, { color: '#222' }]}>{typeConfig.label}</Text>
+            <Text style={[styles.reminderTitle, { color: '#0056d2' }]}>{plan.title}</Text>
+            <Text style={[styles.reminderSubtitle, { color: '#0056d2' }]}>{typeConfig.label}</Text>
           </View>
           <View style={styles.statusContainer}>
             <View style={[ 
@@ -268,13 +263,13 @@ export default function ReminderPlanDetailScreen({ route }) {
   const renderActionButtons = () => (
     <View style={styles.actionButtons}>
       <TouchableOpacity
-        style={styles.editActionButton}
+        style={[styles.editActionButton, { marginRight: 4 }]}
         onPress={handleEdit}
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#4F46E5', '#6366F1']}
-          style={styles.editActionButtonGradient}
+          colors={["#0056d2", "#0056d2"]}
+          style={[styles.editActionButtonGradient, { paddingHorizontal: 18 }]}
         >
           <Ionicons name="create" size={20} color="#FFFFFF" />
           <Text style={styles.editActionButtonText}>Edit Reminder</Text>
@@ -509,7 +504,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#0056d2',
     padding: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,

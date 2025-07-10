@@ -16,6 +16,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import trainerService from "services/apiTrainerService";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import RNModal from "react-native-modal";
+import Header from 'components/Header';
 
 const TrainerApplicationScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -39,6 +41,7 @@ const TrainerApplicationScreen = ({ navigation }) => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(form.dateOfBirth ? new Date(form.dateOfBirth) : new Date());
   const [showGenderPicker, setShowGenderPicker] = useState(false);
 
   const genderOptions = [
@@ -53,12 +56,23 @@ const TrainerApplicationScreen = ({ navigation }) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const handleDateChange = useCallback((event, selectedDate) => {
+
+  // Open date picker modal
+  const openDatePicker = () => {
+    setTempDate(form.dateOfBirth ? new Date(form.dateOfBirth) : new Date());
+    setShowDatePicker(true);
+  };
+
+  // Confirm date selection
+  const confirmDate = () => {
+    handleChange("dateOfBirth", tempDate.toISOString().split("T")[0]);
     setShowDatePicker(false);
-    if (selectedDate) {
-      handleChange("dateOfBirth", selectedDate.toISOString().split("T")[0]);
-    }
-  }, [handleChange]);
+  };
+
+  // Cancel date selection
+  const cancelDate = () => {
+    setShowDatePicker(false);
+  };
 
   const handleGenderSelect = useCallback((gender) => {
     handleChange("gender", gender);
@@ -141,10 +155,24 @@ const TrainerApplicationScreen = ({ navigation }) => {
     if (fieldKey === "experienceYears") {
       safeValue = safeValue.toString();
     }
+    // Local state for input value
+    const [inputValue, setInputValue] = React.useState(safeValue);
+    // Sync with parent value (when form reset)
+    React.useEffect(() => {
+      setInputValue(safeValue);
+    }, [safeValue]);
+    // Handler for blur: update parent form
+    const handleBlur = () => {
+      if (fieldKey === "experienceYears") {
+        handleChange(fieldKey, inputValue.replace(/[^0-9]/g, ""));
+      } else {
+        handleChange(fieldKey, inputValue);
+      }
+    };
     return (
       <View style={styles.inputContainer}>
         <View style={styles.labelContainer}>
-          <Ionicons name={icon} size={20} color="#6366F1" style={styles.labelIcon} />
+          <Ionicons name={icon} size={20} color="#0056d2" style={styles.labelIcon} />
           <Text style={styles.inputLabel}>
             {label} {required && <Text style={styles.required}>*</Text>}
           </Text>
@@ -156,14 +184,9 @@ const TrainerApplicationScreen = ({ navigation }) => {
               multiline && styles.multilineInput,
               !editable && styles.disabledInput
             ]}
-            value={safeValue}
-            onChangeText={text => {
-              if (fieldKey === "experienceYears") {
-                handleChange(fieldKey, text.replace(/[^0-9]/g, ""));
-              } else {
-                handleChange(fieldKey, text);
-              }
-            }}
+            value={inputValue}
+            onChangeText={text => setInputValue(text)}
+            onBlur={handleBlur}
             placeholder={placeholder}
             placeholderTextColor="#9CA3AF"
             multiline={multiline}
@@ -180,7 +203,7 @@ const TrainerApplicationScreen = ({ navigation }) => {
   const SelectField = ({ label, value, onPress, placeholder, icon, required = false }) => (
     <View style={styles.inputContainer}>
       <View style={styles.labelContainer}>
-        <Ionicons name={icon} size={20} color="#6366F1" style={styles.labelIcon} />
+        <Ionicons name={icon} size={20} color="#0056d2" style={styles.labelIcon} />
         <Text style={styles.inputLabel}>
           {label} {required && <Text style={styles.required}>*</Text>}
         </Text>
@@ -189,21 +212,19 @@ const TrainerApplicationScreen = ({ navigation }) => {
         <Text style={[styles.selectText, !value && styles.selectPlaceholder]}>
           {value || placeholder}
         </Text>
-        <Ionicons name="chevron-down" size={20} color="#6B7280" />
+        <Ionicons name="chevron-down" size={20} color="#0056d2" />
       </TouchableOpacity>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Trainer Application</Text>
-        <View style={styles.headerRight} />
-      </View>
+      <Header
+        title="Trainer Application"
+        onBack={() => navigation.goBack()}
+        absolute
+      />
+      <View style={{ height: 90 }} />
 
       <ScrollView 
         style={styles.scrollView}
@@ -213,12 +234,12 @@ const TrainerApplicationScreen = ({ navigation }) => {
       >
         {/* Hero Section */}
         <LinearGradient
-          colors={["#6366F1", "#8B5CF6"]}
+          colors={["#0056d2", "#0056d2"]}
           style={styles.heroSection}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <Ionicons name="fitness" size={48} color="#FFFFFF" />
+          <Ionicons name="fitness" size={48} color="#ffffff" />
           <Text style={styles.heroTitle}>Become a Trainer</Text>
           <Text style={styles.heroSubtitle}>
             Join our community and inspire others to achieve their fitness goals
@@ -230,7 +251,7 @@ const TrainerApplicationScreen = ({ navigation }) => {
           {/* Personal Information */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="person" size={24} color="#6366F1" />
+              <Ionicons name="person" size={24} color="#0056d2" />
               <Text style={styles.sectionTitle}>Personal Information</Text>
             </View>
 
@@ -266,7 +287,7 @@ const TrainerApplicationScreen = ({ navigation }) => {
             <SelectField
               label="Date of Birth"
               value={form.dateOfBirth}
-              onPress={() => setShowDatePicker(true)}
+              onPress={openDatePicker}
               placeholder="Select your date of birth"
               icon="calendar-outline"
               required
@@ -284,7 +305,7 @@ const TrainerApplicationScreen = ({ navigation }) => {
           {/* Professional Information */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="briefcase" size={24} color="#6366F1" />
+              <Ionicons name="briefcase" size={24} color="#0056d2" />
               <Text style={styles.sectionTitle}>Professional Information</Text>
             </View>
 
@@ -332,7 +353,7 @@ const TrainerApplicationScreen = ({ navigation }) => {
           {/* Additional Information */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="add-circle" size={24} color="#6366F1" />
+              <Ionicons name="add-circle" size={24} color="#0056d2" />
               <Text style={styles.sectionTitle}>Additional Information</Text>
             </View>
 
@@ -365,40 +386,80 @@ const TrainerApplicationScreen = ({ navigation }) => {
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              submitting && styles.submitButtonDisabled,
+              { backgroundColor: submitting ? '#9CA3AF' : '#0056d2' }
+            ]}
             onPress={handleSubmit}
             disabled={submitting}
           >
-            <LinearGradient
-              colors={submitting ? ["#9CA3AF", "#6B7280"] : ["#6366F1", "#8B5CF6"]}
-              style={styles.submitGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Ionicons 
-                name={submitting ? "hourglass-outline" : "checkmark-circle-outline"} 
-                size={24} 
-                color="#FFFFFF" 
+            <View style={styles.submitGradient}>
+              <Ionicons
+                name={submitting ? 'hourglass-outline' : 'checkmark-circle-outline'}
+                size={24}
+                color="#FFFFFF"
                 style={styles.submitIcon}
               />
               <Text style={styles.submitText}>
-                {submitting ? "Submitting..." : "Submit Application"}
+                {submitting ? 'Submitting...' : 'Submit Application'}
               </Text>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Date Picker Modal */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={form.dateOfBirth ? new Date(form.dateOfBirth) : new Date()}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={handleDateChange}
-          maximumDate={new Date()}
-        />
-      )}
+      {/* Date Picker Modal with Confirm/Cancel */}
+      <RNModal
+        isVisible={showDatePicker}
+        onBackdropPress={cancelDate}
+        onBackButtonPress={cancelDate}
+        useNativeDriver
+        hideModalContentWhileAnimating
+        style={{ justifyContent: 'center', alignItems: 'center' }}
+      >
+        <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, width: 320, alignItems: 'center' }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#6366F1', marginBottom: 16 }}>Select Date of Birth</Text>
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(event, date) => {
+              if (date) setTempDate(date);
+            }}
+            maximumDate={new Date()}
+            style={{ width: 250 }}
+          />
+          <View style={{ flexDirection: 'row', marginTop: 24, gap: 16 }}>
+            <TouchableOpacity
+              onPress={cancelDate}
+              style={{
+                flex: 1,
+                backgroundColor: '#e5e9f2',
+                borderRadius: 8,
+                paddingVertical: 12,
+                alignItems: 'center',
+                marginRight: 8,
+              }}
+            >
+              <Text style={{ color: '#222', fontWeight: '600', fontSize: 16 }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={confirmDate}
+              style={{
+                flex: 1,
+                backgroundColor: '#6366F1',
+                borderRadius: 8,
+                paddingVertical: 12,
+                alignItems: 'center',
+                marginLeft: 8,
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </RNModal>
 
       {/* Gender Picker Modal */}
       <Modal
@@ -412,7 +473,7 @@ const TrainerApplicationScreen = ({ navigation }) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Gender</Text>
               <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color="#0056d2" />
               </TouchableOpacity>
             </View>
             {genderOptions.map((option) => (
@@ -431,7 +492,7 @@ const TrainerApplicationScreen = ({ navigation }) => {
                   {option.label}
                 </Text>
                 {form.gender === option.value && (
-                  <Ionicons name="checkmark" size={20} color="#6366F1" />
+                <Ionicons name="checkmark" size={20} color="#0056d2" />
                 )}
               </TouchableOpacity>
             ))}
@@ -526,7 +587,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "700",
     color: "#1F2937",
     marginLeft: 12,
@@ -543,7 +604,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   inputLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: "#374151",
   },
@@ -558,7 +619,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     padding: 16,
-    fontSize: 16,
+    fontSize: 12,
     color: "#1F2937",
     minHeight: 50,
   },
@@ -582,7 +643,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   selectText: {
-    fontSize: 16,
+    fontSize: 12,
     color: "#1F2937",
   },
   selectPlaceholder: {
@@ -653,7 +714,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2FF",
   },
   modalOptionText: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#374151",
   },
   modalOptionTextSelected: {

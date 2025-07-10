@@ -28,6 +28,8 @@ const { width, height } = Dimensions.get("window");
 export default function ServicePackageScreen({ navigation }) {
   const { user } = useAuth();
   const { colors } = useContext(ThemeContext);
+  
+  // State management
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,12 +41,14 @@ export default function ServicePackageScreen({ navigation }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [tempSearchTerm, setTempSearchTerm] = useState("");
   const [hasMore, setHasMore] = useState(true);
+  
   const [filters, setFilters] = useState({
     minPrice: "",
     maxPrice: "",
     sortBy: "packageId",
     sortDescending: true,
   });
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const bannerAnim = useRef(new Animated.Value(0)).current;
   const [tempFilters, setTempFilters] = useState(filters);
@@ -63,6 +67,7 @@ export default function ServicePackageScreen({ navigation }) {
         setLoading(false);
         return;
       }
+      
       setLoading(true);
       try {
         const params = {
@@ -74,12 +79,15 @@ export default function ServicePackageScreen({ navigation }) {
           sortBy: filters.sortBy,
           sortDescending: filters.sortDescending,
         };
+        
         const res = await trainerService.getAllActiveServicePackage(params);
         const data = res.data?.packages || [];
+        
         setPackages((prev) => (page === 1 ? data : [...prev, ...data]));
         setTotalPages(res.data?.totalPages || 1);
         setTotalItems(res.data?.totalCount || data.length);
         setHasMore(res.data?.pageNumber < res.data?.totalPages);
+        
         const trainerClientsMap = calculateTrainerClients(data);
         setTrainerClients(trainerClientsMap);
         await fetchTrainerRatings(data);
@@ -101,6 +109,7 @@ export default function ServicePackageScreen({ navigation }) {
       duration: 600,
       useNativeDriver: true,
     }).start();
+
     // Banner animation
     Animated.loop(
       Animated.sequence([
@@ -136,6 +145,7 @@ export default function ServicePackageScreen({ navigation }) {
   const fetchTrainerRatings = async (packages) => {
     const ratingsMap = {};
     const trainerIds = [...new Set(packages.map((pkg) => pkg.trainerId))];
+    
     await Promise.all(
       trainerIds.map(async (trainerId) => {
         try {
@@ -156,6 +166,7 @@ export default function ServicePackageScreen({ navigation }) {
   const fetchTrainerExperience = async (packages) => {
     const experienceMap = {};
     const trainerIds = [...new Set(packages.map((pkg) => pkg.trainerId))];
+    
     await Promise.all(
       trainerIds.map(async (trainerId) => {
         try {
@@ -192,7 +203,7 @@ export default function ServicePackageScreen({ navigation }) {
   };
 
   const renderPackageIcon = (type) => {
-    const iconProps = { size: 22 };
+    const iconProps = { size: 20 };
     switch (type) {
       case "yoga":
         return <MaterialCommunityIcons name="yoga" color="#8B5CF6" {...iconProps} />;
@@ -209,6 +220,7 @@ export default function ServicePackageScreen({ navigation }) {
     const stars = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 !== 0;
+    
     for (let i = 0; i < fullStars; i++) {
       stars.push(<Ionicons key={i} name="star" size={12} color="#FFD700" />);
     }
@@ -227,10 +239,11 @@ export default function ServicePackageScreen({ navigation }) {
       inputRange: [0, 1],
       outputRange: [1, 1.02],
     });
+
     return (
       <Animated.View style={[styles.promoBanner, { transform: [{ scale: scaleAnim }] }]}>
         <LinearGradient
-          colors={['#FF6B6B', '#FF8E53']}
+          colors={['#667eea', '#764ba2']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.bannerGradient}
@@ -238,16 +251,15 @@ export default function ServicePackageScreen({ navigation }) {
           <View style={styles.bannerContent}>
             <View style={styles.bannerLeft}>
               <View style={styles.saleIcon}>
-                <Ionicons name="flash" size={20} color="#FFFFFF" />
+                <Ionicons name="flash" size={18} color="#FFFFFF" />
               </View>
               <View style={styles.bannerText}>
-                <Text style={styles.bannerTitle}>MEGA SALE 50% OFF</Text>
-                <Text style={styles.bannerSubtitle}>Limited time offer • Ends in 2 days</Text>
+                <Text style={styles.bannerTitle}>Special Offer 30% OFF</Text>
+                <Text style={styles.bannerSubtitle}>Premium training packages</Text>
               </View>
             </View>
             <TouchableOpacity style={styles.bannerButton}>
-              <Text style={styles.bannerButtonText}>Claim Now</Text>
-              <Ionicons name="arrow-forward" size={14} color="#FF6B6B" />
+              <Text style={styles.bannerButtonText}>View All</Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -261,6 +273,7 @@ export default function ServicePackageScreen({ navigation }) {
     const averageRating = trainerRatings[item.trainerId] || 0;
     const totalClients = trainerClients[item.trainerId] || 0;
     const yearsExperience = trainerExperience[item.trainerId] || 0;
+    const progressPercentage = (item.currentSubscribers / item.maxSubscribers) * 100;
 
     return (
       <Animated.View style={[styles.packageItem, { opacity: fadeAnim }]}>
@@ -272,106 +285,124 @@ export default function ServicePackageScreen({ navigation }) {
           activeOpacity={0.8}
           disabled={isFull}
         >
-          <LinearGradient
-            colors={isFull ? ["#F8FAFC", "#F1F5F9"] : ["#FFFFFF", "#FAFBFC"]}
-            style={styles.cardGradient}
-          >
-            {/* Popular Badge */}
-            {item.currentSubscribers > item.maxSubscribers * 0.7 && !isFull && (
-              <View style={styles.popularBadge}>
-                <Ionicons name="flame" size={12} color="#FFFFFF" />
-                <Text style={styles.popularBadgeText}>POPULAR</Text>
-              </View>
-            )}
-
-            <View style={styles.cardHeader}>
+          {/* Header Section */}
+          <View style={styles.cardHeader}>
+            <View style={styles.headerLeft}>
               <View style={styles.packageTypeContainer}>
                 {renderPackageIcon(packageType)}
                 <Text style={styles.packageTypeText}>{packageType.toUpperCase()}</Text>
               </View>
-              {isFull && (
-                <View style={styles.fullBadge}>
-                  <Ionicons name="lock-closed" size={12} color="#DC2626" />
-                  <Text style={styles.fullBadgeText}>FULL</Text>
+              {item.currentSubscribers > item.maxSubscribers * 0.8 && !isFull && (
+                <View style={styles.hotBadge}>
+                  <Ionicons name="flame" size={10} color="#FFFFFF" />
+                  <Text style={styles.hotBadgeText}>HOT</Text>
                 </View>
               )}
             </View>
+            {isFull && (
+              <View style={styles.fullBadge}>
+                <Ionicons name="lock-closed" size={10} color="#DC2626" />
+                <Text style={styles.fullBadgeText}>FULL</Text>
+              </View>
+            )}
+          </View>
 
-            <View style={styles.packageContent}>
-              <Text style={styles.packageTitle} numberOfLines={2}>
-                {item.packageName || "Premium Training Package"}
+          {/* Main Content */}
+          <View style={styles.cardContent}>
+            <Text style={styles.packageTitle} numberOfLines={2}>
+              {item.packageName || "Premium Training Package"}
+            </Text>
+
+            {/* Price Section */}
+            <View style={styles.priceContainer}>
+              <Text style={styles.price}>${item.price || "0"}</Text>
+              <Text style={styles.duration}>/{item.durationDays} days</Text>
+            </View>
+
+            {/* Description */}
+            {item.description && (
+              <Text style={styles.description} numberOfLines={2}>
+                {item.description.replace(/<[^>]+>/g, "")}
               </Text>
-              
-              {item.description && (
-                <Text style={styles.packageDescription} numberOfLines={3}>
-                  {item.description.replace(/<[^>]+>/g, "")}
-                </Text>
-              )}
+            )}
 
-              {/* Simple Price Section */}
-              <View style={styles.priceSection}>
-                <Text style={styles.currentPrice}>${item.price || "0"}</Text>
-                <Text style={styles.priceLabel}>/ {item.durationDays} days</Text>
+            {/* Stats Row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Ionicons name="calendar-outline" size={14} color="#10B981" />
+                <Text style={styles.statText}>{item.durationDays}d</Text>
               </View>
-
-              <View style={styles.packageStats}>
-                <View style={styles.statItem}>
-                  <Ionicons name="calendar-outline" size={16} color="#10B981" />
-                  <Text style={styles.statText}>{item.durationDays || "N/A"} days</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="people-outline" size={16} color={isFull ? "#EF4444" : "#3B82F6"} />
-                  <Text style={[styles.statText, { color: isFull ? "#EF4444" : "#374151" }]}>
-                    {item.currentSubscribers}/{item.maxSubscribers} spots
-                  </Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="checkmark-circle-outline" size={16} color="#8B5CF6" />
-                  <Text style={styles.statText}>Guaranteed</Text>
-                </View>
+              <View style={styles.statItem}>
+                <Ionicons name="people-outline" size={14} color="#3B82F6" />
+                <Text style={styles.statText}>{item.currentSubscribers}/{item.maxSubscribers}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                <Text style={styles.statText}>Certified</Text>
               </View>
             </View>
 
-            {/* Simplified Trainer Section */}
-            <View style={styles.trainerSection}>
-              <View style={styles.trainerInfo}>
-                <View style={styles.trainerAvatarContainer}>
-                  <Image
-                    source={{ uri: item.trainerAvatar || "/placeholder.svg?height=36&width=36" }}
-                    style={styles.trainerAvatar}
-                  />
-                  <View style={styles.onlineIndicator} />
-                </View>
-                <View style={styles.trainerDetails}>
-                  <Text style={styles.trainerName} numberOfLines={1}>
-                    {item.trainerFullName || "Professional Trainer"}
-                  </Text>
-                  <View style={styles.trainerRating}>
+            {/* Progress Bar */}
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { 
+                      width: `${Math.min(progressPercentage, 100)}%`,
+                      backgroundColor: isFull ? '#EF4444' : progressPercentage > 80 ? '#F59E0B' : '#10B981'
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.progressText}>
+                {Math.round(progressPercentage)}% filled
+              </Text>
+            </View>
+          </View>
+
+          {/* Trainer Section */}
+          <View style={styles.trainerSection}>
+            <View style={styles.trainerInfo}>
+              <View style={styles.trainerAvatarContainer}>
+                <Image
+                  source={{ uri: item.trainerAvatar || "/placeholder.svg?height=32&width=32" }}
+                  style={styles.trainerAvatar}
+                />
+                <View style={styles.onlineIndicator} />
+              </View>
+              <View style={styles.trainerDetails}>
+                <Text style={styles.trainerName} numberOfLines={1}>
+                  {item.trainerFullName || "Professional Trainer"}
+                </Text>
+                <View style={styles.trainerMeta}>
+                  <View style={styles.ratingContainer}>
                     <View style={styles.starsContainer}>{renderStars(averageRating)}</View>
                     <Text style={styles.ratingText}>({averageRating.toFixed(1)})</Text>
                   </View>
+                  <Text style={styles.experienceText}>{yearsExperience}y exp</Text>
                 </View>
               </View>
             </View>
+          </View>
 
-            {/* Call to Action */}
-            <View style={styles.ctaSection}>
-              <TouchableOpacity
-                style={[styles.ctaButton, isFull && styles.ctaButtonDisabled]}
-                onPress={() => {
-                  if (!isFull) navigation.navigate("PackageDetail", { package: item, totalClients });
-                }}
-                disabled={isFull}
-              >
-                <Text style={[styles.ctaButtonText, isFull && styles.ctaButtonTextDisabled]}>
-                  {isFull ? "Package Full" : "Start Training"}
-                </Text>
-                {!isFull && <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />}
-              </TouchableOpacity>
-            </View>
+          {/* Action Button */}
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={[styles.actionButton, isFull && styles.actionButtonDisabled]}
+              onPress={() => {
+                if (!isFull) navigation.navigate("PackageDetail", { package: item, totalClients });
+              }}
+              disabled={isFull}
+            >
+              <Text style={[styles.actionButtonText, isFull && styles.actionButtonTextDisabled]}>
+                {isFull ? "Package Full" : "Start Training"}
+              </Text>
+              {!isFull && <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />}
+            </TouchableOpacity>
+          </View>
 
-            {isFull && <View style={styles.disabledOverlay} />}
-          </LinearGradient>
+          {isFull && <View style={styles.disabledOverlay} />}
         </TouchableOpacity>
       </Animated.View>
     );
@@ -393,6 +424,7 @@ export default function ServicePackageScreen({ navigation }) {
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
+            
             <ScrollView style={styles.modalContent}>
               <View style={styles.filterSection}>
                 <Text style={styles.sectionTitle}>Price Range</Text>
@@ -416,6 +448,7 @@ export default function ServicePackageScreen({ navigation }) {
                   />
                 </View>
               </View>
+              
               <View style={styles.filterSection}>
                 <Text style={styles.sectionTitle}>Sort By</Text>
                 <View style={styles.sortOptions}>
@@ -446,6 +479,7 @@ export default function ServicePackageScreen({ navigation }) {
                 </View>
               </View>
             </ScrollView>
+            
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.clearButton}
@@ -492,49 +526,49 @@ export default function ServicePackageScreen({ navigation }) {
         ]}
       />
 
-      {/* Enhanced Search Section */}
+      {/* Search Section */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={20} color="#64748B" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search training packages..."
-              placeholderTextColor="#94A3B8"
-              value={tempSearchTerm}
-              onChangeText={setTempSearchTerm}
-              onSubmitEditing={handleSearch}
-            />
-            {tempSearchTerm ? (
-              <TouchableOpacity onPress={() => {
-                setTempSearchTerm("");
-                setSearchTerm("");
-                fetchPackages("", 1);
-              }}>
-                <Ionicons name="close-circle" size={20} color="#94A3B8" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-            <Ionicons name="search" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={18} color="#64748B" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search training packages..."
+            placeholderTextColor="#94A3B8"
+            value={tempSearchTerm}
+            onChangeText={setTempSearchTerm}
+            onSubmitEditing={handleSearch}
+          />
+          {tempSearchTerm ? (
+            <TouchableOpacity onPress={() => {
+              setTempSearchTerm("");
+              setSearchTerm("");
+              fetchPackages("", 1);
+            }}>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={handleSearch}>
+              <Ionicons name="arrow-forward" size={18} color="#3B82F6" />
+            </TouchableOpacity>
+          )}
         </View>
-        <View style={styles.resultsContainer}>
+        
+        <View style={styles.resultsInfo}>
           <Text style={styles.resultsText}>{totalItems} packages available</Text>
-          <View style={styles.featuredIndicator}>
+          <View style={styles.featuredBadge}>
             <Ionicons name="star" size={12} color="#FFD700" />
-            <Text style={styles.featuredText}>Featured packages</Text>
+            <Text style={styles.featuredText}>Featured</Text>
           </View>
         </View>
       </View>
 
-      {/* Promo Banner - Now positioned after search */}
+      {/* Promo Banner */}
       {renderPromoBanner()}
 
       {loading && pageNumber === 1 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Finding perfect packages...</Text>
+          <Text style={styles.loadingText}>Loading packages...</Text>
         </View>
       ) : (
         <FlatList
@@ -560,17 +594,64 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
+
+  // Search Section
+  searchContainer: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: "#1E293B",
+    marginLeft: 12,
+  },
+  resultsInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  resultsText: {
+    fontSize: 14,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  featuredBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  featuredText: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+
+  // Promo Banner
   promoBanner: {
-    marginHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 15,
+    marginHorizontal: 16,
+    marginVertical: 12,
     borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#FF6B6B",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 4,
   },
   bannerGradient: {
     padding: 16,
@@ -586,9 +667,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   saleIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
@@ -599,157 +680,93 @@ const styles = StyleSheet.create({
   },
   bannerTitle: {
     fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#FFFFFF",
     marginBottom: 2,
   },
   bannerSubtitle: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.9)",
+    color: "rgba(255, 255, 255, 0.8)",
     fontWeight: "500",
   },
   bannerButton: {
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+    borderRadius: 16,
   },
   bannerButtonText: {
     fontSize: 14,
-    fontWeight: "700",
-    color: "#FF6B6B",
+    fontWeight: "600",
+    color: "#667eea",
   },
-  searchContainer: {
-    padding: 20,
-    marginTop: 55,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  searchBox: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#1E293B",
-    marginLeft: 12,
-  },
-  searchButton: {
-    backgroundColor: "#3B82F6",
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#3B82F6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  resultsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  resultsText: {
-    fontSize: 14,
-    color: "#64748B",
-  },
-  featuredIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  featuredText: {
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: "500",
-  },
+
+  // Package Cards
   flatList: {
-    // Removed marginTop since banner is now above the list
+    flex: 1,
   },
   listContainer: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 100,
   },
   packageItem: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   packageCard: {
-    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   packageCardDisabled: {
     opacity: 0.7,
   },
-  cardGradient: {
-    position: "relative",
-  },
-  popularBadge: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    backgroundColor: "#EF4444",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 1,
-  },
-  popularBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginLeft: 4,
-  },
+
+  // Card Header
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
-    paddingBottom: 16,
+    padding: 16,
+    paddingBottom: 12,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   packageTypeContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F1F5F9",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
   },
   packageTypeText: {
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "600",
     color: "#475569",
-    marginLeft: 6,
     letterSpacing: 0.5,
+  },
+  hotBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 3,
+  },
+  hotBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   fullBadge: {
     flexDirection: "row",
@@ -757,73 +774,97 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEE2E2",
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 10,
+    gap: 4,
   },
   fullBadgeText: {
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#DC2626",
-    marginLeft: 4,
   },
-  packageContent: {
-    paddingHorizontal: 20,
+
+  // Card Content
+  cardContent: {
+    paddingHorizontal: 16,
     paddingBottom: 16,
   },
   packageTitle: {
-    fontSize: 22,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "700",
     color: "#1E293B",
     marginBottom: 8,
-    lineHeight: 28,
-  },
-  packageDescription: {
-    fontSize: 15,
-    color: "#64748B",
     lineHeight: 22,
-    marginBottom: 16,
   },
-  priceSection: {
+  priceContainer: {
     flexDirection: "row",
     alignItems: "baseline",
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  currentPrice: {
-    fontSize: 28,
+  price: {
+    fontSize: 12,
     fontWeight: "800",
-    color: "#1E293B",
-    marginRight: 6,
+    color: "#3B82F6",
+    marginRight: 4,
   },
-  priceLabel: {
+  duration: {
     fontSize: 14,
     color: "#64748B",
     fontWeight: "500",
   },
-  packageStats: {
+  description: {
+    fontSize: 14,
+    color: "#64748B",
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+
+  // Stats Row
+  statsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     gap: 8,
+    marginBottom: 12,
   },
   statItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    gap: 4,
   },
   statText: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#374151",
-    fontWeight: "600",
-    marginLeft: 6,
+    fontWeight: "500",
   },
-  // Simplified Trainer Section
+
+  // Progress Bar
+  progressContainer: {
+    marginBottom: 4,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 2,
+    marginBottom: 4,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+
+  // Trainer Section
   trainerSection: {
     backgroundColor: "#FAFBFC",
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
   },
@@ -836,17 +877,15 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   trainerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#F1F5F9",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
   },
   onlineIndicator: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
+    bottom: -1,
+    right: -1,
     width: 10,
     height: 10,
     borderRadius: 5,
@@ -859,54 +898,58 @@ const styles = StyleSheet.create({
   },
   trainerName: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#1E293B",
     marginBottom: 4,
   },
-  trainerRating: {
+  trainerMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
   starsContainer: {
     flexDirection: "row",
-    marginRight: 6,
+    marginRight: 4,
   },
   ratingText: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#6B7280",
-    fontWeight: "600",
+    fontWeight: "500",
   },
-  ctaSection: {
-    padding: 20,
-    paddingTop: 16,
+  experienceText: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
   },
-  ctaButton: {
+
+  // Action Section
+  actionSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  actionButton: {
     backgroundColor: "#3B82F6",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 16,
-    shadowColor: "#3B82F6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
   },
-  ctaButtonDisabled: {
+  actionButtonDisabled: {
     backgroundColor: "#E2E8F0",
-    shadowOpacity: 0,
-    elevation: 0,
   },
-  ctaButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
     color: "#FFFFFF",
-    marginRight: 8,
   },
-  ctaButtonTextDisabled: {
+  actionButtonTextDisabled: {
     color: "#94A3B8",
-    marginRight: 0,
   },
   disabledOverlay: {
     position: "absolute",
@@ -915,8 +958,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "rgba(0, 0, 0, 0.05)",
-    borderRadius: 24,
+    borderRadius: 20,
   },
+
+  // Loading & Empty States
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -947,6 +992,8 @@ const styles = StyleSheet.create({
     color: "#64748B",
     textAlign: "center",
   },
+
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",

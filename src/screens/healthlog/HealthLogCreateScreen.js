@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { healthyLogService } from "services/apiHealthyLogService"
 import { useNavigation } from "@react-navigation/native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Header from "../../components/Header"
 
 const MOOD_OPTIONS = [
   { label: "Select your mood", value: "" },
@@ -31,7 +32,6 @@ const MOOD_OPTIONS = [
 
 const SLEEP_QUALITY_OPTIONS = [
   { label: "Select sleep quality", value: "" },
-  { label: "Excellent", value: "Excellent" },
   { label: "Good", value: "Good" },
   { label: "Average", value: "Average" },
   { label: "Poor", value: "Poor" },
@@ -264,7 +264,7 @@ export default function HealthLogCreateScreen() {
       <View style={styles.inputContainer}>
         <View style={styles.inputHeader}>
           <View style={styles.inputLabelContainer}>
-            <Ionicons name={icon} size={20} color="#4F46E5" />
+            <Ionicons name={icon} size={20} color="#0056d2" />
             <Text style={styles.inputLabel}>{placeholder}</Text>
           </View>
           {status && (
@@ -303,7 +303,7 @@ export default function HealthLogCreateScreen() {
     return (
       <View style={styles.inputContainer}>
         <View style={styles.inputLabelContainer}>
-          <Ionicons name={icon} size={20} color="#4F46E5" />
+          <Ionicons name={icon} size={20} color="#0056d2" />
           <Text style={styles.inputLabel}>{label}</Text>
         </View>
         <TouchableOpacity
@@ -338,13 +338,13 @@ export default function HealthLogCreateScreen() {
             keyExtractor={(item) => item.value}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.optionItem, form[currentField] === item.value && styles.selectedOption]}
+                style={[styles.optionItem, form[currentField] === item.value && { ...styles.selectedOption, borderLeftWidth: 4, borderLeftColor: '#0056d2' }]}
                 onPress={() => selectOption(item.value)}
               >
-                <Text style={[styles.optionText, form[currentField] === item.value && styles.selectedOptionText]}>
+                <Text style={[styles.optionText, form[currentField] === item.value && { color: '#0056d2', fontWeight: '700' }]}>
                   {item.label}
                 </Text>
-                {form[currentField] === item.value && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                {form[currentField] === item.value && <Ionicons name="checkmark" size={20} color="#0056d2" />}
               </TouchableOpacity>
             )}
             showsVerticalScrollIndicator={false}
@@ -356,24 +356,20 @@ export default function HealthLogCreateScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Absolute header, push content down */}
+      <Header
+        title="New Health Log"
+        onBack={() => navigation.goBack()}
+        backgroundColor="#fff"
+        textColor="#1E293B"
+      />
       <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>New Health Log</Text>
-            <Text style={styles.headerSubtitle}>Track your wellness journey</Text>
-          </View>
-          <View style={styles.headerSpacer} />
-        </View>
-
+        <View style={{ height: 90 }} />
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {/* Vital Signs Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="heart" size={24} color="#EF4444" />
+              <Ionicons name="heart" size={24} color="#0056d2" />
               <Text style={styles.sectionTitle}>Vital Signs</Text>
             </View>
             <Text style={styles.sectionSubtitle}>Monitor your essential health metrics</Text>
@@ -385,7 +381,7 @@ export default function HealthLogCreateScreen() {
           {/* Sleep & Wellness Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="bed" size={24} color="#8B5CF6" />
+              <Ionicons name="bed" size={24} color="#0056d2" />
               <Text style={styles.sectionTitle}>Sleep & Wellness</Text>
             </View>
             <Text style={styles.sectionSubtitle}>Track your rest and mental well-being</Text>
@@ -411,7 +407,7 @@ export default function HealthLogCreateScreen() {
         {/* Submit Button */}
         <View style={styles.submitContainer}>
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[styles.submitButton, { backgroundColor: '#0056d2' }, loading && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={loading}
           >
@@ -491,9 +487,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1F2937",
+    fontSize: 16, // Đề mục lớn: 16
+    fontWeight: "700",
+    color: "#1E293B",
   },
   sectionSubtitle: {
     fontSize: 14,
@@ -515,7 +511,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   inputLabel: {
-    fontSize: 16,
+    fontSize: 14, // Label nhỏ: 14
     fontWeight: "600",
     color: "#374151",
   },
@@ -540,7 +536,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     padding: 16,
-    fontSize: 16,
+    fontSize: 12, // Giá trị/Value: 12
     color: "#1F2937",
   },
   inputError: {
@@ -565,7 +561,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   customPickerText: {
-    fontSize: 16,
+    fontSize: 12, // Giá trị/Value: 12
     color: "#1F2937",
     flex: 1,
   },
@@ -692,7 +688,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2FF",
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 12, // Giá trị/Value: 12
     color: "#374151",
     flex: 1,
   },

@@ -480,13 +480,10 @@ Join me on the fitness journey! Download HMS 3DO: ${
             <Text style={styles.sectionTitle}>Package Information</Text>
           </View>
 
-          <View style={styles.infoGrid}>
-            <View style={styles.infoCard}>
-              <View style={styles.infoIcon}>
-                <Ionicons name="calendar-outline" size={20} color="#0056d2" />
-              </View>
-              <Text style={styles.infoLabel}>Created</Text>
-              <Text style={styles.infoValue}>
+          <View style={styles.infoGridModern}>
+            <View style={styles.infoCardModern}>
+              <Text style={styles.infoLabelModern}>Created</Text>
+              <Text style={styles.infoValueModern}>
                 {packageData.createdAt
                   ? new Date(packageData.createdAt).toLocaleDateString("en-US", {
                       month: "short",
@@ -496,31 +493,19 @@ Join me on the fitness journey! Download HMS 3DO: ${
                   : "N/A"}
               </Text>
             </View>
-
-            <View style={styles.infoCard}>
-              <View style={styles.infoIcon}>
-                <Ionicons name="people-outline" size={20} color="#10B981" />
-              </View>
-              <Text style={styles.infoLabel}>Subscribers</Text>
-              <Text style={styles.infoValue}>
+            <View style={styles.infoCardModern}>
+              <Text style={styles.infoLabelModern}>Subscribers</Text>
+              <Text style={styles.infoValueModern}>
                 {packageData.currentSubscribers || 0}/{packageData.maxSubscribers || 0}
               </Text>
             </View>
-
-            <View style={styles.infoCard}>
-              <View style={styles.infoIcon}>
-                <Ionicons name="fitness-outline" size={20} color="#F59E0B" />
-              </View>
-              <Text style={styles.infoLabel}>Level</Text>
-              <Text style={styles.infoValue}>All Levels</Text>
+            <View style={styles.infoCardModern}>
+              <Text style={styles.infoLabelModern}>Level</Text>
+              <Text style={styles.infoValueModern}>All Levels</Text>
             </View>
-
-            <View style={styles.infoCard}>
-              <View style={styles.infoIcon}>
-                <Ionicons name="checkmark-circle-outline" size={20} color="#EF4444" />
-              </View>
-              <Text style={styles.infoLabel}>Status</Text>
-              <Text style={styles.infoValue}>{packageData.status || "Unknown"}</Text>
+            <View style={styles.infoCardModern}>
+              <Text style={styles.infoLabelModern}>Status</Text>
+              <Text style={styles.infoValueModern}>{packageData.status || "Unknown"}</Text>
             </View>
           </View>
         </Animated.View>
@@ -836,44 +821,48 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
   },
-  infoGrid: {
-    flexDirection: "row",
-    gap: 8,
+  infoGridModern: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  infoCard: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-    minHeight: 80,
-    justifyContent: "center",
-    shadowColor: "#000",
+  infoCardModern: {
+    width: '48%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 10,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 1,
   },
-  infoIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#F8FAFC",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
+  infoLabelModern: {
+    fontSize: 14,
+    color: '#0056d2',
+    fontWeight: '700',
+    marginBottom: 6,
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
-  infoLabel: {
-    fontSize: 11,
-    color: "#64748B",
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  infoValue: {
+  infoValueModern: {
     fontSize: 12,
-    color: "#1F2937",
+    color: '#1F2937',
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 0.1,
+  },
+  sectionTitle: {
+    fontSize: 16,
     fontWeight: "600",
-    textAlign: "center",
+    color: "#1F2937",
   },
   descriptionSection: {
     marginHorizontal: 16,

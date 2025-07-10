@@ -16,11 +16,13 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiReminderService } from 'services/apiReminderService';
 import { AuthContext } from 'context/AuthContext';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -177,60 +179,31 @@ export default function ReminderPlanListScreen() {
   };
 
   const renderHeader = () => (
-    <SafeAreaView edges={['top']}>
-      <View style={[styles.headerGradient, { backgroundColor: '#FFFFFF', paddingBottom: 20 }]}> 
-        <View style={styles.headerContent}>
-          <View style={styles.headerTop}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={24} color="#222" />
-            </TouchableOpacity>
-            <View style={styles.headerTitleContainer}>
-              <Text style={[styles.headerTitle, { color: '#1F2937' }]}>My Reminders</Text>
-              <Text style={[styles.headerSubtitle, { color: '#64748B' }]}> 
-                {getActiveRemindersCount()} of {getTotalRemindersCount()} active
-              </Text>
-            </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.headerActionButton}
-                onPress={() => setShowSearch(!showSearch)}
-              >
-                <Ionicons name="search" size={20} color="#222" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerActionButton}
-                onPress={() => setFilterModalVisible(true)}
-              >
-                <Ionicons name="filter" size={20} color="#222" />
-              </TouchableOpacity>
-            </View>
-          </View>
-          {showSearch && (
-            <View style={styles.searchContainer}>
-              <View style={[styles.searchInputContainer, { backgroundColor: '#F3F4F6' }]}> 
-                <Ionicons name="search" size={20} color="#9CA3AF" />
-                <TextInput
-                  style={[styles.searchInput, { color: '#1F2937' }]}
-                  placeholder="Search reminders..."
-                  placeholderTextColor="#9CA3AF"
-                  value={searchQuery}
-                  onChangeText={handleSearch}
-                  autoFocus={true}
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => handleSearch('')}>
-                    <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          )}
+    <Header
+      title={
+        <View>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: '#1F2937', textAlign: 'center' }}>My Reminders</Text>
+          <Text style={{ fontSize: 14, color: '#64748B', marginTop: 2, textAlign: 'center' }}>
+            {getActiveRemindersCount()} of {getTotalRemindersCount()} active
+          </Text>
         </View>
-      </View>
-    </SafeAreaView>
+      }
+      onBack={() => navigation.goBack()}
+      rightActions={[
+        {
+          icon: showSearch ? 'close' : 'search',
+          onPress: () => setShowSearch(!showSearch),
+          color: '#222',
+        },
+        {
+          icon: 'filter',
+          onPress: () => setFilterModalVisible(true),
+          color: '#222',
+        },
+      ]}
+      backgroundColor="#fff"
+      containerStyle={{ position: 'relative', zIndex: 10 }}
+    />
   );
 
   const renderTypeFilters = () => (
@@ -362,7 +335,7 @@ export default function ReminderPlanListScreen() {
         onPress={() => navigation.navigate('AddReminderPlanScreen')}
       >
         <LinearGradient
-          colors={['#4F46E5', '#6366F1']}
+          colors={['#0056d2', '#0056d2']}
           style={styles.emptyButtonGradient}
         >
           <Ionicons name="add" size={20} color="#FFFFFF" />
@@ -534,7 +507,7 @@ export default function ReminderPlanListScreen() {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#4F46E5', '#6366F1']}
+          colors={['#0056d2', '#0056d2']}
           style={styles.fabGradient}
         >
           <Ionicons name="add" size={28} color="#FFFFFF" />

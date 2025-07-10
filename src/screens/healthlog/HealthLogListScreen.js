@@ -1,4 +1,3 @@
-"use client"
 
 import { useEffect, useState } from "react"
 import {
@@ -16,6 +15,7 @@ import DateTimePicker from "@react-native-community/datetimepicker"
 import { healthyLogService } from "services/apiHealthyLogService"
 import { useNavigation } from "@react-navigation/native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Header from "components/Header"
 
 export default function HealthLogListScreen() {
   const navigation = useNavigation()
@@ -149,7 +149,7 @@ export default function HealthLogListScreen() {
     <View style={styles.filterContainer}>
       <View style={styles.filterHeader}>
         <View style={styles.filterTitleContainer}>
-          <Ionicons name="calendar-outline" size={20} color="#4F46E5" />
+          <Ionicons name="calendar-outline" size={20} color="#0056d2" />
           <Text style={styles.filterTitle}>Date Filter</Text>
         </View>
         <TouchableOpacity
@@ -165,7 +165,7 @@ export default function HealthLogListScreen() {
       {isFilterActive && (
         <View style={styles.dateControls}>
           <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateSelector}>
-            <Ionicons name="calendar" size={18} color="#4F46E5" />
+            <Ionicons name="calendar" size={18} color="#0056d2" />
             <Text style={styles.dateSelectorText}>{getDateDisplayText()}</Text>
             <Ionicons name="chevron-down" size={16} color="#6B7280" />
           </TouchableOpacity>
@@ -353,21 +353,22 @@ export default function HealthLogListScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Health Logs</Text>
-          <Text style={styles.headerSubtitle}>
-            {isFilterActive ? `${getDateDisplayText()}'s health data` : "Your complete health history"}
-          </Text>
-        </View>
-        <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate("HealthLogCreateScreen")}>
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      {/* Unified Header with rightActions for + button */}
+      <Header
+        title="Health Logs"
+        subtitle={isFilterActive ? `${getDateDisplayText()}'s health data` : "Your complete health history"}
+        onBack={() => navigation.goBack()}
+        rightActions={[{
+          icon: "add",
+          onPress: () => navigation.navigate("HealthLogCreateScreen"),
+          color: "#0056d2"
+        }]}
+        absolute
+        backgroundColor="#fff"
+        textColor="#1F2937"
+      />
+      {/* Push content below header */}
+      <View style={{ height: 90 }} />
 
       {/* Date Filter */}
       {renderDateFilter()}
@@ -445,43 +446,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1F2937",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginTop: 2,
-  },
-  addButton: {
-    backgroundColor: "#4F46E5",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
+  // Header styles are now handled by the shared Header component
   filterContainer: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
@@ -519,7 +484,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   filterToggleActive: {
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
   },
   filterToggleText: {
     fontSize: 12,
@@ -624,12 +589,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
+    fontSize: 16, // Đề mục lớn: 16
+    fontWeight: "700",
+    color: "#1E293B",
     marginBottom: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
   vitalGrid: {
     flexDirection: "row",
@@ -676,7 +639,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   wellnessLabel: {
-    fontSize: 12,
+    fontSize: 14, // Label nhỏ: 14
     color: "#6B7280",
     marginBottom: 2,
   },
@@ -686,7 +649,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   wellnessValue: {
-    fontSize: 16,
+    fontSize: 12, // Giá trị/Value: 12
     fontWeight: "600",
     color: "#1F2937",
   },

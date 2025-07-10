@@ -789,42 +789,7 @@ const handleQuickLog = async () => {
     ])
   }
 
-  const renderQuickFilters = () => (
-    <View style={styles.quickFiltersContainer}>
-      <Text style={styles.quickFiltersTitle}>Quick Filters</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.quickFiltersScrollContainer}
-      >
-        {quickFilterOptions.map((option) => (
-          <TouchableOpacity
-            key={option.id}
-            style={[styles.quickFilterButton, selectedQuickFilter === option.id && styles.quickFilterButtonSelected]}
-            onPress={() => handleQuickFilter(option.id)}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.quickFilterButtonText,
-                selectedQuickFilter === option.id && styles.quickFilterButtonTextSelected,
-              ]}
-            >
-              {option.label}
-            </Text>
-            {option.id === "custom" && (
-              <Ionicons
-                name="settings-outline"
-                size={16}
-                color={selectedQuickFilter === option.id ? "#FFFFFF" : "#64748B"}
-                style={{ marginLeft: 4 }}
-              />
-            )}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  )
+  // Quick Filters removed as requested
 
   const renderCustomDaysModal = () => (
     <Modal
@@ -1066,12 +1031,7 @@ const handleQuickLog = async () => {
             icon: "analytics",
             onPress: () => safeNavigate("WaterComparison"),
           },
-          {
-            icon: "filter",
-            onPress: () => setFilterModalVisible(true),
-          },
         ]}
-     
       />
       <ScrollView
         style={styles.container}
@@ -1190,12 +1150,21 @@ const handleQuickLog = async () => {
           {renderStatusCard()}
         </View>
 
-        {renderQuickFilters()}
+
 
         <View style={styles.logsSection}>
           <View style={styles.logsSectionHeader}>
             <Text style={styles.logsSectionTitle}>Today's Logs</Text>
-            <Text style={styles.logsCount}>{totalTodayLogs} entries</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.logsCount}>{totalTodayLogs} entries</Text>
+              <TouchableOpacity
+                style={{ marginLeft: 12, paddingVertical: 4, paddingHorizontal: 12, borderRadius: 16, backgroundColor: '#2563EB' }}
+                onPress={() => safeNavigate('WaterLogAnalyticsScreen')}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>View All</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           {displayLogs.length > 0 ? (
             <>

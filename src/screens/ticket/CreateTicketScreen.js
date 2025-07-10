@@ -14,10 +14,13 @@ import {
   FlatList,
 } from "react-native"
 import { useNavigation } from "@react-navigation/native"
+
 import { LinearGradient } from "expo-linear-gradient"
 import ticketService from "services/apiTicketService"
 import { AuthContext } from "context/AuthContext"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Header from '../../components/Header';
+import SelectModal from '../../components/SelectModal';
 
 const categoryOptions = [
   { value: "Technical", label: "Technical Issue" },
@@ -135,45 +138,19 @@ const CreateTicketScreen = () => {
     return null
   }
 
-  const renderSelectModal = (visible, onClose, options, selectedValue, onSelect, title) => (
-    <Modal visible={visible} transparent animationType="fade">
-      <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>{title}</Text>
-          <FlatList
-            data={options}
-            keyExtractor={(item) => item.value}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.modalOption, selectedValue === item.value && styles.modalOptionSelected]}
-                onPress={() => {
-                  onSelect(item.value)
-                  onClose()
-                }}
-              >
-                <Text style={[styles.modalOptionText, selectedValue === item.value && styles.modalOptionTextSelected]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  )
+  // Use SelectModal component instead of custom renderSelectModal
 
   const getPriorityLabel = () => priorityOptions.find((opt) => opt.value === priority)?.label || "Select Priority"
   const getCategoryLabel = () => categoryOptions.find((opt) => opt.value === category)?.label || "Select Category"
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 16 }]}> 
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={[styles.backButtonText, { color: '#222' }]}>←</Text>
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: '#1F2937' }]}>Create Support Ticket</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header
+        title="Create Support Ticket"
+        onBack={() => navigation.goBack()}
+        absolute
+      />
+      <View style={{ height: 90 }} />
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -221,6 +198,14 @@ const CreateTicketScreen = () => {
                 <Text style={styles.selectButtonText}>{getPriorityLabel()}</Text>
                 <Text style={styles.selectArrow}>▼</Text>
               </TouchableOpacity>
+              <SelectModal
+                visible={showPriorityModal}
+                title="Select Priority"
+                options={priorityOptions.map(opt => ({ label: opt.label, value: opt.value }))}
+                selectedValue={priority}
+                onSelect={val => setPriority(val)}
+                onClose={() => setShowPriorityModal(false)}
+              />
               {renderError("priority")}
             </View>
 
@@ -234,6 +219,14 @@ const CreateTicketScreen = () => {
                 <Text style={styles.selectButtonText}>{getCategoryLabel()}</Text>
                 <Text style={styles.selectArrow}>▼</Text>
               </TouchableOpacity>
+              <SelectModal
+                visible={showCategoryModal}
+                title="Select Category"
+                options={categoryOptions.map(opt => ({ label: opt.label, value: opt.value }))}
+                selectedValue={category}
+                onSelect={val => setCategory(val)}
+                onClose={() => setShowCategoryModal(false)}
+              />
               {renderError("category")}
             </View>
 
@@ -258,25 +251,7 @@ const CreateTicketScreen = () => {
         </ScrollView>
       </TouchableWithoutFeedback>
 
-      {/* Priority Modal */}
-      {renderSelectModal(
-        showPriorityModal,
-        () => setShowPriorityModal(false),
-        priorityOptions,
-        priority,
-        setPriority,
-        "Select Priority",
-      )}
-
-      {/* Category Modal */}
-      {renderSelectModal(
-        showCategoryModal,
-        () => setShowCategoryModal(false),
-        categoryOptions,
-        category,
-        setCategory,
-        "Select Category",
-      )}
+      {/* Priority Modal & Category Modal now handled by SelectModal */}
     </SafeAreaView>
   )
 }
