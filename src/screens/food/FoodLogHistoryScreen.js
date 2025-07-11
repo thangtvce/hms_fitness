@@ -1,7 +1,5 @@
-"use client"
 
 import { useEffect, useState } from "react"
-
 import {
   View,
   Text,
@@ -21,8 +19,8 @@ import { foodService } from "services/apiFoodService"
 import dayjs from "dayjs"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
+import Header from "components/Header";
 
-// Icon imports
 import Icon from "react-native-vector-icons/MaterialIcons"
 import IconCommunity from "react-native-vector-icons/MaterialCommunityIcons"
 import IconFeather from "react-native-vector-icons/Feather"
@@ -251,7 +249,6 @@ const FoodLogHistoryScreen = ({ navigation }) => {
   const dailyStats = calculateDailyStats()
   const sortedDates = Object.keys(dailyStats).sort((a, b) => dayjs(a).unix() - dayjs(b).unix())
 
-  // Get filtered data based on selected time period
   const getFilteredDataByPeriod = () => {
     const selectedPeriod = TIME_PERIODS.find((p) => p.key === selectedTimePeriod)
     const cutoffDate = dayjs().subtract(selectedPeriod.days, "day")
@@ -261,49 +258,42 @@ const FoodLogHistoryScreen = ({ navigation }) => {
 
   const filteredDatesByPeriod = getFilteredDataByPeriod()
 
-  // Chart data preparation
+
+  const chartDates = filteredDatesByPeriod.slice(-20);
   const chartData = {
-    labels: filteredDatesByPeriod.slice(-20).map((date) => {
-      if (selectedTimePeriod === "7d") return dayjs(date).format("MM/DD")
-      if (selectedTimePeriod === "1m") return dayjs(date).format("MM/DD")
-      if (selectedTimePeriod === "3m") return dayjs(date).format("MM/DD")
-      if (selectedTimePeriod === "6m") return dayjs(date).format("MM/DD")
-      return dayjs(date).format("MM/DD")
-    }),
+    labels: chartDates.map((date) => dayjs(date).format("MM/DD")),
     datasets: [
       {
-        data: filteredDatesByPeriod.slice(-20).map((date) => dailyStats[date].calories),
+        data: chartDates.map((date) => dailyStats[date].calories),
         strokeWidth: 3,
         color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
       },
     ],
-  }
+  };
 
   // Protein chart data
   const proteinChartData = {
-    labels: filteredDatesByPeriod.slice(-20).map((date) => dayjs(date).format("MM/DD")),
+    labels: chartDates.map((date) => dayjs(date).format("MM/DD")),
     datasets: [
       {
-        data: filteredDatesByPeriod.slice(-20).map((date) => dailyStats[date].protein),
+        data: chartDates.map((date) => dailyStats[date].protein),
         strokeWidth: 3,
         color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
       },
     ],
-  }
+  };
 
-  // Carbs chart data
   const carbsChartData = {
-    labels: filteredDatesByPeriod.slice(-20).map((date) => dayjs(date).format("MM/DD")),
+    labels: chartDates.map((date) => dayjs(date).format("MM/DD")),
     datasets: [
       {
-        data: filteredDatesByPeriod.slice(-20).map((date) => dailyStats[date].carbs),
+        data: chartDates.map((date) => dailyStats[date].carbs),
         strokeWidth: 3,
         color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
       },
     ],
-  }
+  };
 
-  // Enhanced Nutrition pie chart data with modern colors
   const totalDays = filteredDatesByPeriod.length
   const avgNutrition = {
     protein: Math.round(
@@ -407,17 +397,20 @@ const FoodLogHistoryScreen = ({ navigation }) => {
 
   const renderTimePeriodSelector = () => (
     <View style={styles.timePeriodContainer}>
-      {TIME_PERIODS.map((period) => (
-        <TouchableOpacity
-          key={period.key}
-          style={[styles.timePeriodButton, selectedTimePeriod === period.key && styles.activeTimePeriod]}
-          onPress={() => setSelectedTimePeriod(period.key)}
-        >
-          <Text style={[styles.timePeriodText, selectedTimePeriod === period.key && styles.activeTimePeriodText]}>
-            {period.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+      {TIME_PERIODS.map((period) => {
+        const isActive = selectedTimePeriod === period.key;
+        return (
+          <TouchableOpacity
+            key={period.key}
+            style={[styles.timePeriodButton, isActive && { backgroundColor: '#0056d2' }]}
+            onPress={() => setSelectedTimePeriod(period.key)}
+          >
+            <Text style={[styles.timePeriodText, isActive && { color: '#fff', fontWeight: 'bold' }]}>
+              {period.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   )
 
@@ -640,9 +633,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             width={width - 40}
             height={220}
             chartConfig={{
-              backgroundColor: "transparent",
-              backgroundGradientFrom: "transparent",
-              backgroundGradientTo: "transparent",
+              backgroundColor: "#fff", // Changed to white
+              backgroundGradientFrom: "#fff", // Changed to white
+              backgroundGradientTo: "#fff", // Changed to white
               decimalPlaces: 0,
               color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
               labelColor: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
@@ -691,9 +684,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             width={width - 40}
             height={220}
             chartConfig={{
-              backgroundColor: "transparent",
-              backgroundGradientFrom: "transparent",
-              backgroundGradientTo: "transparent",
+              backgroundColor: "#fff", 
+              backgroundGradientFrom: "#fff", 
+              backgroundGradientTo: "#fff", 
               decimalPlaces: 0,
               color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
               labelColor: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
@@ -742,9 +735,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             width={width - 40}
             height={220}
             chartConfig={{
-              backgroundColor: "transparent",
-              backgroundGradientFrom: "transparent",
-              backgroundGradientTo: "transparent",
+              backgroundColor: "#fff", // Changed to white
+              backgroundGradientFrom: "#fff", // Changed to white
+              backgroundGradientTo: "#fff", // Changed to white
               decimalPlaces: 0,
               color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
               labelColor: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
@@ -784,7 +777,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
         </View>
 
         {pieData.some((item) => item.population > 0) && (
-          <View style={styles.pieChartWrapper}>
+          <View style={[styles.pieChartWrapper, { backgroundColor: '#fff', borderRadius: 16 }]}> 
             <PieChart
               data={pieData}
               width={width - 80}
@@ -793,7 +786,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                 color: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
               }}
               accessor="population"
-              backgroundColor="transparent"
+              backgroundColor="#fff" 
               paddingLeft="15"
               absolute
               hasLegend={false}
@@ -812,8 +805,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                       {(
                         (item.population / (avgNutrition.protein + avgNutrition.carbs + avgNutrition.fats)) *
                         100
-                      ).toFixed(1)}
-                      %
+                      ).toFixed(1)}%
                     </Text>
                   </View>
                 </View>
@@ -843,7 +835,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
         </View>
 
         {filteredDatesByPeriod.length > 0 && (
-          <View style={styles.barChartWrapper}>
+          <View style={[styles.barChartWrapper, { backgroundColor: '#fff', borderRadius: 16 }]}> 
             <BarChart
               data={{
                 labels: filteredDatesByPeriod.slice(-7).map((date) => dayjs(date).format("MM/DD")),
@@ -863,9 +855,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
               width={width - 80}
               height={260}
               chartConfig={{
-                backgroundColor: "transparent",
-                backgroundGradientFrom: "transparent",
-                backgroundGradientTo: "transparent",
+                backgroundColor: "#fff", // Changed to white
+                backgroundGradientFrom: "#fff", // Changed to white
+                backgroundGradientTo: "#fff", // Changed to white
                 decimalPlaces: 0,
                 color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
                 labelColor: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
@@ -1194,6 +1186,10 @@ const FoodLogHistoryScreen = ({ navigation }) => {
     </Modal>
   )
 
+  const handleExportCSV = () => {
+    navigation.navigate('ExportHistory', { logs: filteredLogs })
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -1210,35 +1206,47 @@ const FoodLogHistoryScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', shadowColor: 'transparent', elevation: 0 }]}> 
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
-          <Icon name="arrow-back" size={24} color="#111827" />
-        </TouchableOpacity>
-        <View style={[styles.headerContent, { flex: 1, alignItems: 'center', justifyContent: 'center' }]}> 
-          <Text style={[styles.headerTitle, { color: '#111827', fontWeight: 'bold', fontSize: 18 }]}>Nutrition Analytics</Text>
-          <Text style={[styles.headerSubtitle, { color: '#374151', fontSize: 13 }]}>Track your nutrition journey</Text>
-        </View>
-        <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(true)}>
-          <Icon name="filter-list" size={24} color="#111827" />
-        </TouchableOpacity>
-      </View>
-
+      {/* Header dùng chuẩn component Header */}
+      <Header
+        title="Nutrition Analytics"
+        onBack={() => navigation?.goBack()}
+        rightActions={[{ icon: "options-outline", onPress: () => setShowFilters(true), color: "#111827" }]}
+        subtitle="Track your nutrition journey"
+      />
       {/* Tabs */}
       <View style={styles.tabContainer}>
         {renderTabButton("overview", "Overview", "analytics")}
         {renderTabButton("charts", "Charts", "show-chart")}
         {renderTabButton("history", "History", "history")}
       </View>
-
+  {/* Custom navigation buttons for new screens & export */}
+  <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 12 }}>
+    <TouchableOpacity
+      style={{ backgroundColor: '#0056d2', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 }}
+      onPress={() => navigation.navigate('TopFoodsByMeal', { logs: filteredLogs })}
+    >
+      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Top Foods By Meal</Text>
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={{ backgroundColor: '#0056d2', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 }}
+      onPress={() => navigation.navigate('Trends', { logs: filteredLogs })}
+    >
+      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Trends</Text>
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={{ backgroundColor: '#0056d2', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 }}
+      onPress={handleExportCSV}
+    >
+      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Export CSV</Text>
+    </TouchableOpacity>
+  </View>
       {/* Content */}
       <View style={styles.content}>
         {activeTab === "overview" && renderOverviewTab()}
         {activeTab === "charts" && renderChartsTab()}
         {activeTab === "history" && renderHistoryTab()}
       </View>
-
+      {/* Modal filter luôn nằm trên, không ảnh hưởng tab hay header */}
       {renderFiltersModal()}
     </SafeAreaView>
   )
@@ -1299,6 +1307,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
+    marginTop:30,
   },
   tabButton: {
     flex: 1,

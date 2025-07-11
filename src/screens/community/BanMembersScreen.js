@@ -18,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
 
-const PendingMembersScreen = () => {
+const BanMembersScreen = () => {
   const navigation = useNavigation()
   const route = useRoute()
   const { groupId } = route.params || {}
@@ -30,56 +30,15 @@ const PendingMembersScreen = () => {
   const [sortOrder,setSortOrder] = useState("newest")
   const [searchTerm,setSearchTerm] = useState("")
   const [showSortModal,setShowSortModal] = useState(false)
-  const [showActionModal,setShowActionModal] = useState(false)
-  const [selectedMember,setSelectedMember] = useState(null)
 
-  const statusOptions = [
-    {
-      id: "approved",
-      title: "Approve Member",
-      description: "Accept this member into the group",
-      icon: "checkmark-circle",
-      color: "#22C55E",
-      bgColor: "#F0FDF4",
-      borderColor: "#BBF7D0",
-    },
-    {
-      id: "rejected",
-      title: "Reject Request",
-      description: "Decline this join request",
-      icon: "close-circle",
-      color: "#EF4444",
-      bgColor: "#FEF2F2",
-      borderColor: "#FECACA",
-    },
-    {
-      id: "banned",
-      title: "Ban Member",
-      description: "Ban this user from the group",
-      icon: "ban",
-      color: "#DC2626",
-      bgColor: "#FEF2F2",
-      borderColor: "#FCA5A5",
-    },
-    {
-      id: "pending",
-      title: "Keep Pending",
-      description: "Leave request as pending for later",
-      icon: "time",
-      color: "#F59E0B",
-      bgColor: "#FFFBEB",
-      borderColor: "#FDE68A",
-    },
-  ]
-
-  const fetchPendingMembers = async () => {
+  const fetchBannedMembers = async () => {
     setLoading(true)
     try {
-      const data = await getGroupJoinRequests(groupId,"pending");
+      const data = await getGroupJoinRequests(groupId,"banned")
       const sortedMembers = [...(data.requests || [])].sort((a,b) =>
         sortOrder === "newest"
-          ? new Date(b.joinedAt) - new Date(a.joinedAt)
-          : new Date(a.joinedAt) - new Date(b.joinedAt),
+          ? new Date(b.bannedAt || b.joinedAt) - new Date(a.bannedAt || a.joinedAt)
+          : new Date(a.bannedAt || a.joinedAt) - new Date(b.bannedAt || b.joinedAt),
       )
       setMembers(sortedMembers)
       setFilteredMembers(sortedMembers)
@@ -92,14 +51,14 @@ const PendingMembersScreen = () => {
   }
 
   useEffect(() => {
-    fetchPendingMembers()
+    fetchBannedMembers()
   },[groupId])
 
   useEffect(() => {
     const sortedMembers = [...members].sort((a,b) =>
       sortOrder === "newest"
-        ? new Date(b.joinedAt) - new Date(a.joinedAt)
-        : new Date(a.joinedAt) - new Date(b.joinedAt),
+        ? new Date(b.bannedAt || b.joinedAt) - new Date(a.bannedAt || a.joinedAt)
+        : new Date(a.bannedAt || a.joinedAt) - new Date(b.bannedAt || b.joinedAt),
     )
     const filtered = sortedMembers.filter((member) =>
       member.userFullName?.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -107,58 +66,22 @@ const PendingMembersScreen = () => {
     setFilteredMembers(filtered)
   },[sortOrder,members,searchTerm])
 
-  const handleMemberAction = (member) => {
-    setSelectedMember(member)
-    setShowActionModal(true)
-  }
-
-  const handleStatusChange = async (status) => {
-    if (!selectedMember) return
-
-    const statusOption = statusOptions.find((opt) => opt.id === status)
-    const actionText = statusOption?.title || "update"
-
-    Alert.alert(
-      "Confirm Action",
-      `Are you sure you want to ${actionText.toLowerCase()} ${selectedMember.userFullName}?`,
-      [
-        { text: "Cancel",style: "cancel" },
-        {
-          text: "Confirm",
-          style: status === "banned" ? "destructive" : "default",
-          onPress: async () => {
-            try {
-              await updateMemberStatus(selectedMember?.memberId,status)
-
-              let successMessage = ""
-              switch (status) {
-                case "approved":
-                  successMessage = "Member approved successfully!"
-                  break
-                case "rejected":
-                  successMessage = "Request rejected successfully!"
-                  break
-                case "banned":
-                  successMessage = "Member banned successfully!"
-                  break
-                case "pending":
-                  successMessage = "Member status updated!"
-                  break
-                default:
-                  successMessage = "Status updated successfully!"
-              }
-
-              showSuccessMessage(successMessage)
-              setShowActionModal(false)
-              setSelectedMember(null)
-              fetchPendingMembers()
-            } catch (e) {
-              showErrorFetchAPI(e)
-            }
-          },
+  const handleUnban = async (member) => {
+    Alert.alert("Unban Member",`Are you sure you want to unban ${member.userFullName}?`,[
+      { text: "Cancel",style: "cancel" },
+      {
+        text: "Unban",
+        onPress: async () => {
+          try {
+            await updateMemberStatus(member?.memberId,"approved");
+            showSuccessMessage("Member unbanned successfully!")
+            fetchBannedMembers()
+          } catch (e) {
+            showErrorFetchAPI(e)
+          }
         },
-      ],
-    )
+      },
+    ])
   }
 
   const handleSearch = (text) => {
@@ -215,61 +138,6 @@ const PendingMembersScreen = () => {
     </Modal>
   )
 
-  const renderActionModal = () => (
-    <Modal
-      visible={showActionModal}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={() => setShowActionModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.actionModalContainer}>
-          <View style={styles.modalHandle} />
-
-          <View style={styles.actionModalHeader}>
-            <View style={styles.memberPreview}>
-              {selectedMember?.avatar ? (
-                <Image source={{ uri: selectedMember.avatar }} style={styles.memberPreviewAvatar} />
-              ) : (
-                <View style={styles.memberPreviewAvatarPlaceholder}>
-                  <Text style={styles.memberPreviewAvatarText}>
-                    {selectedMember?.userFullName?.charAt(0)?.toUpperCase() || "U"}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.memberPreviewInfo}>
-                <Text style={styles.memberPreviewName}>{selectedMember?.userFullName || "Unknown"}</Text>
-                <Text style={styles.memberPreviewMeta}>Choose an action for this member</Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowActionModal(false)}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.actionOptionsContainer}>
-            {statusOptions.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={[styles.actionOption,{ backgroundColor: option.bgColor,borderColor: option.borderColor }]}
-                onPress={() => handleStatusChange(option.id)}
-              >
-                <View style={[styles.actionOptionIcon,{ backgroundColor: option.color }]}>
-                  <Ionicons name={option.icon} size={24} color="#FFFFFF" />
-                </View>
-                <View style={styles.actionOptionContent}>
-                  <Text style={[styles.actionOptionTitle,{ color: option.color }]}>{option.title}</Text>
-                  <Text style={styles.actionOptionDescription}>{option.description}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={option.color} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-    </Modal>
-  )
-
   const renderItem = ({ item }) => (
     <View style={styles.memberCard}>
       <View style={styles.memberCardContent}>
@@ -281,8 +149,8 @@ const PendingMembersScreen = () => {
               <Text style={styles.memberAvatarText}>{item.userFullName?.charAt(0)?.toUpperCase() || "U"}</Text>
             </View>
           )}
-          <View style={styles.pendingBadge}>
-            <Ionicons name="time" size={12} color="#FFFFFF" />
+          <View style={styles.bannedBadge}>
+            <Ionicons name="ban" size={12} color="#FFFFFF" />
           </View>
         </View>
 
@@ -293,8 +161,8 @@ const PendingMembersScreen = () => {
           <View style={styles.memberMeta}>
             <Ionicons name="calendar-outline" size={12} color="#64748B" />
             <Text style={styles.memberMetaText}>
-              Requested{" "}
-              {new Date(item.joinedAt).toLocaleDateString("en-US",{
+              Banned{" "}
+              {new Date(item.bannedAt || item.joinedAt).toLocaleDateString("en-US",{
                 month: "short",
                 day: "numeric",
               })}
@@ -302,8 +170,9 @@ const PendingMembersScreen = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleMemberAction(item)}>
-          <Ionicons name="ellipsis-horizontal" size={18} color="#0056d2" />
+        <TouchableOpacity style={styles.unbanButton} onPress={() => handleUnban(item)}>
+          <Ionicons name="checkmark-circle-outline" size={18} color="#22C55E" />
+          <Text style={styles.unbanButtonText}>Unban</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -314,7 +183,7 @@ const PendingMembersScreen = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0056d2" />
-          <Text style={styles.loadingText}>Loading pending requests...</Text>
+          <Text style={styles.loadingText}>Loading banned members...</Text>
         </View>
       </SafeAreaView>
     )
@@ -329,8 +198,8 @@ const PendingMembersScreen = () => {
             <Ionicons name="arrow-back" size={24} color="#0056d2" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Join Requests</Text>
-            <Text style={styles.headerSubtitle}>{filteredMembers.length} pending</Text>
+            <Text style={styles.headerTitle}>Banned Members</Text>
+            <Text style={styles.headerSubtitle}>{filteredMembers.length} banned</Text>
           </View>
           <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
             <Ionicons name="options-outline" size={24} color="#0056d2" />
@@ -344,7 +213,7 @@ const PendingMembersScreen = () => {
           <Ionicons name="search-outline" size={20} color="#9CA3AF" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search pending requests..."
+            placeholder="Search banned members..."
             value={searchTerm}
             onChangeText={handleSearch}
             placeholderTextColor="#9CA3AF"
@@ -365,16 +234,16 @@ const PendingMembersScreen = () => {
         refreshing={refreshing}
         onRefresh={() => {
           setRefreshing(true)
-          fetchPendingMembers()
+          fetchBannedMembers()
         }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Ionicons name="people-outline" size={64} color="#D1D5DB" />
+              <Ionicons name="ban-outline" size={64} color="#D1D5DB" />
             </View>
-            <Text style={styles.emptyTitle}>{searchTerm ? "No matching requests" : "No pending requests"}</Text>
+            <Text style={styles.emptyTitle}>{searchTerm ? "No matching members" : "No banned members"}</Text>
             <Text style={styles.emptySubtitle}>
-              {searchTerm ? "Try adjusting your search terms" : "Join requests will appear here"}
+              {searchTerm ? "Try adjusting your search terms" : "Banned members will appear here"}
             </Text>
           </View>
         }
@@ -382,9 +251,8 @@ const PendingMembersScreen = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Modals */}
+      {/* Sort Modal */}
       {renderSortModal()}
-      {renderActionModal()}
     </SafeAreaView>
   )
 }
@@ -501,7 +369,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#0056d2",
+    backgroundColor: "#EF4444",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -510,14 +378,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
-  pendingBadge: {
+  bannedBadge: {
     position: "absolute",
     top: -4,
     right: -4,
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "#F59E0B",
+    backgroundColor: "#EF4444",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
@@ -542,13 +410,19 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontWeight: "500",
   },
-  actionButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+  unbanButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FDF4",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
   },
-  actionButtonText: {
-    color: "#0056d2",
+  unbanButtonText: {
+    color: "#22C55E",
     fontSize: 14,
     fontWeight: "600",
   },
@@ -659,106 +533,6 @@ const styles = StyleSheet.create({
     color: "#0056d2",
     fontWeight: "600",
   },
-  actionModalContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 28,
-    width: "100%",
-    maxHeight: "80%",
-    paddingBottom: Platform.OS === "ios" ? 34 : 20,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: "#D1D5DB",
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  actionModalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  memberPreview: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  memberPreviewAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-  },
-  memberPreviewAvatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#0056d2",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  memberPreviewAvatarText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  memberPreviewInfo: {
-    flex: 1,
-  },
-  memberPreviewName: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000000",
-    marginBottom: 2,
-  },
-  memberPreviewMeta: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  actionOptionsContainer: {
-    padding: 24,
-    gap: 16,
-  },
-  actionOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0,height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  actionOptionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  actionOptionContent: {
-    flex: 1,
-  },
-  actionOptionTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  actionOptionDescription: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 20,
-  },
 })
 
-export default PendingMembersScreen
+export default BanMembersScreen

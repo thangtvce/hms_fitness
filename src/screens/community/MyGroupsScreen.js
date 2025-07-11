@@ -1,83 +1,142 @@
-"use client"
-
-import React, { useEffect, useState, useRef } from "react"
+import React from "react"
+import { useState,useEffect,useRef,useContext } from "react"
 import {
   View,
   Text,
-  FlatList,
+  StyleSheet,
   TouchableOpacity,
+  FlatList,
+  TextInput,
   ActivityIndicator,
   Alert,
-  StyleSheet,
-  Image,
-  TextInput,
-  Modal,
   Animated,
+  Modal,
   Platform,
   Dimensions,
+  Image,
   RefreshControl,
 } from "react-native"
-import { useNavigation, useFocusEffect } from "@react-navigation/native"
-import { getGroupsByCreator, deleteGroup } from "services/apiCommunityService"
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
+import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons"
+import DateTimePicker from "@react-native-community/datetimepicker"
+import RenderHtml from "react-native-render-html"
+import { AuthContext } from "context/AuthContext"
+import { getAllActiveGroups,joinGroup,deleteGroup,getMyGroupCreated } from "services/apiCommunityService"
+import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
+import { useNavigation,useFocusEffect } from "@react-navigation/native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { StatusBar } from "expo-status-bar"
 import { ScrollView } from "react-native-gesture-handler"
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
 
 const { width } = Dimensions.get("window")
 
 const MyGroupsScreen = () => {
   const navigation = useNavigation()
-  const [groups, setGroups] = useState([])
-  const [filteredGroups, setFilteredGroups] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [showFilterModal, setShowFilterModal] = useState(false)
-  const [filters, setFilters] = useState({
-    status: "all",
-    privacy: "all",
-    sortBy: "newest",
+  const { user } = useContext(AuthContext)
+  const [groups,setGroups] = useState([])
+  const [loading,setLoading] = useState(true)
+  const [refreshing,setRefreshing] = useState(false)
+  const [showFilterModal,setShowFilterModal] = useState(false)
+  const [pageNumber,setPageNumber] = useState(1)
+  const [pageSize,setPageSize] = useState(10)
+  const [totalPages,setTotalPages] = useState(1)
+  const [totalCount,setTotalCount] = useState(0)
+  const [hasMore,setHasMore] = useState(true)
+  const [searchTerm,setSearchTerm] = useState("")
+  const [debouncedSearchTerm,setDebouncedSearchTerm] = useState("");
+  const [filters,setFilters] = useState({
+    startDate: null,
+    endDate: null,
+    status: "public",
+    validPageSize: 10,
   })
-  const [tempFilters, setTempFilters] = useState(filters)
+  const [tempFilters,setTempFilters] = useState(filters)
+  const [showStartDatePicker,setShowStartDatePicker] = useState(false)
+  const [showEndDatePicker,setShowEndDatePicker] = useState(false)
+  const [showCustomStartDatePicker,setShowCustomStartDatePicker] = useState(false)
+  const [showCustomEndDatePicker,setShowCustomEndDatePicker] = useState(false)
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
   const scaleAnim = useRef(new Animated.Value(0.95)).current
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim,{
         toValue: 1,
         duration: 600,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.timing(slideAnim,{
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
+      Animated.spring(scaleAnim,{
         toValue: 1,
         tension: 120,
         friction: 8,
         useNativeDriver: true,
       }),
     ]).start()
-  }, [])
+  },[])
 
-  const fetchGroups = async () => {
+  const fetchGroups = async (page = 1,refresh = false) => {
     try {
-      if (!refreshing) setLoading(true)
-      const data = await getGroupsByCreator()
-      const filteredGroups = (Array.isArray(data.groups) ? data.groups : []).filter((g) => g.status !== "deleted")
-      setGroups(filteredGroups)
-      applyFiltersAndSearch(filteredGroups, searchTerm, filters)
-    } catch (e) {
-      Alert.alert("Error", e.message || "Failed to fetch your groups")
+      if (refresh) {
+        setRefreshing(true)
+      } else if (page === 1) {
+        setLoading(true)
+      }
+
+      const formatDate = (date) => {
+        if (!date) return undefined
+        return `${(date.getMonth() + 1).toString().padStart(2,"0")}-${date
+          .getDate()
+          .toString()
+          .padStart(2,"0")}-${date.getFullYear()}`
+      }
+
+      const queryParams = {
+        PageNumber: page,
+        PageSize: pageSize,
+        SearchTerm: searchTerm || undefined,
+        StartDate: formatDate(filters.startDate),
+        EndDate: formatDate(filters.endDate),
+        Status: filters.status || undefined,
+        ValidPageSize: filters.validPageSize,
+      }
+
+      const response = await getMyGroupCreated(queryParams)
+      const dataGroup = response.data;
+      const newGroups = dataGroup.groups || [];
+      const validGroups = newGroups.filter(g => g.groupId);
+
+      if (page === 1 || refresh) {
+        const uniqueGroups = Array.from(
+          new Map(validGroups.map(g => [g.groupId,g])).values()
+        );
+        setGroups(uniqueGroups);
+      } else {
+        setGroups(prev => {
+          const combined = [...prev,...validGroups];
+          const uniqueGroups = Array.from(
+            new Map(combined.map(g => [g.groupId,g])).values()
+          );
+
+          return uniqueGroups;
+        });
+      }
+      setTotalCount(dataGroup.totalCount)
+      setHasMore((page * pageSize) < dataGroup.totalCount)
+      setTotalPages(dataGroup?.totalPages)
+    } catch (error) {
+      showErrorFetchAPI(error);
       setGroups([])
-      setFilteredGroups([])
+      setTotalPages(1)
+      setTotalCount(0)
+      setHasMore(false)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -86,140 +145,131 @@ const MyGroupsScreen = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchGroups()
-    }, []),
+      fetchGroups(pageNumber)
+    },[pageNumber,pageSize,debouncedSearchTerm,filters]),
   )
 
-  const applyFiltersAndSearch = (groupList, search, currentFilters) => {
-    let filtered = [...groupList]
-
-    // Apply search
-    if (search.trim()) {
-      filtered = filtered.filter(
-        (group) =>
-          group.groupName?.toLowerCase().includes(search.toLowerCase()) ||
-          group.description?.toLowerCase().includes(search.toLowerCase()),
-      )
-    }
-
-    // Apply status filter
-    if (currentFilters.status !== "all") {
-      filtered = filtered.filter((group) => group.status?.toLowerCase() === currentFilters.status)
-    }
-
-    // Apply privacy filter
-    if (currentFilters.privacy !== "all") {
-      if (currentFilters.privacy === "private") {
-        filtered = filtered.filter((group) => group.isPrivate === true)
-      } else if (currentFilters.privacy === "public") {
-        filtered = filtered.filter((group) => group.isPrivate === false)
-      }
-    }
-
-    // Apply sorting
-    switch (currentFilters.sortBy) {
-      case "newest":
-        filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-        break
-      case "oldest":
-        filtered.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
-        break
-      case "name":
-        filtered.sort((a, b) => (a.groupName || "").localeCompare(b.groupName || ""))
-        break
-      case "members":
-        filtered.sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))
-        break
-      default:
-        break
-    }
-
-    setFilteredGroups(filtered)
+  const onRefresh = () => {
+    setPageNumber(1)
+    fetchGroups(1,true)
   }
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    },500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  },[searchTerm]);
+
+  useEffect(() => {
+    if (debouncedSearchTerm.trim() === "") {
+      fetchGroups({ page: 1 });
+      return;
+    }
+
+    setPageNumber(1);
+    fetchGroups({ keyword: debouncedSearchTerm,page: 1 });
+  },[debouncedSearchTerm]);
+
+
   const handleSearch = (text) => {
-    setSearchTerm(text)
-    applyFiltersAndSearch(groups, text, filters)
+    setSearchTerm(text);
+  };
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages && !loading) {
+      setPageNumber(page)
+    }
+  }
+
+  const loadMoreGroups = () => {
+    if (!loading && hasMore) {
+      goToPage(pageNumber + 1)
+    }
   }
 
   const applyTempFilters = () => {
     setFilters(tempFilters)
+    setPageNumber(1)
     setShowFilterModal(false)
-    applyFiltersAndSearch(groups, searchTerm, tempFilters)
+    fetchGroups(1)
   }
 
   const resetTempFilters = () => {
     const resetFilters = {
-      status: "all",
-      privacy: "all",
-      sortBy: "newest",
+      startDate: null,
+      endDate: null,
+      status: "public",
+      validPageSize: 10,
     }
     setTempFilters(resetFilters)
     setFilters(resetFilters)
-    applyFiltersAndSearch(groups, searchTerm, resetFilters)
+    setPageNumber(1)
   }
 
-  const handleDelete = (groupId, groupName) => {
-    Alert.alert("Delete Group", `Are you sure you want to delete "${groupName}"? This action cannot be undone.`, [
-      { text: "Cancel", style: "cancel" },
+  const formatDisplayDate = (date) => {
+    if (!date) return "Select Date"
+    return date.toLocaleDateString("en-US",{
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
+  const handleDeleteGroup = async (groupId) => {
+    Alert.alert("Confirm Delete","Are you sure you want to delete this group? This action cannot be undone.",[
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
       {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
           try {
             await deleteGroup(groupId)
-            Alert.alert("Success", "Group deleted successfully")
-            fetchGroups()
-          } catch (e) {
-            Alert.alert("Error", e.message || "Failed to delete group")
+            setGroups((prevGroups) => prevGroups.filter((g) => g.groupId !== groupId))
+            showSuccessMessage("Success","Group deleted successfully.")
+          } catch (err) {
+            showErrorFetchAPI(err)
           }
         },
       },
     ])
   }
 
-  const handleEdit = (group) => {
-    navigation.navigate("EditGroupScreen", { groupId: group.groupId })
-  }
-
-  const handleGroupPress = (group) => {
-    navigation.navigate("MyGroupDetailScreen", { groupId: group.groupId })
-  }
-
   const getStatusInfo = (status) => {
     switch (status?.toLowerCase()) {
       case "active":
-        return { color: "#22C55E", bgColor: "#DCFCE7", icon: "checkmark-circle", label: "Active" }
+        return { color: "#22C55E",bgColor: "#DCFCE7",icon: "checkmark-circle" }
       case "pending":
-        return { color: "#F59E0B", bgColor: "#FEF3C7", icon: "time", label: "Pending" }
-      case "inactive":
-        return { color: "#EF4444", bgColor: "#FEE2E2", icon: "pause-circle", label: "Inactive" }
+        return { color: "#F59E0B",bgColor: "#FEF3C7",icon: "time" }
+      case "private":
+        return { color: "#A855F7",bgColor: "#F3E8FF",icon: "lock-closed" }
+      case "public":
+        return { color: "#0056D2",bgColor: "#DBEAFE",icon: "globe" }
       default:
-        return { color: "#6B7280", bgColor: "#F1F5F9", icon: "help-circle", label: "Unknown" }
+        return { color: "#6B7280",bgColor: "#F1F5F9",icon: "help-circle" }
     }
   }
 
   const formatMemberCount = (count) => {
+    if (!count || isNaN(count)) return "0"
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K`
-    return count?.toString() || "0"
+    return count.toString()
   }
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "Unknown"
-    try {
-      return new Date(dateString).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    } catch {
-      return "Unknown"
-    }
+
+  const handleGroupPress = (group) => {
+    navigation.navigate("MyGroupDetailScreen",{ groupId: group.groupId })
   }
 
-  const renderGroupCard = ({ item, index }) => {
-    const statusInfo = getStatusInfo(item.status)
+  const renderGroup = ({ item,index }) => {
+    const statusInfo = getStatusInfo(item.isPrivate ? "private" : "public")
+    const isMine = user?.userId === item.createdBy
 
     return (
       <Animated.View
@@ -227,23 +277,21 @@ const MyGroupsScreen = () => {
           styles.groupCard,
           {
             opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+            transform: [{ translateY: slideAnim },{ scale: scaleAnim }],
           },
         ]}
       >
-        <TouchableOpacity activeOpacity={0.9} onPress={() => handleGroupPress(item)}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => handleGroupPress(item)}
+        >
           <View style={styles.cardContainer}>
             {/* Header Section */}
             <View style={styles.cardHeader}>
               <View style={styles.headerLeft}>
                 <View style={styles.avatarContainer}>
                   <Image
-                    source={{
-                      uri:
-                        item.thumbnail && item.thumbnail !== "string"
-                          ? item.thumbnail
-                          : "https://via.placeholder.com/60",
-                    }}
+                    source={{ uri: item.thumbnail || "https://via.placeholder.com/50" }}
                     style={styles.groupAvatar}
                   />
                   {item.isPrivate && (
@@ -255,65 +303,93 @@ const MyGroupsScreen = () => {
 
                 <View style={styles.groupDetails}>
                   <Text style={styles.groupName} numberOfLines={1}>
-                    {item.groupName || "Unnamed Group"}
+                    {item.groupName || "Health Community"}
                   </Text>
                   <View style={styles.statsRow}>
                     <View style={styles.memberStat}>
                       <Ionicons name="people" size={14} color="#22C55E" />
-                      <Text style={styles.memberCount}>{formatMemberCount(item.memberCount)} members</Text>
+                      <Text style={styles.memberCount}>
+                        {formatMemberCount(item.memberCount)} members
+                      </Text>
                     </View>
-                    <View style={styles.dateStat}>
-                      <Ionicons name="calendar" size={14} color="#64748B" />
-                      <Text style={styles.dateText}>Created {formatDate(item.createdAt)}</Text>
+                    <View style={styles.statusIndicator}>
+                      <View style={[styles.statusDot,{ backgroundColor: statusInfo.color }]} />
+                      <Text style={[styles.statusText,{ color: statusInfo.color }]}>
+                        {item.isPrivate ? "Private" : "Public"}
+                      </Text>
                     </View>
                   </View>
                 </View>
               </View>
 
               <View style={styles.headerRight}>
-                <View style={[styles.statusBadge, { backgroundColor: statusInfo.bgColor }]}>
-                  <Ionicons name={statusInfo.icon} size={12} color={statusInfo.color} />
-                  <Text style={[styles.statusText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
-                </View>
+                {isMine ? (
+                  <View style={styles.ownerSection}>
+                    <View style={styles.ownerBadge}>
+                      <Ionicons name="home" size={12} color="#FFFFFF" />
+                      <Text style={styles.ownerBadgeText}>Owner</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <></>
+                )}
               </View>
             </View>
 
             {/* Description */}
             <View style={styles.descriptionSection}>
-              <Text style={styles.description} numberOfLines={2}>
-                {item.description || "No description available for this group."}
-              </Text>
+              <RenderHtml
+                contentWidth={width - 40}
+                source={{
+                  html:
+                    item.description ||
+                    "<p>Join our health community to connect with like-minded individuals and share your wellness journey.</p>",
+                }}
+                tagsStyles={{
+                  p: {
+                    fontSize: 14,
+                    color: "#64748B",
+                    margin: 0,
+                    lineHeight: 20,
+                    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
+                  },
+                }}
+              />
             </View>
 
             {/* Footer */}
             <View style={styles.cardFooter}>
-              <View style={styles.footerLeft}>
-                <View style={styles.privacyBadge}>
-                  <Ionicons name={item.isPrivate ? "lock-closed" : "globe"} size={12} color="#3B82F6" />
-                  <Text style={styles.privacyText}>{item.isPrivate ? "Private" : "Public"}</Text>
-                </View>
+              <View style={styles.categoryBadge}>
+                <Ionicons name="fitness" size={12} color="#fff" />
+                <Text style={styles.categoryText}>Health & Wellness</Text>
               </View>
 
-              <View style={styles.footerRight}>
-                <TouchableOpacity style={styles.actionButton} onPress={() => handleEdit(item)}>
-                  <Ionicons name="pencil" size={16} color="#3B82F6" />
-                  <Text style={styles.actionButtonText}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.deleteButton]}
-                  onPress={() => handleDelete(item.groupId, item.groupName)}
-                >
-                  <Ionicons name="trash" size={16} color="#EF4444" />
-                  <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Delete</Text>
-                </TouchableOpacity>
-              </View>
+              {isMine && (
+                <View style={styles.ownerActions}>
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() =>
+                      navigation.navigate("EditGroupScreen",{ groupId: item.groupId })
+                    }
+                  >
+                    <Ionicons name="pencil" size={16} color="#0056D2" />
+                    <Text style={styles.editBtnText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => handleDeleteGroup(item.groupId)}
+                  >
+                    <Ionicons name="trash" size={16} color="#EF4444" />
+                    <Text style={styles.deleteBtnText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         </TouchableOpacity>
       </Animated.View>
     )
   }
-
   const renderCreateGroupHeader = () => (
     <Animated.View
       style={[
@@ -324,32 +400,32 @@ const MyGroupsScreen = () => {
         },
       ]}
     >
-        <LinearGradient
-           colors={["#4F46E5","#6366F1","#818CF8"]}
-           style={styles.createGroupCard}
-           start={{ x: 0, y: 0 }}
-           end={{ x: 1, y: 1 }}
-         >
-           <View style={styles.createGroupContent}>
-             <View style={styles.createGroupLeft}>
-               <View style={styles.createGroupIcon}>
-                 <Ionicons name="add-circle" size={32} color="#FFFFFF" />
-               </View>
-               <View style={styles.createGroupText}>
-                 <Text style={styles.createGroupTitle}>Start Your Community</Text>
-                 <Text style={styles.createGroupSubtitle}>Create a health group and connect with others</Text>
-               </View>
-             </View>
-             <TouchableOpacity
-               style={styles.createGroupButton}
-               onPress={() => navigation.navigate("CreateGroupScreen")}
-               activeOpacity={0.8}
-             >
-               <Text style={styles.createGroupButtonText}>Create</Text>
-               <Ionicons name="arrow-forward" size={16} color="#4F46E5" />
-             </TouchableOpacity>
-           </View>
-         </LinearGradient>
+      <LinearGradient
+        colors={["#003C9E","#0056D2","#4A90E2"]}
+        style={styles.createGroupCard}
+        start={{ x: 0,y: 0 }}
+        end={{ x: 1,y: 1 }}
+      >
+        <View style={styles.createGroupContent}>
+          <View style={styles.createGroupLeft}>
+            <View style={styles.createGroupIcon}>
+              <Ionicons name="add-circle" size={32} color="#FFFFFF" />
+            </View>
+            <View style={styles.createGroupText}>
+              <Text style={styles.createGroupTitle}>Start Your group</Text>
+              <Text style={styles.createGroupSubtitle}>Create a health group</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.createGroupButton}
+            onPress={() => navigation.navigate("CreateGroupScreen")}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.createGroupButtonText}>Create</Text>
+            <Ionicons name="arrow-forward" size={16} color="#0056d2" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
     </Animated.View>
   )
 
@@ -366,17 +442,16 @@ const MyGroupsScreen = () => {
       <View style={styles.emptyIconContainer}>
         <MaterialCommunityIcons name="account-group-outline" size={80} color="#CBD5E1" />
       </View>
-      <Text style={styles.emptyTitle}>No Groups Found</Text>
+      <Text style={styles.emptyTitle}>No Group Found</Text>
       <Text style={styles.emptyText}>
-        {searchTerm || filters.status !== "all" || filters.privacy !== "all"
-          ? "No groups match your current search or filters. Try adjusting your criteria."
-          : "You haven't created any groups yet. Start building your first community!"}
+        {searchTerm || filters.status !== "active" || filters.startDate || filters.endDate
+          ? "No group match your current filters. Try adjusting your search criteria."
+          : "Be the first to create a health group and start connecting with others!"}
       </Text>
       <TouchableOpacity
         style={styles.emptyActionButton}
         onPress={() => {
-          if (searchTerm || filters.status !== "all" || filters.privacy !== "all") {
-            setSearchTerm("")
+          if (searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) {
             resetTempFilters()
           } else {
             navigation.navigate("CreateGroupScreen")
@@ -384,12 +459,16 @@ const MyGroupsScreen = () => {
         }}
       >
         <Ionicons
-          name={searchTerm || filters.status !== "all" || filters.privacy !== "all" ? "refresh" : "add-circle"}
+          name={
+            searchTerm || filters.status !== "active" || filters.startDate || filters.endDate ? "refresh" : "add-circle"
+          }
           size={20}
           color="#FFFFFF"
         />
         <Text style={styles.emptyActionText}>
-          {searchTerm || filters.status !== "all" || filters.privacy !== "all" ? "Clear Filters" : "Create Group"}
+          {searchTerm || filters.status !== "active" || filters.startDate || filters.endDate
+            ? "Clear Filters"
+            : "Create Group"}
         </Text>
       </TouchableOpacity>
     </Animated.View>
@@ -406,11 +485,11 @@ const MyGroupsScreen = () => {
       }}
     >
       <View style={styles.modalOverlay}>
-        <Animated.View style={[styles.filterModalContent, { transform: [{ scale: scaleAnim }] }]}>
+        <Animated.View style={[styles.filterModalContent,{ transform: [{ scale: scaleAnim }] }]}>
           <View style={styles.modalHandle} />
 
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filter Groups</Text>
+            <Text style={styles.modalTitle}>Filter your group</Text>
             <TouchableOpacity
               onPress={() => {
                 setShowFilterModal(false)
@@ -422,21 +501,35 @@ const MyGroupsScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {/* Status Filter */}
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false} >
+            {/* Date Range Section */}
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Status</Text>
-              <View style={styles.filterOptions}>
+              <Text style={styles.filterSectionTitle}>Date Range</Text>
+              <View style={styles.dateRangeContainer}>
+                <TouchableOpacity style={styles.dateButton} onPress={() => setShowCustomStartDatePicker(true)}>
+                  <Ionicons name="calendar-outline" size={16} color="#3B82F6" />
+                  <Text style={styles.dateButtonText}>{formatDisplayDate(tempFilters.startDate)}</Text>
+                </TouchableOpacity>
+                <Text style={styles.dateRangeSeparator}>to</Text>
+                <TouchableOpacity style={styles.dateButton} onPress={() => setShowCustomEndDatePicker(true)}>
+                  <Ionicons name="calendar-outline" size={16} color="#3B82F6" />
+                  <Text style={styles.dateButtonText}>{formatDisplayDate(tempFilters.endDate)}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Status Section */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Group Status</Text>
+              <View style={styles.statusOptions}>
                 {[
-                  { key: "all", label: "All Status", icon: "apps", color: "#6B7280" },
-                  { key: "active", label: "Active", icon: "checkmark-circle", color: "#22C55E" },
-                  { key: "pending", label: "Pending", icon: "time", color: "#F59E0B" },
-                  { key: "inactive", label: "Inactive", icon: "pause-circle", color: "#EF4444" },
+                  { key: "private",label: "Private",icon: "lock-closed",color: "#A855F7" },
+                  { key: "public",label: "Public",icon: "globe",color: "#3B82F6" },
                 ].map((status) => (
                   <TouchableOpacity
                     key={status.key}
-                    style={[styles.filterOption, tempFilters.status === status.key && styles.selectedFilterOption]}
-                    onPress={() => setTempFilters({ ...tempFilters, status: status.key })}
+                    style={[styles.statusOption,tempFilters.status === status.key && styles.selectedStatusOption]}
+                    onPress={() => setTempFilters({ ...tempFilters,status: status.key })}
                   >
                     <Ionicons
                       name={status.icon}
@@ -445,8 +538,8 @@ const MyGroupsScreen = () => {
                     />
                     <Text
                       style={[
-                        styles.filterOptionText,
-                        tempFilters.status === status.key && styles.selectedFilterOptionText,
+                        styles.statusOptionText,
+                        tempFilters.status === status.key && styles.selectedStatusOptionText,
                       ]}
                     >
                       {status.label}
@@ -456,65 +549,23 @@ const MyGroupsScreen = () => {
               </View>
             </View>
 
-            {/* Privacy Filter */}
+            {/* Page Size Section */}
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Privacy</Text>
-              <View style={styles.filterOptions}>
-                {[
-                  { key: "all", label: "All Types", icon: "apps", color: "#6B7280" },
-                  { key: "public", label: "Public", icon: "globe", color: "#3B82F6" },
-                  { key: "private", label: "Private", icon: "lock-closed", color: "#A855F7" },
-                ].map((privacy) => (
+              <Text style={styles.filterSectionTitle}>Items per Page</Text>
+              <View style={styles.pageSizeOptions}>
+                {[5,10,20,50].map((size) => (
                   <TouchableOpacity
-                    key={privacy.key}
-                    style={[styles.filterOption, tempFilters.privacy === privacy.key && styles.selectedFilterOption]}
-                    onPress={() => setTempFilters({ ...tempFilters, privacy: privacy.key })}
+                    key={size}
+                    style={[styles.pageSizeOption,tempFilters.validPageSize === size && styles.selectedPageSizeOption]}
+                    onPress={() => setTempFilters({ ...tempFilters,validPageSize: size })}
                   >
-                    <Ionicons
-                      name={privacy.icon}
-                      size={18}
-                      color={tempFilters.privacy === privacy.key ? "#FFFFFF" : privacy.color}
-                    />
                     <Text
                       style={[
-                        styles.filterOptionText,
-                        tempFilters.privacy === privacy.key && styles.selectedFilterOptionText,
+                        styles.pageSizeOptionText,
+                        tempFilters.validPageSize === size && styles.selectedPageSizeOptionText,
                       ]}
                     >
-                      {privacy.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Sort By */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Sort By</Text>
-              <View style={styles.filterOptions}>
-                {[
-                  { key: "newest", label: "Newest First", icon: "time", color: "#3B82F6" },
-                  { key: "oldest", label: "Oldest First", icon: "time-outline", color: "#6B7280" },
-                  { key: "name", label: "Name A-Z", icon: "text", color: "#8B5CF6" },
-                  { key: "members", label: "Most Members", icon: "people", color: "#22C55E" },
-                ].map((sort) => (
-                  <TouchableOpacity
-                    key={sort.key}
-                    style={[styles.filterOption, tempFilters.sortBy === sort.key && styles.selectedFilterOption]}
-                    onPress={() => setTempFilters({ ...tempFilters, sortBy: sort.key })}
-                  >
-                    <Ionicons
-                      name={sort.icon}
-                      size={18}
-                      color={tempFilters.sortBy === sort.key ? "#FFFFFF" : sort.color}
-                    />
-                    <Text
-                      style={[
-                        styles.filterOptionText,
-                        tempFilters.sortBy === sort.key && styles.selectedFilterOptionText,
-                      ]}
-                    >
-                      {sort.label}
+                      {size}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -534,44 +585,90 @@ const MyGroupsScreen = () => {
           </View>
         </Animated.View>
       </View>
+
+      {/* Date Picker Modals */}
+      {showCustomStartDatePicker && (
+        <Modal visible={showCustomStartDatePicker} transparent={true} animationType="fade">
+          <View style={styles.datePickerOverlay}>
+            <View style={styles.datePickerContainer}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select Start Date</Text>
+                <TouchableOpacity onPress={() => setShowCustomStartDatePicker(false)}>
+                  <Ionicons name="close" size={24} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={tempFilters.startDate || new Date()}
+                mode="date"
+                display="spinner"
+                onChange={(event,selectedDate) => {
+                  if (selectedDate) {
+                    setTempFilters({ ...tempFilters,startDate: selectedDate })
+                  }
+                }}
+              />
+              <TouchableOpacity style={styles.datePickerConfirm} onPress={() => setShowCustomStartDatePicker(false)}>
+                <Text style={styles.datePickerConfirmText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {showCustomEndDatePicker && (
+        <Modal visible={showCustomEndDatePicker} transparent={true} animationType="fade">
+          <View style={styles.datePickerOverlay}>
+            <View style={styles.datePickerContainer}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select End Date</Text>
+                <TouchableOpacity onPress={() => setShowCustomEndDatePicker(false)}>
+                  <Ionicons name="close" size={24} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={tempFilters.endDate || new Date()}
+                mode="date"
+                display="spinner"
+                onChange={(event,selectedDate) => {
+                  if (selectedDate) {
+                    setTempFilters({ ...tempFilters,endDate: selectedDate })
+                  }
+                }}
+              />
+              <TouchableOpacity style={styles.datePickerConfirm} onPress={() => setShowCustomEndDatePicker(false)}>
+                <Text style={styles.datePickerConfirmText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </Modal>
   )
 
-  if (loading) {
-    return (
-      <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FFFFFF" />
-          <Text style={styles.loadingText}>Loading your groups...</Text>
-        </View>
-      </LinearGradient>
-    )
-  }
-
   return (
     <SafeAreaView style={styles.container}>
+      <DynamicStatusBar backgroundColor="#3B82F6" />
+
       {/* Header */}
-      <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
+      <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color="#0056d2" />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>My Groups</Text>
-            <Text style={styles.headerSubtitle}>
-              {filteredGroups.length > 0 ? `${filteredGroups.length} groups found` : "Manage your communities"}
-            </Text>
+            <Text style={styles.headerTitle}>Your groups</Text>
           </View>
-
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-            <Ionicons name="options-outline" size={24} color="#FFFFFF" />
-            {(searchTerm || filters.status !== "all" || filters.privacy !== "all" || filters.sortBy !== "newest") && (
-              <View style={styles.filterBadge} />
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row',alignItems: 'center' }}>
+            <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
+              <Ionicons name="options-outline" size={24} color="#0056d2" />
+              {(searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) && (
+                <View style={styles.filterBadge} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </LinearGradient>
+      </View>
 
       {/* Search Bar */}
       <Animated.View
@@ -587,7 +684,7 @@ const MyGroupsScreen = () => {
           <Ionicons name="search" size={20} color="#64748B" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search your groups..."
+            placeholder="Search health your groups..."
             value={searchTerm}
             onChangeText={handleSearch}
             placeholderTextColor="#94A3B8"
@@ -601,26 +698,34 @@ const MyGroupsScreen = () => {
       </Animated.View>
 
       {/* Content */}
-      <FlatList
-        data={filteredGroups}
-        keyExtractor={(item) => item.groupId?.toString() || Math.random().toString()}
-        renderItem={renderGroupCard}
-        ListHeaderComponent={renderCreateGroupHeader}
-        ListEmptyComponent={renderEmpty}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true)
-              fetchGroups()
-            }}
-            colors={["#3B82F6"]}
-            tintColor="#3B82F6"
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      {loading && pageNumber === 1 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Loading your groups...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={groups}
+          onEndReached={loadMoreGroups}
+          ListFooterComponent={
+            loading && pageNumber > 1 ? (
+              <View style={{ padding: 20,alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+              </View>
+            ) : null
+          }
+          onEndReachedThreshold={0.2}
+          keyExtractor={(item,index) => item.groupId ? item.groupId.toString() : `group-${index}`}
+          renderItem={renderGroup}
+          ListHeaderComponent={renderCreateGroupHeader}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#3B82F6"]} tintColor="#3B82F6" />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {renderFilterModal()}
     </SafeAreaView>
@@ -633,7 +738,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
   },
   header: {
-    paddingTop: Platform.OS === "android" ? 15 : 15,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 10,
     paddingBottom: 15,
     paddingHorizontal: 20,
   },
@@ -643,12 +748,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   backButton: {
-    width: 40,
-    height: 40,
+    padding: 8,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+  },
+  filterButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
   },
   headerCenter: {
     flex: 1,
@@ -658,8 +765,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#FFFFFF",
-    textAlign: "center",
+    color: "#1E293B",
   },
   headerSubtitle: {
     fontSize: 14,
@@ -714,13 +820,13 @@ const styles = StyleSheet.create({
   createGroupSection: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 10,
+    paddingBottom: 20,
   },
   createGroupCard: {
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -763,10 +869,11 @@ const styles = StyleSheet.create({
   createGroupButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4F46E5",
+    color: "#0056d2",
   },
   listContainer: {
-    paddingBottom: 20,
+    paddingBottom: 50,
+    marginBottom: 30
   },
   groupCard: {
     marginHorizontal: 20,
@@ -774,7 +881,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
@@ -798,9 +905,9 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   groupAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: "#F1F5F9",
   },
   privateBadge: {
@@ -810,7 +917,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "#A855F7",
+    backgroundColor: "#0056d2",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -821,11 +928,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#1E293B",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   statsRow: {
-    flexDirection: "column",
-    gap: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
   },
   memberStat: {
     flexDirection: "row",
@@ -837,85 +945,115 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontWeight: "500",
   },
-  dateStat: {
+  statusIndicator: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
   },
-  dateText: {
-    fontSize: 13,
-    color: "#64748B",
-    fontWeight: "400",
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "500",
   },
   headerRight: {
     marginLeft: 15,
   },
-  statusBadge: {
+  ownerSection: {
+    alignItems: "center",
+  },
+  ownerBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: "#8B5CF6",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 12,
     gap: 4,
   },
-  statusText: {
+  ownerBadgeText: {
     fontSize: 12,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  joinBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  joinButton: {
+    backgroundColor: "#22C55E",
+  },
+  joinedButton: {
+    backgroundColor: "#059669",
+  },
+  pendingButton: {
+    backgroundColor: "#F59E0B",
+  },
+  joinBtnText: {
+    fontSize: 12,
+    color: "#FFFFFF",
     fontWeight: "600",
   },
   descriptionSection: {
     marginBottom: 15,
-  },
-  description: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 20,
   },
   cardFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  footerLeft: {
-    flex: 1,
-  },
-  privacyBadge: {
+  categoryBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#DBEAFE",
+    backgroundColor: "#0056D2",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
     gap: 5,
-    alignSelf: "flex-start",
   },
-  privacyText: {
+  categoryText: {
     fontSize: 12,
-    color: "#3B82F6",
+    color: "#fff",
     fontWeight: "600",
   },
-  footerRight: {
+  ownerActions: {
     flexDirection: "row",
     gap: 10,
   },
-  actionButton: {
+  editBtn: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#DBEAFE",
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 8,
     gap: 4,
   },
-  actionButtonText: {
+  editBtnText: {
     fontSize: 12,
     color: "#3B82F6",
     fontWeight: "600",
   },
-  deleteButton: {
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#FEE2E2",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
   },
-  deleteButtonText: {
+  deleteBtnText: {
+    fontSize: 12,
     color: "#EF4444",
+    fontWeight: "600",
   },
   loadingContainer: {
     flex: 1,
@@ -925,7 +1063,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: "#3B82F6",
     marginTop: 15,
     fontWeight: "500",
   },
@@ -978,11 +1116,11 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   filterModalContent: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: "80%",
-    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    height: "60%",
   },
   modalHandle: {
     width: 40,
@@ -1028,10 +1166,41 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     marginBottom: 12,
   },
-  filterOptions: {
+  dateRangeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  dateButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     gap: 8,
   },
-  filterOption: {
+  dateButtonText: {
+    fontSize: 14,
+    color: "#1E293B",
+    flex: 1,
+  },
+  dateRangeSeparator: {
+    fontSize: 14,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  statusOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  statusOption: {
+    flex: 1,
+    minWidth: "45%",
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
@@ -1039,21 +1208,47 @@ const styles = StyleSheet.create({
     padding: 15,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    gap: 12,
+    gap: 10,
   },
-  selectedFilterOption: {
+  selectedStatusOption: {
     backgroundColor: "#3B82F6",
     borderColor: "#3B82F6",
   },
-  filterOptionText: {
+  statusOptionText: {
     fontSize: 14,
     color: "#64748B",
     fontWeight: "500",
-    flex: 1,
   },
-  selectedFilterOptionText: {
+  selectedStatusOptionText: {
     color: "#FFFFFF",
     fontWeight: "600",
+  },
+  pageSizeOptions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  pageSizeOption: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    padding: 15,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    minHeight: 50,
+    justifyContent: "center",
+  },
+  selectedPageSizeOption: {
+    backgroundColor: "#3B82F6",
+    borderColor: "#3B82F6",
+  },
+  pageSizeOptionText: {
+    fontSize: 16,
+    color: "#1E293B",
+    fontWeight: "700",
+  },
+  selectedPageSizeOptionText: {
+    color: "#FFFFFF",
   },
   modalActions: {
     flexDirection: "row",
@@ -1089,6 +1284,43 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   applyButtonText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  datePickerContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    width: "100%",
+    maxWidth: 350,
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  datePickerConfirm: {
+    backgroundColor: "#3B82F6",
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  datePickerConfirmText: {
     fontSize: 16,
     color: "#FFFFFF",
     fontWeight: "600",

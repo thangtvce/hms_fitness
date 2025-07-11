@@ -1,4 +1,3 @@
-"use client"
 
 import { useState, useEffect, useRef } from "react"
 import {
@@ -17,7 +16,7 @@ import {
   Animated,
   TextInput,
 } from "react-native"
-import Icon from "react-native-vector-icons/MaterialIcons"
+import MaterialIcons from "react-native-vector-icons/MaterialIcons"
 import IconCommunity from "react-native-vector-icons/MaterialCommunityIcons"
 import IconFeather from "react-native-vector-icons/Feather"
 import IconAntDesign from "react-native-vector-icons/AntDesign"
@@ -34,6 +33,7 @@ import RenderHtml from "react-native-render-html"
 import { StatusBar } from "expo-status-bar"
 import { addFoodToLog } from "utils/foodLogStorage"
 import dayjs from "dayjs"
+import Header from "components/Header";
 
 const { width, height } = Dimensions.get("window")
 const SPACING = 16
@@ -251,6 +251,7 @@ const FoodDetailsScreen = () => {
         satisfactionRating: 1,
         notes: "",
         consumptionDate: today,
+        image: food.image || food.foodImage || food.imageUrl || '',
       }
       await addFoodToLog(today, mealType, logData)
       Alert.alert("Success", `Added ${food.foodName} to ${mealType} log with ${parsedServingSize} serving(s)!`)
@@ -437,8 +438,8 @@ const FoodDetailsScreen = () => {
   }
 
   const renderCertificationBadge = ({ item }) => (
-    <View style={[styles.certificationBadge, { borderColor: item.color }]}>
-      <Icon name={item.icon} size={16} color={item.color} />
+    <View style={[styles.certificationBadge, { borderColor: item.color }]}> 
+      <MaterialIcons name={item.icon} size={16} color={item.color} />
       <Text style={[styles.certificationText, { color: item.color }]}>{item.name}</Text>
     </View>
   )
@@ -451,11 +452,11 @@ const FoodDetailsScreen = () => {
         <Text style={styles.relatedFoodName}>{item.foodName}</Text>
         <View style={styles.relatedFoodNutrition}>
           <View style={styles.relatedNutritionItem}>
-            <Icon name="local-fire-department" size={14} color="#FF6B35" />
+            <MaterialIcons name="local-fire-department" size={14} color="#FF6B35" />
             <Text style={styles.relatedNutritionText}>{item.calories} kcal</Text>
           </View>
           <View style={styles.relatedNutritionItem}>
-            <Icon name="fitness-center" size={14} color="#5E72E4" />
+            <MaterialIcons name="fitness-center" size={14} color="#5E72E4" />
             <Text style={styles.relatedNutritionText}>{item.protein}g</Text>
           </View>
         </View>
@@ -478,7 +479,7 @@ const FoodDetailsScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyStateContainer}>
-      <Icon name="restaurant" size={48} color="#8898AA" />
+      <MaterialIcons name="restaurant" size={48} color="#8898AA" />
       <Text style={styles.emptyStateTitle}>No Related Foods</Text>
       <Text style={styles.emptyStateSubtitle}>We couldn't find any related foods at the moment.</Text>
     </View>
@@ -618,153 +619,102 @@ const FoodDetailsScreen = () => {
 
     return (
       <Modal visible={inputModalVisible} transparent animationType="none" onRequestClose={handleInputModalCancel}>
-        <Animated.View style={[styles.enhancedModalOverlay, { opacity: modalOpacity }]}>
+        <Animated.View style={[styles.enhancedModalOverlay, { opacity: modalOpacity }]}> 
           <Animated.View
-            style={[
-              styles.enhancedModalContainer,
-              {
-                transform: [{ scale: modalScale }],
-                opacity: modalOpacity,
-              },
-            ]}
+            style={[styles.enhancedModalContainer, { transform: [{ scale: modalScale }], opacity: modalOpacity }]}
           >
-            <LinearGradient colors={["#4F46E5", "#6366F1"]} style={styles.enhancedModalHeader}>
-              <View style={styles.modalHeaderContent}>
-                <View style={styles.modalIconContainer}>
-                  <Ionicons name="restaurant" size={24} color="#FFFFFF" />
+            {/* Modal Header */}
+            <View style={{ backgroundColor: '#0056d2', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingVertical: 18, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}> 
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <View style={{ backgroundColor: '#fff', borderRadius: 20, marginRight: 12, padding: 6 }}> 
+                  <Ionicons name="restaurant" size={22} color="#0056d2" />
                 </View>
-                <View style={styles.modalHeaderText}>
-                  <Text style={styles.enhancedModalTitle}>Add Food Details</Text>
-                  <Text style={styles.enhancedModalSubtitle}>
+                <View>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#fff', letterSpacing: 0.2 }}>Add Food Details</Text>
+                  <Text style={{ fontSize: 13, color: '#eaf1fb', marginTop: 2, fontWeight: '500' }}>
                     {food?.foodName} → {mealType}
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.modalCloseButton} onPress={handleInputModalCancel}>
-                  <Ionicons name="close" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
               </View>
-            </LinearGradient>
-
-            <View style={styles.enhancedModalContentWrapper}>
-              <ScrollView
-                style={styles.enhancedModalContent}
-                contentContainerStyle={styles.enhancedModalContentContainer}
-                showsVerticalScrollIndicator={false}
-                bounces={true}
-              >
-                <View style={styles.foodInfoCard}>
-                  <Image
-                    source={{
-                      uri:
-                        food?.image ||
-                        `https://source.unsplash.com/400x250/?food,${food?.foodName?.replace(/\s/g, "") || "food"}`,
-                    }}
-                    style={styles.modalFoodImage}
-                  />
-                  <View style={styles.foodInfoContent}>
-                    <Text style={styles.modalFoodName}>{food?.foodName}</Text>
-                    <View style={styles.foodNutritionRow}>
-                      <View style={styles.nutritionItem}>
-                        <Ionicons name="flame" size={16} color="#EF4444" />
-                        <Text style={styles.nutritionText}>{food?.calories || 0} kcal</Text>
-                      </View>
-                      <View style={styles.nutritionItem}>
-                        <Ionicons name="fitness" size={16} color="#10B981" />
-                        <Text style={styles.nutritionText}>{food?.protein || 0}g protein</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.inputFieldsContainer}>
-                  <View style={styles.inputGroup}>
-                    <View style={styles.inputLabelContainer}>
-                      <Ionicons name="layers-outline" size={20} color="#4F46E5" />
-                      <Text style={styles.inputLabel}>Portion Size</Text>
-                    </View>
-                    <Text style={styles.inputDescription}>Number of portions (1-{MAX_PORTION})</Text>
-                    <View style={styles.inputContainer}>
-                      <TextInput
-                        style={styles.enhancedInput}
-                        placeholder="1"
-                        keyboardType="numeric"
-                        value={inputValues.portionSize}
-                        onChangeText={(text) => setInputValues((prev) => ({ ...prev, portionSize: text }))}
-                        placeholderTextColor="#9CA3AF"
-                      />
-                      <View style={styles.inputUnit}>
-                        <Text style={styles.inputUnitText}>portions</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <View style={styles.inputLabelContainer}>
-                      <Ionicons name="scale-outline" size={20} color="#10B981" />
-                      <Text style={styles.inputLabel}>Serving Size</Text>
-                    </View>
-                    <Text style={styles.inputDescription}>Weight or units (1-{MAX_SERVING}g)</Text>
-                    <View style={styles.inputContainer}>
-                      <TextInput
-                        style={styles.enhancedInput}
-                        placeholder="1"
-                        keyboardType="numeric"
-                        value={inputValues.servingSize}
-                        onChangeText={(text) => setInputValues((prev) => ({ ...prev, servingSize: text }))}
-                        placeholderTextColor="#9CA3AF"
-                      />
-                      <View style={styles.inputUnit}>
-                        <Text style={styles.inputUnitText}>grams</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.calculatedNutrition}>
-                    <Text style={styles.calculatedTitle}>Calculated Nutrition</Text>
-                    <View style={styles.nutritionGrid}>
-                      <View style={styles.nutritionCard}>
-                        <Ionicons name="flame" size={20} color="#EF4444" />
-                        <Text style={styles.nutritionValue}>
-                          {Math.round((food?.calories || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}
-                        </Text>
-                        <Text style={styles.nutritionLabel}>Calories</Text>
-                      </View>
-                      <View style={styles.nutritionCard}>
-                        <Ionicons name="fitness" size={20} color="#10B981" />
-                        <Text style={styles.nutritionValue}>
-                          {Math.round((food?.protein || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
-                        </Text>
-                        <Text style={styles.nutritionLabel}>Protein</Text>
-                      </View>
-                      <View style={styles.nutritionCard}>
-                        <Ionicons name="nutrition" size={20} color="#3B82F6" />
-                        <Text style={styles.nutritionValue}>
-                          {Math.round((food?.carbs || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
-                        </Text>
-                        <Text style={styles.nutritionLabel}>Carbs</Text>
-                      </View>
-                      <View style={styles.nutritionCard}>
-                        <Ionicons name="water" size={20} color="#F59E0B" />
-                        <Text style={styles.nutritionValue}>
-                          {Math.round((food?.fats || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
-                        </Text>
-                        <Text style={styles.nutritionLabel}>Fats</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              </ScrollView>
+              <TouchableOpacity style={{ padding: 6 }} onPress={handleInputModalCancel}>
+                <Ionicons name="close" size={22} color="#fff" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.enhancedModalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={handleInputModalCancel}>
-                <Ionicons name="close-circle-outline" size={20} color="#6B7280" />
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+            {/* Food Image Preview + Input Fields */}
+            <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 0 }}>
+              <Image
+                source={{ uri: food?.image || food?.foodImage || food?.imageUrl || 'https://via.placeholder.com/80x80' }}
+                style={{ width: 80, height: 80, borderRadius: 16, marginBottom: 8, backgroundColor: '#eaf1fb' }}
+              />
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0056d2', marginBottom: 2 }}>{food?.foodName}</Text>
+              {/* Input Fields */}
+              <View style={{ width: '100%', paddingHorizontal: 20, marginTop: 10 }}>
+                {/* Portion Size */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 14, color: '#1F2937', fontWeight: '600', marginBottom: 6 }}>Portion Size</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 0, borderColor: 'transparent', borderRadius: 12, backgroundColor: '#F8FAFC', padding: 6 }}>
+                    <TextInput
+                      style={{ flex: 1, height: 44, borderWidth: 0, borderColor: 'transparent', borderRadius: 12, fontSize: 16, fontWeight: '600', color: '#1F2937', backgroundColor: '#fff', paddingHorizontal: 12 }}
+                      placeholder="1"
+                      keyboardType="numeric"
+                      value={inputValues.portionSize}
+                      onChangeText={(text) => setInputValues((prev) => ({ ...prev, portionSize: text }))}
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <Text style={{ fontSize: 13, color: '#64748B', marginLeft: 8 }}>portions</Text>
+                  </View>
+                </View>
 
-              <TouchableOpacity style={styles.confirmButton} onPress={handleInputModalOk}>
-                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                <Text style={styles.confirmButtonText}>Add to {mealType}</Text>
+                {/* Serving Size */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 14, color: '#1F2937', fontWeight: '600', marginBottom: 6 }}>Serving Size</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 0, borderColor: 'transparent', borderRadius: 12, backgroundColor: '#F8FAFC', padding: 6 }}>
+                    <TextInput
+                      style={{ flex: 1, height: 44, borderWidth: 0, borderColor: 'transparent', borderRadius: 12, fontSize: 16, fontWeight: '600', color: '#1F2937', backgroundColor: '#fff', paddingHorizontal: 12 }}
+                      placeholder="1"
+                      keyboardType="numeric"
+                      value={inputValues.servingSize}
+                      onChangeText={(text) => setInputValues((prev) => ({ ...prev, servingSize: text }))}
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <Text style={{ fontSize: 13, color: '#64748B', marginLeft: 8 }}>grams</Text>
+                  </View>
+                </View>
+
+                {/* Calculated Nutrition */}
+                <View style={{ marginBottom: 0 }}>
+                  <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '600', marginBottom: 8 }}>Calculated Nutrition</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                    <View style={{ alignItems: 'center', flex: 1, backgroundColor: '#fff', borderRadius: 8, padding: 8, marginHorizontal: 2 }}>
+                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>{Math.round((food?.calories || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}</Text>
+                      <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>Calories</Text>
+                    </View>
+                    <View style={{ alignItems: 'center', flex: 1, backgroundColor: '#fff', borderRadius: 8, padding: 8, marginHorizontal: 2 }}>
+                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>{Math.round((food?.protein || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g</Text>
+                      <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>Protein</Text>
+                    </View>
+                    <View style={{ alignItems: 'center', flex: 1, backgroundColor: '#fff', borderRadius: 8, padding: 8, marginHorizontal: 2 }}>
+                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>{Math.round((food?.carbs || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g</Text>
+                      <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>Carbs</Text>
+                    </View>
+                    <View style={{ alignItems: 'center', flex: 1, backgroundColor: '#fff', borderRadius: 8, padding: 8, marginHorizontal: 2 }}>
+                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>{Math.round((food?.fats || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g</Text>
+                      <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>Fats</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Modal Actions */}
+            <View style={{ flexDirection: 'row', gap: 12, padding: 20, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
+              <TouchableOpacity style={{ flex: 1, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', backgroundColor: '#F9FAFB' }} onPress={handleInputModalCancel}>
+                <Text style={{ fontSize: 16, color: '#64748B', fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 12, backgroundColor: '#0056d2' }} onPress={handleInputModalOk}>
+                <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                <Text style={{ fontSize: 16, color: '#fff', fontWeight: '600', marginLeft: 6 }}>Add to {mealType}</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -954,32 +904,25 @@ const FoodDetailsScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#374151" />
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Food Details</Text>
-            <Text style={styles.headerSubtitle}>Nutrition information</Text>
-          </View>
-          <TouchableOpacity style={styles.favoriteButton} onPress={toggleFavorite}>
-            <Icon
-              name={isFavorite ? "favorite" : "favorite-border"}
-              size={24}
-              color={isFavorite ? "#EF4444" : "#6B7280"}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Food Details"
+        subtitle="Nutrition information"
+        onBack={() => navigation.goBack()}
+        rightActions={[{
+          icon: isFavorite
+            ? <MaterialIcons name="favorite" size={24} color="#EF4444" />
+            : <MaterialIcons name="favorite-border" size={24} color="#6B7280" />,
+          onPress: toggleFavorite
+        }]}
+      />
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.imageContainer}>
-          <Image source={{ uri: food.image }} style={styles.heroImage} resizeMode="cover" />
-          <View style={styles.trustBadge}>
-            <Icon name="verified" size={16} color="#10B981" />
-            <Text style={styles.trustBadgeText}>Verified</Text>
-          </View>
+      <Image source={{ uri: food.image }} style={styles.heroImage} resizeMode="cover" />
+      <View style={styles.trustBadge}>
+        <MaterialIcons name="verified" size={16} color="#10B981" />
+        <Text style={styles.trustBadgeText}>Verified</Text>
+      </View>
         </View>
 
         <View style={styles.contentContainer}>
@@ -993,23 +936,13 @@ const FoodDetailsScreen = () => {
             </View>
           </View>
 
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Standards</Text>
-            <FlatList
-              data={certifications}
-              renderItem={renderCertificationBadge}
-              keyExtractor={(item) => item.name}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.certificationsContainer}
-            />
-          </View>
+        
 
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Nutrition Facts</Text>
               <View style={styles.verifiedBadge}>
-                <Icon name="verified" size={14} color="#10B981" />
+                <MaterialIcons name="verified" size={14} color="#10B981" />
                 <Text style={styles.verifiedText}>Lab Tested</Text>
               </View>
             </View>
@@ -1017,7 +950,7 @@ const FoodDetailsScreen = () => {
               {nutritionItems.map((item, index) => (
                 <View style={styles.nutritionItem} key={`nutrition-${index}`}>
                   <View style={styles.nutritionIconContainer}>
-                    <Icon name={item.icon} size={24} color="#374151" />
+                    <MaterialIcons name={item.icon} size={24} color="#374151" />
                   </View>
                   <Text style={styles.nutritionValue}>{item.value}</Text>
                   <Text style={styles.nutritionName}>{item.name}</Text>
@@ -1031,19 +964,7 @@ const FoodDetailsScreen = () => {
             <View style={styles.descriptionContainer}>{renderDescription()}</View>
           </View>
 
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Ingredients</Text>
-            <View style={styles.ingredientsList}>
-              {(food.ingredients || ["Organic Ingredient 1", "Natural Ingredient 2", "Vitamin-rich Ingredient 3"]).map(
-                (ingredient, index) => (
-                  <View style={styles.ingredientItem} key={`ingredient-${index}`}>
-                    <Icon name="check-circle" size={16} color="#10B981" />
-                    <Text style={styles.ingredientText}>{ingredient}</Text>
-                  </View>
-                ),
-              )}
-            </View>
-          </View>
+      
 
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Related Foods</Text>
@@ -1054,12 +975,7 @@ const FoodDetailsScreen = () => {
           <View style={styles.sectionContainer}>
             <View style={styles.reviewsHeader}>
               <Text style={styles.sectionTitle}>User Reviews</Text>
-              <TouchableOpacity style={styles.addReviewButton} onPress={handleOpenRating}>
-                <IconFeather name="plus" size={16} color="#FFFFFF" />
-                <Text style={styles.addReviewText}>
-                  {foodReviews.find((r) => r.userId === "current_user_id") ? "Edit Review" : "Add Review"}
-                </Text>
-              </TouchableOpacity>
+             
             </View>
 
             {/* Rating Statistics */}
@@ -1115,9 +1031,9 @@ const FoodDetailsScreen = () => {
                         {userNamesMap[review.userId + "_avatar"] ? (
                           <Image source={{ uri: userNamesMap[review.userId + "_avatar"] }} style={styles.userAvatar} />
                         ) : (
-                          <View style={styles.defaultAvatar}>
-                            <Icon name="person" size={16} color="#6B7280" />
-                          </View>
+                        <View style={styles.defaultAvatar}>
+                          <MaterialIcons name="person" size={16} color="#6B7280" />
+                        </View>
                         )}
                         <View style={styles.userDetails}>
                           <Text style={styles.userName}>
@@ -1163,9 +1079,9 @@ const FoodDetailsScreen = () => {
             <Text style={styles.priceValue}>HMS Team</Text>
           </View>
           <TouchableOpacity style={styles.addToCartButton} onPress={handleAddFoodToMeal}>
-            <View style={styles.gradientButton}>
-              <Icon name="add-shopping-cart" size={22} color="#FFFFFF" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>Add to Meal Plan</Text>
+            <View style={[styles.gradientButton, { backgroundColor: '#0056d2' }]}> 
+              <MaterialIcons name="add-shopping-cart" size={22} color="#FFFFFF" style={styles.buttonIcon} />
+              <Text style={[styles.buttonText, { color: '#fff' }]}>Add to Meal Plan</Text>
             </View>
           </TouchableOpacity>
         </View>

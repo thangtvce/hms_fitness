@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '@env';
@@ -37,8 +38,6 @@ apiClient.interceptors.response.use(
     const message = errorResponse.message || 'An unexpected error occurred';
     const devMessage = errorResponse.devMessage || error.message;
 
-   
-
     if (status === 401) {
       throw new Error(message || 'Unauthorized access');
     }
@@ -48,10 +47,28 @@ apiClient.interceptors.response.use(
 );
 
 export const workoutService = {
-
-  async getAllActiveActivities({ pageNumber = 1,pageSize = 10 } = {}) {
+  async getExercisesByCategory(categoryId, queryParams = {}) {
+    if (!categoryId || categoryId <= 0) throw new Error('Valid category id is required.');
     try {
-      const response = await apiClient.get('/UserActivity/all-active-activities',{
+      const response = await apiClient.get(`/FitnessExercise/category/${categoryId}`, {
+        params: {
+          PageNumber: queryParams.PageNumber,
+          PageSize: queryParams.PageSize,
+          StartDate: queryParams.StartDate,
+          EndDate: queryParams.EndDate,
+          ValidPageSize: queryParams.ValidPageSize,
+          SearchTerm: queryParams.SearchTerm,
+          Status: queryParams.Status,
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to fetch exercises by category');
+    }
+  },
+  async getAllActiveActivities({ pageNumber = 1, pageSize = 10 } = {}) {
+    try {
+      const response = await apiClient.get('/UserActivity/all-active-activities', {
         params: {
           pageNumber,
           pageSize,
@@ -63,10 +80,9 @@ export const workoutService = {
     }
   },
 
-
   async getAllExercises(queryParams) {
     try {
-      const response = await apiClient.get('/FitnessExercise',{
+      const response = await apiClient.get('/FitnessExercise', {
         params: {
           PageNumber: queryParams.PageNumber,
           pageSize: queryParams.PageSize,
@@ -80,10 +96,9 @@ export const workoutService = {
     }
   },
 
-
-  async getAllActiveCategories({ pageNumber = 1,pageSize = 10 } = {}) {
+  async getAllActiveCategories({ pageNumber = 1, pageSize = 10 } = {}) {
     try {
-      const response = await apiClient.get('/ExerciseCategory/all-active-categories',{
+      const response = await apiClient.get('/ExerciseCategory/all-active-categories', {
         params: {
           pageNumber,
           pageSize,
@@ -94,19 +109,19 @@ export const workoutService = {
       throw new Error(error.message || 'Failed to fetch categories');
     }
   },
+
   async getAllCategories() {
     try {
-      const response = await apiClient.get('ExerciseCategory/all-active-categories');
-
+      const response = await apiClient.get('/ExerciseCategory/all-active-categories');
       return response.data.data.categories;
     } catch (error) {
       throw new Error(error.message || 'Failed to fetch categories');
     }
   },
 
-  async getAllActiveActivityTypes({ pageNumber = 1,pageSize = 10 } = {}) {
+  async getAllActiveActivityTypes({ pageNumber = 1, pageSize = 10 } = {}) {
     try {
-      const response = await apiClient.get('/ActivityType/all-active-types',{
+      const response = await apiClient.get('/ActivityType/all-active-types', {
         params: {
           pageNumber,
           pageSize,
@@ -117,7 +132,25 @@ export const workoutService = {
       throw new Error(error.message || 'Failed to fetch activity types');
     }
   },
-
+  async getExercisesByCategory(categoryId, queryParams = {}) {
+    if (!categoryId || categoryId <= 0) throw new Error('Valid category id is required.');
+    try {
+      const response = await apiClient.get(`/FitnessExercise/category/${categoryId}`, {
+        params: {
+          PageNumber: queryParams.PageNumber,
+          PageSize: queryParams.PageSize,
+          StartDate: queryParams.StartDate,
+          EndDate: queryParams.EndDate,
+          ValidPageSize: queryParams.ValidPageSize,
+          SearchTerm: queryParams.SearchTerm,
+          Status: queryParams.Status,
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to fetch exercises by category');
+    }
+  },
   async getMyActivities({ pageNumber = 1, pageSize = 10, ...restParams } = {}) {
     try {
       const response = await apiClient.get('/UserActivity/me', {
@@ -134,7 +167,6 @@ export const workoutService = {
   },
 
   async createActivity(activity) {
-    // Ensure required fields and validation
     if (!activity || typeof activity !== 'object') {
       throw new Error('Activity payload is required');
     }
@@ -144,7 +176,6 @@ export const workoutService = {
     if (!activity.ActivityType) {
       throw new Error('ActivityType is required');
     }
-    // At least one metric must be present
     if (
       !activity.Steps &&
       !activity.DistanceKm &&
@@ -166,7 +197,6 @@ export const workoutService = {
     if (!Array.isArray(activities) || activities.length === 0) {
       throw new Error('Activity list cannot be empty.');
     }
-    // Validate each activity
     for (const activity of activities) {
       if (!activity.UserId) throw new Error('UserId is required for all activities.');
       if (!activity.ActivityType) throw new Error('ActivityType is required for all activities.');
@@ -221,7 +251,6 @@ export const workoutService = {
   },
 
   async getMyActivityStatistics(params = {}) {
-    // params: { StartDate, EndDate, ... }
     if (
       params.StartDate &&
       params.EndDate &&
@@ -237,7 +266,6 @@ export const workoutService = {
     }
   },
 
-  // Workout Session Log Services
   async getMyWorkoutSessions(params = {}) {
     try {
       const response = await apiClient.get('/WorkoutSessionLog/me', { params });
@@ -337,9 +365,19 @@ export const workoutService = {
     if (!id || id <= 0) throw new Error('Valid exercise id is required.');
     try {
       const response = await apiClient.get(`/FitnessExercise/${id}`);
-      return response.data.data; // Trả về object chi tiết bài tập
+      return response.data.data;
     } catch (error) {
       throw new Error(error.message || 'Failed to fetch exercise by id');
+    }
+  },
+
+  async getCategoryById(id) {
+    if (!id || id <= 0) throw new Error('Valid category id is required.');
+    try {
+      const response = await apiClient.get(`/ExerciseCategory/${id}`);
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to fetch category by id');
     }
   },
 };

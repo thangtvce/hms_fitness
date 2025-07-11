@@ -12,9 +12,9 @@ export const getActivePostByIdForUser = async (postId) => {
   }
 };
 // Hide (set status) a comment by commentId (e.g., status = 'inactive' or 'hidden')
-export const updateCommentStatus = async (commentId, status) => {
+export const updateCommentStatus = async (commentId,status) => {
   try {
-    const response = await apiClient.put(`PostComment/${commentId}/status`, { status });
+    const response = await apiClient.put(`PostComment/${commentId}/status`,{ status });
     if (response.data.statusCode === 200 && response.data.data) {
       return response.data.data;
     } else {
@@ -25,9 +25,9 @@ export const updateCommentStatus = async (commentId, status) => {
   }
 };
 // Hide (set status) a post by postId (e.g., status = 'inactive' or 'hidden')
-export const updatePostStatus = async (postId, status) => {
+export const updatePostStatus = async (postId,status) => {
   try {
-    const response = await apiClient.put(`CommunityPost/${postId}/status`, { status });
+    const response = await apiClient.put(`CommunityPost/${postId}/status`,{ status });
     if (response.data.statusCode === 200 && response.data.data) {
       return response.data.data;
     } else {
@@ -107,9 +107,35 @@ export const getAllActiveGroups = async (params = {}) => {
   try {
     const response = await apiClient.get('CommunityGroup/all-active-group',{ params });
     if (response.data.statusCode === 200) {
-      return response.data.data.groups;
+      return response.data;
     } else {
       throw new Error(response.data.message || 'Failed to fetch groups');
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getMyGroupCreated = async (id,params = {}) => {
+  try {
+    const response = await apiClient.get(`CommunityGroup/creator/me`,{ params });
+    if (response.data.statusCode === 200) {
+      return response.data;
+    } else {
+      throw new Error(response.data.message || 'Failed to fetch my group');
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getMyGroupJoined = async (excludeId,params = {}) => {
+  try {
+    const response = await apiClient.get(`CommunityGroup/my-joined-groups/${excludeId}`,{ params });
+    if (response.data.statusCode === 200) {
+      return response.data;
+    } else {
+      throw new Error(response.data.message || 'Failed to fetch my joined group');
     }
   } catch (error) {
     throw error;
@@ -345,26 +371,35 @@ export const getAllActiveReportReasons = async (params = {}) => {
   }
 };
 
+export const checkUserReport = async (postId) => {
+  try {
+    if (!postId || postId <= 0) {
+      throw new Error("PostId must be a positive integer.");
+    }
+    const response = await apiClient.get(`/PostReport/check/${postId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Failed to check report status." };
+  }
+}
+
 export const createReportByUser = async (reportDto) => {
   try {
-    console.log('[REPORT] Payload gửi lên API:', JSON.stringify(reportDto, null, 2));
-    const response = await apiClient.post('PostReport/user', reportDto);
+    console.log('[REPORT] Payload gửi lên API:',JSON.stringify(reportDto,null,2));
+    const response = await apiClient.post('PostReport/user',reportDto);
     if (response.data.statusCode === 201 && response.data.data) {
       return response.data.data;
     } else {
       throw new Error(response.data.message || 'Failed to create report');
     }
   } catch (error) {
-    // Log chi tiết lỗi để debug
     if (error.response) {
-      console.log('Report API error:', error.response.data);
-      // Trả về lỗi chi tiết cho màn hình xử lý
       throw new Error(
         error.response.data?.message ||
         (error.response.data?.errors ? JSON.stringify(error.response.data.errors) : 'Failed to create report')
       );
     } else {
-      console.log('Report API error:', error.message);
+      console.log('Report API error:',error.message);
       throw new Error(error.message || 'Failed to create report');
     }
   }
@@ -424,7 +459,7 @@ export const getMyGroupActiveById = async (id) => {
 
 export const createGroup = async (groupDto) => {
   try {
-    const response = await apiClient.post('CommunityGroup', groupDto);
+    const response = await apiClient.post('CommunityGroup',groupDto);
     if (response.data.statusCode === 201 && response.data.data) {
       return response.data.data;
     } else {
@@ -435,9 +470,9 @@ export const createGroup = async (groupDto) => {
   }
 };
 
-export const updateMyGroup = async (id, groupDto) => {
+export const updateMyGroup = async (id,groupDto) => {
   try {
-    const response = await apiClient.put(`CommunityGroup/me/${id}`, groupDto);
+    const response = await apiClient.put(`CommunityGroup/me/${id}`,groupDto);
     if (response.data.statusCode === 200 && response.data.data) {
       return response.data.data;
     } else {
@@ -463,9 +498,8 @@ export const deleteGroup = async (id) => {
 
 export const getGroupsByCreator = async (params = {}) => {
   try {
-    const response = await apiClient.get('CommunityGroup/creator/me', { params });
+    const response = await apiClient.get('CommunityGroup/creator/me',{ params });
     if (response.data.statusCode === 200) {
-      // Trả về đúng format: { groups, totalCount, ... }
       return response.data.data;
     } else {
       throw new Error(response.data.message || 'Failed to fetch groups by creator');
@@ -475,9 +509,9 @@ export const getGroupsByCreator = async (params = {}) => {
   }
 };
 
-export const getGroupJoinRequests = async (groupId, status = 'pending', params = {}) => {
+export const getGroupJoinRequests = async (groupId,status = 'pending',params = {}) => {
   try {
-    const response = await apiClient.get(`GroupMember/join-requests/${groupId}/${status}`, { params });
+    const response = await apiClient.get(`GroupMember/join-requests/${groupId}/${status}`,{ params });
     if (response.data.statusCode === 200) {
       return response.data.data;
     } else {
@@ -488,9 +522,18 @@ export const getGroupJoinRequests = async (groupId, status = 'pending', params =
   }
 };
 
+export const updateMemberStatus = async (id,status) => {
+  try {
+    const response = await apiClient.put(`/groupMember/${id}/status`,{ status });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const addOrUpdateGroupMember = async (memberDto) => {
   try {
-    const response = await apiClient.post('GroupMember/add-or-update', memberDto);
+    const response = await apiClient.post('GroupMember/add-or-update',memberDto);
     if (response.data.statusCode === 200 && response.data.data) {
       return response.data.data;
     } else {
@@ -501,9 +544,9 @@ export const addOrUpdateGroupMember = async (memberDto) => {
   }
 };
 
-export const getGroupActiveMembers = async (groupId, params = {}) => {
+export const getGroupActiveMembers = async (groupId,params = {}) => {
   try {
-    const response = await apiClient.get(`GroupMember/join-requests-active/${groupId}`, { params });
+    const response = await apiClient.get(`GroupMember/join-requests-active/${groupId}`,{ params });
     if (response.data.statusCode === 200) {
       return response.data.data;
     } else {

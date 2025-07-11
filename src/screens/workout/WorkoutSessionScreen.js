@@ -47,7 +47,6 @@ const WorkoutSessionScreen = () => {
     exerciseCount: 0,
   })
 
-  // Filter states
   const [filters, setFilters] = useState({
     searchTerm: "",
     minCalories: "",
@@ -61,7 +60,6 @@ const WorkoutSessionScreen = () => {
   const videoRef = useRef(null)
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
-  // Ref lưu thời gian bắt đầu session
   const sessionStartTimeRef = useRef(null)
 
   useEffect(() => {
@@ -123,14 +121,12 @@ const WorkoutSessionScreen = () => {
   const applyFilters = () => {
     let filtered = [...scheduledExercises]
 
-    // Search filter
     if (filters.searchTerm) {
       filtered = filtered.filter((exercise) =>
         exercise.exerciseName.toLowerCase().includes(filters.searchTerm.toLowerCase()),
       )
     }
 
-    // Calorie filters
     if (filters.minCalories) {
       filtered = filtered.filter((exercise) => exercise.caloriesBurnedPerMin >= Number.parseInt(filters.minCalories))
     }
@@ -138,12 +134,10 @@ const WorkoutSessionScreen = () => {
       filtered = filtered.filter((exercise) => exercise.caloriesBurnedPerMin <= Number.parseInt(filters.maxCalories))
     }
 
-    // Gender filter
     if (filters.gender) {
       filtered = filtered.filter((exercise) => exercise.genderSpecific === filters.gender)
     }
 
-    // Sort
     filtered.sort((a, b) => {
       let comparison = 0
       switch (filters.sortBy) {
@@ -194,25 +188,19 @@ const WorkoutSessionScreen = () => {
     setIsWorkoutStarted(true)
     setIsPlaying(true)
     setTimer(0)
-    // Lưu thời gian bắt đầu workout (giờ Việt Nam) vào AsyncStorage
     const startTimeVN = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString();
     await AsyncStorage.setItem('workoutSessionStartTime', startTimeVN);
-    // Lưu thời gian bắt đầu session vào state để dùng khi kết thúc
     sessionStartTimeRef.current = startTimeVN;
-    // Lưu mảng thời gian bắt đầu từng bài tập (bắt đầu bài 1)
     await AsyncStorage.setItem('userActivityStartTimes', JSON.stringify([{ exerciseId: scheduledExercises[0].exerciseId, startTime: startTimeVN }]));
   }
 
-  // Khi next hoặc stop, log user activity cho bài hiện tại
   const logCurrentActivity = async (exercise, sessionId, userId) => {
-    // Lấy thời gian bắt đầu từ AsyncStorage
     const startTimesStr = await AsyncStorage.getItem('userActivityStartTimes');
     let startTimes = [];
     if (startTimesStr) startTimes = JSON.parse(startTimesStr);
     const found = startTimes.find(e => e.exerciseId === exercise.exerciseId);
     const startTime = found ? found.startTime : new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString();
     const endTime = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString();
-    // Tính duration thực tế (giây)
     const durationMs = new Date(endTime) - new Date(startTime);
     const durationSeconds = Math.max(1, Math.round(durationMs / 1000));
     const activity = {
@@ -223,7 +211,7 @@ const WorkoutSessionScreen = () => {
       steps: 0,
       distanceKm: 0,
       CaloriesBurned: exercise.caloriesBurnedPerMin ? (exercise.caloriesBurnedPerMin * durationSeconds) / 60 : 0,
-      durationMinutes: durationSeconds, // Lưu số giây vào trường durationMinutes
+      durationMinutes: durationSeconds, 
       heartRate: 0,
       location: "N/A",
       goalStatus: "Completed",
@@ -235,14 +223,11 @@ const WorkoutSessionScreen = () => {
     await workoutService.createActivity(activity);
   }
 
-  // Sửa nextExercise để log activity cho bài hiện tại
   const nextExercise = async () => {
     if (currentExerciseIndex < scheduledExercises.length - 1) {
-      // Log activity cho bài hiện tại
-      const userId = 15; // Lấy từ context thực tế
-      const sessionId = null; // Lấy sessionId nếu có
+      const userId = 15; 
+      const sessionId = null; 
       await logCurrentActivity(scheduledExercises[currentExerciseIndex], sessionId, userId);
-      // Lưu thời gian bắt đầu bài tiếp theo
       const nextStartTime = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString();
       let startTimes = JSON.parse(await AsyncStorage.getItem('userActivityStartTimes')) || [];
       startTimes.push({ exerciseId: scheduledExercises[currentExerciseIndex + 1].exerciseId, startTime: nextStartTime });
@@ -257,48 +242,39 @@ const WorkoutSessionScreen = () => {
     }
   }
 
-  // Sửa completeWorkout để log activity cho bài hiện tại và chỉ log các bài đã tập
   const completeWorkout = async () => {
-    // Log activity cho bài hiện tại
     if (currentExerciseIndex >= 0) {
       const userId = 15;
       const sessionId = null;
       await logCurrentActivity(scheduledExercises[currentExerciseIndex], sessionId, userId);
     }
-    // Gọi luôn finishWorkout để lưu session log và activities
     await finishWorkout();
   }
 
-  // Sửa finishWorkout để lấy đúng thời gian bắt đầu từ AsyncStorage và log activity với duration thực tế
   const finishWorkout = async () => {
     if (!isWorkoutStarted) return
     setLoading(true)
     try {
-      const userId = 15 // Replace with actual user ID from auth context (numeric ID)
-      // Lấy thời gian bắt đầu session từ ref hoặc AsyncStorage
+      const userId = 15 
       let startTime = sessionStartTimeRef.current;
       if (!startTime) {
         const startTimeVN = await AsyncStorage.getItem('workoutSessionStartTime');
         startTime = startTimeVN || new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString();
       }
       const endTime = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString();
-      // Lấy startTimes từ AsyncStorage để log activity đúng thời gian
       let startTimes = [];
       try {
         const startTimesStr = await AsyncStorage.getItem('userActivityStartTimes');
         if (startTimesStr) startTimes = JSON.parse(startTimesStr);
       } catch (e) { startTimes = []; }
-      // Chỉ log activity cho các bài đã tập (từ 0 đến currentExerciseIndex)
       let totalDurationSeconds = 0;
       for (let i = 0; i <= currentExerciseIndex; i++) {
-        // Gán startTime đúng cho từng bài
         const exercise = scheduledExercises[i];
         const found = startTimes.find(e => e.exerciseId === exercise.exerciseId);
         const actStartTime = found ? found.startTime : new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString();
         const actEndTime = (i < currentExerciseIndex)
           ? (startTimes[i + 1]?.startTime || new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString())
           : endTime;
-        // Tính duration thực tế (giây)
         let durationSeconds = 1;
         try {
           const start = new Date(actStartTime);
@@ -312,11 +288,11 @@ const WorkoutSessionScreen = () => {
           UserId: userId,
           ActivityType: 1,
           exerciseId: exercise.exerciseId,
-          SessionId: null, // sẽ cập nhật lại nếu cần
+          SessionId: null, 
           steps: 0,
           distanceKm: 0,
           CaloriesBurned: exercise.caloriesBurnedPerMin ? (exercise.caloriesBurnedPerMin * durationSeconds) / 60 : 0,
-          durationMinutes: durationSeconds, // Lưu số giây vào trường durationMinutes
+          durationMinutes: durationSeconds, 
           heartRate: 0,
           location: "N/A",
           goalStatus: "Completed",
@@ -327,22 +303,20 @@ const WorkoutSessionScreen = () => {
         };
         await workoutService.createActivity(activity);
       }
-      // Calculate total calories from exercises đã tập
       const totalCaloriesBurned = scheduledExercises.slice(0, currentExerciseIndex + 1).reduce(
         (sum, ex) => sum + ex.caloriesBurnedPerMin || 0,
         0
       )
-      // Lưu session log với tổng thời gian là giây
       const session = {
         UserId: userId,
         StartTime: startTime,
         EndTime: endTime,
         totalCaloriesBurned: totalCaloriesBurned,
-        totalDurationMinutes: totalDurationSeconds, // Lưu tổng số giây vào trường này
+        totalDurationMinutes: totalDurationSeconds, 
         notes: `Completed workout with ${currentExerciseIndex + 1} exercises`,
       }
       const sessionResponse = await workoutService.createWorkoutSessionsBulk([session])
-      // Nếu cần cập nhật SessionId cho activity thì có thể update lại ở đây
+  
       Alert.alert("Success", "Workout session and activities logged successfully!")
       setScheduledExercises([])
       await AsyncStorage.removeItem("scheduledExercises")

@@ -15,6 +15,7 @@ import {
   Animated,
   Platform,
 } from "react-native"
+import Header from 'components/Header'
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useNavigation, useRoute } from "@react-navigation/native"
@@ -35,8 +36,9 @@ const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Other"]
 const DayDetailsScreen = () => {
   const navigation = useNavigation()
   const route = useRoute()
-  const { date, dayStats, grouped } = route.params
+  const { date, dayStats } = route.params
 
+  const [grouped, setGrouped] = useState(route.params.grouped)
   const [editModalVisible, setEditModalVisible] = useState(false)
   const [editingFood, setEditingFood] = useState(null)
   const [ratingModalVisible, setRatingModalVisible] = useState(false)
@@ -183,6 +185,24 @@ const DayDetailsScreen = () => {
       }
 
       await foodService.updateNutritionLog(ratingTarget.logId, payload)
+
+      // Update local grouped state with new rating and note
+      setGrouped((prevGrouped) => {
+        const newGrouped = { ...prevGrouped }
+        for (const mealType of MEAL_TYPES) {
+          newGrouped[mealType] = (newGrouped[mealType] || []).map((food) => {
+            if ((food.logId || food.id) === ratingTarget.logId) {
+              return {
+                ...food,
+                satisfactionRating: ratingValue,
+                notes: ratingNote,
+              }
+            }
+            return food
+          })
+        }
+        return newGrouped
+      })
 
       Animated.parallel([
         Animated.timing(modalScale, {
@@ -402,7 +422,7 @@ const DayDetailsScreen = () => {
       <Animated.View style={[styles.ratingOverlay, { opacity: modalOpacity }]}>
         <Animated.View style={[styles.ratingModal, { transform: [{ scale: modalScale }] }]}>
           {/* Enhanced Header */}
-          <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.ratingHeader}>
+          <LinearGradient colors={["#0056d2","#0056d2","#0056d2"]} style={styles.ratingHeader}>
             <View style={styles.ratingHeaderContent}>
               <View style={styles.ratingIconContainer}>
                 <IconAntDesign name="star" size={26} color="#FFFFFF" />
@@ -555,7 +575,7 @@ const DayDetailsScreen = () => {
               onPress={handleSubmitRating}
               disabled={ratingLoading || ratingValue === 0}
             >
-              <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.submitGradient}>
+              <LinearGradient colors={["#0056d2","#0056d2","#0056d2"]} style={styles.submitGradient}>
                 {ratingLoading ? (
                   <>
                     <IconCommunity name="loading" size={18} color="#FFFFFF" />
@@ -578,57 +598,40 @@ const DayDetailsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      {/* Clean Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <IconFeather name="arrow-left" size={22} color="#374151" />
-          </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>{dayjs(date).format("dddd")}</Text>
-            <Text style={styles.headerDate}>{dayjs(date).format("MMMM DD, YYYY")}</Text>
-          </View>
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteDayLog}>
-            <IconFeather name="trash-2" size={18} color="#EF4444" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
+      <Header
+        title={dayjs(date).format("dddd")}
+        subtitle={dayjs(date).format("MMMM DD, YYYY")}
+        onBack={() => navigation.goBack()}
+        rightActions={[{
+          icon: <IconFeather name="trash-2" size={18} color="#EF4444" />,
+          onPress: handleDeleteDayLog
+        }]}
+      />
       {/* Clean Nutrition Overview */}
       <View style={styles.overview}>
         <View style={styles.overviewHeader}>
           <Text style={styles.overviewTitle}>Daily Summary</Text>
           <Text style={styles.overviewSubtitle}>Nutrition breakdown for today</Text>
         </View>
-        <View style={styles.overviewCards}>
-          {[
-            { key: "calories", icon: "fire", color: "#EF4444", value: dayStats.calories, unit: "", label: "Calories" },
-            {
-              key: "protein",
-              icon: "dumbbell",
-              color: "#059669",
-              value: dayStats.protein,
-              unit: "g",
-              label: "Protein",
-            },
-            { key: "carbs", icon: "grain", color: "#2563EB", value: dayStats.carbs, unit: "g", label: "Carbs" },
-            { key: "fats", icon: "oil", color: "#D97706", value: dayStats.fats, unit: "g", label: "Fats" },
-          ].map((item) => (
-            <View key={item.key} style={styles.overviewCard}>
-              <View style={[styles.overviewIcon, { backgroundColor: item.color + "15" }]}>
-                <IconCommunity name={item.icon} size={20} color={item.color} />
-              </View>
-              <Text style={styles.overviewValue}>
-                {Math.round(item.value)}
-                {item.unit}
-              </Text>
-              <Text style={styles.overviewLabel}>{item.label}</Text>
-            </View>
-          ))}
+        <View style={[styles.overviewCards, { justifyContent: 'space-between' }]}>
+          <View style={styles.overviewCard}>
+            <Text style={styles.overviewLabel}>KCAL</Text>
+            <Text style={[styles.overviewValue, { fontSize: 14 }]}>{Math.round(dayStats.calories)}</Text>
+          </View>
+          <View style={styles.overviewCard}>
+            <Text style={styles.overviewLabel}>Protein</Text>
+            <Text style={[styles.overviewValue, { fontSize: 14 }]}>{Math.round(dayStats.protein)}g</Text>
+          </View>
+          <View style={styles.overviewCard}>
+            <Text style={styles.overviewLabel}>Carbs</Text>
+            <Text style={[styles.overviewValue, { fontSize: 14 }]}>{Math.round(dayStats.carbs)}g</Text>
+          </View>
+          <View style={styles.overviewCard}>
+            <Text style={styles.overviewLabel}>Fats</Text>
+            <Text style={[styles.overviewValue, { fontSize: 14 }]}>{Math.round(dayStats.fats)}g</Text>
+          </View>
         </View>
       </View>
-
       {/* Clean Meals */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {MEAL_TYPES.map((mealType) => {
@@ -637,11 +640,9 @@ const DayDetailsScreen = () => {
 
           return (
             <View key={mealType} style={styles.mealCard}>
-              <View style={[styles.mealHeader, { borderLeftColor: getMealColor(mealType) }]}>
+              <View style={[styles.mealHeader, { borderLeftColor: getMealColor(mealType) }]}> 
                 <View style={styles.mealHeaderContent}>
-                  <View style={[styles.mealIcon, { backgroundColor: getMealColor(mealType) + "15" }]}>
-                    <Icon name={getMealIcon(mealType)} size={18} color={getMealColor(mealType)} />
-                  </View>
+                  {/* Removed meal icon for simplicity */}
                   <View style={styles.mealHeaderText}>
                     <Text style={styles.mealTitle}>{mealType}</Text>
                     <Text style={styles.mealItemCount}>{mealFoods.length} items</Text>

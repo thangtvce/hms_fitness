@@ -28,10 +28,8 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 const { width } = Dimensions.get("window")
 
-// Map activityType numbers to readable labels
 const ACTIVITY_TYPE_MAP = {
   1: "Exercise",
-  // Add more mappings as needed
 }
 
 const WorkoutHistoryScreen = () => {
@@ -84,7 +82,6 @@ const WorkoutHistoryScreen = () => {
       const activitiesResponse = await workoutService.getMyActivities({ pageNumber: 1, pageSize: 100 })
 
 
-      // Extract sessions and activities from response.data.data
       const sessions = sessionsResponse || []
       const activities = activitiesResponse || []
 
@@ -104,7 +101,6 @@ const WorkoutHistoryScreen = () => {
   const applyFilters = () => {
     let filtered = [...historySessions]
 
-    // Date range filter
     if (filters.startDate) {
       filtered = filtered.filter((session) => new Date(session.startTime) >= new Date(filters.startDate))
     }
@@ -112,7 +108,6 @@ const WorkoutHistoryScreen = () => {
       filtered = filtered.filter((session) => new Date(session.startTime) <= new Date(filters.endDate))
     }
 
-    // Calorie range filter
     if (filters.minCalories) {
       filtered = filtered.filter((session) => session.totalCaloriesBurned >= Number.parseInt(filters.minCalories))
     }
@@ -120,7 +115,6 @@ const WorkoutHistoryScreen = () => {
       filtered = filtered.filter((session) => session.totalCaloriesBurned <= Number.parseInt(filters.maxCalories))
     }
 
-    // Duration range filter
     if (filters.minDuration) {
       filtered = filtered.filter((session) => session.totalDurationMinutes >= Number.parseInt(filters.minDuration))
     }
@@ -128,12 +122,10 @@ const WorkoutHistoryScreen = () => {
       filtered = filtered.filter((session) => session.totalDurationMinutes <= Number.parseInt(filters.maxDuration))
     }
 
-    // Search filter
     if (filters.searchTerm) {
       filtered = filtered.filter((session) => session.notes?.toLowerCase().includes(filters.searchTerm.toLowerCase()))
     }
 
-    // Sort
     filtered.sort((a, b) => {
       let comparison = 0
       switch (filters.sortBy) {
@@ -193,7 +185,7 @@ const WorkoutHistoryScreen = () => {
       await workoutService.updateActivity(currentActivity.activityId, updatedActivity)
       Alert.alert("Success", "Activity updated successfully")
       setEditModalVisible(false)
-      fetchHistory() // Refresh data
+      fetchHistory() 
     } catch (err) {
       Alert.alert("Error", err.message || "Failed to update activity")
     }
@@ -209,7 +201,7 @@ const WorkoutHistoryScreen = () => {
           try {
             await workoutService.deleteActivity(activityId)
             Alert.alert("Success", "Activity deleted successfully")
-            fetchHistory() // Refresh data
+            fetchHistory() 
           } catch (err) {
             Alert.alert("Error", err.message || "Failed to delete activity")
           }

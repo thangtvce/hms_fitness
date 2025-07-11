@@ -21,6 +21,7 @@ import { useNavigation,useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Header from '../../components/Header';
 
 const { width,height } = Dimensions.get('window');
 
@@ -253,18 +254,10 @@ export default function ForgetPassword() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-
-      <LinearGradient
-        colors={['#4F46E5','#6366F1','#818CF8']}
-        style={styles.headerGradient}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Reset Password</Text>
-        </View>
-      </LinearGradient>
+      <Header
+        title="Reset Password"
+        onBack={handleBack}
+      />
 
       <ScrollView
         ref={scrollViewRef}
@@ -276,29 +269,14 @@ export default function ForgetPassword() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardAvoidingView}
         >
-          <View style={styles.contentContainer}>
+          <View style={styles.contentContainerFull}>
             <Animated.View
               style={[
-                styles.illustrationContainer,
-                { opacity: fadeAnim,transform: [{ translateY: slideAnim }] }
-              ]}
-            >
-              <Image
-                source={{ uri: 'https://letankim.id.vn/3do/uploads/images/1747652554_3.png' }}
-                style={styles.illustration}
-                resizeMode="contain"
-              />
-            </Animated.View>
-
-            <Animated.View
-              style={[
-                styles.formCard,
+                styles.formCardFull,
                 { opacity: fadeAnim,transform: [{ translateY: slideAnim }] }
               ]}
             >
               <View style={styles.formHeader}>
-                <Ionicons name="lock-closed-outline" size={32} color="#4F46E5" />
-                <Text style={styles.formTitle}>Create New Password</Text>
                 <Text style={styles.formSubtitle}>
                   Enter the verification code sent to your email and create a new password
                 </Text>
@@ -450,29 +428,10 @@ export default function ForgetPassword() {
                 )}
               </TouchableOpacity>
 
-              <View style={styles.securityTipContainer}>
-                <View style={styles.securityTipHeader}>
-                  <Ionicons name="shield-outline" size={18} color="#4F46E5" />
-                  <Text style={styles.securityTipTitle}>Password Tips</Text>
-                </View>
-                <Text style={styles.securityTipText}>
-                  • Use at least 8 characters{'\n'}
-                  • Include uppercase & lowercase letters{'\n'}
-                  • Add numbers and special characters{'\n'}
-                  • Avoid using personal information
-                </Text>
-              </View>
+        
             </Animated.View>
 
-            <View style={styles.healthTipContainer}>
-              <View style={styles.tipHeader}>
-                <Ionicons name="fitness-outline" size={20} color="#10B981" />
-                <Text style={styles.tipTitle}>Health & Security</Text>
-              </View>
-              <Text style={styles.tipText}>
-                Protecting your health data is as important as protecting your physical health. Strong passwords help keep your personal health information secure.
-              </Text>
-            </View>
+    
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
@@ -483,7 +442,7 @@ export default function ForgetPassword() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#FFFFFF",
   },
   loadingContainer: {
     flex: 1,
@@ -521,30 +480,21 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
-  contentContainer: {
+  contentContainerFull: {
     flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 16,
+    width: '100%',
+    paddingHorizontal: 0,
     paddingBottom: 24,
     backgroundColor: "#fff",
+    marginTop: 50,
   },
-  illustrationContainer: {
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  illustration: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  formCard: {
+  formCardFull: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 0,
     padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0,height: 2 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -600,7 +550,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: 'Inter_400Regular',
-    fontSize: 16,
+    fontSize: 14,
     color: '#0F172A',
   },
   eyeIcon: {
@@ -641,14 +591,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#0056d2',
     borderRadius: 12,
     height: 56,
     marginTop: 8,
     ...Platform.select({
       ios: {
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0,height: 4 },
+        shadowColor: '#0056d2',
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
       },

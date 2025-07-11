@@ -1,3 +1,4 @@
+import PrivacyPolicyScreen from "./PrivacyPolicyScreen"
 import { useState,useEffect,useRef } from "react"
 import {
   View,
@@ -16,6 +17,7 @@ import {
   Modal,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
+import TermsOfServiceScreen from "./TermsOfServiceScreen"
 import { useFonts,Inter_400Regular,Inter_600SemiBold,Inter_700Bold } from "@expo-google-fonts/inter"
 import { useNavigation } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -28,9 +30,12 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 const { width,height } = Dimensions.get("window")
 
+
 const GENDER_OPTIONS = ["Male","Female","Other"]
 
 export default function RegisterScreen() {
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
   const [currentStep,setCurrentStep] = useState(0)
   const [isLoading,setIsLoading] = useState(false)
   const [formData,setFormData] = useState({
@@ -652,6 +657,9 @@ export default function RegisterScreen() {
               confirmPassword: errors.confirmPassword,
               phone: errors.phone,
             }}
+            onShowTerms={() => setShowTermsModal(true)}
+            showPrivacyModal={showPrivacyModal}
+            setShowPrivacyModal={setShowPrivacyModal}
           />
         )
       default:
@@ -681,23 +689,23 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
+      <View style={[styles.header, { backgroundColor: "#FFFFFF" }]}> 
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.backButton} onPress={handlePreviousStep} accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color="#1E293B" />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>{getStepTitle()}</Text>
+          <Text style={[styles.headerTitle, { color: "#1E293B" }]}>{getStepTitle()}</Text>
 
           <View style={styles.stepCounter}>
-            <Text style={styles.stepCounterText}>
+            <Text style={[styles.stepCounterText, { color: "#1E293B" }]}> 
               {currentStep + 1}/{totalSteps}
             </Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
         <ScrollView
@@ -726,7 +734,7 @@ export default function RegisterScreen() {
 
           <View style={styles.navigationButtons}>
             <TouchableOpacity style={styles.prevButton} onPress={handlePreviousStep} accessibilityLabel="Previous step">
-              <Ionicons name="arrow-back" size={24} color="#64748B" />
+              <Ionicons name="arrow-back" size={24} color="#0056d2" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -747,6 +755,16 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Terms of Service Modal */}
+      <Modal
+        visible={showTermsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <TermsOfServiceScreen navigation={{ goBack: () => setShowTermsModal(false) }} />
+      </Modal>
 
       {/* Date Picker Modal */}
       <Modal
@@ -867,12 +885,6 @@ export default function RegisterScreen() {
 const NameStep = ({ formData,handleChange,error }) => {
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Welcome to HMS</Text>
       <Text style={styles.stepDescription}>Let's start by getting to know you. What's your name?</Text>
 
@@ -914,12 +926,6 @@ const GoalsStep = ({ formData,handleToggle,error }) => {
 
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Your Health Goals</Text>
       <Text style={styles.stepDescription}>
         Hello {formData.firstName || "there"}! Select up to three goals that are most important to you.
@@ -959,12 +965,6 @@ const GoalsStep = ({ formData,handleToggle,error }) => {
 const BodyFatStep = ({ formData,handleChange,error }) => {
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Body Fat Percentage</Text>
       <Text style={styles.stepDescription}>
         Enter your body fat percentage to help us personalize your fitness recommendations.
@@ -984,7 +984,7 @@ const BodyFatStep = ({ formData,handleChange,error }) => {
             accessibilityLabel="Body fat percentage input"
           />
           <View style={styles.unitToggle}>
-            <View style={[styles.unitButton,styles.unitButtonSelected]}>
+            <View style={[styles.unitButton, { borderColor: '#0056d2' }, styles.unitButtonSelected]}>
               <Text style={[styles.unitButtonText,styles.unitButtonTextSelected]}>%</Text>
             </View>
           </View>
@@ -1039,12 +1039,6 @@ const ActivityLevelStep = ({ formData,handleSelect,error }) => {
 
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Activity Level</Text>
       <Text style={styles.stepDescription}>
         Select the option that best describes your typical weekly activity level.
@@ -1108,12 +1102,6 @@ const DietaryPreferenceStep = ({ formData,handleSelect,error }) => {
 
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Dietary Preference</Text>
       <Text style={styles.stepDescription}>
         Select the eating pattern that best describes your dietary preferences.
@@ -1126,30 +1114,33 @@ const DietaryPreferenceStep = ({ formData,handleSelect,error }) => {
       ) : null}
 
       <View style={styles.dietaryPreferencesContainer}>
-        {dietaryPreferences.map((preference) => (
-          <TouchableOpacity
-            key={preference}
-            style={[
-              styles.dietaryPreferenceButton,
-              formData.dietaryPreference === preference ? styles.selectedDietaryPreference : {},
-            ]}
-            onPress={() => handleSelect(preference)}
-            accessibilityLabel={`${preference} option`}
-            accessibilityState={{ selected: formData.dietaryPreference === preference }}
-          >
-            <Text
+        {dietaryPreferences.map((preference) => {
+          const selected = formData.dietaryPreference === preference;
+          return (
+            <TouchableOpacity
+              key={preference}
               style={[
-                styles.dietaryPreferenceText,
-                formData.dietaryPreference === preference ? styles.selectedDietaryPreferenceText : {},
+                styles.dietaryPreferenceButton,
+                selected ? { borderColor: '#0056d2', borderWidth: 1, backgroundColor: '#EEF2FF' } : {},
               ]}
+              onPress={() => handleSelect(preference)}
+              accessibilityLabel={`${preference} option`}
+              accessibilityState={{ selected }}
             >
-              {preference}
-            </Text>
-            {formData.dietaryPreference === preference && (
-              <Ionicons name="checkmark-circle" size={16} color="#4F46E5" style={styles.dietaryPreferenceIcon} />
-            )}
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.dietaryPreferenceText,
+                  selected ? { color: '#0056d2', fontFamily: 'Inter_600SemiBold' } : {},
+                ]}
+              >
+                {preference}
+              </Text>
+              {selected && (
+                <Ionicons name="checkmark-circle" size={16} color="#0056d2" style={styles.dietaryPreferenceIcon} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <View style={styles.infoCard}>
@@ -1175,12 +1166,6 @@ const FitnessGoalStep = ({ formData,handleSelect,error }) => {
 
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Fitness Goal</Text>
       <Text style={styles.stepDescription}>What is your primary fitness goal?</Text>
 
@@ -1191,36 +1176,44 @@ const FitnessGoalStep = ({ formData,handleSelect,error }) => {
       ) : null}
 
       <View style={styles.fitnessGoalsGrid}>
-        {fitnessGoals.map((goal) => (
-          <TouchableOpacity
-            key={goal.value}
-            style={[styles.fitnessGoalCard,formData.fitnessGoal === goal.value ? styles.selectedFitnessGoalCard : {}]}
-            onPress={() => handleSelect(goal.value)}
-            accessibilityLabel={`${goal.value} option`}
-            accessibilityState={{ selected: formData.fitnessGoal === goal.value }}
-          >
-            <View
+        {fitnessGoals.map((goal) => {
+          const selected = formData.fitnessGoal === goal.value;
+          return (
+            <TouchableOpacity
+              key={goal.value}
               style={[
-                styles.fitnessGoalIconContainer,
-                formData.fitnessGoal === goal.value ? styles.selectedFitnessGoalIconContainer : {},
+                styles.fitnessGoalCard,
+                selected ? { borderColor: '#0056d2', backgroundColor: '#0056d2' } : {},
               ]}
+              onPress={() => handleSelect(goal.value)}
+              accessibilityLabel={`${goal.value} option`}
+              accessibilityState={{ selected }}
             >
-              <Ionicons
-                name={goal.icon}
-                size={24}
-                color={formData.fitnessGoal === goal.value ? "#FFFFFF" : "#4F46E5"}
-              />
-            </View>
-            <Text
-              style={[
-                styles.fitnessGoalText,
-                formData.fitnessGoal === goal.value ? styles.selectedFitnessGoalText : {},
-              ]}
-            >
-              {goal.value}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <View
+                style={[
+                  styles.fitnessGoalIconContainer,
+                  selected
+                    ? { backgroundColor: '#0056d2', borderColor: '#fff', borderWidth: 2 }
+                    : {},
+                ]}
+              >
+                <Ionicons
+                  name={goal.icon}
+                  size={24}
+                  color={selected ? '#fff' : '#4F46E5'}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.fitnessGoalText,
+                  selected ? { color: '#fff', fontFamily: 'Inter_600SemiBold' } : {},
+                ]}
+              >
+                {goal.value}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <View style={styles.infoCard}>
@@ -1237,12 +1230,6 @@ const FitnessGoalStep = ({ formData,handleSelect,error }) => {
 const GoalsInfoStep = ({ formData }) => {
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Your Goals Matter</Text>
       <Text style={styles.stepDescription}>
         We understand, {formData.firstName || "there"}. A busy lifestyle can get in the way of achieving your health
@@ -1250,7 +1237,7 @@ const GoalsInfoStep = ({ formData }) => {
       </Text>
 
       <View style={styles.infoCardLarge}>
-        <Ionicons name="trophy" size={40} color="#4F46E5" style={styles.infoCardIcon} />
+        <Ionicons name="trophy" size={40} color="#0056d2" style={styles.infoCardIcon} />
         <Text style={styles.infoCardTitle}>We've helped millions overcome obstacles</Text>
         <Text style={styles.infoCardDescription}>
           Our personalized approach has helped people just like you achieve their health goals despite busy schedules
@@ -1280,19 +1267,13 @@ const GoalsInfoStep = ({ formData }) => {
 const HabitsInfoStep = ({ formData }) => {
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Small Habits, Big Impact</Text>
       <Text style={styles.stepDescription}>
         Great choices, {formData.firstName || "there"}! Your selections will help us create a personalized health plan.
       </Text>
 
       <View style={styles.infoCardLarge}>
-        <Ionicons name="fitness" size={40} color="#4F46E5" style={styles.infoCardIcon} />
+        <Ionicons name="fitness" size={40} color="#0056d2" style={styles.infoCardIcon} />
         <Text style={styles.infoCardTitle}>Building Sustainable Habits</Text>
         <Text style={styles.infoCardDescription}>
           We'll guide you to small wins that add up to big results over time. Our approach focuses on consistency rather
@@ -1302,11 +1283,11 @@ const HabitsInfoStep = ({ formData }) => {
 
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>87%</Text>
+          <Text style={[styles.statNumber, { color: '#0056d2' }]}>87%</Text>
           <Text style={styles.statLabel}>of users report improved habits within 30 days</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>92%</Text>
+          <Text style={[styles.statNumber, { color: '#0056d2' }]}>92%</Text>
           <Text style={styles.statLabel}>say our approach is easier to maintain long-term</Text>
         </View>
       </View>
@@ -1318,19 +1299,13 @@ const HabitsInfoStep = ({ formData }) => {
 const MealPlansInfoStep = ({ formData }) => {
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Your Kitchen, Your Rules</Text>
       <Text style={styles.stepDescription}>
         We can simplify your life with customized, flexible meal plans that fit your lifestyle.
       </Text>
 
       <View style={styles.infoCardLarge}>
-        <Ionicons name="restaurant" size={40} color="#4F46E5" style={styles.infoCardIcon} />
+        <Ionicons name="restaurant" size={40} color="#0056d2" style={styles.infoCardIcon} />
         <Text style={styles.infoCardTitle}>Personalized Meal Planning</Text>
         <Text style={styles.infoCardDescription}>
           Our meal plans adapt to your preferences, dietary needs, and schedule. You'll save time while eating
@@ -1340,19 +1315,19 @@ const MealPlansInfoStep = ({ formData }) => {
 
       <View style={styles.featureGrid}>
         <View style={styles.featureItem}>
-          <Ionicons name="time-outline" size={24} color="#4F46E5" />
+          <Ionicons name="time-outline" size={24} color="#0056d2" />
           <Text style={styles.featureText}>Save time planning</Text>
         </View>
         <View style={styles.featureItem}>
-          <Ionicons name="cash-outline" size={24} color="#4F46E5" />
+          <Ionicons name="cash-outline" size={24} color="#0056d2" />
           <Text style={styles.featureText}>Reduce food waste</Text>
         </View>
         <View style={styles.featureItem}>
-          <Ionicons name="nutrition-outline" size={24} color="#4F46E5" />
+          <Ionicons name="nutrition-outline" size={24} color="#0056d2" />
           <Text style={styles.featureText}>Balanced nutrition</Text>
         </View>
         <View style={styles.featureItem}>
-          <Ionicons name="options-outline" size={24} color="#4F46E5" />
+          <Ionicons name="options-outline" size={24} color="#0056d2" />
           <Text style={styles.featureText}>Flexible options</Text>
         </View>
       </View>
@@ -1373,12 +1348,6 @@ const PersonalInfoStep = ({
 }) => {
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Personal Information</Text>
       <Text style={styles.stepDescription}>
         This helps us personalize your experience and calculate your nutritional needs.
@@ -1523,6 +1492,9 @@ const AccountSetupStep = ({
   showConfirmPassword,
   setShowConfirmPassword,
   errors,
+  onShowTerms,
+  showPrivacyModal,
+  setShowPrivacyModal,
 }) => {
   const getPasswordStrength = (password) => {
     if (!password) return { strength: 0,label: "None",color: "#94A3B8" }
@@ -1552,12 +1524,6 @@ const AccountSetupStep = ({
 
   return (
     <View style={styles.stepContainer}>
-      <Image
-        source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-        style={styles.stepIcon}
-        resizeMode="contain"
-      />
-
       <Text style={styles.stepTitle}>Create Your Account</Text>
       <Text style={styles.stepDescription}>You're almost done! Set up your account to save your progress.</Text>
 
@@ -1686,12 +1652,22 @@ const AccountSetupStep = ({
       </View>
 
       <View style={styles.termsContainer}>
-        <Ionicons name="information-circle" size={16} color="#4F46E5" />
+        <Ionicons name="information-circle" size={16} color="#0056d2" />
         <Text style={styles.termsText}>
-          By registering, you agree to our <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
-          <Text style={styles.termsLink}>Privacy Policy</Text>
+          By registering, you agree to our{' '}
+          <Text style={styles.termsLink} onPress={onShowTerms}>Terms of Service</Text> and{' '}
+          <Text style={styles.termsLink} onPress={() => setShowPrivacyModal(true)}>Privacy Policy</Text>
         </Text>
       </View>
+      {/* Privacy Policy Modal */}
+      <Modal
+        visible={showPrivacyModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPrivacyModal(false)}
+      >
+        <PrivacyPolicyScreen navigation={{ goBack: () => setShowPrivacyModal(false) }} />
+      </Modal>
     </View>
   )
 }
@@ -1700,7 +1676,7 @@ const AccountSetupStep = ({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#FFFFFF",
   },
   loadingContainer: {
     flex: 1,
@@ -1763,7 +1739,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: "100%",
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     borderRadius: 4,
   },
   stepIndicatorsContainer: {
@@ -1777,10 +1753,18 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#E2E8F0",
     marginHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "transparent",
   },
   activeStepIndicator: {
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     width: 16,
+    borderColor: "#0056d2",
+    borderWidth: 2,
+  },
+  activeStepIndicatorText: {
+    color: "#0056d2",
+    fontFamily: "Inter_600SemiBold",
   },
   stepContent: {
     flex: 1,
@@ -1896,8 +1880,8 @@ const styles = StyleSheet.create({
   },
   selectedOptionButton: {
     backgroundColor: "#EEF2FF",
-    borderColor: "#4F46E5",
-    borderBottomColor: "#4F46E5",
+    borderColor: "#0056d2",
+    borderBottomColor: "#0056d2",
     borderWidth: 1,
     borderBottomWidth: 1,
     marginBottom: 2,
@@ -1910,13 +1894,13 @@ const styles = StyleSheet.create({
   },
   selectedOptionText: {
     fontFamily: "Inter_600SemiBold",
-    color: "#4F46E5",
+    color: "#0056d2",
   },
   checkedBox: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2157,7 +2141,7 @@ const styles = StyleSheet.create({
   },
   termsLink: {
     fontFamily: "Inter_600SemiBold",
-    color: "#4F46E5",
+    color: "#0056d2",
     textDecorationLine: "underline",
   },
   navigationButtons: {
@@ -2171,11 +2155,11 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0,height: 2 },
+    shadowColor: "#0056d2",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
@@ -2184,11 +2168,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 32,
-    shadowColor: "#4F46E5",
+    shadowColor: "#0056d2",
     shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

@@ -24,7 +24,8 @@
           "microphonePermission": false
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-font"
     ],
     "ios": {
       "supportsTablet": true,
@@ -55,6 +56,5 @@
       }
     },
     "owner": "letankim2003"
-    
   }
 }

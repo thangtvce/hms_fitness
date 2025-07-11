@@ -562,6 +562,13 @@ export default function HomeScreen({ navigation }) {
         badge: null,
       },
       {
+        title: 'Workout List',
+        icon: 'list',
+        route: 'WorkoutListScreen',
+        gradient: ['#0056d2', '#50a2ff'],
+        badge: null,
+      },
+      {
         title: 'Community',
         icon: 'users',
         route: 'Community',
@@ -1290,18 +1297,19 @@ export default function HomeScreen({ navigation }) {
   if (error && !refreshing) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background || '#F8FAFC' }]}>
-        <Header
-          title="HMS Fitness"
-          showAvatar={true}
-          rightActions={[
-            {
-              icon: 'notifications-outline',
-              onPress: () => handleNavigation('Notifications'),
-              color: colors.primary || '#0056d2',
-              badge: 3,
-            },
-          ]}
-        />
+      <Header
+        title="HMS Fitness"
+        showAvatar={true}
+        avatarUrl={dashboardData?.user?.avatar || user?.avatar || null}
+        rightActions={[
+          {
+            icon: 'notifications-outline',
+            onPress: () => handleNavigation('Notifications'),
+            color: colors.primary || '#0056d2',
+            badge: 3,
+          },
+        ]}
+      />
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: colors.error || '#EF4444' }]}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={() => fetchUserData()}>
@@ -1317,8 +1325,29 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background || '#F8FAFC' }]}>
       <Header
-        title="HMS Fitness"
-        showAvatar={true}
+        title={
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => handleNavigation('Profile')}
+              activeOpacity={0.7}
+              style={{ marginRight: 10 }}
+            >
+              {dashboardData?.user?.avatar ? (
+                <Image
+                  source={{ uri: dashboardData.user.avatar }}
+                  style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#0056d2' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#eaf1fb', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#0056d2' }}>
+                  <Feather name="user" size={20} color="#0056d2" />
+                </View>
+              )}
+            </TouchableOpacity>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.headerText || '#0056d2' }}>HMS Fitness</Text>
+          </View>
+        }
+        showAvatar={false}
         rightActions={[
           {
             icon: 'notifications-outline',

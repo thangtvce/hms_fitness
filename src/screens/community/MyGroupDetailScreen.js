@@ -1,6 +1,4 @@
-"use client"
-
-import { useEffect, useState, useRef } from "react"
+import { useEffect,useState,useRef } from "react"
 import {
   View,
   Text,
@@ -12,79 +10,91 @@ import {
   Image,
   Dimensions,
   Animated,
+  Platform,
 } from "react-native"
-import { useNavigation, useRoute } from "@react-navigation/native"
-import { getMyGroupActiveById, deleteGroup } from "services/apiCommunityService"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
+import { useNavigation,useRoute } from "@react-navigation/native"
+import { getMyGroupActiveById,deleteGroup } from "services/apiCommunityService"
+import { Ionicons } from "@expo/vector-icons"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { RichEditor } from "react-native-pell-rich-editor"
+import { showErrorMessage,showSuccessMessage,showErrorFetchAPI } from "utils/toastUtil"
 
-const { width, height } = Dimensions.get("window")
+const { width } = Dimensions.get("window")
 
 const MyGroupDetailScreen = () => {
   const navigation = useNavigation()
   const route = useRoute()
   const { groupId } = route.params || {}
 
-  const [group, setGroup] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [deleting, setDeleting] = useState(false)
+  const [group,setGroup] = useState(null)
+  const [loading,setLoading] = useState(true)
+  const [deleting,setDeleting] = useState(false)
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(50)).current
-  const scaleAnim = useRef(new Animated.Value(0.9)).current
-  const rotateAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(30)).current
 
   useEffect(() => {
     if (groupId) {
-      getMyGroupActiveById(groupId)
-        .then((data) => {
-          setGroup(data)
-          // Start animations after data loads
-          Animated.parallel([
-            Animated.timing(fadeAnim, {
-              toValue: 1,
-              duration: 1000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-              toValue: 0,
-              duration: 800,
-              useNativeDriver: true,
-            }),
-            Animated.spring(scaleAnim, {
-              toValue: 1,
-              tension: 100,
-              friction: 8,
-              useNativeDriver: true,
-            }),
-          ]).start()
-
-          // Continuous rotation animation
-          Animated.loop(
-            Animated.timing(rotateAnim, {
-              toValue: 1,
-              duration: 20000,
-              useNativeDriver: true,
-            }),
-          ).start()
-        })
-        .catch((err) => {
-          Alert.alert("Error", err.message || "Failed to load group info")
-          navigation.goBack()
-        })
-        .finally(() => setLoading(false))
+      fetchGroupData()
+    } else {
+      showErrorMessage("No group ID provided")
+      navigation.goBack()
     }
-  }, [groupId])
+  },[groupId])
+
+  const fetchGroupData = async () => {
+    try {
+      setLoading(true)
+      const data = await getMyGroupActiveById(groupId)
+      if (data) {
+        setGroup(data)
+        startAnimations()
+      } else {
+        showErrorMessage("Group not found")
+        navigation.goBack()
+      }
+    } catch (err) {
+      showErrorFetchAPI(err)
+      navigation.goBack()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const startAnimations = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim,{
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim,{
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }
 
   const handleEdit = () => {
-    navigation.navigate("EditGroupScreen", { groupId })
+    navigation.navigate("EditGroupScreen",{ groupId })
+  }
+
+  const handleViewMembers = () => {
+    navigation.navigate("ActiveMembersScreen",{ groupId })
+  }
+
+  const handleViewRequests = () => {
+    navigation.navigate("PendingMembersScreen",{ groupId })
+  }
+
+  const handleViewBannedUsers = () => {
+    navigation.navigate("BanMembersScreen",{ groupId })
   }
 
   const handleDelete = async () => {
-    Alert.alert("Delete Group", "Are you sure you want to delete this group?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Delete Group","Are you sure you want to delete this group? This action cannot be undone.",[
+      { text: "Cancel",style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
@@ -92,11 +102,10 @@ const MyGroupDetailScreen = () => {
           setDeleting(true)
           try {
             await deleteGroup(groupId)
-            Alert.alert("Deleted", "Group deleted successfully!", [
-              { text: "OK", onPress: () => navigation.navigate("MyGroupsScreen") },
-            ])
+            showSuccessMessage("Group deleted successfully!")
+            navigation.navigate("MyGroupsScreen")
           } catch (err) {
-            Alert.alert("Error", err.message || "Failed to delete group")
+            showErrorFetchAPI(err)
           } finally {
             setDeleting(false)
           }
@@ -105,29 +114,17 @@ const MyGroupDetailScreen = () => {
     ])
   }
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "active":
-        return ["#22C55E", "#16A34A"]
-      case "pending":
-        return ["#F59E0B", "#D97706"]
-      case "inactive":
-        return ["#EF4444", "#DC2626"]
-      default:
-        return ["#6B7280", "#4B5563"]
-    }
-  }
-
   const formatMemberCount = (count) => {
+    if (!count) return "0"
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K`
-    return count?.toString() || "0"
+    return count.toString()
   }
 
   const formatDate = (dateString) => {
     if (!dateString) return "Unknown"
     try {
-      return new Date(dateString).toLocaleDateString("en-US", {
+      return new Date(dateString).toLocaleDateString("en-US",{
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -139,159 +136,168 @@ const MyGroupDetailScreen = () => {
 
   const renderLoadingScreen = () => (
     <View style={styles.container}>
-      <LinearGradient colors={["#4F46E5", "#7C3AED"]} style={styles.loadingGradient}>
-        <View style={styles.loadingContainer}>
-          <Animated.View
-            style={[
-              styles.loadingOrb,
-              {
-                transform: [
-                  {
-                    rotate: rotateAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ["0deg", "360deg"],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <LinearGradient colors={["#22C55E", "#3B82F6", "#8B5CF6"]} style={styles.loadingOrbGradient}>
-              <ActivityIndicator size="large" color="#FFFFFF" />
-            </LinearGradient>
-          </Animated.View>
-          <Text style={styles.loadingText}>Loading Group Data...</Text>
-          <View style={styles.loadingDots}>
-            <Animated.View style={[styles.loadingDot, { opacity: fadeAnim }]} />
-            <Animated.View style={[styles.loadingDot, { opacity: fadeAnim }]} />
-            <Animated.View style={[styles.loadingDot, { opacity: fadeAnim }]} />
-          </View>
-        </View>
-      </LinearGradient>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0056d2" />
+        <Text style={styles.loadingText}>Loading group data...</Text>
+      </View>
     </View>
   )
 
-  const renderHeroSection = () => (
+  const renderImageSection = () => (
     <Animated.View
       style={[
-        styles.heroSection,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
-        },
-      ]}
-    >
-      <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.heroBackground}>
-        <View style={styles.heroContent}>
-          <View style={styles.heroImageContainer}>
-            {group.thumbnail ? (
-              <Image source={{ uri: group.thumbnail }} style={styles.heroImage} />
-            ) : (
-              <LinearGradient colors={["#3B82F6", "#8B5CF6"]} style={styles.heroImagePlaceholder}>
-                <MaterialCommunityIcons name="account-group" size={40} color="#FFFFFF" />
-              </LinearGradient>
-            )}
-            {group.isPrivate && (
-              <View style={styles.privateBadge}>
-                <Ionicons name="lock-closed" size={12} color="#FFFFFF" />
-              </View>
-            )}
-          </View>
-
-          <View style={styles.heroInfo}>
-            <Text style={styles.heroTitle}>{group.groupName}</Text>
-            <View style={styles.heroStats}>
-              <View style={styles.heroStat}>
-                <Ionicons name="people" size={16} color="#22C55E" />
-                <Text style={styles.heroStatText}>{formatMemberCount(group.memberCount)} Members</Text>
-              </View>
-              <View style={styles.heroStat}>
-                <Ionicons name="calendar" size={16} color="#3B82F6" />
-                <Text style={styles.heroStatText}>Created {formatDate(group.createdAt)}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  )
-
-  const renderStatsCards = () => (
-    <Animated.View
-      style={[
-        styles.statsContainer,
+        styles.imageSection,
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
         },
       ]}
     >
-      <View style={styles.statsGrid}>
-        {/* Status Card */}
-        <View style={styles.statCard}>
-          <LinearGradient colors={getStatusColor(group.status)} style={styles.statCardGradient}>
-            <View style={styles.statCardContent}>
-              <Ionicons name="pulse" size={24} color="#FFFFFF" />
-              <Text style={styles.statCardLabel}>Status</Text>
-              <Text style={styles.statCardValue}>{group.status || "Active"}</Text>
+      {group?.thumbnail ? (
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: group.thumbnail }} style={styles.imagePreview} />
+          <View style={styles.imageLabel}>
+            <Ionicons name="image" size={14} color="#FFFFFF" />
+            <Text style={styles.imageLabelText}>Group Cover</Text>
+          </View>
+          {group?.isPrivate && (
+            <View style={styles.privateBadge}>
+              <Ionicons name="lock-closed" size={12} color="#FFFFFF" />
             </View>
-          </LinearGradient>
+          )}
+        </View>
+      ) : (
+        <View style={styles.noImageContainer}>
+          <View style={styles.noImageIcon}>
+            <Ionicons name="image-outline" size={32} color="#9CA3AF" />
+          </View>
+          <Text style={styles.noImageText}>No cover image</Text>
+        </View>
+      )}
+    </Animated.View>
+  )
+
+  const renderGroupInfo = () => (
+    <Animated.View
+      style={[
+        styles.infoSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.infoContainer}>
+        <Text style={styles.groupName}>{group?.groupName || "Unknown Group"}</Text>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Ionicons name="people-outline" size={16} color="#0056d2" />
+            <Text style={styles.statText}>{formatMemberCount(group?.memberCount)} Members</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Ionicons name="calendar-outline" size={16} color="#0056d2" />
+            <Text style={styles.statText}>Created {formatDate(group?.createdAt)}</Text>
+          </View>
         </View>
 
-        {/* Members Card */}
-        <View style={styles.statCard}>
-          <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.statCardGradient}>
-            <View style={styles.statCardContent}>
-              <Ionicons name="people" size={24} color="#FFFFFF" />
-              <Text style={styles.statCardLabel}>Members</Text>
-              <Text style={styles.statCardValue}>{formatMemberCount(group.memberCount)}</Text>
-            </View>
-          </LinearGradient>
-        </View>
-
-        {/* Privacy Card */}
-        <View style={styles.statCard}>
-          <LinearGradient colors={["#8B5CF6", "#7C3AED"]} style={styles.statCardGradient}>
-            <View style={styles.statCardContent}>
-              <Ionicons name={group.isPrivate ? "lock-closed" : "globe"} size={24} color="#FFFFFF" />
-              <Text style={styles.statCardLabel}>Privacy</Text>
-              <Text style={styles.statCardValue}>{group.isPrivate ? "Private" : "Public"}</Text>
-            </View>
-          </LinearGradient>
-        </View>
-
-        {/* Activity Card */}
-        <View style={styles.statCard}>
-          <LinearGradient colors={["#F59E0B", "#D97706"]} style={styles.statCardGradient}>
-            <View style={styles.statCardContent}>
-              <Ionicons name="trending-up" size={24} color="#FFFFFF" />
-              <Text style={styles.statCardLabel}>Activity</Text>
-              <Text style={styles.statCardValue}>High</Text>
-            </View>
-          </LinearGradient>
+        <View style={styles.statusRow}>
+          <View style={styles.statusBadge}>
+            <Ionicons name="pulse" size={14} color="#0056d2" />
+            <Text style={styles.statusText}>{group?.status || "Active"}</Text>
+          </View>
+          <View style={styles.privacyBadge}>
+            <Ionicons name={group?.isPrivate ? "lock-closed" : "globe"} size={14} color="#0056d2" />
+            <Text style={styles.privacyText}>{group?.isPrivate ? "Private" : "Public"}</Text>
+          </View>
         </View>
       </View>
     </Animated.View>
   )
 
-  const renderDescriptionCard = () => (
+  const renderDescription = () => (
     <Animated.View
       style={[
-        styles.descriptionCard,
+        styles.descriptionSection,
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
         },
       ]}
     >
-      <View style={styles.descriptionContainer}>
-        <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.descriptionGradient}>
-          <View style={styles.descriptionHeader}>
-            <Ionicons name="document-text" size={20} color="#3B82F6" />
-            <Text style={styles.descriptionTitle}>Description</Text>
+      <View style={styles.fieldContainer}>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelContainer}>
+            <Ionicons name="document-text-outline" size={16} color="#0056d2" style={styles.fieldIcon} />
+            <Text style={styles.fieldLabel}>Description</Text>
           </View>
-          <Text style={styles.descriptionText}>{group.description || "No description available."}</Text>
-        </LinearGradient>
+        </View>
+
+        {group?.description ? (
+          <View style={styles.descriptionContainer}>
+            <RichEditor
+              ref={null}
+              initialContentHTML={group.description}
+              disabled={true}
+              style={styles.richEditor}
+              editorStyle={{
+                backgroundColor: "#FFFFFF",
+                color: "#000000",
+                fontSize: 16,
+                fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
+                lineHeight: 24,
+                padding: 16,
+              }}
+            />
+          </View>
+        ) : (
+          <View style={styles.noDescriptionContainer}>
+            <Text style={styles.noDescriptionText}>No description available.</Text>
+          </View>
+        )}
+      </View>
+    </Animated.View>
+  )
+
+  const renderManagementButtons = () => (
+    <Animated.View
+      style={[
+        styles.managementSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldContainer}>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelContainer}>
+            <Ionicons name="settings-outline" size={16} color="#0056d2" style={styles.fieldIcon} />
+            <Text style={styles.fieldLabel}>Group Management</Text>
+          </View>
+        </View>
+
+        <View style={styles.managementGrid}>
+          <TouchableOpacity style={styles.managementButton} onPress={handleViewMembers}>
+            <Ionicons name="people-outline" size={20} color="#0056d2" />
+            <Text style={styles.managementButtonText}>View Members</Text>
+            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          {group?.isPrivate && (
+            <TouchableOpacity style={styles.managementButton} onPress={handleViewRequests}>
+              <Ionicons name="person-add-outline" size={20} color="#0056d2" />
+              <Text style={styles.managementButtonText}>Join Requests</Text>
+              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity style={styles.managementButton} onPress={handleViewBannedUsers}>
+            <Ionicons name="ban-outline" size={20} color="#0056d2" />
+            <Text style={styles.managementButtonText}>Banned Users</Text>
+            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
       </View>
     </Animated.View>
   )
@@ -299,29 +305,29 @@ const MyGroupDetailScreen = () => {
   const renderActionButtons = () => (
     <Animated.View
       style={[
-        styles.actionContainer,
+        styles.actionSection,
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
         },
       ]}
     >
-      <TouchableOpacity style={styles.actionButton} onPress={handleEdit} activeOpacity={0.8}>
-        <LinearGradient colors={["#3B82F6", "#2563EB"]} style={styles.actionButtonGradient}>
-          <Ionicons name="pencil" size={20} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Edit Group</Text>
-        </LinearGradient>
+      <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+        <Ionicons name="pencil" size={20} color="#FFFFFF" />
+        <Text style={styles.editButtonText}>Edit Group</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.actionButton} onPress={handleDelete} disabled={deleting} activeOpacity={0.8}>
-        <LinearGradient colors={["#EF4444", "#DC2626"]} style={styles.actionButtonGradient}>
-          {deleting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Ionicons name="trash" size={20} color="#FFFFFF" />
-          )}
-          <Text style={styles.actionButtonText}>{deleting ? "Deleting..." : "Delete Group"}</Text>
-        </LinearGradient>
+      <TouchableOpacity
+        style={[styles.deleteButton,deleting && styles.deleteButtonDisabled]}
+        onPress={handleDelete}
+        disabled={deleting}
+      >
+        {deleting ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+        )}
+        <Text style={styles.deleteButtonText}>{deleting ? "Deleting..." : "Delete Group"}</Text>
       </TouchableOpacity>
     </Animated.View>
   )
@@ -331,99 +337,50 @@ const MyGroupDetailScreen = () => {
   if (!group) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#F8FAFC", "#E2E8F0"]} style={styles.errorContainer}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={64} color="#EF4444" />
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
           <Text style={styles.errorTitle}>Group Not Found</Text>
           <Text style={styles.errorText}>The group you're looking for doesn't exist or has been deleted.</Text>
           <TouchableOpacity style={styles.errorButton} onPress={() => navigation.goBack()}>
             <Text style={styles.errorButtonText}>Go Back</Text>
           </TouchableOpacity>
-        </LinearGradient>
+        </View>
       </View>
     )
   }
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={["#F8FAFC", "#E2E8F0"]} style={styles.backgroundGradient}>
-        <SafeAreaView style={styles.safeArea}>
-          {/* Header */}
-          <Animated.View
-            style={[
-              styles.header,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
+      <SafeAreaView style={styles.safeArea}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <LinearGradient colors={["#3B82F6", "#2563EB"]} style={styles.backButtonGradient}>
-                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-              </LinearGradient>
+              <Ionicons name="arrow-back" size={24} color="#0056d2" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Group Details</Text>
-            <View style={styles.headerRight} />
-          </Animated.View>
 
-          <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-            {renderHeroSection()}
-            {renderStatsCards()}
-            {renderDescriptionCard()}
-            {renderActionButtons()}
-
-            {/* Floating Particles */}
-            <Animated.View
-              style={[
-                styles.floatingParticle,
-                styles.particle1,
-                {
-                  transform: [
-                    {
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ["0deg", "360deg"],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-            <Animated.View
-              style={[
-                styles.floatingParticle,
-                styles.particle2,
-                {
-                  transform: [
-                    {
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ["360deg", "0deg"],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-            <Animated.View
-              style={[
-                styles.floatingParticle,
-                styles.particle3,
-                {
-                  transform: [
-                    {
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ["0deg", "180deg"],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          </ScrollView>
-        </SafeAreaView>
-      </LinearGradient>
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>#GROUP{group?.groupId || "Your group"}</Text>
+            </View>
+            <View style={{ flexDirection: 'row',alignItems: 'center' }}>
+              <TouchableOpacity style={styles.filterButton} onPress={handleEdit}>
+                <Ionicons name="pencil-outline" size={24} color="#0056d2" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+        <ScrollView
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {renderImageSection()}
+          {renderGroupInfo()}
+          {renderDescription()}
+          {renderManagementButtons()}
+          {renderActionButtons()}
+        </ScrollView>
+      </SafeAreaView>
     </View>
   )
 }
@@ -431,293 +388,310 @@ const MyGroupDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  backgroundGradient: {
-    flex: 1,
-  },
-  loadingGradient: {
-    flex: 1,
+    backgroundColor: "#FFFFFF",
   },
   safeArea: {
     flex: 1,
   },
   header: {
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 10,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+  },
+  headerContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "transparent",
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
   },
-  backButtonGradient: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
+  filterButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#000000",
     textAlign: "center",
-    flex: 1,
   },
   headerRight: {
-    width: 44,
+    width: 40,
   },
   scrollContainer: {
     flex: 1,
-    paddingHorizontal: 20,
+    backgroundColor: "#F8FAFC",
+  },
+  scrollContent: {
+    padding: 20,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  loadingOrb: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    overflow: "hidden",
-    marginBottom: 30,
-  },
-  loadingOrbGradient: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
+    padding: 40,
   },
   loadingText: {
-    fontSize: 18,
-    color: "#FFFFFF",
-    fontWeight: "600",
-    marginBottom: 20,
+    fontSize: 16,
+    color: "#6B7280",
+    marginTop: 16,
+    fontWeight: "500",
   },
-  loadingDots: {
-    flexDirection: "row",
-    gap: 8,
+  imageSection: {
+    marginBottom: 24,
   },
-  loadingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FFFFFF",
-  },
-  heroSection: {
-    marginBottom: 30,
-    borderRadius: 20,
+  imageContainer: {
+    position: "relative",
+    borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 6,
+    elevation: 4,
   },
-  heroBackground: {
-    padding: 20,
+  imagePreview: {
+    width: "100%",
+    height: 200,
+    resizeMode: "cover",
   },
-  heroContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  heroImageContainer: {
-    position: "relative",
-    marginRight: 20,
-  },
-  heroImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  heroImagePlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  privateBadge: {
+  imageLabel: {
     position: "absolute",
-    top: -2,
-    right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#8B5CF6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  heroInfo: {
-    flex: 1,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1E293B",
-    marginBottom: 10,
-  },
-  heroStats: {
-    flexDirection: "column",
-    gap: 8,
-  },
-  heroStat: {
+    bottom: 16,
+    left: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  heroStatText: {
+  imageLabelText: {
     fontSize: 14,
-    color: "#64748B",
+    color: "#FFFFFF",
     fontWeight: "600",
   },
-  statsContainer: {
-    marginBottom: 30,
+  privateBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(0, 86, 210, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 15,
-  },
-  statCard: {
-    width: (width - 55) / 2,
-    height: 120,
+  noImageContainer: {
+    height: 200,
     borderRadius: 16,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    borderStyle: "dashed",
+  },
+  noImageIcon: {
+    marginBottom: 8,
+  },
+  noImageText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    fontWeight: "500",
+  },
+  infoSection: {
+    marginBottom: 24,
+  },
+  infoContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  groupName: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#000000",
+    marginBottom: 16,
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 20,
+    marginBottom: 16,
+  },
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statText: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  statusRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#F0F9FF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 12,
+    color: "#0056d2",
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
+  privacyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#F0F9FF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  privacyText: {
+    fontSize: 12,
+    color: "#0056d2",
+    fontWeight: "600",
+  },
+  descriptionSection: {
+    marginBottom: 24,
+  },
+  fieldContainer: {
+    marginBottom: 0,
+  },
+  fieldHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  fieldLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  fieldIcon: {
+    marginRight: 8,
+  },
+  fieldLabel: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  descriptionContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  richEditor: {
+    minHeight: 120,
+    backgroundColor: "#FFFFFF",
+  },
+  noDescriptionContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    padding: 20,
+    alignItems: "center",
+  },
+  noDescriptionText: {
+    fontSize: 16,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+  },
+  managementSection: {
+    marginBottom: 24,
+  },
+  managementGrid: {
+    gap: 12,
+  },
+  managementButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  managementButtonText: {
+    flex: 1,
+    fontSize: 16,
+    color: "#000000",
+    fontWeight: "500",
+    marginLeft: 12,
+  },
+  actionSection: {
+    gap: 12,
+    marginBottom: 40,
+  },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#0056d2",
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
-  statCardGradient: {
-    flex: 1,
-    padding: 16,
-    justifyContent: "center",
-  },
-  statCardContent: {
-    alignItems: "center",
-  },
-  statCardLabel: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.8)",
+  editButtonText: {
+    fontSize: 16,
     fontWeight: "600",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statCardValue: {
-    fontSize: 16,
     color: "#FFFFFF",
-    fontWeight: "800",
-    textTransform: "capitalize",
   },
-  descriptionCard: {
-    marginBottom: 30,
-  },
-  descriptionContainer: {
-    borderRadius: 20,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  descriptionGradient: {
-    padding: 20,
-  },
-  descriptionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  descriptionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginLeft: 10,
-  },
-  descriptionText: {
-    fontSize: 16,
-    color: "#64748B",
-    lineHeight: 24,
-    fontWeight: "400",
-  },
-  actionContainer: {
-    gap: 15,
-    marginBottom: 40,
-  },
-  actionButton: {
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  actionButtonGradient: {
+  deleteButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    gap: 10,
+    backgroundColor: "#EF4444",
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  actionButtonText: {
+  deleteButtonDisabled: {
+    opacity: 0.7,
+  },
+  deleteButtonText: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#FFFFFF",
-  },
-  pendingButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F59E0B",
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    alignSelf: "flex-start",
-    marginTop: 10,
-  },
-  pendingIcon: {
-    marginRight: 6,
-  },
-  pendingText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 15,
-  },
-  floatingParticle: {
-    position: "absolute",
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#3B82F6",
-    opacity: 0.6,
-  },
-  particle1: {
-    top: 100,
-    right: 30,
-  },
-  particle2: {
-    top: 300,
-    left: 40,
-    backgroundColor: "#8B5CF6",
-  },
-  particle3: {
-    top: 500,
-    right: 60,
-    backgroundColor: "#22C55E",
   },
   errorContainer: {
     flex: 1,
@@ -728,20 +702,20 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#000000",
     marginTop: 20,
     marginBottom: 10,
     textAlign: "center",
   },
   errorText: {
     fontSize: 16,
-    color: "#64748B",
+    color: "#6B7280",
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 30,
   },
   errorButton: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#0056d2",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,

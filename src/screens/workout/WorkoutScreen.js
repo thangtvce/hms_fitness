@@ -27,6 +27,7 @@ import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
 import { theme } from "theme/color";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Header from "components/Header";
 
 const { width, height } = Dimensions.get("window");
 
@@ -105,7 +106,6 @@ const WorkoutScreen = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  // Load userId from AsyncStorage
   useEffect(() => {
     const loadUserId = async () => {
       try {
@@ -119,25 +119,19 @@ const WorkoutScreen = () => {
     loadUserId();
   }, []);
 
-  // Fetch AI recommended exercises
   const fetchAIRecommended = async () => {
-    console.log('[AI] fetchAIRecommended called, userId:', userId);
     if (!userId) {
-      console.log('[AI] userId is not set, skipping fetch');
       return;
     }
     setAILoading(true);
     setAIError(null);
     try {
       const aiExercises = await aiRecommentService.getRecommendedExercisesByUser(userId);
-      console.log('[AI] API result:', aiExercises);
       const items = Array.isArray(aiExercises?.recommendedExercises) ? aiExercises.recommendedExercises : [];
       setAIItems(items);
-      console.log('[AI] setAIItems:', items);
     } catch (e) {
       setAIError("Failed to load AI recommendations. Please try again.");
       setAIItems([]);
-      console.log('[AI] Error fetching AI recommendations:', e);
     } finally {
       setAILoading(false);
     }
@@ -208,8 +202,10 @@ const WorkoutScreen = () => {
         if (appliedFilters.startDate) params.StartDate = appliedFilters.startDate;
         if (appliedFilters.endDate) params.EndDate = appliedFilters.endDate;
       }
+
       const response = await workoutService.getAllExercises(params);
       if (categories.length === 0) await fetchCategories();
+
       if (response && typeof response === "object") {
         let exercises = Array.isArray(response.exercises)
           ? response.exercises
@@ -218,7 +214,9 @@ const WorkoutScreen = () => {
             : Array.isArray(response)
               ? response
               : [];
+
         exercises = sortExercises(exercises, sortBy);
+
         if (response.pagination) {
           setCurrentPage(response.pagination.currentPage || params.PageNumber || 1);
           setTotalPages(response.pagination.totalPages || 1);
@@ -235,6 +233,7 @@ const WorkoutScreen = () => {
           setHasNextPage(currentPageNum < Math.ceil(totalCount / pageSize));
           setHasPrevPage(currentPageNum > 1);
         }
+
         setItems([...exercises]);
       } else {
         setItems([]);
@@ -259,6 +258,7 @@ const WorkoutScreen = () => {
       const storedFavorites = await AsyncStorage.getItem('favoriteExercises');
       let favoriteList = storedFavorites ? JSON.parse(storedFavorites) : [];
       const isFavorited = favorites.includes(exercise.exerciseId);
+
       if (isFavorited) {
         favoriteList = favoriteList.filter((item) => item.exerciseId !== exercise.exerciseId);
         setFavorites(favorites.filter((id) => id !== exercise.exerciseId));
@@ -280,10 +280,12 @@ const WorkoutScreen = () => {
     try {
       const storedExercises = await AsyncStorage.getItem('scheduledExercises');
       let scheduledExercises = storedExercises ? JSON.parse(storedExercises) : [];
+
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
         Alert.alert('Info', `${exercise.exerciseName} is already in your schedule`);
         return;
       }
+
       const exerciseToSave = { ...exercise, mediaUrl: exercise.mediaUrl || '' };
       scheduledExercises.push(exerciseToSave);
       await AsyncStorage.setItem('scheduledExercises', JSON.stringify(scheduledExercises));
@@ -452,16 +454,18 @@ const WorkoutScreen = () => {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={isSelected ? ["#4F46E5", "#6366F1"] : ["#F8FAFC", "#F1F5F9"]}
+          colors={isSelected ? ["#0056d2", "#4F46E5"] : ["#F8FAFC", "#F1F5F9"]}
           style={styles.categoryGradient}
         >
           <View style={styles.categoryIconContainer}>
-            <Ionicons name="fitness-outline" size={24} color={isSelected ? "#FFFFFF" : "#4F46E5"} />
+            <Ionicons name="fitness-outline" size={20} color={isSelected ? "#FFFFFF" : "#0056d2"} />
           </View>
-          <Text style={[styles.categoryName, { color: isSelected ? "#FFFFFF" : "#1E293B" }]}>{item.categoryName}</Text>
+          <Text style={[styles.categoryName, { color: isSelected ? "#FFFFFF" : "#1E293B" }]}>
+            {item.categoryName}
+          </Text>
           {isSelected && (
             <View style={styles.selectedIndicator}>
-              <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+              <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
             </View>
           )}
         </LinearGradient>
@@ -481,7 +485,7 @@ const WorkoutScreen = () => {
         <View style={styles.sortModal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Sort Exercises</Text>
-            <TouchableOpacity onPress={() => setShowSortModal(false)}>
+            <TouchableOpacity onPress={() => setShowSortModal(false)} style={styles.closeButton}>
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
@@ -502,13 +506,13 @@ const WorkoutScreen = () => {
                       { backgroundColor: sortBy === option.value ? "#EEF2FF" : "#F9FAFB" },
                     ]}
                   >
-                    <Ionicons name={option.icon} size={20} color={sortBy === option.value ? "#4F46E5" : "#6B7280"} />
+                    <Ionicons name={option.icon} size={18} color={sortBy === option.value ? "#0056d2" : "#6B7280"} />
                   </View>
                   <Text style={[styles.sortOptionText, sortBy === option.value && styles.selectedSortOptionText]}>
                     {option.label}
                   </Text>
                 </View>
-                {sortBy === option.value && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                {sortBy === option.value && <Ionicons name="checkmark" size={18} color="#0056d2" />}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -520,14 +524,18 @@ const WorkoutScreen = () => {
   // Render pagination controls
   const renderPaginationControls = () => {
     if (totalPages <= 1) return null;
+
     const pageNumbers = [];
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
+
     for (let i = startPage; i <= endPage; i++) pageNumbers.push(i);
+
     return (
       <View style={styles.paginationContainer}>
         <View style={styles.paginationInfo}>
@@ -542,7 +550,7 @@ const WorkoutScreen = () => {
             onPress={goToPrevPage}
             disabled={!hasPrevPage}
           >
-            <Ionicons name="chevron-back" size={16} color={hasPrevPage ? "#4F46E5" : "#9CA3AF"} />
+            <Ionicons name="chevron-back" size={16} color={hasPrevPage ? "#0056d2" : "#9CA3AF"} />
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pageNumbersContainer}>
             {startPage > 1 && (
@@ -550,7 +558,11 @@ const WorkoutScreen = () => {
                 <TouchableOpacity style={styles.pageNumberButton} onPress={() => goToPage(1)}>
                   <Text style={styles.pageNumberText}>1</Text>
                 </TouchableOpacity>
-                {startPage > 2 && <Text style={styles.paginationEllipsis}>...</Text>}
+                {startPage > 2 && (
+                  <View style={styles.paginationEllipsisContainer}>
+                    <Text style={styles.paginationEllipsis}>...</Text>
+                  </View>
+                )}
               </>
             )}
             {pageNumbers.map((pageNum) => (
@@ -566,7 +578,11 @@ const WorkoutScreen = () => {
             ))}
             {endPage < totalPages && (
               <>
-                {endPage < totalPages - 1 && <Text style={styles.paginationEllipsis}>...</Text>}
+                {endPage < totalPages - 1 && (
+                  <View style={styles.paginationEllipsisContainer}>
+                    <Text style={styles.paginationEllipsis}>...</Text>
+                  </View>
+                )}
                 <TouchableOpacity style={styles.pageNumberButton} onPress={() => goToPage(totalPages)}>
                   <Text style={styles.pageNumberText}>{totalPages}</Text>
                 </TouchableOpacity>
@@ -578,7 +594,7 @@ const WorkoutScreen = () => {
             onPress={goToNextPage}
             disabled={!hasNextPage}
           >
-            <Ionicons name="chevron-forward" size={16} color={hasNextPage ? "#4F46E5" : "#9CA3AF"} />
+            <Ionicons name="chevron-forward" size={16} color={hasNextPage ? "#0056d2" : "#9CA3AF"} />
           </TouchableOpacity>
         </View>
       </View>
@@ -656,7 +672,7 @@ const WorkoutScreen = () => {
                   <Text style={[styles.filterOptionText, filters.status === status.value && styles.selectedOptionText]}>
                     {status.label}
                   </Text>
-                  {filters.status === status.value && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                  {filters.status === status.value && <Ionicons name="checkmark" size={18} color="#0056d2" />}
                 </TouchableOpacity>
               ))}
             </View>
@@ -669,7 +685,7 @@ const WorkoutScreen = () => {
                 <Text style={[styles.filterOptionText, filters.categoryId === "" && styles.selectedOptionText]}>
                   All Categories
                 </Text>
-                {filters.categoryId === "" && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                {filters.categoryId === "" && <Ionicons name="checkmark" size={18} color="#0056d2" />}
               </TouchableOpacity>
               {categories.map((category) => (
                 <TouchableOpacity
@@ -679,7 +695,7 @@ const WorkoutScreen = () => {
                 >
                   <View style={styles.categoryOptionContent}>
                     <View style={styles.categoryIcon}>
-                      <Ionicons name="fitness-outline" size={16} color="#4F46E5" />
+                      <Ionicons name="fitness-outline" size={14} color="#0056d2" />
                     </View>
                     <Text
                       style={[
@@ -691,7 +707,7 @@ const WorkoutScreen = () => {
                     </Text>
                   </View>
                   {filters.categoryId === category.categoryId && (
-                    <Ionicons name="checkmark" size={20} color="#4F46E5" />
+                    <Ionicons name="checkmark" size={18} color="#0056d2" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -741,12 +757,12 @@ const WorkoutScreen = () => {
                   <View
                     style={[
                       styles.layoutIconContainer,
-                      { backgroundColor: layoutMode === option.columns ? "#4F46E5" : "#F9FAFB" },
+                      { backgroundColor: layoutMode === option.columns ? "#0056d2" : "#F9FAFB" },
                     ]}
                   >
                     <Ionicons
                       name={option.icon}
-                      size={24}
+                      size={20}
                       color={layoutMode === option.columns ? "#FFFFFF" : "#6B7280"}
                     />
                   </View>
@@ -757,7 +773,7 @@ const WorkoutScreen = () => {
                   </Text>
                   {layoutMode === option.columns && (
                     <View style={styles.layoutCheckmark}>
-                      <Ionicons name="checkmark-circle" size={20} color="#4F46E5" />
+                      <Ionicons name="checkmark-circle" size={18} color="#0056d2" />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -769,11 +785,11 @@ const WorkoutScreen = () => {
     </Modal>
   );
 
-  // Render exercise item
   const renderExerciseItem = ({ item, index, isAI = false }) => {
     const itemWidth = layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : "23%";
-    const imageHeight = layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : 100;
+    const imageHeight = layoutMode === 1 ? 160 : layoutMode === 2 ? 120 : layoutMode === 3 ? 100 : 80;
     const isFavorited = favorites.includes(item.exerciseId);
+
     return (
       <Animated.View
         style={[
@@ -783,14 +799,14 @@ const WorkoutScreen = () => {
             marginRight: layoutMode > 1 ? "2%" : 0,
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
-            ...(isAI ? [{ borderWidth: 2, borderColor: '#A5B4FC' }] : []),
+            ...(isAI ? [{ borderWidth: 2, borderColor: '#0056d2' }] : []),
           },
         ]}
       >
         <TouchableOpacity
           onPress={() => navigation.navigate("ExerciseDetails", { exercise: item })}
           activeOpacity={0.8}
-          style={[styles.exerciseCard, isAI && { backgroundColor: '#F5F3FF' }]}
+          style={[styles.exerciseCard, isAI && { backgroundColor: '#F0F4FF' }]}
         >
           <View style={styles.exerciseImageContainer}>
             <Image
@@ -799,41 +815,16 @@ const WorkoutScreen = () => {
               resizeMode="cover"
             />
             {isAI && (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 12,
-                  left: 12,
-                  backgroundColor: '#4F46E5',
-                  borderRadius: 10,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 4,
-                  elevation: 3,
-                  zIndex: 10,
-                }}
-              >
-                <Text
-                  style={{
-                    color: '#FFFFFF',
-                    fontWeight: '700',
-                    fontSize: 14,
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  AI Recommend
-                </Text>
+              <View style={styles.aiRecommendBadge}>
+                <Text style={styles.aiRecommendText}>AI Recommend</Text>
               </View>
             )}
             <LinearGradient
-              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"]}
+              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.6)"]}
               style={styles.exerciseGradient}
             >
               <Text
-                style={[styles.exerciseName, { fontSize: layoutMode > 2 ? 16 : 20 }]}
+                style={[styles.exerciseName, { fontSize: layoutMode > 2 ? 14 : 16 }]}
                 numberOfLines={layoutMode > 2 ? 2 : 1}
               >
                 {item.exerciseName || "Unknown Exercise"}
@@ -846,44 +837,44 @@ const WorkoutScreen = () => {
                   { backgroundColor: item.status === "active" ? "#10B981" : "#EF4444" },
                 ]}
               >
-                <Text style={[styles.statusText, { fontSize: layoutMode > 2 ? 10 : 12 }]}>{item.status}</Text>
+                <Text style={[styles.statusText, { fontSize: layoutMode > 2 ? 9 : 11 }]}>{item.status}</Text>
               </View>
             )}
             <TouchableOpacity
-              style={[styles.favoriteButton, { width: layoutMode > 2 ? 28 : 36, height: layoutMode > 2 ? 28 : 36 }]}
+              style={[styles.favoriteButton, { width: layoutMode > 2 ? 24 : 32, height: layoutMode > 2 ? 24 : 32 }]}
               onPress={() => toggleFavorite(item)}
             >
               <Ionicons
                 name={isFavorited ? "heart" : "heart-outline"}
-                size={layoutMode > 2 ? 16 : 20}
+                size={layoutMode > 2 ? 14 : 18}
                 color="#FFFFFF"
               />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.addButton, { width: layoutMode > 2 ? 28 : 36, height: layoutMode > 2 ? 28 : 36 }]}
+              style={[styles.addButton, { width: layoutMode > 2 ? 24 : 32, height: layoutMode > 2 ? 24 : 32 }]}
               onPress={() => addToSchedule(item)}
             >
-              <Ionicons name="add-circle" size={layoutMode > 2 ? 16 : 20} color="#FFFFFF" />
+              <Ionicons name="add-circle" size={layoutMode > 2 ? 14 : 18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-          <View style={[styles.exerciseContent, { padding: layoutMode > 2 ? 12 : 20 }]}>
+          <View style={[styles.exerciseContent, { padding: layoutMode > 2 ? 10 : 16 }]}>
             <Text
-              style={[styles.exerciseDescription, { fontSize: layoutMode > 2 ? 12 : 14 }]}
+              style={[styles.exerciseDescription, { fontSize: layoutMode > 2 ? 11 : 13 }]}
               numberOfLines={layoutMode > 2 ? 1 : 2}
             >
               {item.description || "No description available"}
             </Text>
-            <View style={[styles.exerciseDetailsContainer, { gap: layoutMode > 2 ? 8 : 12 }]}>
+            <View style={[styles.exerciseDetailsContainer, { gap: layoutMode > 2 ? 6 : 10 }]}>
               <View style={styles.exerciseDetailItem}>
                 <View
                   style={[
                     styles.detailIconContainer,
-                    { backgroundColor: "#EEF2FF", width: layoutMode > 2 ? 20 : 24, height: layoutMode > 2 ? 20 : 24 },
+                    { backgroundColor: "#EEF2FF", width: layoutMode > 2 ? 18 : 22, height: layoutMode > 2 ? 18 : 22 },
                   ]}
                 >
-                  <Ionicons name="grid-outline" size={layoutMode > 2 ? 12 : 14} color="#4F46E5" />
+                  <Ionicons name="grid-outline" size={layoutMode > 2 ? 10 : 12} color="#0056d2" />
                 </View>
-                <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]} numberOfLines={1}>
+                <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 10 : 12 }]} numberOfLines={1}>
                   {categoryMap[item.categoryId] || `Category ${item.categoryId || "Unknown"}`}
                 </Text>
               </View>
@@ -892,12 +883,12 @@ const WorkoutScreen = () => {
                   <View
                     style={[
                       styles.detailIconContainer,
-                      { backgroundColor: "#FEF2F2", width: layoutMode > 2 ? 20 : 24, height: layoutMode > 2 ? 20 : 24 },
+                      { backgroundColor: "#FEF2F2", width: layoutMode > 2 ? 18 : 22, height: layoutMode > 2 ? 18 : 22 },
                     ]}
                   >
-                    <Ionicons name="flame-outline" size={layoutMode > 2 ? 12 : 14} color="#EF4444" />
+                    <Ionicons name="flame-outline" size={layoutMode > 2 ? 10 : 12} color="#EF4444" />
                   </View>
-                  <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]}>
+                  <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 10 : 12 }]}>
                     {item.caloriesBurnedPerMin} kcal/min
                   </Text>
                 </View>
@@ -905,7 +896,7 @@ const WorkoutScreen = () => {
               {layoutMode <= 2 && item.genderSpecific && (
                 <View style={styles.exerciseDetailItem}>
                   <View style={[styles.detailIconContainer, { backgroundColor: "#F0FDF4" }]}>
-                    <Ionicons name="person-outline" size={14} color="#10B981" />
+                    <Ionicons name="person-outline" size={12} color="#10B981" />
                   </View>
                   <Text style={styles.exerciseDetailText}>
                     {item.genderSpecific === "male" ? "Male" : item.genderSpecific === "female" ? "Female" : "Unisex"}
@@ -915,7 +906,7 @@ const WorkoutScreen = () => {
               {layoutMode <= 2 && (item.difficultyLevel || item.difficulty) && (
                 <View style={styles.exerciseDetailItem}>
                   <View style={[styles.detailIconContainer, { backgroundColor: "#FFFBEB" }]}>
-                    <Ionicons name="trending-up-outline" size={14} color="#F59E0B" />
+                    <Ionicons name="trending-up-outline" size={12} color="#F59E0B" />
                   </View>
                   <Text style={styles.exerciseDetailText}>{item.difficultyLevel || item.difficulty}</Text>
                 </View>
@@ -927,12 +918,11 @@ const WorkoutScreen = () => {
     );
   };
 
-  // Main render
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
+          <ActivityIndicator size="large" color="#0056d2" />
           <Text style={styles.loadingText}>Loading fitness content...</Text>
         </View>
       </SafeAreaView>
@@ -940,40 +930,40 @@ const WorkoutScreen = () => {
   }
 
   return (
-    // ...existing code...
     <SafeAreaView style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Fitness Hub</Text>
-            <Text style={styles.headerSubtitle}>Discover exercises & workouts</Text>
-          </View>
-          <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowFilters(true)}>
-            <Ionicons name="options-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => navigation.navigate('WorkoutFavoriteScreen')}
-          >
-            <Ionicons name="heart-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => navigation.navigate('WorkoutSessionScreen')}
-          >
-            <Ionicons name="play-circle-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+      <Header
+        title="Fitness Hub"
+        subtitle="Discover exercises & workouts"
+        onBack={() => navigation.goBack()}
+        rightActions={[
+          {
+            icon: 'options-outline',
+            onPress: () => setShowFilters(true),
+            color: '#0056d2',
+          },
+          {
+            icon: 'heart-outline',
+            onPress: () => navigation.navigate('WorkoutFavoriteScreen'),
+            color: '#EF4444',
+          },
+          {
+            icon: 'play-circle-outline',
+            onPress: () => navigation.navigate('WorkoutSessionScreen'),
+            color: '#0056d2',
+          },
+        ]}
+        backgroundColor={theme.primaryColor}
+        textColor={'#fff'}
+        containerStyle={styles.header}
+        backButtonColor={'#000'}
+      />
+
       <Animated.View
         style={[styles.searchContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
       >
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
+          <Ionicons name="search-outline" size={18} color="#64748B" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search exercises..."
@@ -986,33 +976,32 @@ const WorkoutScreen = () => {
           />
           {searchQuery ? (
             <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color="#94A3B8" />
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
             </TouchableOpacity>
           ) : null}
         </View>
         <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-          <Ionicons name="search" size={20} color="#FFFFFF" />
+          <Ionicons name="search" size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
+
       <View style={styles.categoriesSection}>
         <View style={styles.sectionHeader}>
-          {/* <Text style={styles.sectionTitle}>Exercise Categories</Text> */}
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.layoutButton} onPress={() => setShowLayoutModal(true)}>
               <Ionicons
                 name={LAYOUT_OPTIONS.find((opt) => opt.columns === layoutMode)?.icon || "grid-outline"}
-                size={18}
-                color="#4F46E5"
+                size={16}
+                color="#0056d2"
               />
               <Text style={styles.layoutButtonText}>{layoutMode} col</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
-              <Ionicons name="swap-vertical-outline" size={20} color="#4F46E5" />
+              <Ionicons name="swap-vertical-outline" size={16} color="#0056d2" />
               <Text style={styles.sortButtonText}>Sort</Text>
             </TouchableOpacity>
-            {/* Nút chuyển sang màn hình AI Recommended */}
             <TouchableOpacity style={styles.sortButton} onPress={() => navigation.navigate('AIRecommendedScreen')}>
-              <Ionicons name="sparkles-outline" size={20} color="#4F46E5" />
+              <Ionicons name="sparkles-outline" size={16} color="#0056d2" />
               <Text style={styles.sortButtonText}>AI Recommend</Text>
             </TouchableOpacity>
           </View>
@@ -1026,6 +1015,7 @@ const WorkoutScreen = () => {
           contentContainerStyle={styles.categoriesList}
         />
       </View>
+
       {(appliedSearchQuery ||
         appliedFilters.status ||
         appliedFilters.categoryId ||
@@ -1039,7 +1029,7 @@ const WorkoutScreen = () => {
               <View style={styles.activeFilterChip}>
                 <Text style={styles.activeFilterText}>Search: {appliedSearchQuery}</Text>
                 <TouchableOpacity onPress={clearSearch}>
-                  <Ionicons name="close" size={16} color="#4F46E5" />
+                  <Ionicons name="close" size={14} color="#0056d2" />
                 </TouchableOpacity>
               </View>
             )}
@@ -1071,6 +1061,7 @@ const WorkoutScreen = () => {
           </TouchableOpacity>
         </View>
       )}
+
       <View style={styles.contentContainer}>
         {error && !refreshing ? (
           <View style={styles.errorContainer}>
@@ -1096,8 +1087,8 @@ const WorkoutScreen = () => {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={onRefresh}
-                  colors={["#4F46E5"]}
-                  tintColor="#4F46E5"
+                  colors={["#0056d2"]}
+                  tintColor="#0056d2"
                 />
               }
               showsVerticalScrollIndicator={false}
@@ -1125,6 +1116,7 @@ const WorkoutScreen = () => {
           </>
         )}
       </View>
+
       {renderFilterModal()}
       {renderSortModal()}
       {renderLayoutModal()}
@@ -1135,52 +1127,18 @@ const WorkoutScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.primaryColor,
+    backgroundColor: '#0056d2',
   },
   header: {
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
-    paddingBottom: 20,
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-  },
-  headerTextContainer: {
-    flex: 1,
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    textAlign: "center",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
-    textAlign: "center",
-    marginTop: 2,
-  },
-  headerActionButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    marginLeft: 8,
+    paddingBottom: 16,
   },
   searchContainer: {
     backgroundColor: "#F8FAFC",
-    marginTop: -10,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 24,
+    marginTop: -8,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
     paddingHorizontal: 16,
     paddingBottom: 16,
     flexDirection: "row",
@@ -1191,31 +1149,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 2,
   },
   searchIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: "#1E293B",
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
   clearButton: {
     padding: 4,
   },
   searchButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#10B981",
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#0056d2",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1239,92 +1197,109 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 1,
   },
   layoutButtonText: {
-    fontSize: 12,
-    color: "#4F46E5",
-    fontWeight: "500",
-    marginLeft: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
+    fontSize: 11,
+    color: "#0056d2",
     fontWeight: "600",
-    color: "#1E293B",
+    marginLeft: 4,
   },
   sortButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 1,
   },
   sortButtonText: {
-    fontSize: 14,
-    color: "#4F46E5",
-    fontWeight: "500",
+    fontSize: 12,
+    color: "#0056d2",
+    fontWeight: "600",
     marginLeft: 4,
   },
   categoriesList: {
     paddingHorizontal: 16,
   },
   categoryCard: {
-    marginRight: 12,
-    borderRadius: 16,
+    marginRight: 10,
+    borderRadius: 14,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
     elevation: 3,
   },
   selectedCategoryCard: {
-    transform: [{ scale: 1.05 }],
+    transform: [{ scale: 1.02 }],
   },
   categoryGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    minWidth: 120,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 100,
     alignItems: "center",
     position: "relative",
   },
   categoryIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   categoryName: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     textAlign: "center",
   },
   selectedIndicator: {
     position: "absolute",
-    top: 8,
-    right: 8,
+    top: 6,
+    right: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
   },
   sortModal: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     maxHeight: height * 0.6,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  closeButton: {
+    padding: 8,
   },
   sortContent: {
     paddingHorizontal: 20,
@@ -1334,7 +1309,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 8,
@@ -1343,27 +1318,27 @@ const styles = StyleSheet.create({
   selectedSortOption: {
     backgroundColor: "#EEF2FF",
     borderWidth: 1,
-    borderColor: "#4F46E5",
+    borderColor: "#0056d2",
   },
   sortOptionLeft: {
     flexDirection: "row",
     alignItems: "center",
   },
   sortIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
   },
   sortOptionText: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#6B7280",
     fontWeight: "500",
   },
   selectedSortOptionText: {
-    color: "#4F46E5",
+    color: "#0056d2",
     fontWeight: "600",
   },
   activeFiltersContainer: {
@@ -1380,25 +1355,25 @@ const styles = StyleSheet.create({
   },
   activeFilterChip: {
     backgroundColor: "#EEF2FF",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     marginRight: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
   activeFilterText: {
-    fontSize: 12,
-    color: "#4F46E5",
+    fontSize: 11,
+    color: "#0056d2",
     fontWeight: "500",
   },
   clearAllFiltersButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   clearAllFiltersText: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#EF4444",
     fontWeight: "600",
   },
@@ -1415,6 +1390,129 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     backgroundColor: "#F9FAFB",
   },
+  exerciseItem: {
+    marginBottom: 16,
+  },
+  exerciseCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  exerciseImageContainer: {
+    position: "relative",
+  },
+  exerciseImage: {
+    width: "100%",
+    height: 160,
+  },
+  aiRecommendBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: '#0056d2',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
+  },
+  aiRecommendText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  exerciseGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 60,
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  exerciseName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  statusBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  statusText: {
+    fontSize: 10,
+    color: "#FFFFFF",
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
+  favoriteButton: {
+    position: "absolute",
+    top: 12,
+    right: 50,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  exerciseContent: {
+    padding: 16,
+  },
+  exerciseDescription: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  exerciseDetailsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  exerciseDetailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  detailIconContainer: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 6,
+  },
+  exerciseDetailText: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "500",
+  },
   paginationContainer: {
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
@@ -1424,10 +1522,10 @@ const styles = StyleSheet.create({
   },
   paginationInfo: {
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   paginationText: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#6B7280",
     fontWeight: "500",
   },
@@ -1438,8 +1536,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   paginationButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderRadius: 8,
     backgroundColor: "#F9FAFB",
     alignItems: "center",
@@ -1455,23 +1553,23 @@ const styles = StyleSheet.create({
     maxWidth: width * 0.6,
   },
   pageNumberButton: {
-    minWidth: 36,
-    height: 36,
+    minWidth: 32,
+    height: 32,
     borderRadius: 8,
     backgroundColor: "#F9FAFB",
     alignItems: "center",
     justifyContent: "center",
     marginHorizontal: 2,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
   pageNumberButtonActive: {
-    backgroundColor: "#4F46E5",
-    borderColor: "#4F46E5",
+    backgroundColor: "#0056d2",
+    borderColor: "#0056d2",
   },
   pageNumberText: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#6B7280",
     fontWeight: "500",
   },
@@ -1479,146 +1577,21 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
+  paginationEllipsisContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 8,
+  },
   paginationEllipsis: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#9CA3AF",
     paddingHorizontal: 8,
     alignSelf: "center",
   },
-  pageSizeContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  pageSizeButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    minWidth: 40,
-    alignItems: "center",
-  },
-  selectedPageSize: {
-    backgroundColor: "#4F46E5",
-    borderColor: "#4F46E5",
-  },
-  pageSizeText: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  selectedPageSizeText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  exerciseItem: {
-    marginBottom: 20,
-  },
-  exerciseCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  exerciseImageContainer: {
-    position: "relative",
-  },
-  exerciseImage: {
-    width: "100%",
-    height: 180,
-  },
-  exerciseGradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 80,
-    justifyContent: "flex-end",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  exerciseName: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  statusBadge: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statusText: {
-    fontSize: 12,
-    color: "#FFFFFF",
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
-  favoriteButton: {
-    position: "absolute",
-    top: 16,
-    right: 60,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  addButton: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  exerciseContent: {
-    padding: 20,
-  },
-  exerciseDescription: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  exerciseDetailsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  exerciseDetailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  detailIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-  },
-  exerciseDetailText: {
-    fontSize: 13,
-    color: "#64748B",
-    fontWeight: "500",
-  },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 80,
+    paddingVertical: 60,
     minHeight: height * 0.4,
   },
   emptyTitle: {
@@ -1645,7 +1618,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: "#4F46E5",
+    color: "#0056d2",
     fontWeight: "500",
   },
   errorContainer: {
@@ -1664,7 +1637,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   retryButton: {
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -1674,43 +1647,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
   filterModal: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     maxHeight: height * 0.8,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1F2937",
   },
   filterContent: {
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
   filterSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   filterLabel: {
     fontSize: 16,
     fontWeight: "600",
     color: "#374151",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   filterInput: {
     borderWidth: 1,
@@ -1718,7 +1672,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 15,
     color: "#1F2937",
   },
   dateRow: {
@@ -1755,7 +1709,7 @@ const styles = StyleSheet.create({
   selectedOption: {
     backgroundColor: "#EEF2FF",
     borderWidth: 1,
-    borderColor: "#4F46E5",
+    borderColor: "#0056d2",
   },
   filterOptionText: {
     fontSize: 14,
@@ -1763,7 +1717,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   selectedOptionText: {
-    color: "#4F46E5",
+    color: "#0056d2",
     fontWeight: "600",
   },
   categoryOptionContent: {
@@ -1771,13 +1725,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   categoryIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: "#EEF2FF",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 10,
+  },
+  pageSizeContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  pageSizeButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    minWidth: 40,
+    alignItems: "center",
+  },
+  selectedPageSize: {
+    backgroundColor: "#0056d2",
+    borderColor: "#0056d2",
+  },
+  pageSizeText: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  selectedPageSizeText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   modalActions: {
     flexDirection: "row",
@@ -1803,7 +1785,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     alignItems: "center",
   },
   applyButtonText: {
@@ -1813,8 +1795,8 @@ const styles = StyleSheet.create({
   },
   layoutModal: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     maxHeight: height * 0.4,
   },
   layoutContent: {
@@ -1822,7 +1804,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   layoutDescription: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#6B7280",
     textAlign: "center",
     marginBottom: 16,
@@ -1831,7 +1813,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
   layoutOption: {
     flex: 1,
@@ -1847,24 +1829,24 @@ const styles = StyleSheet.create({
   },
   selectedLayoutOption: {
     backgroundColor: "#EEF2FF",
-    borderColor: "#4F46E5",
+    borderColor: "#0056d2",
   },
   layoutIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
   layoutOptionText: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#6B7280",
     fontWeight: "500",
     textAlign: "center",
   },
   selectedLayoutOptionText: {
-    color: "#4F46E5",
+    color: "#0056d2",
     fontWeight: "600",
   },
   layoutCheckmark: {
@@ -1872,31 +1854,6 @@ const styles = StyleSheet.create({
     top: 4,
     right: 4,
   },
-  aiSection: {
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  aiSectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#4F46E5',
-    marginLeft: 16,
-    marginBottom: 8,
-  },
-  retryText: {
-    fontSize: 14,
-    color: '#4F46E5',
-    fontWeight: '600',
-    marginRight: 16,
-  },
 });
-
 
 export default WorkoutScreen;

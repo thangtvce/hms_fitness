@@ -46,7 +46,6 @@ const UserActivityScreen = () => {
   const [activeTab, setActiveTab] = useState("overview")
   const [fadeAnim] = useState(new Animated.Value(0))
 
-  // Filter states
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
@@ -345,7 +344,7 @@ const UserActivityScreen = () => {
                 <View style={styles.recentInfo}>
                   <Text style={styles.recentTitle}>{new Date(date).toLocaleDateString("en", { weekday: "long" })}</Text>
                   <Text style={styles.recentStats}>
-                    🔥 {dayData.totalCalories} kcal • ⏱️ {dayData.totalDuration} min • 🏋️ {dayData.sessionCount} sessions
+                     {dayData.totalCalories} kcal •  {dayData.totalDuration} min •  {dayData.sessionCount} sessions
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />

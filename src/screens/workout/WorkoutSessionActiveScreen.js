@@ -12,7 +12,6 @@ import YouTubeIframe from "react-native-youtube-iframe"
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
-// Helper function to extract YouTube video ID from URL
 const getYouTubeVideoId = (url) => {
   if (!url) return null
   const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
@@ -20,7 +19,6 @@ const getYouTubeVideoId = (url) => {
   return match ? match[1] : null
 }
 
-// Helper function to determine if URL is a YouTube URL
 const isYouTubeUrl = (url) => {
   return url && (url.includes("youtube.com") || url.includes("youtu.be"))
 }
@@ -806,7 +804,6 @@ export default function WorkoutSessionActiveScreen() {
 
   return (
     <>
-      {/* Pause Modal */}
       <Modal visible={showPauseModal} transparent animationType="fade" onRequestClose={() => setShowPauseModal(false)}>
         <View style={styles.pauseModalOverlay}>
           <View style={styles.pauseModalContent}>
@@ -861,7 +858,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
 
-  // Start Screen
   startScreenContainer: {
     flex: 1,
     backgroundColor: "#F8FAFC",
@@ -900,7 +896,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Progress Bars
   progressContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -922,7 +917,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Full Screen Video Components
   fullScreenVideoContainer: {
     position: "absolute",
     top: 0,
@@ -949,7 +943,6 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
 
-  // Warmup Screen
   warmupHeader: {
     flexDirection: "row",
     justifyContent: "flex-start",
@@ -1017,7 +1010,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Rest Screen
   restHeader: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -1063,7 +1055,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // Exercise Screen
   exerciseVideoContainer: {
     flex: 1,
     zIndex: 0,
@@ -1137,7 +1128,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  // Pause Modal
   pauseModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.8)",
@@ -1193,7 +1183,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Exercise Info Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

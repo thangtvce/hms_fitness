@@ -11,6 +11,8 @@ export const addFoodToLog = async (date, mealType, food) => {
     foodArray = foodArray.map(f => ({
       ...f,
       satisfactionRating: f.satisfactionRating !== undefined ? f.satisfactionRating : 0,
+      // Tự động map hình ảnh nếu có foodImage hoặc imageUrl mà chưa có image
+      image: f.image || f.foodImage || f.imageUrl || '',
     }));
     const updatedLog = {
       ...existingLog,

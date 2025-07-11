@@ -1,3 +1,4 @@
+"use client"
 import { useState, useEffect, useRef } from "react"
 import {
   View,
@@ -16,11 +17,11 @@ import {
   RefreshControl,
   Alert,
 } from "react-native"
+import Header from "components/Header"
 import { Ionicons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
 import { foodService } from "services/apiFoodService"
 import { LinearGradient } from "expo-linear-gradient"
-import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { theme } from "theme/color"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
@@ -48,10 +49,11 @@ const SORT_OPTIONS = [
 ]
 
 const LAYOUT_OPTIONS = [
-  { columns: 1, icon: "list-outline", label: "1 column" },
-  { columns: 2, icon: "grid-outline", label: "2 columns" },
-  { columns: 3, icon: "apps-outline", label: "3 columns" },
-  { columns: 4, icon: "keypad-outline", label: "4 columns" },
+  { columns: 1, icon: "list-outline", label: "1 col" },
+  { columns: 2, icon: "grid-outline", label: "2 cols" },
+  { columns: 3, icon: "apps-outline", label: "3 cols" },
+  { columns: 4, icon: "keypad-outline", label: "4 cols" },
+  { columns: "quick", icon: "flash-outline", label: "Quick" }, // Changed to "quick" mode
 ]
 
 const MIN_SERVING = 1
@@ -71,7 +73,7 @@ const FoodListScreen = () => {
   const [showSortModal, setShowSortModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState("")
   const [sortBy, setSortBy] = useState("name")
-  const [layoutMode, setLayoutMode] = useState(1)
+  const [layoutMode, setLayoutMode] = useState(1) // Can be number or "quick"
   const [showLayoutModal, setShowLayoutModal] = useState(false)
   const [selectedFoods, setSelectedFoods] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
@@ -202,15 +204,19 @@ const FoodListScreen = () => {
         if (appliedFilters.minCalories) params.minCalories = appliedFilters.minCalories
         if (appliedFilters.maxCalories) params.maxCalories = appliedFilters.maxCalories
       }
+
       const response = await foodService.getAllActiveFoods(params)
       if (categories.length === 0) await fetchCategories()
+
       if (response && response.statusCode === 200) {
         let foodsData = Array.isArray(response.data.foods)
           ? response.data.foods
           : Array.isArray(response.data)
             ? response.data
             : []
+
         foodsData = sortFoods(foodsData, sortBy)
+
         if (response.data.pagination) {
           setCurrentPage(response.data.pagination.currentPage || params.pageNumber || 1)
           setTotalPages(response.data.pagination.totalPages || 1)
@@ -227,6 +233,7 @@ const FoodListScreen = () => {
           setHasNextPage(currentPageNum < Math.ceil(totalCount / pageSize))
           setHasPrevPage(currentPageNum > 1)
         }
+
         setFoods([...foodsData])
       } else {
         setFoods([])
@@ -352,15 +359,19 @@ const FoodListScreen = () => {
     fetchFoods(false, filterParams, 1)
   }
 
+  // Modified handleSelectFood to only add if not exists, and remove if exists
   const handleSelectFood = (food) => {
     setSelectedFoods((prev) => {
       const exists = prev.find((f) => f.foodId === food.foodId)
-      if (exists) return prev.filter((f) => f.foodId !== food.foodId)
-      return [...prev, food]
+      if (exists) {
+        return prev.filter((f) => f.foodId !== food.foodId)
+      } else {
+        return [...prev, food]
+      }
     })
   }
 
-  const handleAddFoodToMeal = async (food) => {
+  const handleAddFoodToMeal = async (food, skipModal = false) => {
     const mealTypes = [
       { label: "Breakfast", value: "Breakfast" },
       { label: "Lunch", value: "Lunch" },
@@ -381,9 +392,44 @@ const FoodListScreen = () => {
 
     if (!mealType) return
 
-    setPendingAddFood({ food, mealType })
-    setInputValues({ portionSize: "1", servingSize: "1" })
-    setInputModalVisible(true)
+    if (skipModal) {
+      const parsedServingSize = 1
+      const parsedPortionSize = 1
+      const today = dayjs().format("YYYY-MM-DD")
+      let image = ""
+      if (food.image) image = food.image
+      else if (food.foodImage) image = food.foodImage
+      else if (food.imageUrl) image = food.imageUrl
+      if (!image && food.foodName) image = getFoodImage(food.foodName)
+
+      const logData = {
+        foodId: food.foodId,
+        foodName: food.foodName || "Unknown Food",
+        calories: (food.calories || 0) * parsedServingSize,
+        protein: (food.protein || 0) * parsedServingSize,
+        carbs: (food.carbs || 0) * parsedServingSize,
+        fats: (food.fats || 0) * parsedServingSize,
+        portionSize: parsedPortionSize,
+        servingSize: parsedServingSize,
+        satisfactionRating: 1,
+        notes: "",
+        consumptionDate: today,
+        image,
+      }
+
+      try {
+        await addFoodToLog(today, mealType, logData)
+        Alert.alert("Success", `Added ${food.foodName} to ${mealType} log!`)
+        // Remove the food from selectedFoods after successful log
+        setSelectedFoods((prev) => prev.filter((f) => f.foodId !== food.foodId))
+      } catch (error) {
+        Alert.alert("Error", `Failed to add to log: ${error.message}`)
+      }
+    } else {
+      setPendingAddFood({ food, mealType })
+      setInputValues({ portionSize: "1", servingSize: "1" })
+      setInputModalVisible(true)
+    }
   }
 
   const handleInputModalOk = async () => {
@@ -391,6 +437,7 @@ const FoodListScreen = () => {
     if (!food || !mealType) {
       return
     }
+
     const { portionSize, servingSize } = inputValues
     const parsedServingSize = Number.parseFloat(servingSize) || 1
     const parsedPortionSize = Number.parseFloat(portionSize) || 1
@@ -408,8 +455,20 @@ const FoodListScreen = () => {
       )
       return
     }
+
     try {
+      // Ensure today is defined
       const today = dayjs().format("YYYY-MM-DD")
+
+      // Map image field robustly
+      let image = ""
+      if (food.image) image = food.image
+      else if (food.foodImage) image = food.foodImage
+      else if (food.imageUrl) image = food.imageUrl
+
+      // Fallback: try to get image from getFoodImage if still empty
+      if (!image && food.foodName) image = getFoodImage(food.foodName)
+
       const logData = {
         foodId: food.foodId,
         foodName: food.foodName || "Unknown Food",
@@ -422,10 +481,21 @@ const FoodListScreen = () => {
         satisfactionRating: 1, // Set default rating to 0
         notes: "",
         consumptionDate: today,
+        image,
       }
+
+      if (typeof food === "object") {
+        console.log("Food to log:", JSON.stringify(food))
+        console.log("Image field:", image)
+      } else {
+        console.log("Food to log:", food)
+        console.log("Image field:", image)
+      }
+
       await addFoodToLog(today, mealType, logData)
       Alert.alert("Success", `Added ${food.foodName} to ${mealType} log with ${parsedServingSize} serving(s)!`)
-      handleSelectFood(food)
+      // Remove the food from selectedFoods after successful log
+      setSelectedFoods((prev) => prev.filter((f) => f.foodId !== food.foodId))
       setInputModalVisible(false)
       setPendingAddFood(null)
     } catch (error) {
@@ -462,32 +532,100 @@ const FoodListScreen = () => {
   }
 
   const renderCategoryItem = ({ item }) => {
-    const isSelected = selectedCategory === item.categoryId
+    const isSelected = selectedCategory === item.categoryId;
     return (
       <TouchableOpacity
-        style={[styles.categoryCard, isSelected && styles.selectedCategoryCard]}
+        style={[
+          styles.categoryCard,
+          {
+            paddingVertical: 0,
+            paddingHorizontal: 0,
+            minHeight: undefined,
+            minWidth: undefined,
+            marginVertical: 0,
+          },
+          isSelected && {
+            borderColor: "#0056d2",
+            borderWidth: 2,
+            backgroundColor: "#fff",
+          },
+        ]}
         onPress={() => {
-          setSelectedCategory(isSelected ? "" : item.categoryId)
-          setCurrentPage(1)
+          setSelectedCategory(isSelected ? "" : item.categoryId);
+          setCurrentPage(1);
         }}
         activeOpacity={0.8}
       >
-        <LinearGradient
-          colors={isSelected ? ["#4F46E5", "#6366F1"] : ["#F8FAFC", "#F1F5F9"]}
-          style={styles.categoryGradient}
-        >
-          <View style={styles.categoryIconContainer}>
-            <Ionicons name="restaurant-outline" size={24} color={isSelected ? "#FFFFFF" : "#4F46E5"} />
+        {isSelected ? (
+          <View
+            style={[
+              styles.categoryGradient,
+              {
+                borderRadius: 6,
+                paddingVertical: 0,
+                paddingHorizontal: 4,
+                minHeight: 0,
+                minWidth: 0,
+                alignSelf: 'flex-start',
+                marginVertical: 0,
+                backgroundColor: '#fff',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.categoryName,
+                {
+                  color: "#0056d2",
+                  fontSize: 14,
+                  lineHeight: 14,
+                  paddingVertical: 0,
+                  paddingHorizontal: 0,
+                  fontWeight: "bold",
+                  marginVertical: 0,
+                },
+              ]}
+            >
+              {item.categoryName}
+            </Text>
+            {/* Removed checkmark icon */}
           </View>
-          <Text style={[styles.categoryName, { color: isSelected ? "#FFFFFF" : "#1E293B" }]}>{item.categoryName}</Text>
-          {isSelected && (
-            <View style={styles.selectedIndicator}>
-              <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-            </View>
-          )}
-        </LinearGradient>
+        ) : (
+          <LinearGradient
+            colors={["#F8FAFC", "#F1F5F9"]}
+            style={[
+              styles.categoryGradient,
+              {
+                borderRadius: 6,
+                paddingVertical: 0,
+                paddingHorizontal: 4,
+                minHeight: 0,
+                minWidth: 0,
+                alignSelf: 'flex-start',
+                marginVertical: 0,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.categoryName,
+                {
+                  color: "#1E293B",
+                  fontSize: 14,
+                  lineHeight: 14,
+                  paddingVertical: 0,
+                  paddingHorizontal: 0,
+                  fontWeight: "500",
+                  marginVertical: 0,
+                },
+              ]}
+            >
+              {item.categoryName}
+            </Text>
+          </LinearGradient>
+        )}
       </TouchableOpacity>
-    )
+    );
   }
 
   const renderSortModal = () => (
@@ -519,16 +657,18 @@ const FoodListScreen = () => {
                   <View
                     style={[
                       styles.sortIconContainer,
-                      { backgroundColor: sortBy === option.value ? "#EEF2FF" : "#F9FAFB" },
+                      { backgroundColor: sortBy === option.value ? "#0056d2" : "#F9FAFB" },
                     ]}
                   >
-                    <Ionicons name={option.icon} size={20} color={sortBy === option.value ? "#4F46E5" : "#6B7280"} />
+                    <Ionicons name={option.icon} size={20} color={sortBy === option.value ? "#fff" : "#6B7280"} />
                   </View>
-                  <Text style={[styles.sortOptionText, sortBy === option.value && styles.selectedSortOptionText]}>
+                  <Text
+                    style={[styles.sortOptionText, sortBy === option.value && { color: "#0056d2", fontWeight: "bold" }]}
+                  >
                     {option.label}
                   </Text>
                 </View>
-                {sortBy === option.value && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                {sortBy === option.value && <Ionicons name="checkmark" size={20} color="#0056d2" />}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -539,16 +679,20 @@ const FoodListScreen = () => {
 
   const renderPaginationControls = () => {
     if (totalPages <= 1) return null
+
     const pageNumbers = []
     const maxVisiblePages = 5
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
     const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1)
     }
+
     for (let i = startPage; i <= endPage; i++) {
       pageNumbers.push(i)
     }
+
     return (
       <View style={styles.paginationContainer}>
         <View style={styles.paginationInfo}>
@@ -632,10 +776,22 @@ const FoodListScreen = () => {
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <TouchableOpacity
                     key={size}
-                    style={[styles.pageSizeButton, filters.pageSize === size && styles.selectedPageSize]}
+                    style={[
+                      styles.pageSizeButton,
+                      filters.pageSize === size && {
+                        borderColor: "#0056d2",
+                        borderWidth: 2,
+                        backgroundColor: "#eaf1fb",
+                      },
+                    ]}
                     onPress={() => setFilters((prev) => ({ ...prev, pageSize: size, validPageSize: size }))}
                   >
-                    <Text style={[styles.pageSizeText, filters.pageSize === size && styles.selectedPageSizeText]}>
+                    <Text
+                      style={[
+                        styles.pageSizeText,
+                        filters.pageSize === size && { color: "#0056d2", fontWeight: "bold" },
+                      ]}
+                    >
                       {size}
                     </Text>
                   </TouchableOpacity>
@@ -695,48 +851,77 @@ const FoodListScreen = () => {
               {STATUS_OPTIONS.map((status) => (
                 <TouchableOpacity
                   key={status.value}
-                  style={[styles.filterOption, filters.status === status.value && styles.selectedOption]}
+                  style={[
+                    styles.filterOption,
+                    filters.status === status.value && {
+                      borderColor: "#0056d2",
+                      borderWidth: 2,
+                      backgroundColor: "#eaf1fb",
+                    },
+                  ]}
                   onPress={() => setFilters((prev) => ({ ...prev, status: status.value }))}
                 >
-                  <Text style={[styles.filterOptionText, filters.status === status.value && styles.selectedOptionText]}>
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      filters.status === status.value && { color: "#0056d2", fontWeight: "bold" },
+                    ]}
+                  >
                     {status.label}
                   </Text>
-                  {filters.status === status.value && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                  {filters.status === status.value && <Ionicons name="checkmark" size={20} color="#0056d2" />}
                 </TouchableOpacity>
               ))}
             </View>
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Category</Text>
               <TouchableOpacity
-                style={[styles.filterOption, filters.categoryId === "" && styles.selectedOption]}
+                style={[
+                  styles.filterOption,
+                  filters.categoryId === "" && {
+                    borderColor: "#0056d2",
+                    borderWidth: 2,
+                    backgroundColor: "#eaf1fb",
+                  },
+                ]}
                 onPress={() => setFilters((prev) => ({ ...prev, categoryId: "" }))}
               >
-                <Text style={[styles.filterOptionText, filters.categoryId === "" && styles.selectedOptionText]}>
+                <Text
+                  style={[
+                    styles.filterOptionText,
+                    filters.categoryId === "" && { color: "#0056d2", fontWeight: "bold" },
+                  ]}
+                >
                   All Categories
                 </Text>
-                {filters.categoryId === "" && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                {filters.categoryId === "" && <Ionicons name="checkmark" size={20} color="#0056d2" />}
               </TouchableOpacity>
               {categories.map((category) => (
                 <TouchableOpacity
                   key={category.categoryId}
-                  style={[styles.filterOption, filters.categoryId === category.categoryId && styles.selectedOption]}
+                  style={[
+                    styles.filterOption,
+                    filters.categoryId === category.categoryId && {
+                      borderColor: "#0056d2",
+                      borderWidth: 2,
+                      backgroundColor: "#eaf1fb",
+                    },
+                  ]}
                   onPress={() => setFilters((prev) => ({ ...prev, categoryId: category.categoryId }))}
                 >
                   <View style={styles.categoryOptionContent}>
-                    <View style={styles.categoryIcon}>
-                      <Ionicons name="restaurant-outline" size={16} color="#4F46E5" />
-                    </View>
+                    {/* Removed categoryIcon */}
                     <Text
                       style={[
                         styles.filterOptionText,
-                        filters.categoryId === category.categoryId && styles.selectedOptionText,
+                        filters.categoryId === category.categoryId && { color: "#0056d2", fontWeight: "bold" },
                       ]}
                     >
                       {category.categoryName}
                     </Text>
                   </View>
                   {filters.categoryId === category.categoryId && (
-                    <Ionicons name="checkmark" size={20} color="#4F46E5" />
+                    <Ionicons name="checkmark" size={20} color="#0056d2" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -746,8 +931,11 @@ const FoodListScreen = () => {
             <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
               <Text style={styles.resetButtonText}>Reset</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
-              <Text style={styles.applyButtonText}>Apply Filters</Text>
+            <TouchableOpacity
+              style={[styles.applyButton, { backgroundColor: "#0056d2", borderRadius: 8 }]}
+              onPress={applyFilters}
+            >
+              <Text style={[styles.applyButtonText, { color: "#fff", fontWeight: "bold" }]}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -773,39 +961,35 @@ const FoodListScreen = () => {
           <View style={styles.layoutContent}>
             <Text style={styles.layoutDescription}>Select number of columns to display foods</Text>
             <View style={styles.layoutGrid}>
-              {LAYOUT_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.columns}
-                  style={[styles.layoutOption, layoutMode === option.columns && styles.selectedLayoutOption]}
-                  onPress={() => {
-                    setLayoutMode(option.columns)
-                    setShowLayoutModal(false)
-                  }}
-                >
-                  <View
+              {LAYOUT_OPTIONS.map((option) => {
+                const isActive = layoutMode === option.columns
+                return (
+                  <TouchableOpacity
+                    key={option.columns}
                     style={[
-                      styles.layoutIconContainer,
-                      { backgroundColor: layoutMode === option.columns ? "#4F46E5" : "#F9FAFB" },
+                      styles.layoutOption,
+                      isActive && styles.selectedLayoutOption,
+                      isActive && { borderColor: "#0056d2", borderWidth: 2, backgroundColor: "#eaf1fb" },
                     ]}
+                    onPress={() => {
+                      setLayoutMode(option.columns)
+                      setShowLayoutModal(false)
+                    }}
                   >
-                    <Ionicons
-                      name={option.icon}
-                      size={24}
-                      color={layoutMode === option.columns ? "#FFFFFF" : "#6B7280"}
-                    />
-                  </View>
-                  <Text
-                    style={[styles.layoutOptionText, layoutMode === option.columns && styles.selectedLayoutOptionText]}
-                  >
-                    {option.label}
-                  </Text>
-                  {layoutMode === option.columns && (
-                    <View style={styles.layoutCheckmark}>
-                      <Ionicons name="checkmark-circle" size={20} color="#4F46E5" />
+                    <View style={[styles.layoutIconContainer, { backgroundColor: isActive ? "#0056d2" : "#F9FAFB" }]}>
+                      <Ionicons name={option.icon} size={24} color={isActive ? "#fff" : "#6B7280"} />
                     </View>
-                  )}
-                </TouchableOpacity>
-              ))}
+                    <Text style={[styles.layoutOptionText, isActive && { color: "#0056d2", fontWeight: "bold" }]}>
+                      {option.label}
+                    </Text>
+                    {isActive && (
+                      <View style={styles.layoutCheckmark}>
+                        <Ionicons name="checkmark-circle" size={20} color="#0056d2" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )
+              })}
             </View>
           </View>
         </View>
@@ -814,9 +998,48 @@ const FoodListScreen = () => {
   )
 
   const renderFoodItem = ({ item, index }) => {
-    const itemWidth = layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : "23%"
-    const imageHeight = layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : 100
     const isSelected = selectedFoods.some((f) => f.foodId === item.foodId)
+
+    if (layoutMode === "quick") {
+      return (
+        <TouchableOpacity
+          key={index}
+          style={styles.quickFoodCard}
+          onPress={() => navigation.navigate("FoodDetails", { food: item })}
+          activeOpacity={0.8}
+        >
+          <View style={styles.quickFoodInfo}>
+            <View style={styles.quickFoodNameRow}>
+              <Text style={styles.quickFoodName}>{item.foodName || "Unknown Food"}</Text>
+              {/* Only show checkmark if selected */}
+              {isSelected && (
+                <Ionicons name="checkmark-circle" size={16} color="#22C55E" style={styles.quickCheckmark} />
+              )}
+            </View>
+            <Text style={styles.quickFoodDetails}>
+              {item.calories || 0} cal, {item.servingSize || 1} {item.servingUnit || "unit"}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.quickAddButton}
+            onPress={(e) => {
+              e.stopPropagation()
+              handleAddFoodToMeal(item, true) // Pass true to skip modal
+            }}
+          >
+            <Ionicons name="add" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      )
+    }
+
+    // Existing grid/list layouts
+    const itemWidth =
+      layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : layoutMode === 4 ? "23%" : "23%" // Default for unknown layoutMode
+
+    const imageHeight =
+      layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : layoutMode === 4 ? 100 : 100 // Default for unknown layoutMode
+
     return (
       <Animated.View
         style={[
@@ -867,7 +1090,7 @@ const FoodListScreen = () => {
               <Ionicons
                 name={isSelected ? "checkmark-circle" : "add-circle-outline"}
                 size={layoutMode > 2 ? 16 : 20}
-                color={isSelected ? "#FFFFFF" : "#4F46E5"}
+                color={isSelected ? "#FFFFFF" : "#0056d2"}
               />
             </TouchableOpacity>
           </View>
@@ -876,6 +1099,14 @@ const FoodListScreen = () => {
               {categoryMap[item.categoryId] || `Category ${item.categoryId || "Unknown"}`}
             </Text>
             <View style={[styles.macrosContainer, { gap: layoutMode > 2 ? 8 : 12 }]}>
+              {layoutMode <= 2 && (
+                <View style={styles.macroItem}>
+                  <View style={[styles.macroIconContainer, { backgroundColor: "#DBF4FF" }]}>
+                    <Ionicons name="fitness-outline" size={14} color="#0EA5E9" />
+                  </View>
+                  <Text style={styles.macroText}>{item.protein || 0}g protein</Text>
+                </View>
+              )}
               {layoutMode <= 2 && (
                 <View style={styles.macroItem}>
                   <View style={[styles.macroIconContainer, { backgroundColor: "#FEF2F2" }]}>
@@ -902,7 +1133,6 @@ const FoodListScreen = () => {
   // Enhanced Input Modal Component
   const renderEnhancedInputModal = () => {
     const { food, mealType } = pendingAddFood || {}
-
     return (
       <Modal visible={inputModalVisible} transparent animationType="none" onRequestClose={handleInputModalCancel}>
         <Animated.View style={[styles.enhancedModalOverlay, { opacity: modalOpacity }]}>
@@ -916,24 +1146,44 @@ const FoodListScreen = () => {
             ]}
           >
             {/* Modal Header */}
-            <LinearGradient colors={["#4F46E5", "#6366F1"]} style={styles.enhancedModalHeader}>
-              <View style={styles.modalHeaderContent}>
-                <View style={styles.modalIconContainer}>
-                  <Ionicons name="restaurant" size={24} color="#FFFFFF" />
+            <View
+              style={[
+                styles.enhancedModalHeader,
+                {
+                  backgroundColor: "#0056d2",
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                  paddingVertical: 18,
+                  paddingHorizontal: 20,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                },
+              ]}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                <View
+                  style={[
+                    styles.modalIconContainer,
+                    { backgroundColor: "#fff", borderRadius: 20, marginRight: 12, padding: 6 },
+                  ]}
+                >
+                  <Ionicons name="restaurant" size={22} color="#0056d2" />
                 </View>
                 <View style={styles.modalHeaderText}>
-                  <Text style={styles.enhancedModalTitle}>Add Food Details</Text>
-                  <Text style={styles.enhancedModalSubtitle}>
+                  <Text style={{ fontSize: 18, fontWeight: "bold", color: "#fff", letterSpacing: 0.2 }}>
+                    Add Food Details
+                  </Text>
+                  <Text style={{ fontSize: 13, color: "#eaf1fb", marginTop: 2, fontWeight: "500" }}>
                     {food?.foodName} → {mealType}
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.modalCloseButton} onPress={handleInputModalCancel}>
-                  <Ionicons name="close" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
               </View>
-            </LinearGradient>
-
-            {/* Modal Content - Fixed ScrollView */}
+              <TouchableOpacity style={styles.modalCloseButton} onPress={handleInputModalCancel}>
+                <Ionicons name="close" size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            {/* Input Fields - chỉ giữ lại từ đây */}
             <View style={styles.enhancedModalContentWrapper}>
               <ScrollView
                 style={styles.enhancedModalContent}
@@ -941,28 +1191,6 @@ const FoodListScreen = () => {
                 showsVerticalScrollIndicator={false}
                 bounces={true}
               >
-                {/* Food Info Card */}
-                <View style={styles.foodInfoCard}>
-                  <Image
-                    source={{ uri: food?.image || getFoodImage(food?.foodName || "food") }}
-                    style={styles.modalFoodImage}
-                  />
-                  <View style={styles.foodInfoContent}>
-                    <Text style={styles.modalFoodName}>{food?.foodName}</Text>
-                    <View style={styles.foodNutritionRow}>
-                      <View style={styles.nutritionItem}>
-                        <Ionicons name="flame" size={16} color="#EF4444" />
-                        <Text style={styles.nutritionText}>{food?.calories || 0} kcal</Text>
-                      </View>
-                      <View style={styles.nutritionItem}>
-                        <Ionicons name="fitness" size={16} color="#10B981" />
-                        <Text style={styles.nutritionText}>{food?.protein || 0}g protein</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Input Fields */}
                 <View style={styles.inputFieldsContainer}>
                   {/* Portion Size */}
                   <View style={styles.inputGroup}>
@@ -985,7 +1213,6 @@ const FoodListScreen = () => {
                       </View>
                     </View>
                   </View>
-
                   {/* Serving Size */}
                   <View style={styles.inputGroup}>
                     <View style={styles.inputLabelContainer}>
@@ -1007,34 +1234,29 @@ const FoodListScreen = () => {
                       </View>
                     </View>
                   </View>
-
                   {/* Calculated Nutrition */}
                   <View style={styles.calculatedNutrition}>
                     <Text style={styles.calculatedTitle}>Calculated Nutrition</Text>
                     <View style={styles.nutritionGrid}>
                       <View style={styles.nutritionCard}>
-                        <Ionicons name="flame" size={20} color="#EF4444" />
                         <Text style={styles.nutritionValue}>
                           {Math.round((food?.calories || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}
                         </Text>
                         <Text style={styles.nutritionLabel}>Calories</Text>
                       </View>
                       <View style={styles.nutritionCard}>
-                        <Ionicons name="fitness" size={20} color="#10B981" />
                         <Text style={styles.nutritionValue}>
                           {Math.round((food?.protein || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
                         </Text>
                         <Text style={styles.nutritionLabel}>Protein</Text>
                       </View>
                       <View style={styles.nutritionCard}>
-                        <Ionicons name="nutrition" size={20} color="#3B82F6" />
                         <Text style={styles.nutritionValue}>
                           {Math.round((food?.carbs || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
                         </Text>
                         <Text style={styles.nutritionLabel}>Carbs</Text>
                       </View>
                       <View style={styles.nutritionCard}>
-                        <Ionicons name="water" size={20} color="#F59E0B" />
                         <Text style={styles.nutritionValue}>
                           {Math.round((food?.fats || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
                         </Text>
@@ -1045,17 +1267,15 @@ const FoodListScreen = () => {
                 </View>
               </ScrollView>
             </View>
-
             {/* Modal Actions */}
             <View style={styles.enhancedModalActions}>
               <TouchableOpacity style={styles.cancelButton} onPress={handleInputModalCancel}>
                 <Ionicons name="close-circle-outline" size={20} color="#6B7280" />
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-
               <TouchableOpacity style={styles.confirmButton} onPress={handleInputModalOk}>
                 <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                <Text style={styles.confirmButtonText}>Add to {mealType}</Text>
+                <Text style={[styles.confirmButtonText, { color: "#fff" }]}>Add to {mealType}</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -1077,27 +1297,58 @@ const FoodListScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>🍎 Food Explorer</Text>
-            <Text style={styles.headerSubtitle}>Discover healthy foods & nutrition</Text>
-          </View>
-          <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowFilters(true)}>
-            <Ionicons name="options-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerActionButton} onPress={() => navigation.navigate('FavoriteFoodScreen')}>
-            <Ionicons name="heart-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerActionButton} onPress={() => navigation.navigate('FoodDailyLogScreen')}>
-            <Ionicons name="play-circle-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+      <Header
+        title="Food "
+        onBack={() => navigation.goBack()}
+        rightActions={[
+          {
+            icon: "options-outline",
+            onPress: () => setShowFilters(true),
+            color: "#0056d2",
+          },
+          {
+            icon: "heart-outline",
+            onPress: () => navigation.navigate("FavoriteFoodScreen"),
+            color: "#EF4444",
+          },
+          {
+            icon: "play-circle-outline",
+            onPress: () => navigation.navigate("FoodDailyLogScreen"),
+            color: "#10B981",
+          },
+        ]}
+        backgroundColor="#fff"
+        containerStyle={{
+          borderBottomWidth: 1,
+          borderBottomColor: "#E5E7EB",
+          elevation: 2,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
+        }}
+        titleStyle={{
+          fontSize: 22,
+          fontWeight: "bold",
+          color: "#0056d2",
+          textAlign: "center",
+          letterSpacing: 0.5,
+        }}
+      />
+      <Text
+        style={{
+          fontSize: 13,
+          color: "#6B7280",
+          textAlign: "center",
+          marginTop: 2,
+          fontWeight: "500",
+          letterSpacing: 0.1,
+          marginBottom: 8,
+        }}
+      >
+        Discover healthy foods & nutrition
+      </Text>
+
       <Animated.View
         style={[
           styles.searchContainer,
@@ -1108,7 +1359,9 @@ const FoodListScreen = () => {
         ]}
       >
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
+          <View style={{ marginRight: 8, alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
+          </View>
           <TextInput
             style={styles.searchInput}
             placeholder="Search foods..."
@@ -1125,10 +1378,11 @@ const FoodListScreen = () => {
             </TouchableOpacity>
           ) : null}
         </View>
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+        <TouchableOpacity style={[styles.searchButton, { backgroundColor: "#0056d2" }]} onPress={handleSearch}>
           <Ionicons name="search" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
+
       <View style={styles.categoriesSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Food Categories</Text>
@@ -1137,13 +1391,15 @@ const FoodListScreen = () => {
               <Ionicons
                 name={LAYOUT_OPTIONS.find((opt) => opt.columns === layoutMode)?.icon || "grid-outline"}
                 size={18}
-                color="#4F46E5"
+                color="#0056d2"
               />
-              <Text style={styles.layoutButtonText}>{layoutMode} col</Text>
+              <Text style={[styles.layoutButtonText, { color: "#0056d2", fontSize: 15, fontWeight: "bold" }]}>
+                {LAYOUT_OPTIONS.find((opt) => opt.columns === layoutMode)?.label || `${layoutMode} col`}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
-              <Ionicons name="swap-vertical-outline" size={20} color="#4F46E5" />
-              <Text style={styles.sortButtonText}>Sort</Text>
+              <Ionicons name="swap-vertical-outline" size={20} color="#0056d2" />
+              <Text style={[styles.sortButtonText, { color: "#0056d2", fontSize: 15, fontWeight: "bold" }]}>Sort</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1156,6 +1412,7 @@ const FoodListScreen = () => {
           contentContainerStyle={styles.categoriesList}
         />
       </View>
+
       {selectedFoods.length > 0 && (
         <View style={styles.selectedFoodsSection}>
           <View style={styles.selectedHeader}>
@@ -1179,6 +1436,7 @@ const FoodListScreen = () => {
           </ScrollView>
         </View>
       )}
+
       {(appliedSearchQuery ||
         appliedFilters.status ||
         appliedFilters.categoryId ||
@@ -1233,6 +1491,7 @@ const FoodListScreen = () => {
           </TouchableOpacity>
         </View>
       )}
+
       <View style={styles.contentContainer}>
         {error && !refreshing ? (
           <View style={styles.errorContainer}>
@@ -1248,7 +1507,7 @@ const FoodListScreen = () => {
               data={foods}
               renderItem={renderFoodItem}
               keyExtractor={(item, index) => (item.foodId ? `food-${item.foodId}` : `item-${index}`)}
-              numColumns={layoutMode}
+              numColumns={layoutMode === "quick" ? 1 : layoutMode} // Conditional numColumns
               key={layoutMode}
               contentContainerStyle={[styles.listContainer, { minHeight: height - 400 }]}
               style={styles.flatListStyle}
@@ -1285,6 +1544,7 @@ const FoodListScreen = () => {
           </>
         )}
       </View>
+
       {renderFilterModal()}
       {renderSortModal()}
       {renderLayoutModal()}
@@ -1384,7 +1644,11 @@ const styles = StyleSheet.create({
   categoriesList: { paddingHorizontal: 16 },
   categoryCard: {
     marginRight: 12,
-    borderRadius: 16,
+    paddingRight: 12,
+    paddingLeft: 12,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -1394,13 +1658,14 @@ const styles = StyleSheet.create({
   },
   selectedCategoryCard: { transform: [{ scale: 1.05 }] },
   categoryGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    minWidth: 120,
     alignItems: "center",
+    justifyContent: "center",
     position: "relative",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
   },
   categoryIconContainer: {
+    
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -1409,7 +1674,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
-  categoryName: { fontSize: 12, fontWeight: "600", textAlign: "center" },
+  categoryName: { fontSize: 16, fontWeight: "600", textAlign: "center" }, // Increased font size for better visibility
   selectedIndicator: { position: "absolute", top: 8, right: 8 },
   selectedFoodsSection: {
     backgroundColor: "#F8FAFC",
@@ -1488,7 +1753,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  activeFilterText: { fontSize: 12, color: "#4F46E5", fontWeight: "500" },
+  activeFilterText: { fontSize: 12, color: "#0056d2", fontWeight: "500" },
   clearAllFiltersButton: { paddingHorizontal: 12, paddingVertical: 6 },
   clearAllFiltersText: { fontSize: 12, color: "#EF4444", fontWeight: "600" },
   contentContainer: { flex: 1, backgroundColor: "#F9FAFB" },
@@ -1696,7 +1961,7 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: "row",
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: "#F3F4F6",
@@ -1739,7 +2004,6 @@ const styles = StyleSheet.create({
   layoutOptionText: { fontSize: 12, color: "#6B7280", fontWeight: "500", textAlign: "center" },
   selectedLayoutOptionText: { color: "#4F46E5", fontWeight: "600" },
   layoutCheckmark: { position: "absolute", top: 4, right: 4 },
-
   // Enhanced Input Modal Styles
   enhancedModalOverlay: {
     flex: 1,
@@ -1760,123 +2024,22 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-
   enhancedModalContentWrapper: {
     flex: 1, // Thêm style mới
   },
-
   enhancedModalContent: {
     flex: 1, // Thay đổi để ScrollView chiếm toàn bộ không gian
   },
-
   enhancedModalContentContainer: {
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 20, // Thêm padding bottom
   },
-
   inputFieldsContainer: {
     gap: 24, // Tăng gap giữa các input groups
   },
-
   inputGroup: {
     marginBottom: 8, // Tăng margin bottom
-  },
-
-  calculatedNutrition: {
-    backgroundColor: "#F0F9FF",
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 16, // Tăng margin top
-    marginBottom: 20, // Thêm margin bottom
-  },
-  enhancedModalHeader: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-  },
-  modalHeaderContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  modalIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  modalHeaderText: {
-    flex: 1,
-  },
-  enhancedModalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 4,
-  },
-  enhancedModalSubtitle: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  enhancedModalContent: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
-  foodInfoCard: {
-    flexDirection: "row",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-  },
-  modalFoodImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    marginRight: 16,
-  },
-  foodInfoContent: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  modalFoodName: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1F2937",
-    marginBottom: 8,
-  },
-  foodNutritionRow: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  nutritionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  nutritionText: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  inputFieldsContainer: {
-    gap: 20,
-  },
-  inputGroup: {
-    marginBottom: 4,
   },
   inputLabelContainer: {
     flexDirection: "row",
@@ -2003,7 +2166,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     paddingVertical: 14,
     borderRadius: 12,
     gap: 6,
@@ -2012,6 +2175,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+  // New styles for Quick layout
+  quickFoodCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickFoodInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  quickFoodNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  quickFoodName: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginRight: 8,
+  },
+  quickCheckmark: {
+    // Styles for the green checkmark
+  },
+  quickFoodDetails: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  quickAddButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#0056d2",
+    justifyContent: "center",
+    alignItems: "center",
   },
 })
 

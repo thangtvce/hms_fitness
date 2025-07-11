@@ -29,7 +29,6 @@ const { width,height } = Dimensions.get("window")
 
 const PAGE_SIZE_OPTIONS = [5,10,15,20,25,50]
 
-// Sort options for favorite exercises
 const SORT_OPTIONS = [
   { label: "Name A-Z",value: "name",icon: "text-outline" },
   { label: "Date Added (Newest)",value: "date-newest",icon: "time-outline" },
@@ -58,7 +57,7 @@ const WorkoutFavoriteScreen = () => {
   const [showSortModal,setShowSortModal] = useState(false)
   const [selectedCategory,setSelectedCategory] = useState("")
   const [sortBy,setSortBy] = useState("date-newest")
-  const [layoutMode,setLayoutMode] = useState(1) // 1, 2, 3, 4 columns
+  const [layoutMode,setLayoutMode] = useState(1) 
   const [showLayoutModal,setShowLayoutModal] = useState(false)
 
   const [currentPage,setCurrentPage] = useState(1)
@@ -73,7 +72,6 @@ const WorkoutFavoriteScreen = () => {
     pageSize: 10,
   })
 
-  // Applied filters - only these are used for filtering
   const [appliedFilters,setAppliedFilters] = useState({
     searchTerm: "",
     categoryId: "",
@@ -82,15 +80,12 @@ const WorkoutFavoriteScreen = () => {
     pageSize: 10,
   })
 
-  // Applied search query - only this is used for filtering
   const [appliedSearchQuery,setAppliedSearchQuery] = useState("")
 
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
 
   useEffect(() => {
-    // Entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim,{
         toValue: 1,
@@ -111,7 +106,6 @@ const WorkoutFavoriteScreen = () => {
       const storedFavorites = await AsyncStorage.getItem("favoriteExercises")
       const favoriteList = storedFavorites ? JSON.parse(storedFavorites) : []
 
-      // Add dateAdded if not present (for existing favorites)
       const favoritesWithDate = favoriteList.map((exercise) => ({
         ...exercise,
         dateAdded: exercise.dateAdded || new Date().toISOString(),
@@ -144,16 +138,13 @@ const WorkoutFavoriteScreen = () => {
     loadFavorites()
   },[])
 
-  // Filter and sort exercises
   useEffect(() => {
     let filtered = [...favoriteExercises]
 
-    // Filter by category
     if (selectedCategory) {
       filtered = filtered.filter((exercise) => exercise.categoryId?.toString() === selectedCategory)
     }
 
-    // Filter by search query
     if (appliedSearchQuery) {
       filtered = filtered.filter(
         (exercise) =>
@@ -163,7 +154,6 @@ const WorkoutFavoriteScreen = () => {
       )
     }
 
-    // Apply additional filters
     if (appliedFilters.searchTerm) {
       filtered = filtered.filter(
         (exercise) =>
@@ -176,7 +166,6 @@ const WorkoutFavoriteScreen = () => {
       filtered = filtered.filter((exercise) => exercise.categoryId?.toString() === appliedFilters.categoryId)
     }
 
-    // Filter by date range
     if (appliedFilters.startDate) {
       const startDate = new Date(appliedFilters.startDate)
       filtered = filtered.filter((exercise) => {
@@ -187,14 +176,13 @@ const WorkoutFavoriteScreen = () => {
 
     if (appliedFilters.endDate) {
       const endDate = new Date(appliedFilters.endDate)
-      endDate.setHours(23,59,59,999) // Include the entire end date
+      endDate.setHours(23,59,59,999) 
       filtered = filtered.filter((exercise) => {
         const exerciseDate = new Date(exercise.dateAdded || new Date())
         return exerciseDate <= endDate
       })
     }
 
-    // Sort exercises
     filtered.sort((a,b) => {
       switch (sortBy) {
         case "name":
@@ -271,7 +259,6 @@ const WorkoutFavoriteScreen = () => {
     })
   }
 
-  // Remove from favorites
   const handleRemoveFavorite = async (exerciseId) => {
     try {
       const updatedFavorites = favoriteExercises.filter((ex) => ex.exerciseId !== exerciseId)
@@ -282,13 +269,11 @@ const WorkoutFavoriteScreen = () => {
     }
   }
 
-  // Pagination
   const totalPages = Math.ceil(filteredExercises.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
   const paginatedExercises = filteredExercises.slice(startIndex,endIndex)
 
-  // Render category item
   const renderCategoryItem = ({ item }) => {
     const isSelected = selectedCategory === item.categoryId?.toString()
     return (
@@ -318,7 +303,6 @@ const WorkoutFavoriteScreen = () => {
     )
   }
 
-  // Render sort modal
   const renderSortModal = () => (
     <Modal
       visible={showSortModal}
@@ -379,7 +363,6 @@ const WorkoutFavoriteScreen = () => {
           </View>
 
           <ScrollView style={styles.filterContent}>
-            {/* Search Term */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Search Term</Text>
               <TextInput
@@ -408,7 +391,6 @@ const WorkoutFavoriteScreen = () => {
               </View>
             </View>
 
-            {/* Date Range */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Date Added Range</Text>
               <View style={styles.dateRow}>
@@ -489,7 +471,6 @@ const WorkoutFavoriteScreen = () => {
     </Modal>
   )
 
-  // Render layout modal
   const renderLayoutModal = () => (
     <Modal
       visible={showLayoutModal}
@@ -817,7 +798,6 @@ const WorkoutFavoriteScreen = () => {
         </View>
       )}
 
-      {/* Active Filters Indicator */}
       {(appliedSearchQuery ||
         appliedFilters.searchTerm ||
         appliedFilters.categoryId ||
@@ -861,7 +841,6 @@ const WorkoutFavoriteScreen = () => {
           </View>
         )}
 
-      {/* Content Container */}
       <View style={styles.contentContainer}>
         <FlatList
           data={paginatedExercises}
@@ -870,7 +849,7 @@ const WorkoutFavoriteScreen = () => {
             return item.exerciseId ? `favorite-${item.exerciseId}` : `item-${index}`
           }}
           numColumns={layoutMode}
-          key={layoutMode} // Force re-render when columns change
+          key={layoutMode} 
           contentContainerStyle={[styles.listContainer,{ minHeight: height - 400 }]}
           style={styles.flatListStyle}
           refreshControl={
@@ -898,7 +877,6 @@ const WorkoutFavoriteScreen = () => {
           }
         />
 
-        {/* Pagination Controls */}
         {renderPaginationControls()}
       </View>
 

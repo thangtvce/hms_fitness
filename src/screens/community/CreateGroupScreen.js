@@ -1,6 +1,4 @@
-"use client"
-
-import { useState, useRef, useEffect } from "react"
+import { useState,useRef,useEffect } from "react"
 import {
   View,
   Text,
@@ -16,6 +14,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Dimensions,
+  Keyboard,
+  TouchableWithoutFeedback,
+  PanResponder,
 } from "react-native"
 import { useNavigation } from "@react-navigation/native"
 import { createGroup } from "services/apiCommunityService"
@@ -25,54 +26,102 @@ import * as ImagePicker from "expo-image-picker"
 import { apiUploadImageCloudService } from "services/apiUploadImageCloudService"
 import { Linking } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { RichEditor,RichToolbar,actions } from "react-native-pell-rich-editor"
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil"
 
-const { width } = Dimensions.get("window")
+const { width,height } = Dimensions.get("window")
 
 const CreateGroupScreen = ({ route }) => {
   const navigation = useNavigation()
-  const [groupName, setGroupName] = useState("")
-  const [description, setDescription] = useState("")
-  const [thumbnail, setThumbnail] = useState("")
-  const [cloudImageUrl, setCloudImageUrl] = useState("")
-  const [isPrivate, setIsPrivate] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [showImageOptions, setShowImageOptions] = useState(false)
-  const [showUrlInput, setShowUrlInput] = useState(false)
-  const [imageUrl, setImageUrl] = useState("")
-  const [urlError, setUrlError] = useState("")
-  const [imageUploading, setImageUploading] = useState(false)
+  const [groupName,setGroupName] = useState("")
+  const [description,setDescription] = useState("")
+  const [richDesc,setRichDesc] = useState("")
+  const [thumbnail,setThumbnail] = useState("")
+  const [cloudImageUrl,setCloudImageUrl] = useState("")
+  const [isPrivate,setIsPrivate] = useState(false)
+  const [creating,setCreating] = useState(false)
+  const [showImageOptions,setShowImageOptions] = useState(false)
+  const [showUrlInput,setShowUrlInput] = useState(false)
+  const [imageUrl,setImageUrl] = useState("")
+  const [urlError,setUrlError] = useState("")
+  const [imageUploading,setImageUploading] = useState(false)
+  const [keyboardHeight,setKeyboardHeight] = useState(0)
+  const [isKeyboardVisible,setIsKeyboardVisible] = useState(false)
+  const [currentInputFocused,setCurrentInputFocused] = useState(null)
 
-  // Validation states
-  const [errors, setErrors] = useState({})
-  const [touched, setTouched] = useState({})
+  const [errors,setErrors] = useState({})
+  const [touched,setTouched] = useState({})
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
   const scaleAnim = useRef(new Animated.Value(0.95)).current
+  const richText = useRef()
+  const scrollViewRef = useRef()
+  const containerRef = useRef()
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => false,
+      onPanResponderGrant: () => {
+        if (isKeyboardVisible && !currentInputFocused) {
+          Keyboard.dismiss()
+        }
+      },
+    }),
+  ).current
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim,{
         toValue: 1,
         duration: 800,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.timing(slideAnim,{
         toValue: 0,
         duration: 800,
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
+      Animated.spring(scaleAnim,{
         toValue: 1,
         tension: 100,
         friction: 8,
         useNativeDriver: true,
       }),
     ]).start()
-  }, [])
+  },[])
 
-  // Validation functions (match backend DataAnnotations)
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener("keyboardDidShow",(e) => {
+      setKeyboardHeight(e.endCoordinates.height)
+      setIsKeyboardVisible(true)
+    })
+
+    const keyboardDidHideListener = Keyboard.addListener("keyboardDidHide",() => {
+      setKeyboardHeight(0)
+      setIsKeyboardVisible(false)
+      setCurrentInputFocused(null)
+    })
+
+    const keyboardWillShowListener = Keyboard.addListener("keyboardWillShow",(e) => {
+      setKeyboardHeight(e.endCoordinates.height)
+      setIsKeyboardVisible(true)
+    })
+
+    const keyboardWillHideListener = Keyboard.addListener("keyboardWillHide",() => {
+      setKeyboardHeight(0)
+      setIsKeyboardVisible(false)
+    })
+
+    return () => {
+      keyboardDidShowListener?.remove()
+      keyboardDidHideListener?.remove()
+      keyboardWillShowListener?.remove()
+      keyboardWillHideListener?.remove()
+    }
+  },[])
+
   const validateGroupName = (name) => {
     if (!name.trim()) return "Group name is required."
     if (name.trim().length < 3) return "Group name must be at least 3 characters."
@@ -81,7 +130,7 @@ const CreateGroupScreen = ({ route }) => {
   }
 
   const validateDescription = (desc) => {
-    if (!desc) return null // Optional
+    if (!desc) return null
     if (desc.trim().length > 2000) return "Description cannot exceed 2000 characters."
     return null
   }
@@ -93,67 +142,68 @@ const CreateGroupScreen = ({ route }) => {
     return null
   }
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field,value) => {
     switch (field) {
       case "groupName":
         setGroupName(value)
         if (touched.groupName) {
           const error = validateGroupName(value)
-          setErrors((prev) => ({ ...prev, groupName: error }))
+          setErrors((prev) => ({ ...prev,groupName: error }))
         }
         break
       case "description":
         setDescription(value)
+        setRichDesc(value)
         if (touched.description) {
           const error = validateDescription(value)
-          setErrors((prev) => ({ ...prev, description: error }))
+          setErrors((prev) => ({ ...prev,description: error }))
         }
         break
       case "status":
-        // Not used in UI, but for completeness
         if (touched.status) {
           const error = validateStatus(value)
-          setErrors((prev) => ({ ...prev, status: error }))
+          setErrors((prev) => ({ ...prev,status: error }))
         }
         break
     }
   }
 
   const handleInputBlur = (field) => {
-    setTouched((prev) => ({ ...prev, [field]: true }))
-
+    setTouched((prev) => ({ ...prev,[field]: true }))
+    setCurrentInputFocused(null)
     switch (field) {
       case "groupName": {
         const nameError = validateGroupName(groupName)
-        setErrors((prev) => ({ ...prev, groupName: nameError }))
+        setErrors((prev) => ({ ...prev,groupName: nameError }))
         break
       }
       case "description": {
         const descError = validateDescription(description)
-        setErrors((prev) => ({ ...prev, description: descError }))
+        setErrors((prev) => ({ ...prev,description: descError }))
         break
       }
       case "status": {
-        const statusError = validateStatus("active") // always 'active' for now
-        setErrors((prev) => ({ ...prev, status: statusError }))
+        const statusError = validateStatus("active")
+        setErrors((prev) => ({ ...prev,status: statusError }))
         break
       }
     }
   }
 
-  // Helper function to convert base64 to FormData with dynamic MIME type
-  const createFormDataFromBase64 = (base64String, fileName = `image-${Date.now()}.jpg`) => {
+  const handleInputFocus = (field) => {
+    setCurrentInputFocused(field)
+  }
+
+  const createFormDataFromBase64 = (base64String,fileName = `image-${Date.now()}.jpg`) => {
     const formData = new FormData()
     const mimeTypeMatch = base64String.match(/^data:(image\/[a-z]+);base64,/)
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg"
-    const cleanedBase64 = base64String.replace(/^data:image\/[a-z]+;base64,/, "")
-
-    formData.append("file", {
+    const cleanedBase64 = base64String.replace(/^data:image\/[a-z]+;base64,/,"")
+    formData.append("file",{
       uri: `data:${mimeType};base64,${cleanedBase64}`,
       type: mimeType,
       name: fileName,
     })
-
     return formData
   }
 
@@ -164,7 +214,7 @@ const CreateGroupScreen = ({ route }) => {
 
   const checkImageUrl = async (url) => {
     try {
-      const response = await fetch(url, { method: "HEAD" })
+      const response = await fetch(url,{ method: "HEAD" })
       const contentType = response.headers.get("content-type")
       return response.ok && contentType?.startsWith("image/")
     } catch (error) {
@@ -180,22 +230,20 @@ const CreateGroupScreen = ({ route }) => {
           "Permission Required",
           "To select images, please grant access to your photo library in your device settings.",
           [
-            { text: "Cancel", style: "cancel" },
-            { text: "Open Settings", onPress: () => Linking.openSettings() },
+            { text: "Cancel",style: "cancel" },
+            { text: "Open Settings",onPress: () => Linking.openSettings() },
           ],
         )
         return
       }
-
       setImageUploading(true)
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [16, 9],
+        aspect: [16,9],
         quality: 0.8,
         base64: true,
       })
-
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0]
         if (selectedAsset.base64) {
@@ -205,11 +253,11 @@ const CreateGroupScreen = ({ route }) => {
         } else {
           setThumbnail(selectedAsset.uri)
           setCloudImageUrl("")
-          Alert.alert("Warning", "Base64 not available. Using local URI, which may not persist.")
+          showErrorMessage("Base64 not available. Using local URI, which may not persist.")
         }
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to pick image.")
+      showErrorFetchAPI(error);
     } finally {
       setImageUploading(false)
       setShowImageOptions(false)
@@ -224,21 +272,19 @@ const CreateGroupScreen = ({ route }) => {
           "Permission Required",
           "To take photos, please grant access to your camera in your device settings.",
           [
-            { text: "Cancel", style: "cancel" },
-            { text: "Open Settings", onPress: () => Linking.openSettings() },
+            { text: "Cancel",style: "cancel" },
+            { text: "Open Settings",onPress: () => Linking.openSettings() },
           ],
         )
         return
       }
-
       setImageUploading(true)
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
-        aspect: [16, 9],
+        aspect: [16,9],
         quality: 0.8,
         base64: true,
       })
-
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0]
         if (selectedAsset.base64) {
@@ -248,11 +294,11 @@ const CreateGroupScreen = ({ route }) => {
         } else {
           setThumbnail(selectedAsset.uri)
           setCloudImageUrl("")
-          Alert.alert("Warning", "Base64 not available. Using local URI, which may not persist.")
+          showErrorMessage("Base64 not available. Using local URI, which may not persist.")
         }
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to take photo.")
+      showErrorFetchAPI(error);
     } finally {
       setImageUploading(false)
       setShowImageOptions(false)
@@ -268,27 +314,25 @@ const CreateGroupScreen = ({ route }) => {
 
   const confirmUrlImage = async () => {
     if (!imageUrl.trim()) {
-      setUrlError("Please enter an image URL.")
+      showErrorMessage("Please enter an image URL.")
       return
     }
-
     if (!isValidUrl(imageUrl)) {
-      setUrlError("Please enter a valid URL starting with http:// or https://.")
+      showErrorMessage("Please enter a valid URL starting with http:// or https://.")
       return
     }
-
     setImageUploading(true)
     const isImageReachable = await checkImageUrl(imageUrl)
     setImageUploading(false)
-
     if (!isImageReachable) {
-      setUrlError("The URL does not point to a valid image or is unreachable.")
+      showErrorMessage("The URL does not point to a valid image or is unreachable.")
       return
     }
-
     setThumbnail(imageUrl)
     setCloudImageUrl(imageUrl)
     setShowUrlInput(false)
+    setImageUrl("")
+    setUrlError("")
   }
 
   const cancelUrlInput = () => {
@@ -298,8 +342,8 @@ const CreateGroupScreen = ({ route }) => {
   }
 
   const handleRemoveImage = () => {
-    Alert.alert("Remove Image", "Are you sure you want to remove this image?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Remove Image","Are you sure you want to remove this image?",[
+      { text: "Cancel",style: "cancel" },
       {
         text: "Remove",
         style: "destructive",
@@ -312,10 +356,9 @@ const CreateGroupScreen = ({ route }) => {
   }
 
   const handleCreate = async () => {
-    // Validate all fields
     const nameError = validateGroupName(groupName)
     const descError = validateDescription(description)
-    const statusValue = "active" // or allow user to select in future
+    const statusValue = "active"
     const statusError = validateStatus(statusValue)
 
     setErrors({
@@ -331,7 +374,7 @@ const CreateGroupScreen = ({ route }) => {
     })
 
     if (nameError || descError || statusError) {
-      Alert.alert("Validation Error", "Please fix the errors before creating the group.")
+      showErrorMessage("Please fix the errors before creating the group.")
       return
     }
 
@@ -342,12 +385,11 @@ const CreateGroupScreen = ({ route }) => {
       if (thumbnail && thumbnail.startsWith("data:image") && !cloudImageUrl) {
         const formData = createFormDataFromBase64(thumbnail)
         const uploadResult = await apiUploadImageCloudService.uploadImage(formData)
-
         if (!uploadResult.isError && uploadResult.imageUrl) {
           finalImageUrl = uploadResult.imageUrl
           setCloudImageUrl(uploadResult.imageUrl)
         } else {
-          Alert.alert("Upload Error", "Image upload failed. Please try selecting the image again.")
+          showErrorMessage("Image upload failed. Please try selecting the image again.")
           setCreating(false)
           return
         }
@@ -361,19 +403,20 @@ const CreateGroupScreen = ({ route }) => {
         isPrivate,
       })
 
-      Alert.alert("Success", "Group created successfully!", [
-        {
-          text: "OK",
-          onPress: () => {
-            navigation.navigate("ActiveGroups", { newGroup: { ...group, isMine: true } })
-          },
-        },
-      ])
+      showSuccessMessage("Group created successfully!");
+      setTimeout(() => {
+        navigation.navigate("ActiveGroups",{ newGroup: { ...group,isMine: true } })
+      },1000)
     } catch (err) {
-      Alert.alert("Error", err.message || "Failed to create group")
+      showErrorFetchAPI(err);
     } finally {
       setCreating(false)
     }
+  }
+
+  const dismissKeyboard = () => {
+    Keyboard.dismiss()
+    setCurrentInputFocused(null)
   }
 
   const renderImageSection = () => (
@@ -389,7 +432,7 @@ const CreateGroupScreen = ({ route }) => {
       {thumbnail ? (
         <View style={styles.imageContainer}>
           <Image source={{ uri: thumbnail }} style={styles.imagePreview} />
-          <LinearGradient colors={["transparent", "rgba(0,0,0,0.4)"]} style={styles.imageOverlay} />
+          <LinearGradient colors={["transparent","rgba(0,0,0,0.3)"]} style={styles.imageOverlay} />
           <TouchableOpacity style={styles.removeImageButton} onPress={handleRemoveImage}>
             <View style={styles.removeImageButtonInner}>
               <Ionicons name="close" size={16} color="#FFFFFF" />
@@ -407,20 +450,19 @@ const CreateGroupScreen = ({ route }) => {
         </View>
       ) : (
         <TouchableOpacity style={styles.addImageContainer} onPress={() => setShowImageOptions(true)}>
-          <LinearGradient colors={["#F8FAFC", "#F1F5F9"]} style={styles.addImageGradient}>
+          <View style={styles.addImageGradient}>
             <View style={styles.addImageIcon}>
-              <Ionicons name="camera-outline" size={32} color="#64748B" />
+              <Ionicons name="camera-outline" size={32} color="#0056d2" />
             </View>
             <Text style={styles.addImageTitle}>Add Cover Photo</Text>
             <Text style={styles.addImageSubtitle}>Make your group stand out with a great image</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       )}
     </Animated.View>
   )
 
-  const renderFormField = (label, value, onChangeText, onBlur, placeholder, multiline = false, icon) => {
-    // Set max length for counters
+  const renderFormField = (label,value,onChangeText,onBlur,placeholder,multiline = false,icon) => {
     let maxLength = 255
     if (label === "Description") maxLength = 2000
     if (label === "Group Name") maxLength = 255
@@ -437,20 +479,21 @@ const CreateGroupScreen = ({ route }) => {
       >
         <View style={styles.fieldHeader}>
           <View style={styles.fieldLabelContainer}>
-            {icon && <Ionicons name={icon} size={16} color="#4F46E5" style={styles.fieldIcon} />}
+            {icon && <Ionicons name={icon} size={16} color="#0056d2" style={styles.fieldIcon} />}
             <Text style={styles.fieldLabel}>{label}</Text>
           </View>
           <Text style={styles.fieldCounter}>
-            {value.length}/{maxLength}
+            {value.replace(/<[^>]*>/g,"").length}/{maxLength}
           </Text>
         </View>
-        <View style={[styles.inputContainer, errors[onBlur.split(".")[1]] && styles.inputError]}>
+        <View style={[styles.inputContainer,errors[onBlur.split(".")[1]] && styles.inputError]}>
           <TextInput
-            style={[styles.input, multiline && styles.multilineInput]}
+            style={[styles.input,multiline && styles.multilineInput]}
             placeholder={placeholder}
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor="#9CA3AF"
             value={value}
             onChangeText={onChangeText}
+            onFocus={() => handleInputFocus(onBlur.split(".")[1])}
             onBlur={() => handleInputBlur(onBlur.split(".")[1])}
             multiline={multiline}
             textAlignVertical={multiline ? "top" : "center"}
@@ -467,6 +510,67 @@ const CreateGroupScreen = ({ route }) => {
     )
   }
 
+  const renderRichEditor = () => (
+    <Animated.View
+      style={[
+        styles.fieldContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldHeader}>
+        <View style={styles.fieldLabelContainer}>
+          <Ionicons name="document-text-outline" size={16} color="#0056d2" style={styles.fieldIcon} />
+          <Text style={styles.fieldLabel}>Description</Text>
+        </View>
+        <Text style={styles.fieldCounter}>{description.replace(/<[^>]*>/g,"").length}/2000</Text>
+      </View>
+      <View style={[styles.richEditorContainer,errors.description && styles.inputError]}>
+        <RichToolbar
+          editor={richText}
+          actions={[
+            actions.setBold,
+            actions.setItalic,
+            actions.setUnderline,
+            actions.insertBulletsList,
+            actions.insertOrderedList,
+            actions.undo,
+            actions.redo,
+          ]}
+          iconTint="#374151"
+          selectedIconTint="#0056d2"
+          style={styles.richToolbar}
+          iconSize={18}
+        />
+        <RichEditor
+          ref={richText}
+          onChange={(text) => handleInputChange("description",text)}
+          onFocus={() => handleInputFocus("description")}
+          onBlur={() => handleInputBlur("description")}
+          placeholder="Describe what your group is about, its goals, and what members can expect..."
+          style={styles.richEditor}
+          initialContentHTML={richDesc}
+          editorStyle={{
+            backgroundColor: "#FFFFFF",
+            color: "#000000",
+            fontSize: 16,
+            fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
+            lineHeight: 24,
+            padding: 16,
+          }}
+        />
+      </View>
+      {errors.description && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={14} color="#EF4444" />
+          <Text style={styles.errorText}>{errors.description}</Text>
+        </View>
+      )}
+    </Animated.View>
+  )
+
   const renderPrivacySelector = () => (
     <Animated.View
       style={[
@@ -479,33 +583,32 @@ const CreateGroupScreen = ({ route }) => {
     >
       <View style={styles.fieldHeader}>
         <View style={styles.fieldLabelContainer}>
-          <Ionicons name="shield-outline" size={16} color="#4F46E5" style={styles.fieldIcon} />
+          <Ionicons name="shield-outline" size={16} color="#0056d2" style={styles.fieldIcon} />
           <Text style={styles.fieldLabel}>Privacy Setting</Text>
         </View>
       </View>
       <View style={styles.privacyOptions}>
         <TouchableOpacity
-          style={[styles.privacyOption, !isPrivate && styles.privacyOptionActive]}
+          style={[styles.privacyOption,!isPrivate && styles.privacyOptionActive]}
           onPress={() => setIsPrivate(false)}
         >
           <View style={styles.privacyOptionHeader}>
-            <Ionicons name="globe-outline" size={20} color={!isPrivate ? "#FFFFFF" : "#3B82F6"} />
-            <Text style={[styles.privacyOptionTitle, !isPrivate && styles.privacyOptionTitleActive]}>Public</Text>
+            <Ionicons name="globe-outline" size={20} color={!isPrivate ? "#FFFFFF" : "#0056d2"} />
+            <Text style={[styles.privacyOptionTitle,!isPrivate && styles.privacyOptionTitleActive]}>Public</Text>
           </View>
-          <Text style={[styles.privacyOptionDesc, !isPrivate && styles.privacyOptionDescActive]}>
+          <Text style={[styles.privacyOptionDesc,!isPrivate && styles.privacyOptionDescActive]}>
             Anyone can find and join this group
           </Text>
         </TouchableOpacity>
-
         <TouchableOpacity
-          style={[styles.privacyOption, isPrivate && styles.privacyOptionActive]}
+          style={[styles.privacyOption,isPrivate && styles.privacyOptionActive]}
           onPress={() => setIsPrivate(true)}
         >
           <View style={styles.privacyOptionHeader}>
-            <Ionicons name="lock-closed-outline" size={20} color={isPrivate ? "#FFFFFF" : "#A855F7"} />
-            <Text style={[styles.privacyOptionTitle, isPrivate && styles.privacyOptionTitleActive]}>Private</Text>
+            <Ionicons name="lock-closed-outline" size={20} color={isPrivate ? "#FFFFFF" : "#0056d2"} />
+            <Text style={[styles.privacyOptionTitle,isPrivate && styles.privacyOptionTitleActive]}>Private</Text>
           </View>
-          <Text style={[styles.privacyOptionDesc, isPrivate && styles.privacyOptionDescActive]}>
+          <Text style={[styles.privacyOptionDesc,isPrivate && styles.privacyOptionDescActive]}>
             Members need approval to join
           </Text>
         </TouchableOpacity>
@@ -516,83 +619,102 @@ const CreateGroupScreen = ({ route }) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
+      <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color="#0056d2" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Create Group</Text>
-            <Text style={styles.headerSubtitle}>Build your health community</Text>
+            <Text style={styles.headerSubtitle}>Build your community</Text>
           </View>
           <View style={styles.headerRight} />
         </View>
-      </LinearGradient>
+      </View>
 
-      <KeyboardAvoidingView style={styles.keyboardContainer} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <ScrollView
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+      <View style={styles.mainContainer} ref={containerRef} {...panResponder.panHandlers}>
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
-          {renderImageSection()}
-
-          {renderFormField(
-            "Group Name",
-            groupName,
-            (text) => handleInputChange("groupName", text),
-            "field.groupName",
-            "Enter a catchy group name...",
-            false,
-            "people-outline",
-          )}
-
-          {renderFormField(
-            "Description",
-            description,
-            (text) => handleInputChange("description", text),
-            "field.description",
-            "Describe what your group is about, its goals, and what members can expect...",
-            true,
-            "document-text-outline",
-          )}
-
-          {renderPrivacySelector()}
-
-          {/* Create Button */}
-          <Animated.View
-            style={[
-              styles.createButtonContainer,
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollContainer}
+            contentContainerStyle={[
+              styles.scrollContent,
               {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
+                paddingBottom: isKeyboardVisible ? keyboardHeight + 50 : 50,
               },
             ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            scrollEventThrottle={16}
+            bounces={true}
+            alwaysBounceVertical={false}
+            nestedScrollEnabled={true}
+            contentInsetAdjustmentBehavior="automatic"
           >
-            <TouchableOpacity
-              style={[styles.createButton, (creating || imageUploading) && styles.createButtonDisabled]}
-              onPress={handleCreate}
-              disabled={creating || imageUploading}
-            >
-              <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.createButtonGradient}>
-                {creating || imageUploading ? (
-                  <View style={styles.createButtonLoading}>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.createButtonText}>
-                      {imageUploading ? "Uploading Image..." : "Creating Group..."}
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.createButtonContent}>
-                    <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-                    <Text style={styles.createButtonText}>Create Group</Text>
-                  </View>
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <View style={styles.formContent}>
+                {renderImageSection()}
+                {renderFormField(
+                  "Group Name",
+                  groupName,
+                  (text) => handleInputChange("groupName",text),
+                  "field.groupName",
+                  "Enter a catchy group name...",
+                  false,
+                  "people-outline",
                 )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+                {renderRichEditor()}
+                {renderPrivacySelector()}
+
+                {/* Create Button */}
+                <Animated.View
+                  style={[
+                    styles.createButtonContainer,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={[styles.createButton,(creating || imageUploading) && styles.createButtonDisabled]}
+                    onPress={handleCreate}
+                    disabled={creating || imageUploading}
+                  >
+                    <LinearGradient colors={["#0056d2","#0041a3"]} style={styles.createButtonGradient}>
+                      {creating || imageUploading ? (
+                        <View style={styles.createButtonLoading}>
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                          <Text style={styles.createButtonText}>
+                            {imageUploading ? "Uploading Image..." : "Creating Group..."}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={styles.createButtonContent}>
+                          <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+                          <Text style={styles.createButtonText}>Create Group</Text>
+                        </View>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
+            </TouchableWithoutFeedback>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+
+      {/* Keyboard Dismiss Overlay */}
+      {isKeyboardVisible && (
+        <TouchableWithoutFeedback onPress={dismissKeyboard}>
+          <View style={styles.keyboardDismissOverlay} pointerEvents="box-none" />
+        </TouchableWithoutFeedback>
+      )}
 
       {/* Image Options Modal */}
       <Modal
@@ -601,103 +723,110 @@ const CreateGroupScreen = ({ route }) => {
         animationType="slide"
         onRequestClose={() => setShowImageOptions(false)}
       >
-        <View style={styles.modalOverlay}>
-          <Animated.View style={[styles.imageOptionsModal, { transform: [{ scale: scaleAnim }] }]}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Photo</Text>
-              <TouchableOpacity onPress={() => setShowImageOptions(false)} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.imageOptionsContainer}>
-              <TouchableOpacity style={styles.imageOption} onPress={handleTakePhoto} disabled={imageUploading}>
-                <LinearGradient colors={["#4F46E5", "#7C3AED"]} style={styles.imageOptionGradient}>
-                  <Ionicons name="camera" size={28} color="#FFFFFF" />
-                </LinearGradient>
-                <Text style={styles.imageOptionTitle}>Take Photo</Text>
-                <Text style={styles.imageOptionSubtitle}>Use your camera</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.imageOption} onPress={handlePickImage} disabled={imageUploading}>
-                <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.imageOptionGradient}>
-                  <Ionicons name="images" size={28} color="#FFFFFF" />
-                </LinearGradient>
-                <Text style={styles.imageOptionTitle}>Choose from Gallery</Text>
-                <Text style={styles.imageOptionSubtitle}>Select existing photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.imageOption} onPress={handleUrlImage} disabled={imageUploading}>
-                <LinearGradient colors={["#F59E0B", "#D97706"]} style={styles.imageOptionGradient}>
-                  <Ionicons name="link" size={28} color="#FFFFFF" />
-                </LinearGradient>
-                <Text style={styles.imageOptionTitle}>Enter URL</Text>
-                <Text style={styles.imageOptionSubtitle}>Paste image link</Text>
-              </TouchableOpacity>
-            </View>
-
-            {imageUploading && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#4F46E5" />
-                <Text style={styles.loadingText}>Processing image...</Text>
-              </View>
-            )}
-          </Animated.View>
-        </View>
+        <TouchableWithoutFeedback onPress={() => setShowImageOptions(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <Animated.View style={[styles.imageOptionsModal,{ transform: [{ scale: scaleAnim }] }]}>
+                <View style={styles.modalHandle} />
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Add Photo</Text>
+                  <TouchableOpacity onPress={() => setShowImageOptions(false)} style={styles.modalCloseButton}>
+                    <Ionicons name="close" size={24} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.imageOptionsContainer}>
+                  <TouchableOpacity style={styles.imageOption} onPress={handleTakePhoto} disabled={imageUploading}>
+                    <LinearGradient colors={["#0056d2","#0041a3"]} style={styles.imageOptionGradient}>
+                      <Ionicons name="camera" size={28} color="#FFFFFF" />
+                    </LinearGradient>
+                    <View style={styles.imageOptionContent}>
+                      <Text style={styles.imageOptionTitle}>Take Photo</Text>
+                      <Text style={styles.imageOptionSubtitle}>Use your camera</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.imageOption} onPress={handlePickImage} disabled={imageUploading}>
+                    <LinearGradient colors={["#10B981","#059669"]} style={styles.imageOptionGradient}>
+                      <Ionicons name="images" size={28} color="#FFFFFF" />
+                    </LinearGradient>
+                    <View style={styles.imageOptionContent}>
+                      <Text style={styles.imageOptionTitle}>Choose from Gallery</Text>
+                      <Text style={styles.imageOptionSubtitle}>Select existing photo</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.imageOption} onPress={handleUrlImage} disabled={imageUploading}>
+                    <LinearGradient colors={["#F59E0B","#D97706"]} style={styles.imageOptionGradient}>
+                      <Ionicons name="link" size={28} color="#FFFFFF" />
+                    </LinearGradient>
+                    <View style={styles.imageOptionContent}>
+                      <Text style={styles.imageOptionTitle}>Enter URL</Text>
+                      <Text style={styles.imageOptionSubtitle}>Paste image link</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+                {imageUploading && (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#0056d2" />
+                    <Text style={styles.loadingText}>Processing image...</Text>
+                  </View>
+                )}
+              </Animated.View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* URL Input Modal */}
       <Modal visible={showUrlInput} transparent={true} animationType="slide" onRequestClose={cancelUrlInput}>
-        <View style={styles.modalOverlay}>
-          <Animated.View style={[styles.urlInputModal, { transform: [{ scale: scaleAnim }] }]}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Enter Image URL</Text>
-              <TouchableOpacity onPress={cancelUrlInput} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.urlInputContainer}>
-              <TextInput
-                style={styles.urlInput}
-                placeholder="https://example.com/image.jpg"
-                placeholderTextColor="#94A3B8"
-                value={imageUrl}
-                onChangeText={(text) => {
-                  setImageUrl(text)
-                  setUrlError("")
-                }}
-                autoCapitalize="none"
-                keyboardType="url"
-                returnKeyType="done"
-                onSubmitEditing={confirmUrlImage}
-                autoFocus={true}
-              />
-
-              {urlError && (
-                <View style={styles.errorContainer}>
-                  <Ionicons name="alert-circle" size={16} color="#EF4444" />
-                  <Text style={styles.errorText}>{urlError}</Text>
+        <TouchableWithoutFeedback onPress={cancelUrlInput}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <Animated.View style={[styles.urlInputModal,{ transform: [{ scale: scaleAnim }] }]}>
+                <View style={styles.modalHandle} />
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Enter Image URL</Text>
+                  <TouchableOpacity onPress={cancelUrlInput} style={styles.modalCloseButton}>
+                    <Ionicons name="close" size={24} color="#6B7280" />
+                  </TouchableOpacity>
                 </View>
-              )}
-            </View>
-
-            <View style={styles.urlModalButtons}>
-              <TouchableOpacity style={styles.urlCancelButton} onPress={cancelUrlInput}>
-                <Text style={styles.urlCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.urlConfirmButton} onPress={confirmUrlImage} disabled={imageUploading}>
-                {imageUploading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.urlConfirmButtonText}>Confirm</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </View>
+                <View style={styles.urlInputContainer}>
+                  <TextInput
+                    style={[styles.urlInput,urlError && styles.urlInputError]}
+                    placeholder="https://example.com/image.jpg"
+                    placeholderTextColor="#9CA3AF"
+                    value={imageUrl}
+                    onChangeText={(text) => {
+                      setImageUrl(text)
+                      setUrlError("")
+                    }}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                    returnKeyType="done"
+                    onSubmitEditing={confirmUrlImage}
+                    autoFocus={true}
+                  />
+                  {urlError && (
+                    <View style={styles.errorContainer}>
+                      <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                      <Text style={styles.errorText}>{urlError}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.urlModalButtons}>
+                  <TouchableOpacity style={styles.urlCancelButton} onPress={cancelUrlInput}>
+                    <Text style={styles.urlCancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.urlConfirmButton} onPress={confirmUrlImage} disabled={imageUploading}>
+                    {imageUploading ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.urlConfirmButtonText}>Confirm</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   )
@@ -706,25 +835,33 @@ const CreateGroupScreen = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
   },
   header: {
-    paddingTop: Platform.OS === "android" ? 15 : 15,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    paddingTop: Platform.OS === "android" ? 10 : 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    zIndex: 1000,
   },
   headerContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   headerCenter: {
     flex: 1,
@@ -732,46 +869,59 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
-    color: "#FFFFFF",
-    textAlign: "center",
+    color: "#000000",
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
-    textAlign: "center",
+    color: "#6B7280",
     marginTop: 2,
   },
   headerRight: {
-    width: 40,
+    width: 44,
+  },
+  mainContainer: {
+    flex: 1,
   },
   keyboardContainer: {
     flex: 1,
   },
   scrollContainer: {
     flex: 1,
+    backgroundColor: "#F8FAFC",
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingVertical: 24,
+  },
+  formContent: {
+    flex: 1,
+  },
+  keyboardDismissOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: -1,
   },
   imageSection: {
-    marginVertical: 20,
+    marginBottom: 32,
   },
   imageContainer: {
     position: "relative",
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0,height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
   imagePreview: {
     width: "100%",
-    height: 200,
+    height: 220,
     resizeMode: "cover",
   },
   imageOverlay: {
@@ -779,41 +929,51 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
+    height: 100,
   },
   removeImageButton: {
     position: "absolute",
-    top: 12,
-    right: 12,
+    top: 16,
+    right: 16,
   },
   removeImageButtonInner: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(239, 68, 68, 0.9)",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   editImageButton: {
     position: "absolute",
-    top: 12,
-    right: 52,
+    top: 16,
+    right: 60,
   },
   editImageButtonInner: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 86, 210, 0.9)",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   imageLabel: {
     position: "absolute",
-    bottom: 16,
-    left: 16,
+    bottom: 20,
+    left: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   imageLabelText: {
     fontSize: 14,
@@ -821,45 +981,45 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   addImageContainer: {
-    borderRadius: 16,
-    overflow: "hidden",
+    borderRadius: 20,
     borderWidth: 2,
-    borderColor: "#E2E8F0",
+    borderColor: "#D1D5DB",
     borderStyle: "dashed",
+    backgroundColor: "#FFFFFF",
   },
   addImageGradient: {
-    padding: 40,
+    padding: 48,
     alignItems: "center",
   },
   addImageIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#F1F5F9",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F0F9FF",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   addImageTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1E293B",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#000000",
     marginBottom: 8,
   },
   addImageSubtitle: {
-    fontSize: 14,
-    color: "#64748B",
+    fontSize: 16,
+    color: "#6B7280",
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 22,
   },
   fieldContainer: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   fieldHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   fieldLabelContainer: {
     flexDirection: "row",
@@ -869,38 +1029,62 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   fieldLabel: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
-    color: "#1E293B",
+    color: "#000000",
   },
   fieldCounter: {
-    fontSize: 12,
-    color: "#64748B",
+    fontSize: 13,
+    color: "#6B7280",
     fontWeight: "500",
   },
   inputContainer: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 2,
   },
   inputError: {
     borderColor: "#EF4444",
   },
   input: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     fontSize: 16,
-    color: "#1E293B",
+    color: "#000000",
+    fontWeight: "400",
   },
   multilineInput: {
-    height: 100,
+    height: 120,
     textAlignVertical: "top",
+  },
+  richEditorContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  richToolbar: {
+    backgroundColor: "#F9FAFB",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  richEditor: {
+    minHeight: 140,
+    backgroundColor: "#FFFFFF",
   },
   errorContainer: {
     flexDirection: "row",
@@ -913,28 +1097,29 @@ const styles = StyleSheet.create({
     color: "#EF4444",
     marginLeft: 6,
     flex: 1,
+    fontWeight: "500",
   },
   privacySection: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   privacyOptions: {
-    gap: 12,
+    gap: 16,
   },
   privacyOption: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 16,
+    padding: 24,
     borderWidth: 2,
-    borderColor: "#E2E8F0",
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 2,
   },
   privacyOptionActive: {
-    borderColor: "#4F46E5",
-    backgroundColor: "#4F46E5",
+    borderColor: "#0056d2",
+    backgroundColor: "#0056d2",
   },
   privacyOptionHeader: {
     flexDirection: "row",
@@ -942,46 +1127,46 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   privacyOptionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
-    color: "#1E293B",
+    color: "#000000",
     marginLeft: 12,
   },
   privacyOptionTitleActive: {
     color: "#FFFFFF",
   },
   privacyOptionDesc: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 20,
+    fontSize: 15,
+    color: "#6B7280",
+    lineHeight: 22,
   },
   privacyOptionDescActive: {
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "rgba(255, 255, 255, 0.9)",
   },
   createButtonContainer: {
-    marginTop: 20,
+    marginTop: 24,
   },
   createButton: {
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0,height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
   },
   createButtonDisabled: {
     opacity: 0.7,
   },
   createButtonGradient: {
-    paddingVertical: 18,
+    paddingVertical: 20,
     paddingHorizontal: 24,
     alignItems: "center",
   },
   createButtonContent: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
   createButtonLoading: {
     flexDirection: "row",
@@ -1001,137 +1186,147 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 4,
-    backgroundColor: "#CBD5E1",
+    backgroundColor: "#D1D5DB",
     borderRadius: 2,
     alignSelf: "center",
-    marginTop: 8,
+    marginTop: 12,
     marginBottom: 8,
   },
   imageOptionsModal: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     paddingBottom: Platform.OS === "ios" ? 34 : 20,
-    maxHeight: "70%",
+    maxHeight: "75%",
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#E5E7EB",
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#000000",
   },
   modalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F1F5F9",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
   },
   imageOptionsContainer: {
-    padding: 20,
-    gap: 16,
+    padding: 24,
+    gap: 20,
   },
   imageOption: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0,height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   imageOptionGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 20,
+  },
+  imageOptionContent: {
+    flex: 1,
   },
   imageOptionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
-    color: "#1E293B",
-    flex: 1,
+    color: "#000000",
+    marginBottom: 4,
   },
   imageOptionSubtitle: {
     fontSize: 14,
-    color: "#64748B",
-    marginTop: 2,
+    color: "#6B7280",
   },
   loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flex: 1,
     justifyContent: "center",
-    padding: 20,
+    alignItems: "center",
+    padding: 40,
   },
   loadingText: {
     fontSize: 16,
-    color: "#4F46E5",
-    marginLeft: 12,
+    color: "#6B7280",
+    marginTop: 16,
     fontWeight: "500",
   },
   urlInputModal: {
+    position: "absolute",
+    top: "20%",
+    left: 10,
+    right: 10,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 28,
     paddingBottom: Platform.OS === "ios" ? 34 : 20,
-    maxHeight: "50%",
+    maxHeight: "60%",
   },
   urlInputContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
   },
   urlInput: {
     backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    marginTop: 10,
     fontSize: 16,
-    color: "#1E293B",
+    color: "#000000",
   },
   urlModalButtons: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    gap: 12,
+    paddingHorizontal: 24,
+    gap: 16,
   },
   urlCancelButton: {
     flex: 1,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 16,
+    paddingVertical: 18,
     alignItems: "center",
   },
   urlCancelButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#64748B",
+    color: "#6B7280",
   },
   urlConfirmButton: {
     flex: 1,
-    backgroundColor: "#4F46E5",
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: "#0056d2",
+    borderRadius: 16,
+    paddingVertical: 18,
     alignItems: "center",
   },
   urlConfirmButtonText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+  urlInputError: {
+    borderColor: "#EF4444",
+    borderWidth: 2,
   },
 })
 

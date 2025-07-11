@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React,{ useEffect,useState } from 'react';
 import {
   View,
   Text,
@@ -9,40 +9,38 @@ import {
   TextInput,
   Modal,
   ScrollView,
-  Dimensions
+  Dimensions,
+  Platform,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getMyReports, createReportByUser } from 'services/apiCommunityService';
+import { getMyReports } from 'services/apiCommunityService';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
 const MyReportsScreen = ({ navigation }) => {
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Filter states
-  const [filters, setFilters] = useState({
+  const [reports,setReports] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [error,setError] = useState(null);
+  const [showFilters,setShowFilters] = useState(false);
+  const [searchTerm,setSearchTerm] = useState('');
+  const [filters,setFilters] = useState({
     PageNumber: 1,
-    PageSize: 50, // Increased to show more items without pagination
+    PageSize: 50,
     StartDate: '',
     EndDate: '',
     ValidPageSize: 50,
     SearchTerm: '',
     Status: '',
   });
-
-  const [pendingFilters, setPendingFilters] = useState(filters);
-
-  // State for date picker visibility
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [pendingFilters,setPendingFilters] = useState(filters);
+  const [showStartDatePicker,setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker,setShowEndDatePicker] = useState(false);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -57,25 +55,24 @@ const MyReportsScreen = ({ navigation }) => {
     };
 
     fetchReports();
-  }, [filters]);
+  },[filters]);
 
-  // Handle search with debounce effect
   useEffect(() => {
     const delayedSearch = setTimeout(() => {
       if (searchTerm !== filters.SearchTerm) {
-        setFilters(prev => ({ ...prev, SearchTerm: searchTerm, PageNumber: 1 }));
+        setFilters((prev) => ({ ...prev,SearchTerm: searchTerm,PageNumber: 1 }));
       }
-    }, 500);
+    },500);
 
     return () => clearTimeout(delayedSearch);
-  }, [searchTerm]);
+  },[searchTerm]);
 
-  const handleFilterChange = (key, value) => {
-    setPendingFilters((prev) => ({ ...prev, [key]: value }));
+  const handleFilterChange = (key,value) => {
+    setPendingFilters((prev) => ({ ...prev,[key]: value }));
   };
 
   const handleApplyFilters = () => {
-    setFilters({ ...pendingFilters, PageNumber: 1 });
+    setFilters({ ...pendingFilters,PageNumber: 1 });
     setShowFilters(false);
   };
 
@@ -96,7 +93,7 @@ const MyReportsScreen = ({ navigation }) => {
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('en-US',{
       year: 'numeric',
       month: 'short',
       day: '2-digit',
@@ -108,44 +105,33 @@ const MyReportsScreen = ({ navigation }) => {
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending':
-        return { bg: '#FEF3C7', text: '#92400E', border: '#F59E0B' };
+        return { bg: '#FEF3C7',text: '#92400E',border: '#F59E0B' };
       case 'approved':
-        return { bg: '#D1FAE5', text: '#065F46', border: '#10B981' };
+        return { bg: '#D1FAE5',text: '#065F46',border: '#10B981' };
       case 'rejected':
-        return { bg: '#FEE2E2', text: '#991B1B', border: '#EF4444' };
+        return { bg: '#FEE2E2',text: '#991B1B',border: '#EF4444' };
       case 'resolved':
-        return { bg: '#DBEAFE', text: '#1E40AF', border: '#3B82F6' };
+        return { bg: '#DBEAFE',text: '#1E40AF',border: '#0056d2' };
       default:
-        return { bg: '#F3F4F6', text: '#6B7280', border: '#9CA3AF' };
+        return { bg: '#F3F4F6',text: '#6B7280',border: '#9CA3AF' };
     }
   };
 
-  const renderReportItem = ({ item, index }) => {
+  const renderReportItem = ({ item,index }) => {
     const statusColors = getStatusColor(item.status);
-    
+
     return (
-      <View style={[styles.reportCard, { marginTop: index === 0 ? 0 : 16 }]}>
-        <LinearGradient
-          colors={['#FFFFFF', '#F8FAFC']}
-          style={styles.reportCardGradient}
-        >
+      <View style={[styles.reportCard,{ marginTop: index === 0 ? 0 : 20 }]}>
+        <View style={styles.reportCardContainer}>
           <View style={styles.reportHeader}>
             <View style={styles.reportIdContainer}>
               <View style={styles.iconContainer}>
-                <Ionicons name="document-text" size={20} color="#4F46E5" />
+                <Ionicons name="document-text" size={20} color="#0056d2" />
               </View>
               <Text style={styles.reportId}>#{item.reportId}</Text>
             </View>
-            <View style={[
-              styles.statusBadge,
-              { 
-                backgroundColor: statusColors.bg,
-                borderColor: statusColors.border
-              }
-            ]}>
-              <Text style={[styles.statusText, { color: statusColors.text }]}>
-                {item.status}
-              </Text>
+            <View style={[styles.statusBadge,{ backgroundColor: statusColors.bg,borderColor: statusColors.border }]}>
+              <Text style={[styles.statusText,{ color: statusColors.text }]}>{item.status}</Text>
             </View>
           </View>
 
@@ -201,78 +187,27 @@ const MyReportsScreen = ({ navigation }) => {
               <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
             </View>
           </View>
-        </LinearGradient>
+        </View>
       </View>
     );
   };
 
-  // Hàm gửi report đúng chuẩn API, trả về lỗi chi tiết và thông báo thành công
-  const handleSubmitReport = async (form) => {
-    setError(null);
-    try {
-      // Validate and coerce types for required fields
-      const postId = parseInt(form.postId, 10);
-      const userId = parseInt(form.userId, 10);
-      const reasonId = parseInt(form.reasonId, 10);
-      if (!postId || !userId || !reasonId) {
-        throw new Error('PostId, UserId, and ReasonId are required and must be positive integers.');
-      }
-      const payload = {
-        reportDto: {
-          reportId: 0,
-          postId,
-          userId,
-          reasonId,
-          reasonText: form.reasonText ? String(form.reasonText).slice(0, 100) : '',
-          details: form.details ? String(form.details).slice(0, 500) : '',
-          note: form.note ? String(form.note).slice(0, 1000) : '',
-          status: 'pending',
-          createdBy: form.createdBy !== undefined ? parseInt(form.createdBy, 10) : null,
-          handledBy: form.handledBy !== undefined ? parseInt(form.handledBy, 10) : null,
-          createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : null,
-          updatedAt: form.updatedAt ? new Date(form.updatedAt).toISOString() : null,
-        }
-      };
-      const res = await createReportByUser(payload);
-      if (typeof window !== 'undefined' && window.alert) {
-        window.alert('Report submitted successfully!');
-      } else if (global && global.alert) {
-        global.alert('Report submitted successfully!');
-      }
-    } catch (e) {
-      let msg = e?.message || 'Error submitting report';
-      if (e?.response?.data?.message) {
-        msg = e.response.data.message;
-      } else if (e?.data?.message) {
-        msg = e.data.message;
-      }
-      setError(msg);
-      if (typeof window !== 'undefined' && window.alert) {
-        window.alert(msg);
-      } else if (global && global.alert) {
-        global.alert(msg);
-      }
-    }
-  };
-
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" backgroundColor="#FFFFFF" />
+        <View style={styles.header}>
           <View style={styles.headerContent}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              <Ionicons name="arrow-back" size={24} color="#0056d2" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Reports</Text>
             <View style={styles.headerRight} />
           </View>
-        </LinearGradient>
+        </View>
         <View style={styles.loadingContainer}>
-          <View style={styles.loadingContent}>
-            <ActivityIndicator size="large" color="#4F46E5" />
-            <Text style={styles.loadingText}>Loading your reports...</Text>
-            <Text style={styles.loadingSubText}>Please wait a moment</Text>
-          </View>
+          <ActivityIndicator size="large" color="#0056d2" />
+          <Text style={styles.loadingText}>Loading your reports...</Text>
         </View>
       </SafeAreaView>
     );
@@ -280,52 +215,62 @@ const MyReportsScreen = ({ navigation }) => {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" backgroundColor="#FFFFFF" />
+        <View style={styles.header}>
           <View style={styles.headerContent}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              <Ionicons name="arrow-back" size={24} color="#0056d2" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Reports</Text>
             <View style={styles.headerRight} />
           </View>
-        </LinearGradient>
+        </View>
         <View style={styles.errorContainer}>
-          <View style={styles.errorContent}>
-            <View style={styles.errorIconContainer}>
-              <Ionicons name="alert-circle" size={64} color="#EF4444" />
-            </View>
-            <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={() => window.location.reload()}
-            >
+          <Ionicons name="alert-circle" size={64} color="#EF4444" />
+          <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => setFilters({ ...filters,PageNumber: 1 })}
+            accessibilityLabel="Retry"
+            accessibilityRole="button"
+          >
+            <LinearGradient colors={["#0056d2","#0041a3"]} style={styles.retryButtonGradient}>
               <Ionicons name="refresh" size={16} color="#FFFFFF" />
               <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {/* Header with Gradient */}
-      <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" backgroundColor="#FFFFFF" />
+      <View style={styles.header}>
         <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            accessibilityLabel="Back"
+            accessibilityRole="button"
+          >
+            <Ionicons name="arrow-back" size={24} color="#0056d2" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Reports</Text>
-          <TouchableOpacity style={styles.filterMenuButton} onPress={() => setShowFilters(true)}>
-            <Ionicons name="menu" size={24} color="#FFFFFF" />
+          <TouchableOpacity
+            style={styles.filterMenuButton}
+            onPress={() => setShowFilters(true)}
+            accessibilityLabel="Open Filters"
+            accessibilityRole="button"
+          >
+            <Ionicons name="filter" size={24} color="#0056d2" />
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
 
-      {/* Separate Search Section */}
       <View style={styles.searchSection}>
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
@@ -336,50 +281,51 @@ const MyReportsScreen = ({ navigation }) => {
               placeholderTextColor="#9CA3AF"
               value={searchTerm}
               onChangeText={setSearchTerm}
+              accessibilityLabel="Search Reports"
+              accessibilityRole="search"
             />
             {searchTerm.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchTerm('')} style={styles.clearSearchButton}>
+              <TouchableOpacity
+                onPress={() => setSearchTerm('')}
+                style={styles.clearSearchButton}
+                accessibilityLabel="Clear Search"
+                accessibilityRole="button"
+              >
                 <Ionicons name="close-circle" size={20} color="#6B7280" />
               </TouchableOpacity>
             )}
           </View>
         </View>
-        
-        {/* Results Count */}
         <View style={styles.resultsInfo}>
           <Text style={styles.resultsText}>
             {reports.length > 0 ? `${reports.length} report${reports.length !== 1 ? 's' : ''} found` : 'No reports found'}
           </Text>
-          {searchTerm && (
-            <Text style={styles.searchTermText}>for "{searchTerm}"</Text>
-          )}
+          {searchTerm && <Text style={styles.searchTermText}>for "{searchTerm}"</Text>}
         </View>
       </View>
 
-      <View style={styles.container}>
-        {/* Reports List */}
+      <View style={styles.mainContainer}>
         <FlatList
           data={reports}
           renderItem={renderReportItem}
           keyExtractor={(item) => item.reportId.toString()}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <View style={styles.emptyIconContainer}>
-                <Ionicons name="document-outline" size={80} color="#D1D5DB" />
-              </View>
+              <Ionicons name="document-outline" size={64} color="#6B7280" />
               <Text style={styles.emptyTitle}>No Reports Found</Text>
               <Text style={styles.emptyText}>
-                {searchTerm 
-                  ? 'Try adjusting your search terms or filters' 
-                  : 'You haven\'t submitted any reports yet'
-                }
+                {searchTerm ? 'Try adjusting your search terms or filters' : "You haven't submitted any reports yet"}
               </Text>
               {searchTerm && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.clearSearchEmptyButton}
                   onPress={() => setSearchTerm('')}
+                  accessibilityLabel="Clear Search"
+                  accessibilityRole="button"
                 >
-                  <Text style={styles.clearSearchEmptyText}>Clear Search</Text>
+                  <LinearGradient colors={["#0056d2","#0041a3"]} style={styles.clearSearchEmptyButtonGradient}>
+                    <Text style={styles.clearSearchEmptyText}>Clear Search</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               )}
             </View>
@@ -389,156 +335,165 @@ const MyReportsScreen = ({ navigation }) => {
         />
       </View>
 
-      {/* Enhanced Filter Modal */}
-      <Modal
-        visible={showFilters}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowFilters(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.filterModal}>
-            <LinearGradient
-              colors={["#4F46E5", "#6366F1"]}
-              style={styles.filterHeader}
-            >
-              <Text style={styles.filterTitle}>Filter Options</Text>
-              <TouchableOpacity
-                style={styles.closeModalButton}
-                onPress={() => setShowFilters(false)}
-              >
-                <Ionicons name="close" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </LinearGradient>
-
-            <ScrollView style={styles.filterContent} showsVerticalScrollIndicator={false}>
-              {/* Status Filter */}
-              <View style={styles.filterGroup}>
-                <Text style={styles.filterLabel}>
-                  <Ionicons name="flag-outline" size={16} color="#4F46E5" /> Status
-                </Text>
-                <View style={styles.filterPicker}>
-                  <Picker
-                    selectedValue={pendingFilters.Status}
-                    onValueChange={(value) => handleFilterChange('Status', value)}
+      <Modal visible={showFilters} animationType="slide" transparent={true} onRequestClose={() => setShowFilters(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowFilters(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <View style={styles.filterModal}>
+                <View style={styles.modalHandle} />
+                <View style={styles.filterHeader}>
+                  <Text style={styles.filterTitle}>Filter Options</Text>
+                  <TouchableOpacity
+                    style={styles.closeModalButton}
+                    onPress={() => setShowFilters(false)}
+                    accessibilityLabel="Close Filters"
+                    accessibilityRole="button"
                   >
-                    <Picker.Item label="All Statuses" value="" />
-                    <Picker.Item label="Pending" value="pending" />
-                    <Picker.Item label="Approved" value="approved" />
-                    <Picker.Item label="Rejected" value="rejected" />
-                    <Picker.Item label="Resolved" value="resolved" />
-                  </Picker>
+                    <Ionicons name="close" size={24} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.filterContent} showsVerticalScrollIndicator={false}>
+                  <View style={styles.filterGroup}>
+                    <Text style={styles.filterLabel}>
+                      <Ionicons name="flag-outline" size={16} color="#0056d2" style={styles.filterIcon} /> Status
+                    </Text>
+                    <View style={styles.filterPicker}>
+                      <Picker
+                        selectedValue={pendingFilters.Status}
+                        onValueChange={(value) => handleFilterChange('Status',value)}
+                      >
+                        <Picker.Item label="All Statuses" value="" />
+                        <Picker.Item label="Pending" value="pending" />
+                        <Picker.Item label="Approved" value="approved" />
+                        <Picker.Item label="Rejected" value="rejected" />
+                        <Picker.Item label="Resolved" value="resolved" />
+                      </Picker>
+                    </View>
+                  </View>
+                  <View style={styles.filterGroup}>
+                    <Text style={styles.filterLabel}>
+                      <Ionicons name="calendar-outline" size={16} color="#0056d2" style={styles.filterIcon} /> Start Date
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.dateInput}
+                      onPress={() => setShowStartDatePicker(true)}
+                      accessibilityLabel="Select Start Date"
+                      accessibilityRole="button"
+                    >
+                      <Ionicons name="calendar" size={16} color="#6B7280" />
+                      <Text style={styles.dateText}>
+                        {pendingFilters.StartDate ? formatDate(pendingFilters.StartDate) : 'Select start date'}
+                      </Text>
+                    </TouchableOpacity>
+                    {showStartDatePicker && (
+                      <DateTimePicker
+                        value={pendingFilters.StartDate ? new Date(pendingFilters.StartDate) : new Date()}
+                        mode="datetime"
+                        display="default"
+                        onChange={(event,date) => {
+                          setShowStartDatePicker(false);
+                          if (date) handleFilterChange('StartDate',date.toISOString());
+                        }}
+                      />
+                    )}
+                  </View>
+                  <View style={styles.filterGroup}>
+                    <Text style={styles.filterLabel}>
+                      <Ionicons name="calendar-outline" size={16} color="#0056d2" style={styles.filterIcon} /> End Date
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.dateInput}
+                      onPress={() => setShowEndDatePicker(true)}
+                      accessibilityLabel="Select End Date"
+                      accessibilityRole="button"
+                    >
+                      <Ionicons name="calendar" size={16} color="#6B7280" />
+                      <Text style={styles.dateText}>
+                        {pendingFilters.EndDate ? formatDate(pendingFilters.EndDate) : 'Select end date'}
+                      </Text>
+                    </TouchableOpacity>
+                    {showEndDatePicker && (
+                      <DateTimePicker
+                        value={pendingFilters.EndDate ? new Date(pendingFilters.EndDate) : new Date()}
+                        mode="datetime"
+                        display="default"
+                        onChange={(event,date) => {
+                          setShowEndDatePicker(false);
+                          if (date) handleFilterChange('EndDate',date.toISOString());
+                        }}
+                      />
+                    )}
+                  </View>
+                </ScrollView>
+                <View style={styles.filterActions}>
+                  <TouchableOpacity
+                    style={styles.clearButton}
+                    onPress={clearFilters}
+                    accessibilityLabel="Clear Filters"
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.clearButtonText}>Clear All</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.applyFilterButton}
+                    onPress={handleApplyFilters}
+                    accessibilityLabel="Apply Filters"
+                    accessibilityRole="button"
+                  >
+                    <LinearGradient colors={["#0056d2","#0041a3"]} style={styles.applyFilterButtonGradient}>
+                      <Text style={styles.applyFilterButtonText}>Apply Filters</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
                 </View>
               </View>
-
-              {/* Date Range */}
-              <View style={styles.filterGroup}>
-                <Text style={styles.filterLabel}>
-                  <Ionicons name="calendar-outline" size={16} color="#4F46E5" /> Start Date
-                </Text>
-                <TouchableOpacity
-                  style={styles.dateInput}
-                  onPress={() => setShowStartDatePicker(true)}
-                >
-                  <Ionicons name="calendar" size={16} color="#6B7280" />
-                  <Text style={styles.dateText}>
-                    {pendingFilters.StartDate ? formatDate(pendingFilters.StartDate) : 'Select start date'}
-                  </Text>
-                </TouchableOpacity>
-                {showStartDatePicker && (
-                  <DateTimePicker
-                    value={pendingFilters.StartDate ? new Date(pendingFilters.StartDate) : new Date()}
-                    mode="datetime"
-                    display="default"
-                    onChange={(event, date) => {
-                      setShowStartDatePicker(false);
-                      if (date) handleFilterChange('StartDate', date.toISOString());
-                    }}
-                  />
-                )}
-              </View>
-
-              <View style={styles.filterGroup}>
-                <Text style={styles.filterLabel}>
-                  <Ionicons name="calendar-outline" size={16} color="#4F46E5" /> End Date
-                </Text>
-                <TouchableOpacity
-                  style={styles.dateInput}
-                  onPress={() => setShowEndDatePicker(true)}
-                >
-                  <Ionicons name="calendar" size={16} color="#6B7280" />
-                  <Text style={styles.dateText}>
-                    {pendingFilters.EndDate ? formatDate(pendingFilters.EndDate) : 'Select end date'}
-                  </Text>
-                </TouchableOpacity>
-                {showEndDatePicker && (
-                  <DateTimePicker
-                    value={pendingFilters.EndDate ? new Date(pendingFilters.EndDate) : new Date()}
-                    mode="datetime"
-                    display="default"
-                    onChange={(event, date) => {
-                      setShowEndDatePicker(false);
-                      if (date) handleFilterChange('EndDate', date.toISOString());
-                    }}
-                  />
-                )}
-              </View>
-            </ScrollView>
-
-            {/* Filter Actions */}
-            <View style={styles.filterActions}>
-              <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
-                <Ionicons name="refresh-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.clearButtonText}>Clear All</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.applyFilterButton} onPress={handleApplyFilters}>
-                <Ionicons name="checkmark-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.applyFilterButtonText}>Apply Filters</Text>
-              </TouchableOpacity>
-            </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
   header: {
-    paddingBottom: 20,
-    elevation: 8,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingTop: Platform.OS === 'android' ? 10 : 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
     shadowRadius: 8,
+    elevation: 3,
+    zIndex: 1000,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingVertical: 16,
   },
   backButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    fontWeight: '700',
+    color: '#000000',
     flex: 1,
+    textAlign: 'center',
   },
   filterMenuButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#F1F5F9',
   },
   headerRight: {
     width: 40,
@@ -548,12 +503,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    elevation: 2,
+    borderBottomColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchContainer: {
     marginBottom: 12,
@@ -561,7 +516,7 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -574,7 +529,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#1F2937',
+    color: '#000000',
     fontWeight: '400',
   },
   clearSearchButton: {
@@ -583,7 +538,7 @@ const styles = StyleSheet.create({
   resultsInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
   resultsText: {
     fontSize: 14,
@@ -592,69 +547,69 @@ const styles = StyleSheet.create({
   },
   searchTermText: {
     fontSize: 14,
-    color: '#4F46E5',
+    color: '#0056d2',
     fontWeight: '600',
   },
-  container: {
+  mainContainer: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   reportsList: {
     paddingTop: 20,
     paddingBottom: 20,
   },
   reportCard: {
-    borderRadius: 20,
-    elevation: 6,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  reportCardGradient: {
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
+  reportCardContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2,
     borderColor: '#E5E7EB',
   },
   reportHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 16,
+    marginBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E5E7EB',
   },
   reportIdContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   iconContainer: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#F0F9FF',
     padding: 8,
     borderRadius: 12,
     marginRight: 12,
   },
   reportId: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
   },
   statusBadge: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     borderWidth: 1,
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   reportContent: {
-    gap: 16,
+    gap: 12,
   },
   infoRow: {
     marginBottom: 4,
@@ -679,18 +634,18 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     fontSize: 14,
-    color: '#1F2937',
+    color: '#000000',
     flex: 1,
     lineHeight: 20,
-    marginTop: 2,
+    fontWeight: '400',
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    paddingTop: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E5E7EB',
   },
   dateIconContainer: {
     backgroundColor: '#F9FAFB',
@@ -709,30 +664,29 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
     paddingHorizontal: 40,
   },
-  emptyIconContainer: {
-    backgroundColor: '#F9FAFB',
-    padding: 24,
-    borderRadius: 50,
-    marginBottom: 24,
-  },
   emptyTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 12,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000000',
+    marginTop: 16,
+    marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 24,
+    fontWeight: '400',
   },
   clearSearchEmptyButton: {
-    backgroundColor: '#4F46E5',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 16,
+  },
+  clearSearchEmptyButtonGradient: {
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 25,
+    alignItems: 'center',
   },
   clearSearchEmptyText: {
     color: '#FFFFFF',
@@ -743,57 +697,46 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingContent: {
-    alignItems: 'center',
-    gap: 16,
+    backgroundColor: '#F8FAFC',
   },
   loadingText: {
-    fontSize: 18,
-    color: '#4F46E5',
-    fontWeight: '600',
-  },
-  loadingSubText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6B7280',
-    fontWeight: '400',
+    marginTop: 16,
+    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-  },
-  errorContent: {
-    alignItems: 'center',
-    gap: 16,
-  },
-  errorIconContainer: {
-    backgroundColor: '#FEE2E2',
-    padding: 20,
-    borderRadius: 50,
+    backgroundColor: '#F8FAFC',
   },
   errorTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#374151',
-    textAlign: 'center',
+    fontWeight: '700',
+    color: '#000000',
+    marginTop: 16,
+    marginBottom: 8,
   },
   errorText: {
     fontSize: 16,
     color: '#EF4444',
     textAlign: 'center',
     lineHeight: 24,
+    fontWeight: '400',
+    marginBottom: 16,
   },
   retryButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  retryButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4F46E5',
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 25,
     gap: 8,
-    marginTop: 8,
   },
   retryButtonText: {
     color: '#FFFFFF',
@@ -807,14 +750,23 @@ const styles = StyleSheet.create({
   },
   filterModal: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: '85%',
-    elevation: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '80%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOffset: { width: 0,height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#D1D5DB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
   },
   filterHeader: {
     flexDirection: 'row',
@@ -822,18 +774,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 20,
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   filterTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#000000',
     flex: 1,
     textAlign: 'center',
   },
   closeModalButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterContent: {
     paddingHorizontal: 24,
@@ -843,73 +800,72 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   filterLabel: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#374151',
+    color: '#000000',
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  filterIcon: {
+    marginRight: 4,
   },
   filterPicker: {
     borderWidth: 2,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
   },
   dateInput: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     gap: 12,
   },
   dateText: {
     fontSize: 16,
-    color: '#374151',
+    color: '#000000',
+    fontWeight: '400',
     flex: 1,
   },
   filterActions: {
     flexDirection: 'row',
     paddingHorizontal: 24,
-    paddingVertical: 24,
-    gap: 12,
+    paddingVertical: 20,
+    gap: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E5E7EB',
   },
   clearButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#6B7280',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 25,
     flex: 1,
-    justifyContent: 'center',
-    gap: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
   clearButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    color: '#6B7280',
   },
   applyFilterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4F46E5',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 25,
     flex: 1,
-    justifyContent: 'center',
-    gap: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  applyFilterButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
   },
   applyFilterButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

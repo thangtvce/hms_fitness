@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { LinearGradient } from "expo-linear-gradient"
+import Header from "components/Header"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { theme } from "theme/color"
 import { StatusBar } from "expo-status-bar"
@@ -430,10 +431,20 @@ const FavoriteFoodsScreen = () => {
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <TouchableOpacity
                     key={size}
-                    style={[styles.pageSizeButton,filters.pageSize === size && styles.selectedPageSize]}
+                    style={[
+                      styles.pageSizeButton,
+                      filters.pageSize === size && {
+                        backgroundColor: '#eaf1fb',
+                        borderColor: '#0056d2',
+                        borderWidth: 2,
+                      },
+                    ]}
                     onPress={() => setFilters((prev) => ({ ...prev,pageSize: size }))}
                   >
-                    <Text style={[styles.pageSizeText,filters.pageSize === size && styles.selectedPageSizeText]}>
+                    <Text style={[
+                      styles.pageSizeText,
+                      filters.pageSize === size && { color: '#0056d2', fontWeight: 'bold' },
+                    ]}>
                       {size}
                     </Text>
                   </TouchableOpacity>
@@ -497,13 +508,23 @@ const FavoriteFoodsScreen = () => {
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Category</Text>
               <TouchableOpacity
-                style={[styles.filterOption,filters.categoryId === "" && styles.selectedOption]}
+                style={[
+                  styles.filterOption,
+                  filters.categoryId === "" && {
+                    backgroundColor: '#eaf1fb',
+                    borderColor: '#0056d2',
+                    borderWidth: 2,
+                  },
+                ]}
                 onPress={() => setFilters((prev) => ({ ...prev,categoryId: "" }))}
               >
-                <Text style={[styles.filterOptionText,filters.categoryId === "" && styles.selectedOptionText]}>
+                <Text style={[
+                  styles.filterOptionText,
+                  filters.categoryId === "" && { color: '#0056d2', fontWeight: 'bold' },
+                ]}>
                   All Categories
                 </Text>
-                {filters.categoryId === "" && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                {filters.categoryId === "" && <Ionicons name="checkmark" size={20} color="#0056d2" />}
               </TouchableOpacity>
 
               {categories.map((category) => (
@@ -511,25 +532,29 @@ const FavoriteFoodsScreen = () => {
                   key={category.categoryId}
                   style={[
                     styles.filterOption,
-                    filters.categoryId === category.categoryId?.toString() && styles.selectedOption,
+                    filters.categoryId === category.categoryId?.toString() && {
+                      backgroundColor: '#eaf1fb',
+                      borderColor: '#0056d2',
+                      borderWidth: 2,
+                    },
                   ]}
                   onPress={() => setFilters((prev) => ({ ...prev,categoryId: category.categoryId?.toString() }))}
                 >
                   <View style={styles.categoryOptionContent}>
                     <View style={styles.categoryIcon}>
-                      <Ionicons name="restaurant-outline" size={16} color="#4F46E5" />
+                      <Ionicons name="restaurant-outline" size={16} color="#0056d2" />
                     </View>
                     <Text
                       style={[
                         styles.filterOptionText,
-                        filters.categoryId === category.categoryId?.toString() && styles.selectedOptionText,
+                        filters.categoryId === category.categoryId?.toString() && { color: '#0056d2', fontWeight: 'bold' },
                       ]}
                     >
                       {category.categoryName}
                     </Text>
                   </View>
                   {filters.categoryId === category.categoryId?.toString() && (
-                    <Ionicons name="checkmark" size={20} color="#4F46E5" />
+                    <Ionicons name="checkmark" size={20} color="#0056d2" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -540,8 +565,8 @@ const FavoriteFoodsScreen = () => {
             <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
               <Text style={styles.resetButtonText}>Reset</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
-              <Text style={styles.applyButtonText}>Apply Filters</Text>
+            <TouchableOpacity style={[styles.applyButton, { backgroundColor: '#0056d2' }]} onPress={applyFilters}>
+              <Text style={[styles.applyButtonText, { color: '#fff', fontWeight: 'bold' }]}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -812,26 +837,52 @@ const FavoriteFoodsScreen = () => {
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
 
       {/* Header */}
-     <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>🍎 Favorite Foods</Text>
-            <Text style={styles.headerSubtitle}>Your saved food favorites</Text>
-          </View>
-          <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowFilters(true)}>
-            <Ionicons name="options-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+      <Header
+        title="🍎 Favorite Foods"
+        onBack={() => navigation.goBack()}
+        rightActions={[
+          {
+            icon: 'options-outline',
+            onPress: () => setShowFilters(true),
+            color: '#0056d2',
+          },
+        ]}
+        backgroundColor="#fff"
+        containerStyle={{
+          borderBottomWidth: 1,
+          borderBottomColor: '#E5E7EB',
+          elevation: 2,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
+        }}
+        titleStyle={{
+          fontSize: 22,
+          fontWeight: 'bold',
+          color: '#0056d2',
+          textAlign: 'center',
+          letterSpacing: 0.5,
+        }}
+      />
+      <Text style={{
+        fontSize: 13,
+        color: '#6B7280',
+        textAlign: 'center',
+        marginTop: 2,
+        fontWeight: '500',
+        letterSpacing: 0.1,
+        marginBottom: 8,
+      }}>
+        Your saved food favorites
+      </Text>
 
       {/* Search Section */}
       <Animated.View
         style={[
           styles.searchContainer,
           {
+            marginTop: 50, // Cách header 50px
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
           },
@@ -856,7 +907,7 @@ const FavoriteFoodsScreen = () => {
           ) : null}
         </View>
 
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+        <TouchableOpacity style={[styles.searchButton, { backgroundColor: '#0056d2' }]} onPress={handleSearch}>
           <Ionicons name="search" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
@@ -870,14 +921,14 @@ const FavoriteFoodsScreen = () => {
               <TouchableOpacity style={styles.layoutButton} onPress={() => setShowLayoutModal(true)}>
                 <Ionicons
                   name={LAYOUT_OPTIONS.find((opt) => opt.columns === layoutMode)?.icon || "grid-outline"}
-                  size={18}
-                  color="#4F46E5"
+                  size={20}
+                  color="#0056d2"
                 />
-                <Text style={styles.layoutButtonText}>{layoutMode} col</Text>
+                <Text style={[styles.layoutButtonText, { color: '#0056d2', fontSize: 15, fontWeight: 'bold' }]}>{layoutMode} col</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
-                <Ionicons name="swap-vertical-outline" size={20} color="#4F46E5" />
-                <Text style={styles.sortButtonText}>Sort</Text>
+                <Ionicons name="swap-vertical-outline" size={20} color="#0056d2" />
+                <Text style={[styles.sortButtonText, { color: '#0056d2', fontSize: 15, fontWeight: 'bold' }]}>Sort</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1023,7 +1074,7 @@ const FavoriteFoodsScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#fff",
   },
   header: {
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
@@ -1287,9 +1338,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB",
   },
   selectedSortOption: {
-    backgroundColor: "#EEF2FF",
-    borderWidth: 1,
-    borderColor: "#4F46E5",
+    backgroundColor: "#eaf1fb",
+    borderWidth: 2,
+    borderColor: "#0056d2",
   },
   sortOptionLeft: {
     flexDirection: "row",
@@ -1309,8 +1360,9 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   selectedSortOptionText: {
-    color: "#4F46E5",
-    fontWeight: "600",
+    color: "#0056d2",
+    fontWeight: "bold",
+    fontSize: 16,
   },
   activeFiltersContainer: {
     backgroundColor: "#F8FAFC",

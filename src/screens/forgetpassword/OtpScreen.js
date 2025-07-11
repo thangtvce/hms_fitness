@@ -24,6 +24,7 @@ import { useNavigation,useRoute } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Header from "components/Header"
 
 const { width,height } = Dimensions.get("window")
 
@@ -137,17 +138,10 @@ export default function OtpScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
-      <LinearGradient
-        colors={["rgba(79, 70, 229, 0.95)","rgba(99, 102, 241, 0.9)","rgba(129, 140, 248, 0.85)"]}
-        style={styles.headerGradient}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Password Recovery</Text>
-        </View>
-      </LinearGradient>
+      <Header
+        title="Password Recovery"
+        onBack={handleBack}
+      />
 
       <ScrollView
         ref={scrollViewRef}
@@ -159,21 +153,11 @@ export default function OtpScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardAvoidingView}
         >
-          <View style={styles.contentContainer}>
-            <Animated.View
-              style={[styles.illustrationContainer,{ opacity: fadeAnim,transform: [{ translateY: slideAnim }] }]}
-            >
-              <Image
-                source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-                style={styles.illustration}
-                resizeMode="cover"
-              />
-            </Animated.View>
+          <View style={{ flex: 1, backgroundColor: '#fff', marginTop: 50, width: '100%' }}> 
+            {/* Illustration removed as requested */}
 
             <Animated.View style={[styles.formCard,{ opacity: fadeAnim,transform: [{ translateY: slideAnim }] }]}>
               <View style={styles.formHeader}>
-                <Ionicons name="lock-open-outline" size={32} color="#4F46E5" />
-                <Text style={styles.formTitle}>Forgot Password</Text>
                 <Text style={styles.formSubtitle}>
                   Enter your email address and we'll send you a code to reset your password
                 </Text>
@@ -213,29 +197,16 @@ export default function OtpScreen() {
               </TouchableOpacity>
 
               <View style={styles.footerLinks}>
-                <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.footerLink}>
-                  <Ionicons name="arrow-back-outline" size={16} color="#4F46E5" />
-                  <Text style={styles.footerLinkText}>Back to Login</Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity onPress={() => navigation.navigate("Register")} style={styles.footerLink}>
-                  <Text style={styles.footerLinkText}>Create Account</Text>
-                  <Ionicons name="arrow-forward-outline" size={16} color="#4F46E5" />
+                  <Text style={{ color: '#222', fontSize: 14, fontFamily: 'Inter_400Regular' }}>
+                    Don’t have an account?{' '}
+<Text style={{ fontFamily: 'Inter_600SemiBold', textDecorationLine: 'underline', color: '#0056d2' }}>Sign up now</Text>
+                  </Text>
                 </TouchableOpacity>
               </View>
             </Animated.View>
 
-            {/* CHANGE #6: Update health tip container with enhanced styling */}
-            <View style={styles.healthTipContainer}>
-              <View style={styles.tipHeader}>
-                <Ionicons name="fitness-outline" size={20} color="#10B981" />
-                <Text style={styles.tipTitle}>Health Tip</Text>
-              </View>
-              <Text style={styles.tipText}>
-                Regular password changes help keep your health data secure. Use strong, unique passwords for better
-                protection.
-              </Text>
-            </View>
+            {/* Health Tip removed as requested */}
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
@@ -246,7 +217,7 @@ export default function OtpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#FFFFFF",
   },
   backgroundPattern: {
     flex: 1,
@@ -365,7 +336,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: "Inter_400Regular",
-    fontSize: 16,
+    fontSize: 14,
     color: "#0F172A",
   },
   errorMessage: {
@@ -378,13 +349,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     borderRadius: 12,
     height: 56,
     marginTop: 8,
     ...Platform.select({
       ios: {
-        shadowColor: "#4F46E5",
+        shadowColor: "#0056d2",
         shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -399,12 +370,12 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 16,
+    fontSize: 14,
     color: "#FFFFFF",
   },
   footerLinks: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginTop: 24,
   },
   footerLink: {

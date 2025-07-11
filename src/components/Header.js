@@ -57,7 +57,9 @@ const Header = ({
                   style={[styles.headerButton, { backgroundColor: colors.headerButtonBackground || "#F3F4F6" }]}
                   onPress={action.onPress}
                 >
-                  <Ionicons name={action.icon} size={20} color={action.color || colors.primary || "#1E293B"} />
+                  {typeof action.icon === "string"
+                    ? <Ionicons name={action.icon} size={20} color={action.color || colors.primary || "#1E293B"} />
+                    : action.icon}
                 </TouchableOpacity>
               ))}
             </View>

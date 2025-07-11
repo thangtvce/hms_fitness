@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect,useState,useRef } from "react";
 import {
   View,
   Text,
@@ -17,8 +17,9 @@ import {
   Keyboard,
   ScrollView,
   FlatList,
+  Share,
 } from "react-native";
-import { PinchGestureHandler, PanGestureHandler, State, GestureHandlerRootView } from "react-native-gesture-handler";
+import { PinchGestureHandler,PanGestureHandler,State,GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   getCommentsByPostId,
   addCommentByUser,
@@ -32,17 +33,17 @@ import {
   getReactionsByPostId,
   getActivePostByIdForUser,
 } from "services/apiCommunityService";
-import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons,Feather,MaterialCommunityIcons } from "@expo/vector-icons";
 import RenderHtml from "react-native-render-html";
 import { useAuth } from "context/AuthContext";
-import FlashMessage, { showMessage } from "react-native-flash-message";
+import FlashMessage,{ showMessage } from "react-native-flash-message";
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
 import { theme } from "theme/color";
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
 
-const { width, height } = Dimensions.get("window");
+const { width,height } = Dimensions.get("window");
 
-// Helper to normalize post data
-function normalizePost(freshPost, initialPost) {
+function normalizePost(freshPost,initialPost) {
   return {
     ...freshPost,
     user: {
@@ -75,60 +76,55 @@ function normalizePost(freshPost, initialPost) {
   };
 }
 
-const PostDetailScreen = ({ route, navigation }) => {
+const PostDetailScreen = ({ route,navigation }) => {
   const { post: initialPost } = route.params;
   const { user } = useAuth();
-  const [post, setPost] = useState(normalizePost(initialPost, initialPost));
-  const [comments, setComments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [commentText, setCommentText] = useState("");
-  const [sending, setSending] = useState(false);
-  const [editCommentId, setEditCommentId] = useState(null);
-  const [editCommentText, setEditCommentText] = useState("");
-  const [editLoading, setEditLoading] = useState(false);
-  const [liked, setLiked] = useState(!!(user && initialPost.reactions?.some((r) => r.userId === user.userId)));
-  const [likeCount, setLikeCount] = useState(initialPost.reactions?.length || 0);
-  const [reactionTypes, setReactionTypes] = useState([]);
-  const [showFullContent, setShowFullContent] = useState(false);
-  const [selectedCommentMenu, setSelectedCommentMenu] = useState(null);
-  const [showPostMenu, setShowPostMenu] = useState(false);
-  const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [post,setPost] = useState(normalizePost(initialPost,initialPost));
+  const [comments,setComments] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [commentText,setCommentText] = useState("");
+  const [sending,setSending] = useState(false);
+  const [editCommentId,setEditCommentId] = useState(null);
+  const [editCommentText,setEditCommentText] = useState("");
+  const [editLoading,setEditLoading] = useState(false);
+  const [liked,setLiked] = useState(!!(user && initialPost.reactions?.some((r) => r.userId === user.userId)));
+  const [likeCount,setLikeCount] = useState(initialPost.reactions?.length || 0);
+  const [reactionTypes,setReactionTypes] = useState([]);
+  const [showFullContent,setShowFullContent] = useState(false);
+  const [selectedCommentMenu,setSelectedCommentMenu] = useState(null);
+  const [showPostMenu,setShowPostMenu] = useState(false);
+  const [showReactionPicker,setShowReactionPicker] = useState(false);
+  const [keyboardHeight,setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible,setIsKeyboardVisible] = useState(false);
   const flatListRef = useRef(null);
   const inputRef = useRef(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const likeAnimation = useRef(new Animated.Value(1)).current;
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [showReactionDetailsModal, setShowReactionDetailsModal] = useState(false);
-  const [selectedReactionType, setSelectedReactionType] = useState("all");
+  const [showImageModal,setShowImageModal] = useState(false);
+  const [selectedImage,setSelectedImage] = useState(null);
+  const [showReactionDetailsModal,setShowReactionDetailsModal] = useState(false);
+  const [selectedReactionType,setSelectedReactionType] = useState("all");
 
-  // Zoom and Pan animation values
   const scale = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const pinchRef = useRef(null);
   const panRef = useRef(null);
 
-  // Base values for gestures
   const baseScale = useRef(1);
   const lastScale = useRef(1);
   const lastTranslateX = useRef(0);
   const lastTranslateY = useRef(0);
 
-  // Function to convert Unicode string to emoji
   const unicodeToEmoji = (unicode) => {
     if (!unicode) return "🙂";
     try {
-      // Nếu unicode đã là emoji (ví dụ: 👍), trả về luôn
       if (/^[\p{Emoji}\p{Extended_Pictographic}]+$/u.test(unicode)) return unicode;
-      // Nếu unicode là dạng U+1F44D hoặc U+2764 U+FE0F
       const codePoints = unicode
-        .replace(/U\+/g, "")
+        .replace(/U\+/g,"")
         .split(/\s+/)
         .filter(Boolean)
-        .map((u) => Number.parseInt(u, 16));
+        .map((u) => Number.parseInt(u,16));
       if (codePoints.some(isNaN)) throw new Error("Invalid Unicode");
       return String.fromCodePoint(...codePoints);
     } catch {
@@ -140,17 +136,17 @@ const PostDetailScreen = ({ route, navigation }) => {
     fetchComments();
     fetchReactionTypes();
 
-    const keyboardDidShowListener = Keyboard.addListener("keyboardDidShow", (e) => {
+    const keyboardDidShowListener = Keyboard.addListener("keyboardDidShow",(e) => {
       setKeyboardHeight(e.endCoordinates.height);
       setIsKeyboardVisible(true);
       if (!editCommentId) {
         setTimeout(() => {
           flatListRef?.current?.scrollToEnd?.({ animated: true });
-        }, 100);
+        },100);
       }
     });
 
-    const keyboardDidHideListener = Keyboard.addListener("keyboardDidHide", () => {
+    const keyboardDidHideListener = Keyboard.addListener("keyboardDidHide",() => {
       setKeyboardHeight(0);
       setIsKeyboardVisible(false);
     });
@@ -159,22 +155,20 @@ const PostDetailScreen = ({ route, navigation }) => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
     };
-  }, [editCommentId]);
+  },[editCommentId]);
 
-  // Thay thế fetch dữ liệu post bằng getActivePostByIdForUser
   const fetchPost = async () => {
     try {
       const freshPost = await getActivePostByIdForUser(post.postId);
-      const normalized = normalizePost(freshPost, post);
+      const normalized = normalizePost(freshPost,post);
       setPost(normalized);
       setLikeCount(normalized.reactions?.length || 0);
       setLiked(!!normalized.reactions?.find((r) => r.userId === user?.userId));
     } catch (e) {
-      // fallback giữ nguyên post cũ nếu lỗi
+      showErrorFetchAPI(e);
     }
   };
 
-  // Sửa fetchComments để luôn fetch lại post mới nhất
   const fetchComments = async () => {
     setLoading(true);
     try {
@@ -189,6 +183,7 @@ const PostDetailScreen = ({ route, navigation }) => {
       await fetchPost();
     } catch (e) {
       setComments([]);
+      showErrorFetchAPI(e);
     }
     setLoading(false);
   };
@@ -197,39 +192,22 @@ const PostDetailScreen = ({ route, navigation }) => {
     try {
       const types = await getAllReactionTypes();
       setReactionTypes(types || []);
-    } catch { }
-  };
-
-  const handleShowReactionDetails = async () => {
-    try {
-      await fetchPost();
-      setShowReactionDetailsModal(true);
-    } catch (e) {
-      setShowReactionDetailsModal(true);
+    } catch {
+      showErrorFetchAPI(e);
     }
   };
+
 
   const handleSendComment = async () => {
     if (!commentText.trim()) return;
     setSending(true);
     try {
-      await addCommentByUser(post.postId, commentText);
+      await addCommentByUser(post.postId,commentText);
       setCommentText("");
       fetchComments();
-      showMessage({
-        message: "Comment successfully!",
-        type: "success",
-        backgroundColor: "#10b981",
-      });
-      setTimeout(() => {
-        flatListRef?.current?.scrollToEnd?.({ animated: true });
-      }, 300);
+      showSuccessMessage("Comment successfully!");
     } catch (e) {
-      showMessage({
-        message: "Fail Comment!",
-        type: "danger",
-        backgroundColor: "#ef4444",
-      });
+      showErrorFetchAPI(e);
     }
     setSending(false);
   };
@@ -244,35 +222,27 @@ const PostDetailScreen = ({ route, navigation }) => {
     if (!editCommentText.trim()) return;
     setEditLoading(true);
     try {
-      const result = await editCommentByUser(editCommentId, post.postId, editCommentText);
+      const result = await editCommentByUser(editCommentId,post.postId,editCommentText);
       if (result && result.commentId) {
         setComments((prev) =>
-          prev.map((c) => (c.commentId === result.commentId ? { ...c, commentText: result.commentText } : c))
+          prev.map((c) => (c.commentId === result.commentId ? { ...c,commentText: result.commentText } : c))
         );
       } else {
         fetchComments();
       }
       setEditCommentId(null);
       setEditCommentText("");
-      showMessage({
-        message: "Edit comment successfully!",
-        type: "success",
-        backgroundColor: "#10b981",
-      });
+      showSuccessMessage("Edit comment successfully!");
     } catch (e) {
-      showMessage({
-        message: "Edit comment failed!",
-        type: "danger",
-        backgroundColor: "#ef4444",
-      });
+      showErrorFetchAPI(e);
     }
     setEditLoading(false);
   };
 
   const handleDeleteComment = (commentId) => {
     setSelectedCommentMenu(null);
-    Alert.alert("Delete Comment", "You are sure for delete comment?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Delete Comment","You are sure for delete comment?",[
+      { text: "Cancel",style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
@@ -281,17 +251,9 @@ const PostDetailScreen = ({ route, navigation }) => {
           try {
             await deleteUserComment(commentId);
             fetchComments();
-            showMessage({
-              message: "Delete comment successfully!",
-              type: "success",
-              backgroundColor: "#10b981",
-            });
+            showSuccessMessage("Delete comment successfully!",);
           } catch (e) {
-            showMessage({
-              message: "Delete comment failed!",
-              type: "danger",
-              backgroundColor: "#ef4444",
-            });
+            showErrorFetchAPI(e);
           }
           setEditLoading(false);
         },
@@ -299,94 +261,28 @@ const PostDetailScreen = ({ route, navigation }) => {
     ]);
   };
 
-  const handleLike = async () => {
-    if (!user) return;
-    const userReaction = post.reactions?.find((r) => r.userId === user.userId);
-    const defaultReactionType = reactionTypes[0];
-    if (!defaultReactionType) return;
-
-    try {
-      let updatedReactions;
-      if (userReaction) {
-        updatedReactions = post.reactions.filter((r) => r.userId !== user.userId);
-        setPost((prev) => ({ ...prev, reactions: updatedReactions }));
-        setLikeCount((prev) => prev - 1);
-        setLiked(false);
-        await unreactToPost(post.postId);
-      } else {
-        updatedReactions = [
-          ...(post.reactions || []),
-          {
-            userId: user.userId,
-            userFullName: user.fullName || "You",
-            userAvatar: user.avatar || null,
-            reactionTypeId: defaultReactionType.reactionTypeId,
-            reactionTypeName: defaultReactionType.reactionName,
-            reactionTypeIconUrl: defaultReactionType.iconUrl,
-            reactionTypeEmojiUnicode: defaultReactionType.emojiUnicode,
-          },
-        ];
-        setPost((prev) => ({ ...prev, reactions: updatedReactions }));
-        setLikeCount((prev) => prev + 1);
-        setLiked(true);
-        await reactToPost(post.postId, defaultReactionType.reactionTypeId);
-      }
-      // Luôn fetch lại post mới nhất
-      await fetchPost();
-    } catch (e) {
-      setPost((prev) => ({ ...prev, reactions: post.reactions }));
-      setLikeCount(post.reactions?.length || 0);
-      setLiked(!!post.reactions?.find((r) => r.userId === user?.userId));
-      showMessage({
-        message: "Thả cảm xúc thất bại!",
-        type: "danger",
-        backgroundColor: "#ef4444",
-      });
-    }
-
-    Animated.sequence([
-      Animated.timing(likeAnimation, {
-        toValue: 1.2,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(likeAnimation, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
   const handleDeletePost = () => {
     setShowPostMenu(false);
-    Alert.alert("Xóa bài viết", "Bạn có chắc muốn xóa bài viết này?", [
-      { text: "Hủy", style: "cancel" },
+    Alert.alert("Delete Post","Are you sure you want to delete this post?",[
+      { text: "Cancel",style: "cancel" },
       {
-        text: "Xóa",
+        text: "Delete",
         style: "destructive",
         onPress: async () => {
           setEditLoading(true);
           try {
             await deletePost(post.postId);
-            showMessage({
-              message: "Xóa bài viết thành công!",
-              type: "success",
-              backgroundColor: "#10b981",
-            });
+            showSuccessMessage("Post deleted successfully!")
             navigation.goBack();
           } catch (e) {
-            showMessage({
-              message: "Xóa bài viết thất bại!",
-              type: "danger",
-              backgroundColor: "#ef4444",
-            });
+            showErrorFetchAPI(e);
           }
           setEditLoading(false);
         },
       },
     ]);
   };
+
 
   const resetImageTransform = () => {
     scale.setValue(1);
@@ -398,7 +294,7 @@ const PostDetailScreen = ({ route, navigation }) => {
     lastTranslateY.current = 0;
   };
 
-  const onPinchEvent = Animated.event([{ nativeEvent: { scale: scale } }], { useNativeDriver: true });
+  const onPinchEvent = Animated.event([{ nativeEvent: { scale: scale } }],{ useNativeDriver: true });
 
   const onPinchStateChange = (event) => {
     if (event.nativeEvent.oldState === State.ACTIVE) {
@@ -409,7 +305,7 @@ const PostDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const onPanEvent = Animated.event([{ nativeEvent: { translationX: translateX, translationY: translateY } }], {
+  const onPanEvent = Animated.event([{ nativeEvent: { translationX: translateX,translationY: translateY } }],{
     useNativeDriver: true,
   });
 
@@ -426,17 +322,17 @@ const PostDetailScreen = ({ route, navigation }) => {
 
   const handleDoubleTap = () => {
     Animated.parallel([
-      Animated.timing(scale, {
+      Animated.timing(scale,{
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-      Animated.timing(translateX, {
+      Animated.timing(translateX,{
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
       }),
-      Animated.timing(translateY, {
+      Animated.timing(translateY,{
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
@@ -446,23 +342,17 @@ const PostDetailScreen = ({ route, navigation }) => {
     });
   };
 
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
-
-  const truncateContent = (content, maxLength = 200) => {
+  const truncateContent = (content,maxLength = 200) => {
     if (!content) return "";
-    const textContent = content.replace(/<[^>]*>/g, "");
+    const textContent = content.replace(/<[^>]*>/g,"");
     if (textContent.length <= maxLength) return content;
-    return textContent.substring(0, maxLength) + "...";
+    return textContent.substring(0,maxLength) + "...";
   };
 
   const groupReactionsByType = (reactions) => {
     const grouped = {};
     reactions.forEach((reaction) => {
-      const typeName = reaction.reactionTypeName; // Nhóm theo reactionTypeName
+      const typeName = reaction.reactionTypeName;
       if (!grouped[typeName]) {
         grouped[typeName] = {
           reactionType: {
@@ -516,6 +406,37 @@ const PostDetailScreen = ({ route, navigation }) => {
         },
       }));
   };
+
+  const handleShareForFriend = async (post) => {
+    try {
+      if (!post?.groupId || !post?.postId) {
+        showErrorMessage("Missing group or post ID");
+        return;
+      }
+
+      const url = `https://3docorp.vn/groups/${post.groupId}#post-${post.postId}`;
+
+      const message = `${"Take a look at this post!"}
+  
+  Join us and explore more great posts in the 3DO community.
+  
+  View now: ${url}`;
+
+      const result = await Share.share({
+        title: "Share Post",
+        message: message,
+        url: url,
+      });
+
+      if (result.action === Share.sharedAction) {
+        showSuccessMessage("Post shared successfully");
+      }
+    } catch (error) {
+      console.error("Share error:",error);
+      showErrorMessage("Unable to share the post.");
+    }
+  };
+
   const renderReactionDetailsModal = () => {
     if (!post.reactions || post.reactions.length === 0) return null;
 
@@ -550,10 +471,10 @@ const PostDetailScreen = ({ route, navigation }) => {
               contentContainerStyle={styles.reactionTabsContent}
             >
               <TouchableOpacity
-                style={[styles.reactionTab, selectedReactionType === "all" && styles.reactionTabActive]}
+                style={[styles.reactionTab,selectedReactionType === "all" && styles.reactionTabActive]}
                 onPress={() => setSelectedReactionType("all")}
               >
-                <Text style={[styles.reactionTabText, selectedReactionType === "all" && styles.reactionTabTextActive]}>
+                <Text style={[styles.reactionTabText,selectedReactionType === "all" && styles.reactionTabTextActive]}>
                   All {post.reactions.length}
                 </Text>
               </TouchableOpacity>
@@ -588,7 +509,7 @@ const PostDetailScreen = ({ route, navigation }) => {
               data={filteredUsers}
               keyExtractor={(item) => `${item.userId}-${item.reactionType?.reactionName || "unknown"}`}
               renderItem={({ item }) => {
-                const { avatar, name } = getReactionUserInfo(item);
+                const { avatar,name } = getReactionUserInfo(item);
 
                 return (
                   <View style={styles.reactionUserItem}>
@@ -643,7 +564,7 @@ const PostDetailScreen = ({ route, navigation }) => {
   const renderComment = ({ item }) => {
     const isMyComment = user && item.userId === user.userId;
     const isEditing = editCommentId === item.commentId;
-    const { avatar, name } = getReactionUserInfo(item);
+    const { avatar,name } = getReactionUserInfo(item);
 
     return (
       <View style={styles.commentItem}>
@@ -659,7 +580,7 @@ const PostDetailScreen = ({ route, navigation }) => {
             {avatar ? (
               <Image source={{ uri: avatar }} style={styles.commentAvatar} />
             ) : (
-              <View style={[styles.commentAvatar, { backgroundColor: isMyComment ? "#3b82f6" : "#6b7280" }]}>
+              <View style={[styles.commentAvatar,{ backgroundColor: isMyComment ? "#3b82f6" : "#6b7280" }]}>
                 <Text style={styles.commentAvatarText}>{name.charAt(0).toUpperCase()}</Text>
               </View>
             )}
@@ -680,16 +601,20 @@ const PostDetailScreen = ({ route, navigation }) => {
                 placeholder="Enter your comment..."
                 placeholderTextColor="#9ca3af"
               />
+
               <View style={styles.editActions}>
+                {/* Cancel button */}
                 <TouchableOpacity
                   onPress={() => {
                     setEditCommentId(null);
                     setEditCommentText("");
                   }}
-                  style={[styles.editButton, styles.cancelButton]}
+                  style={[styles.editButton,styles.cancelButton]}
                 >
-                  <Text style={styles.cancelButtonText}>Hủy</Text>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
+
+                {/* Save button */}
                 <TouchableOpacity
                   onPress={handleSaveEditComment}
                   disabled={editLoading || !editCommentText.trim()}
@@ -702,7 +627,7 @@ const PostDetailScreen = ({ route, navigation }) => {
                   {editLoading ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.saveButtonText}>Lưu</Text>
+                    <Text style={styles.saveButtonText}>Save</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -723,12 +648,29 @@ const PostDetailScreen = ({ route, navigation }) => {
           >
             <Pressable style={styles.modalOverlay} onPress={() => setSelectedCommentMenu(null)}>
               <View style={styles.commentMenuPopup}>
+                {/* Edit Comment Button */}
                 <TouchableOpacity style={styles.menuItem} onPress={() => handleEditComment(item)}>
+                  <Ionicons name="pencil-outline" size={20} color="#4CAF50" style={styles.iconStyle} />
                   <Text style={styles.menuItemText}>Edit comment</Text>
                 </TouchableOpacity>
+
+                {/* Divider */}
                 <View style={styles.menuDivider} />
+
+                {/* Delete Comment Button */}
                 <TouchableOpacity style={styles.menuItem} onPress={() => handleDeleteComment(item.commentId)}>
-                  <Text style={[styles.menuItemText, { color: "#ef4444" }]}>Delete Comment</Text>
+                  <Ionicons name="trash-outline" size={20} color="#EF4444" style={styles.iconStyle} />
+                  <Text style={[styles.menuItemText,{ color: "#EF4444" }]}>Delete Comment</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+                {/* Cancel Button */}
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => setSelectedCommentMenu(null)}
+                >
+                  <Ionicons name="close-circle-outline" size={20} color="#6B7280" style={styles.iconStyle} />
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             </Pressable>
@@ -757,46 +699,24 @@ const PostDetailScreen = ({ route, navigation }) => {
     };
   }
 
-  const { avatar: authorAvatar, name: authorName } = getAuthorInfo(post);
+  const { avatar: authorAvatar,name: authorName } = getAuthorInfo(post);
 
   return (
     <GestureHandlerRootView style={styles.container}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <Animated.View style={[styles.header, { opacity: headerOpacity }]}> 
+      <Animated.View style={[styles.header]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1f2937" />
+          <Ionicons name="arrow-back" size={24} color="#0056d2" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {authorName}
+          View #POST{post?.postId}
         </Text>
       </Animated.View>
-
-      {/* Nút back cố định ở góc trên bên trái */}
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          top: 40,
-          left: 16,
-          zIndex: 2000,
-          backgroundColor: 'rgba(255,255,255,0.9)',
-          borderRadius: 20,
-          padding: 6,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 4,
-        }}
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="arrow-back" size={22} color="#1f2937" />
-      </TouchableOpacity>
 
       <View style={styles.contentContainer}>
         <Animated.FlatList
           ref={flatListRef}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }],{ useNativeDriver: false })}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -836,22 +756,22 @@ const PostDetailScreen = ({ route, navigation }) => {
                   source={{
                     html: showFullContent
                       ? post.content || "<p>No content available</p>"
-                      : truncateContent(post.content || "<p>No content available</p>", 200),
+                      : truncateContent(post.content || "<p>No content available</p>",200),
                   }}
                   tagsStyles={{
-                    p: { fontSize: 16, lineHeight: 24, color: "#374151", margin: 0 },
-                    strong: { fontWeight: "600", color: "#1f2937" },
-                    em: { fontStyle: "italic", color: "#6b7280" },
+                    p: { fontSize: 16,lineHeight: 24,color: "#374151",margin: 0 },
+                    strong: { fontWeight: "600",color: "#1f2937" },
+                    em: { fontStyle: "italic",color: "#6b7280" },
                   }}
                 />
 
-                {!showFullContent && post.content && post.content.replace(/<[^>]*>/g, "").length > 200 && (
+                {!showFullContent && post.content && post.content.replace(/<[^>]*>/g,"").length > 200 && (
                   <TouchableOpacity onPress={() => setShowFullContent(true)} style={styles.readMoreButton}>
                     <Text style={styles.readMoreText}>More</Text>
                   </TouchableOpacity>
                 )}
 
-                {showFullContent && post.content && post.content.replace(/<[^>]*>/g, "").length > 200 && (
+                {showFullContent && post.content && post.content.replace(/<[^>]*>/g,"").length > 200 && (
                   <TouchableOpacity onPress={() => setShowFullContent(false)} style={styles.readMoreButton}>
                     <Text style={styles.readMoreText}>Collapse</Text>
                   </TouchableOpacity>
@@ -874,7 +794,7 @@ const PostDetailScreen = ({ route, navigation }) => {
 
               {post.tags && post.tags.length > 0 && (
                 <View style={styles.tagsContainer}>
-                  {post.tags.slice(0, 3).map((tag) => (
+                  {post.tags.slice(0,3).map((tag) => (
                     <View key={tag.tagId} style={styles.tagChip}>
                       <Text style={styles.tagText}>#{tag.tagName}</Text>
                     </View>
@@ -882,6 +802,57 @@ const PostDetailScreen = ({ route, navigation }) => {
                   {post.tags.length > 3 && <Text style={styles.moreTagsText}>+{post.tags.length - 3} more</Text>}
                 </View>
               )}
+
+              <View>
+                {post.reactions && post.reactions.length > 0 && (
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginBottom: 8,
+                      marginTop: 4,
+                      paddingLeft: 2,
+                    }}
+                    onPress={() => {
+                      setSelectedReactionType('all');
+                      setShowReactionDetailsModal(true);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <View style={{ flexDirection: 'row',alignItems: 'center',marginRight: 6 }}>
+                      {Array.from(new Set(post.reactions.map(r => r.reactionTypeEmojiUnicode)))
+                        .filter(Boolean)
+                        .slice(0,3)
+                        .map((unicode,idx) => (
+                          <View
+                            key={unicode + idx}
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor: '#fff',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              marginLeft: idx === 0 ? 0 : -8,
+                              borderWidth: 1,
+                              borderColor: '#fff',
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0,height: 1 },
+                              shadowOpacity: 0.08,
+                              shadowRadius: 2,
+                              elevation: 2,
+                            }}
+                          >
+                            <Text style={{ fontSize: 16 }}>{unicodeToEmoji(unicode)}</Text>
+                          </View>
+                        ))}
+                    </View>
+                    <Text style={{ color: '#65676B',fontSize: 14,fontWeight: '500',marginLeft: 2 }}>
+                      {post.reactions.length}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
               <View style={styles.interactionBar}>
                 <Animated.View style={{ transform: [{ scale: likeAnimation }] }}>
@@ -918,95 +889,84 @@ const PostDetailScreen = ({ route, navigation }) => {
                         />
                       );
                     })()}
-                    <Text style={[styles.interactionText, liked && { color: "#ef4444" }]}>{likeCount}</Text>
+                    <Text style={[styles.interactionText,liked && { color: "#ef4444" }]}>{likeCount}</Text>
                   </TouchableOpacity>
                 </Animated.View>
 
                 {showReactionPicker && (
-      <Modal transparent animationType="fade" visible={showReactionPicker}>
-    <Pressable style={styles.modalOverlay} onPress={() => setShowReactionPicker(false)}>
-      <View style={styles.reactionPickerModal}>
-        <Text style={styles.reactionPickerTitle}>Chọn cảm xúc</Text>
-        <View style={styles.reactionTypesContainer}>
-          {reactionTypes.map((rt) => (
-            <TouchableOpacity
-              key={rt.reactionTypeId}
-              style={styles.reactionTypeButton}
-              onPress={async () => {
-                setShowReactionPicker(false);
-                try {
-                  // Cập nhật cục bộ
-                  const userReaction = post.reactions?.find((r) => r.userId === user?.userId);
-                  let updatedReactions;
-                  if (userReaction) {
-                    if (userReaction.reactionTypeId !== rt.reactionTypeId) {
-                      updatedReactions = [
-                        ...post.reactions.filter((r) => r.userId !== user.userId),
-                        {
-                          userId: user.userId,
-                          userFullName: user.fullName || "You",
-                          userAvatar: user.avatar || null,
-                          reactionTypeId: rt.reactionTypeId,
-                          reactionTypeName: rt.reactionName,
-                          reactionTypeIconUrl: rt.iconUrl,
-                          reactionTypeEmojiUnicode: rt.emojiUnicode,
-                        },
-                      ];
-                      setLikeCount((prev) => prev);
-                    } else {
-                      updatedReactions = post.reactions.filter((r) => r.userId !== user.userId);
-                      setLikeCount((prev) => prev - 1);
-                      setLiked(false);
-                    }
-                  } else {
-                    updatedReactions = [
-                      ...(post.reactions || []),
-                      {
-                        userId: user.userId,
-                        userFullName: user.fullName || "You",
-                        userAvatar: user.avatar || null,
-                        reactionTypeId: rt.reactionTypeId,
-                        reactionTypeName: rt.reactionName,
-                        reactionTypeIconUrl: rt.iconUrl,
-                        reactionTypeEmojiUnicode: rt.emojiUnicode,
-                      },
-                    ];
-                    setLikeCount((prev) => prev + 1);
-                    setLiked(true);
-                  }
-                  setPost((prev) => ({ ...prev, reactions: updatedReactions }));
+                  <Modal transparent animationType="fade" visible={showReactionPicker}>
+                    <Pressable style={styles.modalOverlay} onPress={() => setShowReactionPicker(false)}>
+                      <View style={styles.reactionPickerModal}>
+                        <Text style={styles.reactionPickerTitle}>Reactions</Text>
+                        <View style={styles.reactionTypesContainer}>
+                          {reactionTypes.map((rt) => (
+                            <TouchableOpacity
+                              key={rt.reactionTypeId}
+                              style={styles.reactionTypeButton}
+                              onPress={async () => {
+                                setShowReactionPicker(false);
+                                try {
+                                  const userReaction = post.reactions?.find((r) => r.userId === user?.userId);
+                                  let updatedReactions;
+                                  if (userReaction) {
+                                    if (userReaction.reactionTypeId !== rt.reactionTypeId) {
+                                      updatedReactions = [
+                                        ...post.reactions.filter((r) => r.userId !== user.userId),
+                                        {
+                                          userId: user.userId,
+                                          userFullName: user.fullName || "You",
+                                          userAvatar: user.avatar || null,
+                                          reactionTypeId: rt.reactionTypeId,
+                                          reactionTypeName: rt.reactionName,
+                                          reactionTypeIconUrl: rt.iconUrl,
+                                          reactionTypeEmojiUnicode: rt.emojiUnicode,
+                                        },
+                                      ];
+                                      setLikeCount((prev) => prev);
+                                    } else {
+                                      updatedReactions = post.reactions.filter((r) => r.userId !== user.userId);
+                                      setLikeCount((prev) => prev - 1);
+                                      setLiked(false);
+                                    }
+                                  } else {
+                                    updatedReactions = [
+                                      ...(post.reactions || []),
+                                      {
+                                        userId: user.userId,
+                                        userFullName: user.fullName || "You",
+                                        userAvatar: user.avatar || null,
+                                        reactionTypeId: rt.reactionTypeId,
+                                        reactionTypeName: rt.reactionName,
+                                        reactionTypeIconUrl: rt.iconUrl,
+                                        reactionTypeEmojiUnicode: rt.emojiUnicode,
+                                      },
+                                    ];
+                                    setLikeCount((prev) => prev + 1);
+                                    setLiked(true);
+                                  }
+                                  setPost((prev) => ({ ...prev,reactions: updatedReactions }));
 
-                  // Gửi reaction
-                  await reactToPost(post.postId, rt.reactionTypeId);
-                  await fetchPost();
-                  console.log('[PostDetailScreen] [reactionPicker] Gửi reactToPost:', post.postId, rt.reactionTypeId);
-                  showMessage({
-                    message: "Đã thả cảm xúc!",
-                    type: "success",
-                    backgroundColor: "#10b981",
-                  });
-                } catch (e) {
-                  showMessage({
-                    message: "Thả cảm xúc thất bại!",
-                    type: "danger",
-                    backgroundColor: "#ef4444",
-                  });
-                  setPost((prev) => ({ ...prev, reactions: post.reactions }));
-                  setLikeCount(post.reactions?.length || 0);
-                  setLiked(!!post.reactions?.find((r) => r.userId === user?.userId));
-                }
-              }}
-            >
-              <Text style={styles.reactionTypeEmojiLarge}>
-                {unicodeToEmoji(rt.emojiUnicode)}
-              </Text>
-              <Text style={styles.reactionTypeName}>{rt.reactionName}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    </Pressable>
-  </Modal>
+                                  await reactToPost(post.postId,rt.reactionTypeId);
+                                  await fetchPost();
+                                  showSuccessMessage("Reaction successfully");
+                                } catch (e) {
+                                  showErrorFetchAPI(e);
+                                  setPost((prev) => ({ ...prev,reactions: post.reactions }));
+                                  setLikeCount(post.reactions?.length || 0);
+                                  setLiked(!!post.reactions?.find((r) => r.userId === user?.userId));
+                                }
+                              }}
+                            >
+                              <Text style={styles.reactionTypeEmojiLarge}>
+                                {unicodeToEmoji(rt.emojiUnicode)}
+                              </Text>
+                              <Text style={styles.reactionTypeName}>{rt.reactionName}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    </Pressable>
+                  </Modal>
                 )}
 
                 <Modal visible={showImageModal} transparent animationType="fade">
@@ -1044,7 +1004,7 @@ const PostDetailScreen = ({ route, navigation }) => {
                                   style={[
                                     styles.imageModalImage,
                                     {
-                                      transform: [{ scale: scale }, { translateX: translateX }, { translateY: translateY }],
+                                      transform: [{ scale: scale },{ translateX: translateX },{ translateY: translateY }],
                                     },
                                   ]}
                                   resizeMode="contain"
@@ -1072,7 +1032,7 @@ const PostDetailScreen = ({ route, navigation }) => {
                   <Text style={styles.interactionText}>{comments.length}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.interactionButton}>
+                <TouchableOpacity style={styles.interactionButton} onPress={() => handleShareForFriend(post)}>
                   <Feather name="share" size={18} color="#6b7280" />
                   <Text style={styles.interactionText}>Share</Text>
                 </TouchableOpacity>
@@ -1095,8 +1055,8 @@ const PostDetailScreen = ({ route, navigation }) => {
             ) : (
               <View style={styles.emptyContainer}>
                 <MaterialCommunityIcons name="comment-outline" size={48} color="#d1d5db" />
-                <Text style={styles.emptyText}>no yet comment</Text>
-                <Text style={styles.emptySubText}>Hãy là người đầu tiên bình luận!</Text>
+                <Text style={styles.emptyText}>No comments yet</Text>
+                <Text style={styles.emptySubText}>Be the first to comment!</Text>
               </View>
             )
           }
@@ -1117,7 +1077,7 @@ const PostDetailScreen = ({ route, navigation }) => {
             <View style={styles.inputWrapper}>
               <TextInput
                 ref={inputRef}
-                style={[styles.input, { minHeight: 44, maxHeight: 120 }]}
+                style={[styles.input,{ minHeight: 44,maxHeight: 120 }]}
                 placeholder="Enter your comment..."
                 placeholderTextColor="#9ca3af"
                 value={commentText}
@@ -1127,13 +1087,13 @@ const PostDetailScreen = ({ route, navigation }) => {
                 onFocus={() => {
                   setTimeout(() => {
                     flatListRef?.current?.scrollToEnd?.({ animated: true });
-                  }, 300);
+                  },300);
                 }}
               />
               <TouchableOpacity
                 onPress={handleSendComment}
                 disabled={sending || !commentText.trim()}
-                style={[styles.sendButton, (sending || !commentText.trim()) && styles.sendButtonDisabled]}
+                style={[styles.sendButton,(sending || !commentText.trim()) && styles.sendButtonDisabled]}
               >
                 {sending ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -1153,7 +1113,7 @@ const PostDetailScreen = ({ route, navigation }) => {
               <TouchableOpacity
                 onPress={() => {
                   setShowPostMenu(false);
-                  navigation.navigate("EditPostScreen", { post });
+                  navigation.navigate("EditPostScreen",{ post });
                 }}
                 style={styles.menuItem}
                 activeOpacity={0.7}
@@ -1164,7 +1124,7 @@ const PostDetailScreen = ({ route, navigation }) => {
               <View style={styles.menuDivider} />
               <TouchableOpacity onPress={handleDeletePost} style={styles.menuItem} activeOpacity={0.7}>
                 <Feather name="trash-2" size={18} color="#ef4444" />
-                <Text style={[styles.menuItemText, { color: "#ef4444" }]}>Delete post</Text>
+                <Text style={[styles.menuItemText,{ color: "#ef4444" }]}>Delete post</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -1199,38 +1159,42 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 90,
+    height: 100,
     backgroundColor: "rgba(255, 255, 255, 0.95)",
     flexDirection: "row",
-    alignItems: "flex-end",
-    paddingBottom: 10,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#f3f4f6",
     zIndex: 1000,
   },
+
   backButton: {
+    marginTop: 45,
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    backgroundColor: "#F1F5F9",
   },
   headerTitle: {
+    marginTop: 45,
     fontSize: 18,
     fontWeight: "600",
-    color: "#1f2937",
+    color: "#000",
     flex: 1,
   },
   postContainer: {
-    marginTop: 90,
+    marginTop: 110,
     backgroundColor: "#fff",
     borderRadius: 16,
     margin: 16,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -1281,7 +1245,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     minWidth: 180,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
@@ -1361,10 +1325,10 @@ const styles = StyleSheet.create({
   interactionButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    justifyContent: "space-between",
+    paddingVertical: 6,
     borderRadius: 20,
-    gap: 6,
+    gap: 2,
   },
   interactionText: {
     color: "#6b7280",
@@ -1384,7 +1348,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
@@ -1462,7 +1426,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -1507,51 +1471,64 @@ const styles = StyleSheet.create({
     color: "#374151",
   },
   editContainer: {
-    marginTop: 8,
-    gap: 12,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    width: "100%",
+    maxWidth: 400,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0,height: 4 },
+    marginVertical: 30,
   },
   editInput: {
     backgroundColor: "#f9fafb",
     borderRadius: 8,
-    padding: 12,
-    fontSize: 15,
-    color: "#374151",
+    padding: 10,
+    fontSize: 16,
+    color: "#111827",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
-    minHeight: 60,
+    borderColor: "#d1d5db",
+    minHeight: 120,
     textAlignVertical: "top",
   },
   editActions: {
     flexDirection: "row",
-    gap: 8,
     justifyContent: "flex-end",
+    marginTop: 16,
   },
   editButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    minWidth: 60,
-    alignItems: "center",
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginLeft: 8,
     justifyContent: "center",
+    alignItems: "center",
   },
+
   cancelButton: {
     backgroundColor: "#f3f4f6",
+    borderColor: "#d1d5db",
+    borderWidth: 1,
   },
   cancelButtonText: {
+    fontSize: 16,
     color: "#6b7280",
-    fontSize: 14,
-    fontWeight: "500",
   },
+
   saveButton: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: "#0056d2",
   },
-  saveButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "500",
-  },
+
   saveButtonDisabled: {
-    backgroundColor: "#d1d5db",
+    backgroundColor: "#9ca3af",
+  },
+
+  saveButtonText: {
+    fontSize: 16,
+    color: "#fff",
+    fontWeight: "bold",
   },
   commentMenuPopup: {
     backgroundColor: "#fff",
@@ -1559,7 +1536,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     minWidth: 160,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
@@ -1599,7 +1576,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: { width: 0,height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 8,
@@ -1613,7 +1590,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     backgroundColor: "#f9fafb",
-    borderRadius: 22,
+    borderRadius: 5,
     paddingHorizontal: 16,
     paddingVertical: 20,
     fontSize: 15,
@@ -1630,7 +1607,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#3b82f6",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
@@ -1703,7 +1680,7 @@ const styles = StyleSheet.create({
     width: "90%",
     maxHeight: "80%",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
@@ -1843,11 +1820,72 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
+  commentMenuPopup: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    width: "80%",
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0,height: 4 },
+  },
+
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 10,
+    justifyContent: "flex-start",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    shadowOffset: { width: 0,height: 1 },
+  },
+
+  menuItemText: {
+    fontSize: 16,
+    color: "#333",
+    marginLeft: 10,
+    fontWeight: "500",
+  },
+
+  menuDivider: {
+    height: 1,
+    backgroundColor: "#e5e7eb",
+    marginVertical: 8,
+  },
+
+  cancelButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#f3f4f6"
+  },
+
+  cancelButtonText: {
+    fontSize: 16,
+    color: "#6b7280",
+    marginLeft: 10,
+    fontWeight: "500",
+  },
+
+  iconStyle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
 })
 
 export default PostDetailScreen
 
-// Helper lấy avatar và tên user cho mọi nơi (post, comment, reaction)
 export function getUserAvatarAndName(obj) {
   return {
     avatar:
@@ -1868,7 +1906,6 @@ export function getUserAvatarAndName(obj) {
   }
 }
 
-// Helper lấy avatar và tên user cho reaction (dùng cho item trong render reaction user list)
 function getReactionUserInfo(item) {
   return {
     avatar: item.userAvatar || item.user?.avatar || item.avatar || null,
@@ -1876,9 +1913,7 @@ function getReactionUserInfo(item) {
   }
 }
 
-// Helper kiểm tra link ảnh hợp lệ
 function isValidImageUrl(url) {
-  // Kiểm tra url có bắt đầu bằng http và có đuôi ảnh phổ biến không
   return (
     typeof url === "string" &&
     url.startsWith("http") &&

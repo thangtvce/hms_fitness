@@ -5,7 +5,8 @@ import { ThemeProvider } from 'components/theme/ThemeContext';
 import AppNavigator from 'navigation/AppNavigator';
 import { StepTrackerProvider } from 'context/StepTrackerContext';
 import { WaterTotalProvider } from './context/WaterTotalContext';
-
+import Toast from 'react-native-toast-message';
+import { toastConfig } from 'utils/toastConfig';
 
 function RootNavigator() {
   const { user, loading: authLoading } = useAuth();
@@ -31,6 +32,7 @@ export default function App() {
     <ThemeProvider>
       <WaterTotalProvider>
         <RootNavigator />
+         <Toast config={toastConfig} />
       </WaterTotalProvider>
     </ThemeProvider>
   );

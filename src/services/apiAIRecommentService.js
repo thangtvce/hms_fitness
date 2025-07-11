@@ -48,7 +48,6 @@ apiClient.interceptors.response.use(
   }
 );
 export const aiRecommentService = {
-  // Example: get AI recommendations for a user
   async getAIRecommendations(userId, params = {}) {
     try {
       const response = await apiClient.get(`/RecommendedFoodItem/recommendation/${userId}`, { params });
@@ -72,7 +71,6 @@ export const aiRecommentService = {
   async getUserGoalPlansByUser(userId, query = {}) {
     try {
       const response = await apiClient.get(`/UserGoalPlan/user/${userId}`, { params: query });
-      console.log('User Goal Plans Response:', response.data.data);
       return response.data.data;
     } catch (error) {
       throw error.response?.data || error;

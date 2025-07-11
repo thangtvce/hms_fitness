@@ -1,4 +1,4 @@
-import { useState,useContext,useEffect,useRef } from "react"
+import { useState, useContext, useEffect, useRef } from "react"
 import {
   View,
   Text,
@@ -15,8 +15,9 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   ScrollView,
+  ImageBackground,
 } from "react-native"
-import { useFonts,Inter_400Regular,Inter_600SemiBold,Inter_700Bold } from "@expo-google-fonts/inter"
+import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter"
 import { Ionicons } from "@expo/vector-icons"
 import FontAwesome from "react-native-vector-icons/FontAwesome"
 import apiAuthService from "services/apiAuthService"
@@ -30,36 +31,37 @@ import * as WebBrowser from "expo-web-browser"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
 
+// Import local image asset
+const headerImage = require("../../../assets/W4.png")
+
 WebBrowser.maybeCompleteAuthSession()
 
-const { width,height } = Dimensions.get("window")
-
+const { width, height } = Dimensions.get("window")
 const GOOGLE_CLIENT_ID = "1005255181896-g20la8a1fi78eg52sch8r1q60kmigt5s.apps.googleusercontent.com"
 const FACEBOOK_APP_ID = "1669047477285810"
 
 export default function LoginScreen() {
-  const [email,setEmail] = useState("")
-  const [password,setPassword] = useState("")
-  const [isLoading,setIsLoading] = useState(false)
-  const [emailError,setEmailError] = useState("")
-  const [passwordError,setPasswordError] = useState("")
-  const [showPassword,setShowPassword] = useState(false)
-  const [keyboardVisible,setKeyboardVisible] = useState(false)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [emailError, setEmailError] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [keyboardVisible, setKeyboardVisible] = useState(false)
   const navigation = useNavigation()
-  const { setAuthToken,setUser,hasRole } = useContext(AuthContext)
+  const { setAuthToken, setUser, hasRole } = useContext(AuthContext)
   const scrollViewRef = useRef(null)
-
   const logoOpacity = new Animated.Value(1)
   const formTranslateY = new Animated.Value(0)
 
-  const [googleRequest,googleResponse,googlePromptAsync] = Google.useAuthRequest({
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     expoClientId: GOOGLE_CLIENT_ID,
     iosClientId: GOOGLE_CLIENT_ID,
     androidClientId: GOOGLE_CLIENT_ID,
     webClientId: GOOGLE_CLIENT_ID,
   })
 
-  const [fbRequest,fbResponse,fbPromptAsync] = Facebook.useAuthRequest({
+  const [fbRequest, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
     clientId: FACEBOOK_APP_ID,
   })
 
@@ -70,7 +72,7 @@ export default function LoginScreen() {
         handleGoogleLogin(authentication.accessToken)
       }
     }
-  },[googleResponse])
+  }, [googleResponse])
 
   useEffect(() => {
     if (fbResponse?.type === "success") {
@@ -79,34 +81,34 @@ export default function LoginScreen() {
         handleFacebookLogin(authentication.accessToken)
       }
     }
-  },[fbResponse])
+  }, [fbResponse])
 
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener("keyboardDidShow",() => {
+    const keyboardDidShowListener = Keyboard.addListener("keyboardDidShow", () => {
       setKeyboardVisible(true)
       Animated.parallel([
-        Animated.timing(logoOpacity,{
-          toValue: 0.3,
-          duration: 200,
+        Animated.timing(logoOpacity, {
+          toValue: 0.4,
+          duration: 250,
           useNativeDriver: true,
         }),
-        Animated.timing(formTranslateY,{
-          toValue: -50,
+        Animated.timing(formTranslateY, {
+          toValue: -30,
           duration: 300,
           useNativeDriver: true,
         }),
       ]).start()
     })
 
-    const keyboardDidHideListener = Keyboard.addListener("keyboardDidHide",() => {
+    const keyboardDidHideListener = Keyboard.addListener("keyboardDidHide", () => {
       setKeyboardVisible(false)
       Animated.parallel([
-        Animated.timing(logoOpacity,{
+        Animated.timing(logoOpacity, {
           toValue: 1,
-          duration: 200,
+          duration: 250,
           useNativeDriver: true,
         }),
-        Animated.timing(formTranslateY,{
+        Animated.timing(formTranslateY, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
@@ -118,7 +120,7 @@ export default function LoginScreen() {
       keyboardDidShowListener.remove()
       keyboardDidHideListener.remove()
     }
-  },[])
+  }, [])
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -129,13 +131,13 @@ export default function LoginScreen() {
   if (!fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
+        <ActivityIndicator size="large" color="#0056d2" />
       </View>
     )
   }
 
   const validateEmail = (text) => {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
     if (!text) {
       return "Email is required."
     }
@@ -172,6 +174,7 @@ export default function LoginScreen() {
   }
 
   const showErrorAlert = (message) => {
+    Alert.alert("Error", message)
   }
 
   const handleLogin = async () => {
@@ -191,21 +194,19 @@ export default function LoginScreen() {
     }
 
     setIsLoading(true)
-
     try {
-      const response = await apiAuthService.login({ email,password })
+      const response = await apiAuthService.login({ email, password })
       if (response.statusCode !== 200 || !response.data) {
         throw new Error(response.message || "Login failed")
       }
 
-      const { accessToken,refreshToken,userId,username,roles } = response.data
-
+      const { accessToken, refreshToken, userId, username, roles } = response.data
       if (!accessToken || !userId || !username || !Array.isArray(roles)) {
         throw new Error("Invalid login response data")
       }
 
-      await AsyncStorage.setItem("refreshToken",refreshToken)
-      const userData = { userId,username,roles }
+      await AsyncStorage.setItem("refreshToken", refreshToken)
+      const userData = { userId, username, roles }
       setAuthToken(accessToken)
       setUser(userData)
 
@@ -240,21 +241,18 @@ export default function LoginScreen() {
   const handleGoogleLogin = async (token) => {
     setIsLoading(true)
     try {
-      // Call your API with the Google token
       const response = await apiAuthService.googleLogin({ token })
-
       if (response.statusCode !== 200 || !response.data) {
         throw new Error(response.message || "Google login failed")
       }
 
-      const { accessToken,refreshToken,userId,username,roles } = response.data
-
+      const { accessToken, refreshToken, userId, username, roles } = response.data
       if (!accessToken || !userId || !username || !Array.isArray(roles)) {
         throw new Error("Invalid Google login response data")
       }
 
-      await AsyncStorage.setItem("refreshToken",refreshToken)
-      const userData = { userId,username,roles }
+      await AsyncStorage.setItem("refreshToken", refreshToken)
+      const userData = { userId, username, roles }
       setAuthToken(accessToken)
       setUser(userData)
 
@@ -270,21 +268,18 @@ export default function LoginScreen() {
   const handleFacebookLogin = async (token) => {
     setIsLoading(true)
     try {
-      // Call your API with the Facebook token
       const response = await apiAuthService.facebookLogin({ token })
-
       if (response.statusCode !== 200 || !response.data) {
         throw new Error(response.message || "Facebook login failed")
       }
 
-      const { accessToken,refreshToken,userId,username,roles } = response.data
-
+      const { accessToken, refreshToken, userId, username, roles } = response.data
       if (!accessToken || !userId || !username || !Array.isArray(roles)) {
         throw new Error("Invalid Facebook login response data")
       }
 
-      await AsyncStorage.setItem("refreshToken",refreshToken)
-      const userData = { userId,username,roles }
+      await AsyncStorage.setItem("refreshToken", refreshToken)
+      const userData = { userId, username, roles }
       setAuthToken(accessToken)
       setUser(userData)
 
@@ -300,143 +295,153 @@ export default function LoginScreen() {
   const isLoginDisabled = isLoading || emailError !== "" || passwordError !== ""
 
   return (
-    <SafeAreaView style={styles.safeAreaContainer}>
-      <StatusBar barStyle="light-content" backgroundColor="#4F46E5" translucent={true} />
+    <View style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+        <StatusBar barStyle="light-content" backgroundColor="#0056d2" translucent={true} />
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={[styles.scrollContainer, { backgroundColor: "#FFFFFF" }]}
+          style={{ flex: 1, backgroundColor: "#FFFFFF" }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={[styles.innerContainer, { backgroundColor: "#FFFFFF" }]}> 
+              {/* No header image/banner, content starts at the top */}
 
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.innerContainer}>
-            <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.headerGradient}>
-              <Animated.View style={[styles.logoContainer,{ opacity: logoOpacity }]}>
-                <Image
-                  source={{ uri: "https://letankim.id.vn/3do/uploads/images/1747652554_3.png" }}
-                  style={styles.logo}
-                  resizeMode="cover"
-                />
-                <Text style={styles.appName}>HMS</Text>
-                <Text style={styles.tagline}>Your health journey starts here</Text>
-              </Animated.View>
-            </LinearGradient>
-
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={styles.formOuterContainer}
-            >
-              <Animated.View style={[styles.formContainer,{ transform: [{ translateY: formTranslateY }] }]}>
-                <Text style={styles.welcomeText}>Welcome Back</Text>
-                <Text style={styles.subtitleText}>Sign in to continue your health journey</Text>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Email</Text>
-                  <View style={[styles.inputContainer,emailError ? styles.inputError : null]}>
-                    <Ionicons name="mail-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter your email"
-                      placeholderTextColor="#94A3B8"
-                      value={email}
-                      onChangeText={handleEmailChange}
-                      maxLength={255}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                    />
+              {/* Main Form Content */}
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.formOuterContainer}
+              >
+                <Animated.View style={[styles.formContainer, { transform: [{ translateY: formTranslateY }] }]}> 
+                  <View style={styles.formHeader}>
+                    <Text style={styles.signInTitle}>Welcome Back !</Text>
+                    <Text style={styles.signInSubtitle}>Your health, your way.</Text>
                   </View>
-                  {emailError ? (
-                    <Text style={styles.errorMessage}>
-                      <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {emailError}
-                    </Text>
-                  ) : null}
-                </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Password</Text>
-                  <View style={[styles.inputContainer,passwordError ? styles.inputError : null]}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter your password"
-                      placeholderTextColor="#94A3B8"
-                      value={password}
-                      onChangeText={handlePasswordChange}
-                      maxLength={255}
-                      secureTextEntry={!showPassword}
-                    />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                      <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
+                  <View style={styles.formSection}>
+                    {/* Email Input */}
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+                      <View style={[styles.inputContainer, emailError ? styles.inputError : null]}>
+                        <Ionicons name="mail-outline" size={20} color="#0056d2" style={styles.inputIcon} />
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Enter your email"
+                          placeholderTextColor="#94A3B8"
+                          value={email}
+                          onChangeText={handleEmailChange}
+                          maxLength={255}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                        />
+                      </View>
+                      {emailError ? (
+                        <View style={styles.errorContainer}>
+                          <Ionicons name="alert-circle-outline" size={12} color="#EF4444" />
+                          <Text style={styles.errorMessage}>{emailError}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* Password Input */}
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>PASSWORD</Text>
+                      <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
+                        <Ionicons name="lock-closed-outline" size={20} color="#0056d2" style={styles.inputIcon} />
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Enter your password"
+                          placeholderTextColor="#94A3B8"
+                          value={password}
+                          onChangeText={handlePasswordChange}
+                          maxLength={255}
+                          secureTextEntry={!showPassword}
+                        />
+                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                          <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
+                        </TouchableOpacity>
+                      </View>
+                      {passwordError ? (
+                        <View style={styles.errorContainer}>
+                          <Ionicons name="alert-circle-outline" size={12} color="#EF4444" />
+                          <Text style={styles.errorMessage}>{passwordError}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* Forgot Password */}
+                    <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordContainer}>
+                      <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                     </TouchableOpacity>
+
+                    {/* Sign In Button */}
+                    <TouchableOpacity
+                      onPress={handleLogin}
+                      disabled={isLoginDisabled}
+                      style={[styles.signInButton, isLoginDisabled ? styles.signInButtonDisabled : null]}
+                    >
+                      {isLoading ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="log-in-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
+                          <Text style={styles.signInButtonText}>SIGN IN</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Divider */}
+                    <View style={styles.dividerContainer}>
+                      <View style={styles.dividerLine} />
+                      <Text style={styles.dividerText}>Or continue with</Text>
+                      <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* Social Login Section */}
+                    <View style={styles.socialContainer}>
+                      <TouchableOpacity
+                        onPress={() => googlePromptAsync()}
+                        disabled={isLoading}
+                        style={styles.socialButton}
+                      >
+                        <Ionicons name="logo-google" size={20} color="#EA4335" />
+                        <Text style={styles.socialButtonText}>Google</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => fbPromptAsync()}
+                        disabled={isLoading}
+                        style={styles.socialButton}
+                      >
+                        <Ionicons name="logo-facebook" size={20} color="#1877F2" />
+                        <Text style={styles.socialButtonText}>Facebook</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Sign Up Link */}
+                    <View style={styles.registerContainer}>
+                      <Text style={styles.registerPrompt}>Don't have an account? </Text>
+                      <TouchableOpacity onPress={() => navigation.navigate("RegisterScreen")}> 
+                        <Text style={styles.registerLink}>Sign Up</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  {passwordError ? (
-                    <Text style={styles.errorMessage}>
-                      <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {passwordError}
-                    </Text>
-                  ) : null}
-                </View>
-
-                <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordContainer}>
-                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={handleLogin}
-                  disabled={isLoginDisabled}
-                  style={[styles.loginButton,isLoginDisabled ? styles.loginButtonDisabled : null]}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="log-in-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-                      <Text style={styles.loginButtonText}>Sign In</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                <View style={styles.separatorContainer}>
-                  <View style={styles.separatorLine} />
-                  <Text style={styles.separatorText}>Or continue with</Text>
-                  <View style={styles.separatorLine} />
-                </View>
-
-                <View style={styles.socialContainer}>
-                  <TouchableOpacity
-                    onPress={() => googlePromptAsync()}
-                    disabled={isLoading}
-                    style={styles.socialButton}
-                  >
-                    <FontAwesome name="google" size={20} color="#DB4437" />
-                    <Text style={styles.socialButtonText}>Google</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => fbPromptAsync()} disabled={isLoading} style={styles.socialButton}>
-                    <FontAwesome name="facebook" size={20} color="#1877F2" />
-                    <Text style={styles.socialButtonText}>Facebook</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.registerContainer}>
-                  <Text style={styles.registerPrompt}>Don't have an account?</Text>
-                  <TouchableOpacity onPress={() => navigation.navigate("RegisterScreen")}>
-                    <Text style={styles.registerLink}>Sign Up</Text>
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-            </KeyboardAvoidingView>
-          </View>
-        </TouchableWithoutFeedback>
-      </ScrollView>
-    </SafeAreaView>
+                </Animated.View>
+              </KeyboardAvoidingView>
+            </View>
+          </TouchableWithoutFeedback>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   safeAreaContainer: {
     flex: 1,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#FFFFFF",
   },
   scrollContainer: {
     flexGrow: 1,
@@ -449,37 +454,66 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
   },
-  headerGradient: {
-    height: Dimensions.get("window").height * 0.3,
+  headerContainer: {
+    height: height * 0.4,
     width: "100%",
+  },
+  headerBackground: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+  },
+  headerOverlay: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingTop: StatusBar.currentHeight || 0,
   },
-  logoContainer: {
+  headerContent: {
     alignItems: "center",
     justifyContent: "center",
   },
-  logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 12,
-    borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.5)",
+  logoSection: {
+    marginBottom: 20,
   },
-  appName: {
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  welcomeTitle: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 18,
+    color: "rgba(255, 255, 255, 0.9)",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  appTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 28,
+    fontSize: 36,
     color: "#FFFFFF",
     marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  tagline: {
+  subtitle: {
     fontFamily: "Inter_400Regular",
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    textAlign: "center",
+    paddingHorizontal: 20,
   },
   formOuterContainer: {
     flex: 1,
@@ -487,44 +521,55 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    marginTop: -20,
+    backgroundColor: "#FFFFFF",
+    marginTop: 24,
     paddingHorizontal: 24,
-    paddingTop: 30,
-    paddingBottom: 40,
+    paddingTop: 32,
+    paddingBottom: 32,
   },
-  welcomeText: {
+  formHeader: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  signInTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 24,
+    fontSize: 28,
     color: "#1E293B",
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  subtitleText: {
+  signInSubtitle: {
     fontFamily: "Inter_400Regular",
-    fontSize: 16,
+    fontSize: 14,
     color: "#64748B",
-    marginBottom: 24,
+    textAlign: "center",
+  },
+  formSection: {
+    flex: 1,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   inputLabel: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    color: "#334155",
+    fontSize: 12,
+    color: "#374151",
     marginBottom: 8,
+    letterSpacing: 0.5,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
     borderRadius: 12,
     paddingHorizontal: 16,
-    height: 56,
+    height: 52,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   inputError: {
     borderColor: "#EF4444",
@@ -536,120 +581,111 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: "Inter_400Regular",
-    fontSize: 16,
-    color: "#0F172A",
+    fontSize: 15,
+    color: "#1E293B",
   },
   eyeIcon: {
     padding: 8,
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    paddingLeft: 4,
   },
   errorMessage: {
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     color: "#EF4444",
-    marginTop: 6,
+    marginLeft: 4,
   },
   forgotPasswordContainer: {
     alignSelf: "flex-end",
     marginBottom: 24,
+    marginTop: 4,
   },
   forgotPasswordText: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    color: "#4F46E5",
+    fontSize: 13,
+    color: "#0056d2",
   },
-  loginButton: {
+  signInButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     borderRadius: 12,
-    height: 56,
+    height: 52,
     marginBottom: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#4F46E5",
-        shadowOffset: { width: 0,height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
+    shadowColor: "#0056d2",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  loginButtonDisabled: {
-    backgroundColor: "#A5B4FC",
-    ...Platform.select({
-      ios: {
-        shadowOpacity: 0.1,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+  signInButtonDisabled: {
+    backgroundColor: "#94A3B8",
+    shadowOpacity: 0.1,
+    elevation: 2,
   },
   buttonIcon: {
     marginRight: 8,
   },
-  loginButtonText: {
-    fontFamily: "Inter_600SemiBold",
+  signInButtonText: {
+    fontFamily: "Inter_700Bold",
     fontSize: 16,
     color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
-  separatorContainer: {
+  dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 24,
   },
-  separatorLine: {
+  dividerLine: {
     flex: 1,
     height: 1,
     backgroundColor: "#E2E8F0",
   },
-  separatorText: {
+  dividerText: {
     fontFamily: "Inter_400Regular",
-    fontSize: 14,
+    fontSize: 12,
     color: "#64748B",
-    marginHorizontal: 12,
+    marginHorizontal: 16,
   },
   socialContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: 32,
+    gap: 12,
   },
   socialButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: "#E2E8F0",
     borderRadius: 12,
-    height: 50,
-    width: "48%",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0,height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    height: 48,
+    flex: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   socialButtonText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
-    color: "#1E293B",
+    color: "#374151",
     marginLeft: 8,
   },
   registerContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
+    marginTop: 8,
   },
   registerPrompt: {
     fontFamily: "Inter_400Regular",
@@ -659,7 +695,6 @@ const styles = StyleSheet.create({
   registerLink: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
-    color: "#4F46E5",
-    marginLeft: 4,
+    color: "#0056d2",
   },
 })

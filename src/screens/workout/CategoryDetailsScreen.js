@@ -78,7 +78,6 @@ const CategoryDetailsScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header with Gradient */}
         <LinearGradient
           colors={['#4CAF50', '#2E7D32']}
           start={{ x: 0, y: 0 }}
@@ -101,7 +100,6 @@ const CategoryDetailsScreen = ({ route, navigation }) => {
           </View>
         </LinearGradient>
 
-        {/* Category Info Card */}
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
@@ -188,7 +186,6 @@ const CategoryDetailsScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Bottom Spacing */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>

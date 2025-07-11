@@ -510,7 +510,7 @@ export default function SettingsScreen({ navigation }) {
         navigation.navigate("MySubscriptionScreen")
         break
       case "Workout":
-        navigation.navigate("WorkoutScreen")
+        navigation.navigate("WorkoutListScreen")
         break
       case "Nutrition":
         Alert.alert("Coming Soon","Nutrition tracking will be available in the next update.")
@@ -691,7 +691,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <View style={[styles.profileInfoBox, { flexDirection: 'row', alignItems: 'center' }]}> 
               <View style={{ flex: 1 }}>
-                <Text style={styles.profileName}>{dataResponse?.fullName || "User"}</Text>
+                <Text style={styles.profileName} numberOfLines={1} ellipsizeMode="tail">{dataResponse?.fullName || "User"}</Text>
                 <Text style={styles.profileEmail}>{dataResponse?.email || "N/A"}</Text>
                 <View style={styles.profileBadge}>
                   <Ionicons name="fitness" size={12} color="#2563EB" />

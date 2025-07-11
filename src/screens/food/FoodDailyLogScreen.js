@@ -5,6 +5,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ScrollView,
   Alert,
   Modal,
@@ -14,10 +15,12 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
+  Keyboard,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useNavigation } from "@react-navigation/native"
+import Header from "components/Header"
 import dayjs from "dayjs"
 
 // Icon imports - using react-native-vector-icons
@@ -83,6 +86,7 @@ const FoodDailyLogScreen = () => {
   const loadLog = async () => {
     try {
       const data = await getFoodLogByDate(date)
+      console.log('Food log data for date', date, data)
       setLog(data)
     } catch (error) {
       Alert.alert("Error", "Unable to load food log: " + error.message)
@@ -258,31 +262,39 @@ const FoodDailyLogScreen = () => {
   }
 
   const handleSaveEdit = async () => {
-    if (!editingFood) return
+    if (!editingFood) return;
 
     try {
-      const updatedLog = { ...log }
+      const updatedLog = { ...log };
+      // Parse portionSize & servingSize
+      const parsedPortionSize = Number.parseFloat(editingFood.food.portionSize) || 1;
+      const parsedServingSize = Number.parseFloat(editingFood.food.servingSize) || 1;
+      const parsedQuantity = Number.parseFloat(editingFood.food.quantity) || 1;
+
       const updatedFood = {
         ...editingFood.food,
-        calories: (editingFood.food.calories / (editingFood.food.originalQuantity || 1)) * editingFood.food.quantity,
-        protein: (editingFood.food.protein / (editingFood.food.originalQuantity || 1)) * editingFood.food.quantity,
-        carbs: (editingFood.food.carbs / (editingFood.food.originalQuantity || 1)) * editingFood.food.quantity,
-        fats: (editingFood.food.fats / (editingFood.food.originalQuantity || 1)) * editingFood.food.quantity,
-      }
+        quantity: parsedQuantity,
+        portionSize: parsedPortionSize,
+        servingSize: parsedServingSize,
+        calories: (editingFood.food.calories / (editingFood.food.originalQuantity || 1)) * parsedQuantity,
+        protein: (editingFood.food.protein / (editingFood.food.originalQuantity || 1)) * parsedQuantity,
+        carbs: (editingFood.food.carbs / (editingFood.food.originalQuantity || 1)) * parsedQuantity,
+        fats: (editingFood.food.fats / (editingFood.food.originalQuantity || 1)) * parsedQuantity,
+      };
 
-      updatedLog[editingFood.mealType][editingFood.index] = updatedFood
-      setLog(updatedLog)
+      updatedLog[editingFood.mealType][editingFood.index] = updatedFood;
+      setLog(updatedLog);
 
-      await clearFoodLogByDate(date)
-      await addFoodToLog(date, editingFood.mealType, updatedLog[editingFood.mealType])
+      await clearFoodLogByDate(date);
+      await addFoodToLog(date, editingFood.mealType, updatedLog[editingFood.mealType]);
 
-      setEditModalVisible(false)
-      setEditingFood(null)
-      Alert.alert("Success", "Food quantity updated!")
+      setEditModalVisible(false);
+      setEditingFood(null);
+      Alert.alert("Success", "Food log updated!");
     } catch (error) {
-      Alert.alert("Error", "Unable to update food item: " + error.message)
+      Alert.alert("Error", "Unable to update food item: " + error.message);
     }
-  }
+  }  
 
   const handleAddFood = (mealType) => {
     navigation.navigate("Food", { mealType, date })
@@ -345,8 +357,8 @@ const FoodDailyLogScreen = () => {
         style={[styles.tabButton, activeTab === tabName && styles.activeTab]}
         onPress={() => setActiveTab(tabName)}
       >
-        <IconComponent name={iconName} size={20} color={activeTab === tabName ? "#4F46E5" : "#64748B"} />
-        <Text style={[styles.tabText, activeTab === tabName && styles.activeTabText]}>{title}</Text>
+        <IconComponent name={iconName} size={20} color={activeTab === tabName ? "#0056d2" : "#64748B"} />
+        <Text style={[styles.tabText, { color: activeTab === tabName ? "#0056d2" : "#64748B" }, activeTab === tabName && styles.activeTabText]}>{title}</Text>
       </TouchableOpacity>
     )
   }
@@ -357,28 +369,24 @@ const FoodDailyLogScreen = () => {
     return (
       <View style={styles.summaryContainer}>
         <View style={styles.summaryHeader}>
-          <Icon name="analytics" size={24} color="#4F46E5" />
+          <Icon name="analytics" size={24} color="#0056d2" />
           <Text style={styles.summaryTitle}>Daily Nutrition Overview</Text>
         </View>
         <View style={styles.nutritionGrid}>
           <View style={[styles.nutritionCard, styles.caloriesCard]}>
-            <IconCommunity name="fire" size={24} color="#FF6B35" />
-            <Text style={[styles.nutritionValue, { color: "#FF6B35" }]}>{Math.round(totalNutrition.calories)}</Text>
+            <Text style={[styles.nutritionValue, { color: "#0056d2" }]}>{Math.round(totalNutrition.calories)}</Text>
             <Text style={styles.nutritionLabel}>Calories</Text>
           </View>
           <View style={[styles.nutritionCard, styles.proteinCard]}>
-            <IconCommunity name="dumbbell" size={24} color="#4ECDC4" />
-            <Text style={[styles.nutritionValue, { color: "#4ECDC4" }]}>{Math.round(totalNutrition.protein)}g</Text>
+            <Text style={[styles.nutritionValue, { color: "#0056d2" }]}>{Math.round(totalNutrition.protein)}g</Text>
             <Text style={styles.nutritionLabel}>Protein</Text>
           </View>
           <View style={[styles.nutritionCard, styles.carbsCard]}>
-            <IconCommunity name="grain" size={24} color="#45B7D1" />
-            <Text style={[styles.nutritionValue, { color: "#45B7D1" }]}>{Math.round(totalNutrition.carbs)}g</Text>
+            <Text style={[styles.nutritionValue, { color: "#0056d2" }]}>{Math.round(totalNutrition.carbs)}g</Text>
             <Text style={styles.nutritionLabel}>Carbs</Text>
           </View>
           <View style={[styles.nutritionCard, styles.fatsCard]}>
-            <IconCommunity name="oil" size={24} color="#96CEB4" />
-            <Text style={[styles.nutritionValue, { color: "#96CEB4" }]}>{Math.round(totalNutrition.fats)}g</Text>
+            <Text style={[styles.nutritionValue, { color: "#0056d2" }]}>{Math.round(totalNutrition.fats)}g</Text>
             <Text style={styles.nutritionLabel}>Fats</Text>
           </View>
         </View>
@@ -387,110 +395,74 @@ const FoodDailyLogScreen = () => {
   }
 
   const renderFoodItem = (food, mealType, index) => (
-    <View key={index} style={styles.foodItem}>
-      <View style={styles.foodImageContainer}>
-        <Image
-          source={{ uri: food.image || food.imageUrl || "https://via.placeholder.com/60x60" }}
-          style={styles.foodImage}
-        />
-        <View style={styles.caloriesBadge}>
-          <Text style={styles.caloriesBadgeText}>{Math.round(food.calories) || 0}</Text>
-        </View>
-      </View>
-      <View style={styles.foodInfo}>
-        <Text style={styles.foodName}>{food.foodName}</Text>
-        {food.quantity && food.quantity > 1 && <Text style={styles.quantityText}>Quantity: {food.quantity}</Text>}
-        <View style={styles.nutritionRow}>
-          <View style={styles.nutritionBadge}>
-            <IconCommunity name="dumbbell" size={10} color="#4ECDC4" />
-            <Text style={styles.nutritionBadgeText}>{Math.round(food.protein) || 0}g</Text>
-          </View>
-          <View style={styles.nutritionBadge}>
-            <IconCommunity name="grain" size={10} color="#45B7D1" />
-            <Text style={styles.nutritionBadgeText}>{Math.round(food.carbs) || 0}g</Text>
-          </View>
-          <View style={styles.nutritionBadge}>
-            <IconCommunity name="oil" size={10} color="#96CEB4" />
-            <Text style={styles.nutritionBadgeText}>{Math.round(food.fats) || 0}g</Text>
-          </View>
-        </View>
-      </View>
-      <View style={styles.foodActions}>
-        <TouchableOpacity style={styles.editButton} onPress={() => handleEditFood(food, mealType, index)}>
-          <IconFeather name="edit-2" size={16} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteFoodLog(mealType, index)}>
-          <IconFeather name="trash-2" size={16} color="#fff" />
-        </TouchableOpacity>
+  <View key={index} style={styles.foodItem}>
+    <View style={styles.foodImageContainer}>
+      <Image
+        source={{ uri: food.image || food.foodImage || food.imageUrl || "https://via.placeholder.com/50x50" }}
+        style={styles.foodImage}
+      />
+      <View style={styles.caloriesBadge}>
+        <Text style={styles.caloriesBadgeText}>{Math.round(food.calories) || 0}</Text>
       </View>
     </View>
+    <View style={styles.foodInfo}>
+      <Text style={{ fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 4 }}>{food.foodName}</Text>
+      {food.quantity && food.quantity > 1 && <Text style={{ fontSize: 14, color: '#64748B', marginBottom: 6 }}>Quantity: {food.quantity}</Text>}
+      <View style={styles.nutritionRow}>
+        <View style={styles.nutritionBadge}>
+          <IconCommunity name="dumbbell" size={10} color="#4ECDC4" />
+          <Text style={{ fontSize: 12, color: '#374151', fontWeight: '500', marginLeft: 2 }}>{Math.round(food.protein) || 0}g</Text>
+        </View>
+        <View style={styles.nutritionBadge}>
+          <IconCommunity name="grain" size={10} color="#45B7D1" />
+          <Text style={{ fontSize: 12, color: '#374151', fontWeight: '500', marginLeft: 2 }}>{Math.round(food.carbs) || 0}g</Text>
+        </View>
+        <View style={styles.nutritionBadge}>
+          <IconCommunity name="oil" size={10} color="#96CEB4" />
+          <Text style={{ fontSize: 12, color: '#374151', fontWeight: '500', marginLeft: 2 }}>{Math.round(food.fats) || 0}g</Text>
+        </View>
+      </View>
+    </View>
+    <View style={styles.foodActions}>
+      <TouchableOpacity style={styles.editButton} onPress={() => handleEditFood(food, mealType, index)}>
+        <IconFeather name="edit-2" size={16} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteFoodLog(mealType, index)}>
+        <IconFeather name="trash-2" size={16} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  </View>
   )
 
   const renderMealSection = (meal) => {
     const foods = log[meal] || []
     const sum = sumNutrition(foods)
     const mealColor = getMealColor(meal)
-    const isExpanded = expandedMeals[meal] || foods.length <= 3
-    const displayFoods = isExpanded ? foods : foods.slice(0, 3)
-
+    // Đơn giản hóa giao diện: bỏ icon, giảm padding, chỉ hiện tên bữa, số lượng, nút thêm, danh sách món ăn, tổng dinh dưỡng
     return (
-      <View key={meal} style={styles.mealSection}>
-        <View style={[styles.mealHeader, { backgroundColor: mealColor + "15" }]}>
-          <View style={styles.mealTitleContainer}>
-            <View style={[styles.mealIconContainer, { backgroundColor: mealColor }]}>
-              <Icon name={getMealIcon(meal)} size={20} color="#fff" />
-            </View>
-            <Text style={styles.mealTitle}>{meal}</Text>
-            {foods.length > 0 && <Text style={styles.mealCount}>({foods.length})</Text>}
-          </View>
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: mealColor }]}
-            onPress={() => handleAddFood(meal)}
-          >
-            <Icon name="add" size={16} color="#fff" />
-            <Text style={styles.addButtonText}>Add Food</Text>
+      <View key={meal} style={[styles.mealSection, { padding: 0, marginBottom: 16, borderRadius: 12, shadowOpacity: 0.02 }]}> 
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingHorizontal: 16, paddingVertical: 10 }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0056d2' }}>{meal} {foods.length > 0 ? `(${foods.length})` : ''}</Text>
+          <TouchableOpacity style={{ backgroundColor: '#eaf1fb', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 }} onPress={() => handleAddFood(meal)}>
+            <Text style={{ color: '#0056d2', fontWeight: 'bold', fontSize: 14 }}>+</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={styles.mealContent}>
+        <View style={{ padding: 12 }}>
           {foods.length === 0 ? (
-            <View style={styles.emptyMealState}>
-              <Icon name="restaurant" size={48} color="#E5E7EB" />
-              <Text style={styles.emptyMealTitle}>No food logged yet</Text>
-              <Text style={styles.emptyMealText}>Tap "Add Food" to start tracking your {meal.toLowerCase()}</Text>
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <Text style={{ fontSize: 15, color: '#64748B', fontWeight: '500' }}>No food logged yet</Text>
+              <Text style={{ fontSize: 13, color: '#A0AEC0', marginTop: 2 }}>Tap "Add" to track your {meal.toLowerCase()}</Text>
             </View>
           ) : (
             <>
-              {displayFoods.map((food, idx) => renderFoodItem(food, meal, idx))}
-
-              {foods.length > 3 && (
-                <TouchableOpacity style={styles.showMoreButton} onPress={() => toggleMealExpansion(meal)}>
-                  <Text style={styles.showMoreText}>
-                    {isExpanded ? `Show Less` : `Show ${foods.length - 3} More Items`}
-                  </Text>
-                  <Icon name={isExpanded ? "expand-less" : "expand-more"} size={20} color="#4F46E5" />
-                </TouchableOpacity>
-              )}
-
-              <View style={[styles.mealSummary, { borderLeftColor: mealColor }]}>
-                <Text style={styles.mealSummaryTitle}>Meal Total</Text>
-                <View style={styles.mealSummaryRow}>
-                  <View style={styles.mealSummaryItem}>
-                    <IconCommunity name="fire" size={14} color="#FF6B35" />
-                    <Text style={styles.mealSummaryText}>{Math.round(sum.calories)} kcal</Text>
-                  </View>
-                  <View style={styles.mealSummaryItem}>
-                    <IconCommunity name="dumbbell" size={14} color="#4ECDC4" />
-                    <Text style={styles.mealSummaryText}>{Math.round(sum.protein)}g</Text>
-                  </View>
-                  <View style={styles.mealSummaryItem}>
-                    <IconCommunity name="grain" size={14} color="#45B7D1" />
-                    <Text style={styles.mealSummaryText}>{Math.round(sum.carbs)}g</Text>
-                  </View>
-                  <View style={styles.mealSummaryItem}>
-                    <IconCommunity name="oil" size={14} color="#96CEB4" />
-                    <Text style={styles.mealSummaryText}>{Math.round(sum.fats)}g</Text>
-                  </View>
+              {foods.map((food, idx) => renderFoodItem(food, meal, idx))}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                <Text style={{ fontSize: 13, color: '#64748B', fontWeight: 'bold' }}>Meal Total</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Text style={{ fontSize: 13, color: '#0056d2', fontWeight: 'bold' }}>{Math.round(sum.calories)} kcal</Text>
+                  <Text style={{ fontSize: 13, color: '#0056d2', fontWeight: 'bold' }}>{Math.round(sum.protein)}g</Text>
+                  <Text style={{ fontSize: 13, color: '#0056d2', fontWeight: 'bold' }}>{Math.round(sum.carbs)}g</Text>
+                  <Text style={{ fontSize: 13, color: '#0056d2', fontWeight: 'bold' }}>{Math.round(sum.fats)}g</Text>
                 </View>
               </View>
             </>
@@ -520,7 +492,7 @@ const FoodDailyLogScreen = () => {
         {item.foods.slice(0, 2).map((food, idx) => (
           <View key={idx} style={styles.calendarFoodItem}>
             <Image
-              source={{ uri: food.image || food.imageUrl || "https://via.placeholder.com/40x40" }}
+              source={{ uri: food.image || food.foodImage || food.imageUrl || "https://via.placeholder.com/40x40" }}
               style={styles.calendarFoodImage}
             />
           </View>
@@ -572,7 +544,7 @@ const FoodDailyLogScreen = () => {
                     {mealFoods.map((food, idx) => (
                       <View key={idx} style={styles.historyFoodItem}>
                         <Image
-                          source={{ uri: food.image || food.imageUrl || "https://via.placeholder.com/50x50" }}
+                          source={{ uri: food.image || food.foodImage || food.imageUrl || "https://via.placeholder.com/50x50" }}
                           style={styles.historyFoodImage}
                         />
                         <View style={styles.historyFoodInfo}>
@@ -696,12 +668,12 @@ const FoodDailyLogScreen = () => {
       transparent={true}
       onRequestClose={() => setEditModalVisible(false)}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <View style={styles.modalTitleContainer}>
-              <IconFeather name="edit-2" size={20} color="#4F46E5" />
-              <Text style={styles.modalTitle}>Edit Quantity</Text>
+              <Text style={styles.modalTitle}>Edit Food Log</Text>
             </View>
             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setEditModalVisible(false)}>
               <Icon name="close" size={20} color="#64748B" />
@@ -714,54 +686,104 @@ const FoodDailyLogScreen = () => {
                 <View style={styles.foodPreview}>
                   <Image
                     source={{
-                      uri: editingFood.food.image || editingFood.food.imageUrl || "https://via.placeholder.com/80x80",
+                      uri: editingFood.food.image || editingFood.food.foodImage || editingFood.food.imageUrl || "https://via.placeholder.com/80x80",
                     }}
                     style={styles.previewImage}
                   />
                   <Text style={styles.previewFoodName}>{editingFood.food.foodName}</Text>
                 </View>
 
+                {/* Portion Size input - giống chỉnh quantity */}
                 <View style={styles.quantityContainer}>
-                  <Text style={styles.quantityLabel}>Quantity</Text>
-                  <View style={styles.quantityControls}>
+                  <Text style={styles.quantityLabel}>Portion Size</Text>
+                  <View style={[styles.quantityControls, { borderWidth: 0, borderColor: 'transparent', borderRadius: 12, padding: 4 }]}> 
                     <TouchableOpacity
-                      style={styles.quantityButton}
+                      style={[styles.quantityButton, { backgroundColor: '#fff', borderColor: 'transparent', borderWidth: 0 }]}
                       onPress={() => {
-                        const newQuantity = Math.max(0.5, (editingFood.food.quantity || 1) - 0.5)
+                        const newPortion = Math.max(0.5, (Number.parseFloat(editingFood.food.portionSize) || 1) - 0.5)
                         setEditingFood((prev) => ({
                           ...prev,
-                          food: { ...prev.food, quantity: newQuantity },
+                          food: { ...prev.food, portionSize: newPortion },
                         }))
                       }}
                     >
-                      <Icon name="remove" size={20} color="#4F46E5" />
+                      <Text style={{ fontSize: 22, color: '#0056d2', fontWeight: 'bold' }}>-</Text>
                     </TouchableOpacity>
 
                     <TextInput
-                      style={styles.quantityInput}
-                      value={editingFood.food.quantity?.toString() || "1"}
+                      style={[styles.quantityInput, { borderColor: 'transparent', color: '#1F2937', fontSize: 18, fontWeight: '600' }]}
+                      value={editingFood.food.portionSize?.toString() || "1"}
                       onChangeText={(text) => {
-                        const quantity = Number.parseFloat(text) || 1
+                        const portionSize = Number.parseFloat(text) || 1
                         setEditingFood((prev) => ({
                           ...prev,
-                          food: { ...prev.food, quantity },
+                          food: { ...prev.food, portionSize },
                         }))
                       }}
                       keyboardType="numeric"
                       textAlign="center"
+                      blurOnSubmit={true}
+                      returnKeyType="done"
                     />
 
                     <TouchableOpacity
-                      style={styles.quantityButton}
+                      style={[styles.quantityButton, { backgroundColor: '#fff', borderColor: 'transparent', borderWidth: 0 }]}
                       onPress={() => {
-                        const newQuantity = (editingFood.food.quantity || 1) + 0.5
+                        const newPortion = (Number.parseFloat(editingFood.food.portionSize) || 1) + 0.5
                         setEditingFood((prev) => ({
                           ...prev,
-                          food: { ...prev.food, quantity: newQuantity },
+                          food: { ...prev.food, portionSize: newPortion },
                         }))
                       }}
                     >
-                      <Icon name="add" size={20} color="#4F46E5" />
+                      <Text style={{ fontSize: 22, color: '#0056d2', fontWeight: 'bold' }}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                {/* Serving Size input - giống chỉnh quantity */}
+                <View style={styles.quantityContainer}>
+                  <Text style={styles.quantityLabel}>Serving Size</Text>
+                  <View style={[styles.quantityControls, { borderWidth: 0, borderColor: 'transparent', borderRadius: 12, padding: 4 }]}> 
+                    <TouchableOpacity
+                      style={[styles.quantityButton, { backgroundColor: '#fff', borderColor: 'transparent', borderWidth: 0 }]}
+                      onPress={() => {
+                        const newServing = Math.max(0.5, (Number.parseFloat(editingFood.food.servingSize) || 1) - 0.5)
+                        setEditingFood((prev) => ({
+                          ...prev,
+                          food: { ...prev.food, servingSize: newServing },
+                        }))
+                      }}
+                    >
+                      <Text style={{ fontSize: 22, color: '#0056d2', fontWeight: 'bold' }}>-</Text>
+                    </TouchableOpacity>
+
+                    <TextInput
+                      style={[styles.quantityInput, { borderColor: 'transparent', color: '#1F2937', fontSize: 18, fontWeight: '600' }]}
+                      value={editingFood.food.servingSize?.toString() || "1"}
+                      onChangeText={(text) => {
+                        const servingSize = Number.parseFloat(text) || 1
+                        setEditingFood((prev) => ({
+                          ...prev,
+                          food: { ...prev.food, servingSize },
+                        }))
+                      }}
+                      keyboardType="numeric"
+                      textAlign="center"
+                      blurOnSubmit={true}
+                      returnKeyType="done"
+                    />
+
+                    <TouchableOpacity
+                      style={[styles.quantityButton, { backgroundColor: '#fff', borderColor: 'transparent', borderWidth: 0 }]}
+                      onPress={() => {
+                        const newServing = (Number.parseFloat(editingFood.food.servingSize) || 1) + 0.5
+                        setEditingFood((prev) => ({
+                          ...prev,
+                          food: { ...prev.food, servingSize: newServing },
+                        }))
+                      }}
+                    >
+                      <Text style={{ fontSize: 22, color: '#0056d2', fontWeight: 'bold' }}>+</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -770,26 +792,22 @@ const FoodDailyLogScreen = () => {
                   <Text style={styles.nutritionPreviewTitle}>Nutrition per serving:</Text>
                   <View style={styles.nutritionPreviewGrid}>
                     <View style={styles.nutritionPreviewItem}>
-                      <IconCommunity name="fire" size={16} color="#FF6B35" />
-                      <Text style={styles.nutritionPreviewText}>
+                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>
                         {Math.round((editingFood.food.calories || 0) * (editingFood.food.quantity || 1))} cal
                       </Text>
                     </View>
                     <View style={styles.nutritionPreviewItem}>
-                      <IconCommunity name="dumbbell" size={16} color="#4ECDC4" />
-                      <Text style={styles.nutritionPreviewText}>
+                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>
                         {Math.round((editingFood.food.protein || 0) * (editingFood.food.quantity || 1))}g
                       </Text>
                     </View>
                     <View style={styles.nutritionPreviewItem}>
-                      <IconCommunity name="grain" size={16} color="#45B7D1" />
-                      <Text style={styles.nutritionPreviewText}>
+                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>
                         {Math.round((editingFood.food.carbs || 0) * (editingFood.food.quantity || 1))}g
                       </Text>
                     </View>
                     <View style={styles.nutritionPreviewItem}>
-                      <IconCommunity name="oil" size={16} color="#96CEB4" />
-                      <Text style={styles.nutritionPreviewText}>
+                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>
                         {Math.round((editingFood.food.fats || 0) * (editingFood.food.quantity || 1))}g
                       </Text>
                     </View>
@@ -803,13 +821,13 @@ const FoodDailyLogScreen = () => {
             <TouchableOpacity style={styles.modalCancelButton} onPress={() => setEditModalVisible(false)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalSaveButton} onPress={handleSaveEdit}>
-              <Icon name="save" size={16} color="#fff" />
+            <TouchableOpacity style={[styles.modalSaveButton, { backgroundColor: '#0056d2' }]} onPress={handleSaveEdit}>
               <Text style={styles.modalSaveText}>Save Changes</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+        </View>
+      </TouchableWithoutFeedback>
     </Modal>
   )
 
@@ -843,29 +861,28 @@ const FoodDailyLogScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
-          <Icon name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Daily Food Log</Text>
-          <Text style={styles.headerDate}>{dayjs(date).format("dddd, MMM DD, YYYY")}</Text>
-        </View>
-        <TouchableOpacity style={styles.calendarButton} onPress={handleOpenCalendar}>
-          <Icon name="today" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      {/* Header using shared Header.js */}
+      <Header
+        title="Daily Food Log"
+        subtitle={dayjs(date).format("dddd, MMM DD, YYYY")}
+        showBack
+        onBack={() => navigation?.goBack()}
+        rightIcon="today"
+        onRightPress={handleOpenCalendar}
+        titleColor="#fff"
+        subtitleColor="rgba(255,255,255,0.8)"
+        rightIconColor="#fff"
+      />
 
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { marginTop: 45 }]}> 
         {renderTabButton("daily", "Daily", "today")}
         {renderTabButton("calendar", "History", "history")}
         {renderTabButton("filters", "Filters", "filter-list")}
       </View>
 
       {/* Content */}
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}> 
         {activeTab === "daily" && (
           <ScrollView showsVerticalScrollIndicator={false}>
             {renderNutritionSummary()}
@@ -1015,6 +1032,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  nutritionCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    backgroundColor: "#fff",
+  },
   summaryHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1043,16 +1072,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   caloriesCard: {
-    backgroundColor: "#FFF7ED",
+    backgroundColor: "#fff",
   },
   proteinCard: {
-    backgroundColor: "#F0FDFA",
+    backgroundColor: "#fff",
   },
   carbsCard: {
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#fff",
   },
   fatsCard: {
-    backgroundColor: "#F0FDF4",
+    backgroundColor: "#fff",
   },
   nutritionValue: {
     fontSize: 20,

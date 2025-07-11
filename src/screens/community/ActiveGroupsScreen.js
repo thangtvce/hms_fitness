@@ -1,5 +1,5 @@
 import React from "react"
-import { useState, useEffect, useRef, useContext } from "react"
+import { useState,useEffect,useRef,useContext } from "react"
 import {
   View,
   Text,
@@ -17,47 +17,48 @@ import {
   RefreshControl,
 } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
+import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import RenderHtml from "react-native-render-html"
 import { AuthContext } from "context/AuthContext"
-import { getAllActiveGroups, joinGroup, deleteGroup } from "services/apiCommunityService"
-import { sendJoinRequestNotification } from "services/signalRClient"
-import { getUserById } from "services/apiUserService" // Import hàm getUserById
-// Đảm bảo không gọi getUserById với undefined
+import { getAllActiveGroups,joinGroup,deleteGroup,getMyGroupJoined } from "services/apiCommunityService"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
-import { useNavigation, useFocusEffect } from "@react-navigation/native"
+import { useNavigation,useFocusEffect } from "@react-navigation/native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { ScrollView } from "react-native-gesture-handler"
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
 
 const { width } = Dimensions.get("window")
 
 const ActiveGroupsScreenModern = () => {
   const navigation = useNavigation()
   const { user } = useContext(AuthContext)
-  const [groups, setGroups] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [showFilterModal, setShowFilterModal] = useState(false)
-  const [pageNumber, setPageNumber] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalCount, setTotalCount] = useState(0)
-  const [hasMore, setHasMore] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [joiningGroups, setJoiningGroups] = useState(new Set())
-  const [filters, setFilters] = useState({
+  const searchTimeout = useRef(null);
+  const [groups,setGroups] = useState([])
+  const [loading,setLoading] = useState(true)
+  const [refreshing,setRefreshing] = useState(false)
+  const [showFilterModal,setShowFilterModal] = useState(false)
+  const [pageNumber,setPageNumber] = useState(1)
+  const [pageSize,setPageSize] = useState(10);
+  const [totalPages,setTotalPages] = useState(1)
+  const [totalCount,setTotalCount] = useState(0)
+  const [hasMore,setHasMore] = useState(true)
+  const [searchTerm,setSearchTerm] = useState("")
+  const [joiningGroups,setJoiningGroups] = useState(new Set())
+  const [debouncedSearchTerm,setDebouncedSearchTerm] = useState("");
+  const [filters,setFilters] = useState({
     startDate: null,
     endDate: null,
-    status: "active",
+    status: "public",
     validPageSize: 10,
   })
-  const [tempFilters, setTempFilters] = useState(filters)
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false)
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false)
-  const [showCustomStartDatePicker, setShowCustomStartDatePicker] = useState(false)
-  const [showCustomEndDatePicker, setShowCustomEndDatePicker] = useState(false)
+  const [tempFilters,setTempFilters] = useState(filters)
+  const [showStartDatePicker,setShowStartDatePicker] = useState(false)
+  const [showEndDatePicker,setShowEndDatePicker] = useState(false)
+  const [showCustomStartDatePicker,setShowCustomStartDatePicker] = useState(false)
+  const [showCustomEndDatePicker,setShowCustomEndDatePicker] = useState(false)
+  const [activeTab,setActiveTab] = useState('all');
 
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
@@ -65,26 +66,26 @@ const ActiveGroupsScreenModern = () => {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim,{
         toValue: 1,
         duration: 600,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.timing(slideAnim,{
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
+      Animated.spring(scaleAnim,{
         toValue: 1,
         tension: 120,
         friction: 8,
         useNativeDriver: true,
       }),
     ]).start()
-  }, [])
+  },[])
 
-  const fetchGroups = async (page = 1, refresh = false) => {
+  const fetchGroups = async (page = 1,refresh = false) => {
     try {
       if (refresh) {
         setRefreshing(true)
@@ -94,10 +95,10 @@ const ActiveGroupsScreenModern = () => {
 
       const formatDate = (date) => {
         if (!date) return undefined
-        return `${(date.getMonth() + 1).toString().padStart(2, "0")}-${date
+        return `${(date.getMonth() + 1).toString().padStart(2,"0")}-${date
           .getDate()
           .toString()
-          .padStart(2, "0")}-${date.getFullYear()}`
+          .padStart(2,"0")}-${date.getFullYear()}`
       }
 
       const queryParams = {
@@ -109,27 +110,38 @@ const ActiveGroupsScreenModern = () => {
         Status: filters.status || undefined,
         ValidPageSize: filters.validPageSize,
       }
-
-      const response = await getAllActiveGroups(queryParams)
-
-      if (response && Array.isArray(response)) {
-        const newGroups = page === 1 ? response : [...groups, ...response]
-        setGroups(newGroups)
-        setTotalCount(response.length)
-        setHasMore(response.length === pageSize)
-        if (response.length > 0 && response[0].totalPages) {
-          setTotalPages(response[0].totalPages)
-        } else {
-          setTotalPages(Math.ceil(newGroups.length / pageSize))
-        }
+      let response = null;
+      if (activeTab == "all") {
+        response = await getAllActiveGroups(queryParams);
       } else {
-        setGroups([])
-        setTotalPages(1)
-        setTotalCount(0)
-        setHasMore(false)
+        response = await getMyGroupJoined(0,queryParams);
       }
+
+      const dataGroup = response.data;
+      const newGroups = dataGroup.groups || [];
+      const validGroups = newGroups.filter(g => g.groupId);
+
+      if (page === 1 || refresh) {
+        const uniqueGroups = Array.from(
+          new Map(validGroups.map(g => [g.groupId,g])).values()
+        );
+        setGroups(uniqueGroups);
+      } else {
+        setGroups(prev => {
+          const combined = [...prev,...validGroups];
+          const uniqueGroups = Array.from(
+            new Map(combined.map(g => [g.groupId,g])).values()
+          );
+
+          return uniqueGroups;
+        });
+      }
+
+      setTotalCount(dataGroup.totalCount)
+      setHasMore((page * pageSize) < dataGroup.totalCount)
+      setTotalPages(dataGroup?.totalPages)
     } catch (error) {
-      Alert.alert("Error", error.message || "An error occurred while loading groups.")
+      showErrorFetchAPI(error);
       setGroups([])
       setTotalPages(1)
       setTotalCount(0)
@@ -143,18 +155,50 @@ const ActiveGroupsScreenModern = () => {
   useFocusEffect(
     React.useCallback(() => {
       fetchGroups(pageNumber)
-    }, [pageNumber, pageSize, searchTerm, filters]),
+    },[pageNumber,pageSize,debouncedSearchTerm,filters,activeTab]),
   )
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setGroups([]);
+    setPageNumber(1);
+  };
+
+  const loadMoreGroups = () => {
+    if (!loading && hasMore) {
+      goToPage(pageNumber + 1)
+    }
+  }
 
   const onRefresh = () => {
     setPageNumber(1)
-    fetchGroups(1, true)
+    fetchGroups(1,true)
   }
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    },500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  },[searchTerm]);
+
+  useEffect(() => {
+    if (debouncedSearchTerm.trim() === "") {
+      fetchGroups({ page: 1 });
+      return;
+    }
+
+    setPageNumber(1);
+    fetchGroups({ keyword: debouncedSearchTerm,page: 1 });
+  },[debouncedSearchTerm]);
+
+
   const handleSearch = (text) => {
-    setSearchTerm(text)
-    setPageNumber(1)
-  }
+    setSearchTerm(text);
+  };
 
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages && !loading) {
@@ -173,7 +217,7 @@ const ActiveGroupsScreenModern = () => {
     const resetFilters = {
       startDate: null,
       endDate: null,
-      status: "active",
+      status: "public",
       validPageSize: 10,
     }
     setTempFilters(resetFilters)
@@ -183,14 +227,14 @@ const ActiveGroupsScreenModern = () => {
 
   const formatDisplayDate = (date) => {
     if (!date) return "Select Date"
-    return date.toLocaleDateString("en-US", {
+    return date.toLocaleDateString("en-US",{
       month: "short",
       day: "numeric",
       year: "numeric",
     })
   }
 
-  const handleJoin = async (groupId, isJoin, isPrivate, isRequested) => {
+  const handleJoin = async (groupId,isJoin,isPrivate,isRequested) => {
     if (isJoin) {
       return
     }
@@ -199,14 +243,10 @@ const ActiveGroupsScreenModern = () => {
       return
     }
 
-    setJoiningGroups((prev) => new Set([...prev, groupId]))
+    setJoiningGroups((prev) => new Set([...prev,groupId]))
 
     try {
-      await joinGroup(groupId, isPrivate)
-
-      // Đã bỏ gửi notification SignalR để tránh lỗi kết nối
-
-      // No alert after join
+      await joinGroup(groupId,isPrivate)
       setGroups((prevGroups) =>
         prevGroups.map((g) => {
           if (g.groupId === groupId) {
@@ -214,14 +254,14 @@ const ActiveGroupsScreenModern = () => {
               ...g,
               isJoin: !isPrivate,
               isRequested: isPrivate ? true : false,
-              memberCount: g.memberCount + 1,
+              memberCount: isPrivate ? g.memberCount : g.memberCount + 1,
             }
           }
           return g
         }),
       )
     } catch (err) {
-      Alert.alert("Error", err.message || "Unable to join group")
+      showErrorFetchAPI(err);
     } finally {
       setJoiningGroups((prev) => {
         const newSet = new Set(prev)
@@ -232,7 +272,7 @@ const ActiveGroupsScreenModern = () => {
   }
 
   const handleDeleteGroup = async (groupId) => {
-    Alert.alert("Confirm Delete", "Are you sure you want to delete this group? This action cannot be undone.", [
+    Alert.alert("Confirm Delete","Are you sure you want to delete this group? This action cannot be undone.",[
       {
         text: "Cancel",
         style: "cancel",
@@ -244,9 +284,9 @@ const ActiveGroupsScreenModern = () => {
           try {
             await deleteGroup(groupId)
             setGroups((prevGroups) => prevGroups.filter((g) => g.groupId !== groupId))
-            Alert.alert("Success", "Group deleted successfully.")
+            showSuccessMessage("Group deleted successfully.")
           } catch (err) {
-            Alert.alert("Error", err.message || "Unable to delete group")
+            showErrorFetchAPI(err)
           }
         },
       },
@@ -256,29 +296,42 @@ const ActiveGroupsScreenModern = () => {
   const getStatusInfo = (status) => {
     switch (status?.toLowerCase()) {
       case "active":
-        return { color: "#22C55E", bgColor: "#DCFCE7", icon: "checkmark-circle" }
+        return { color: "#22C55E",bgColor: "#DCFCE7",icon: "checkmark-circle" }
       case "pending":
-        return { color: "#F59E0B", bgColor: "#FEF3C7", icon: "time" }
+        return { color: "#F59E0B",bgColor: "#FEF3C7",icon: "time" }
       case "private":
-        return { color: "#A855F7", bgColor: "#F3E8FF", icon: "lock-closed" }
+        return { color: "#A855F7",bgColor: "#F3E8FF",icon: "lock-closed" }
       case "public":
-        return { color: "#3B82F6", bgColor: "#DBEAFE", icon: "globe" }
+        return { color: "#0056D2",bgColor: "#DBEAFE",icon: "globe" }
       default:
-        return { color: "#6B7280", bgColor: "#F1F5F9", icon: "help-circle" }
+        return { color: "#6B7280",bgColor: "#F1F5F9",icon: "help-circle" }
     }
   }
 
   const formatMemberCount = (count) => {
+    if (!count || isNaN(count)) return "0"
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K`
-    return count?.toString() || "0"
+    return count.toString()
   }
 
+
   const getJoinButtonStyle = (item) => {
-    if (item.isJoin) return styles.joinedButton
-    if (item.isRequested) return styles.pendingButton
-    return styles.joinButton
+    if (item.isJoin) {
+      return {
+        backgroundColor: "#22C55E",
+      }
+    }
+    if (item.isRequested) {
+      return {
+        backgroundColor: "#F59E0B",
+      }
+    }
+    return {
+      backgroundColor: "#0056D2",
+    }
   }
+
 
   const getJoinButtonText = (item) => {
     if (item.isJoin) return "Joined"
@@ -292,9 +345,8 @@ const ActiveGroupsScreenModern = () => {
     return "add"
   }
 
-  const renderGroup = ({ item, index }) => {
+  const renderGroup = ({ item,index }) => {
     const statusInfo = getStatusInfo(item.isPrivate ? "private" : "public")
-    // Kiểm tra nếu userId của user trùng với createdBy (chủ group)
     const isMine = user?.userId === item.createdBy
 
     return (
@@ -303,18 +355,14 @@ const ActiveGroupsScreenModern = () => {
           styles.groupCard,
           {
             opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+            transform: [{ translateY: slideAnim },{ scale: scaleAnim }],
           },
         ]}
       >
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={() => {
-            if (isMine) {
-              navigation.navigate("GroupDetails", { groupId: item.groupId })
-            } else {
-              navigation.navigate("GroupDetails", { groupId: item.groupId })
-            }
+            navigation.navigate("GroupDetails",{ groupId: item.groupId })
           }}
         >
           <View style={styles.cardContainer}>
@@ -340,11 +388,13 @@ const ActiveGroupsScreenModern = () => {
                   <View style={styles.statsRow}>
                     <View style={styles.memberStat}>
                       <Ionicons name="people" size={14} color="#22C55E" />
-                      <Text style={styles.memberCount}>{formatMemberCount(item.memberCount)} members</Text>
+                      <Text style={styles.memberCount}>
+                        {formatMemberCount(item.memberCount)} members
+                      </Text>
                     </View>
                     <View style={styles.statusIndicator}>
-                      <View style={[styles.statusDot, { backgroundColor: statusInfo.color }]} />
-                      <Text style={[styles.statusText, { color: statusInfo.color }]}>
+                      <View style={[styles.statusDot,{ backgroundColor: statusInfo.color }]} />
+                      <Text style={[styles.statusText,{ color: statusInfo.color }]}>
                         {item.isPrivate ? "Private" : "Public"}
                       </Text>
                     </View>
@@ -356,14 +406,16 @@ const ActiveGroupsScreenModern = () => {
                 {isMine ? (
                   <View style={styles.ownerSection}>
                     <View style={styles.ownerBadge}>
-                      <Ionicons name="crown" size={12} color="#FFFFFF" />
+                      <Ionicons name="home" size={12} color="#FFFFFF" />
                       <Text style={styles.ownerBadgeText}>Owner</Text>
                     </View>
                   </View>
                 ) : (
                   <TouchableOpacity
-                    style={[styles.joinBtn, getJoinButtonStyle(item)]}
-                    onPress={() => handleJoin(item.groupId, item.isJoin, item.isPrivate, item.isRequested)}
+                    style={[styles.joinBtn,getJoinButtonStyle(item)]}
+                    onPress={() =>
+                      handleJoin(item.groupId,item.isJoin,item.isPrivate,item.isRequested)
+                    }
                     disabled={joiningGroups.has(item.groupId)}
                   >
                     {joiningGroups.has(item.groupId) ? (
@@ -403,7 +455,7 @@ const ActiveGroupsScreenModern = () => {
             {/* Footer */}
             <View style={styles.cardFooter}>
               <View style={styles.categoryBadge}>
-                <Ionicons name="fitness" size={12} color="#22C55E" />
+                <Ionicons name="fitness" size={12} color="#fff" />
                 <Text style={styles.categoryText}>Health & Wellness</Text>
               </View>
 
@@ -411,12 +463,17 @@ const ActiveGroupsScreenModern = () => {
                 <View style={styles.ownerActions}>
                   <TouchableOpacity
                     style={styles.editBtn}
-                    onPress={() => navigation.navigate("EditGroupScreen", { groupId: item.groupId })}
+                    onPress={() =>
+                      navigation.navigate("EditGroupScreen",{ groupId: item.groupId })
+                    }
                   >
-                    <Ionicons name="pencil" size={16} color="#3B82F6" />
+                    <Ionicons name="pencil" size={16} color="#0056D2" />
                     <Text style={styles.editBtnText}>Edit</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteGroup(item.groupId)}>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => handleDeleteGroup(item.groupId)}
+                  >
                     <Ionicons name="trash" size={16} color="#EF4444" />
                     <Text style={styles.deleteBtnText}>Delete</Text>
                   </TouchableOpacity>
@@ -428,7 +485,6 @@ const ActiveGroupsScreenModern = () => {
       </Animated.View>
     )
   }
-
   const renderCreateGroupHeader = () => (
     <Animated.View
       style={[
@@ -440,10 +496,10 @@ const ActiveGroupsScreenModern = () => {
       ]}
     >
       <LinearGradient
-        colors={["#4F46E5","#6366F1","#818CF8"]}
+        colors={["#003C9E","#0056D2","#4A90E2"]}
         style={styles.createGroupCard}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0,y: 0 }}
+        end={{ x: 1,y: 1 }}
       >
         <View style={styles.createGroupContent}>
           <View style={styles.createGroupLeft}>
@@ -452,7 +508,7 @@ const ActiveGroupsScreenModern = () => {
             </View>
             <View style={styles.createGroupText}>
               <Text style={styles.createGroupTitle}>Start Your Community</Text>
-              <Text style={styles.createGroupSubtitle}>Create a health group and connect with others</Text>
+              <Text style={styles.createGroupSubtitle}>Create a health group</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -461,7 +517,7 @@ const ActiveGroupsScreenModern = () => {
             activeOpacity={0.8}
           >
             <Text style={styles.createGroupButtonText}>Create</Text>
-            <Ionicons name="arrow-forward" size={16} color="#4F46E5" />
+            <Ionicons name="arrow-forward" size={16} color="#0056d2" />
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -524,7 +580,7 @@ const ActiveGroupsScreenModern = () => {
       }}
     >
       <View style={styles.modalOverlay}>
-        <Animated.View style={[styles.filterModalContent, { transform: [{ scale: scaleAnim }] }]}>
+        <Animated.View style={[styles.filterModalContent,{ transform: [{ scale: scaleAnim }] }]}>
           <View style={styles.modalHandle} />
 
           <View style={styles.modalHeader}>
@@ -540,7 +596,7 @@ const ActiveGroupsScreenModern = () => {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false} >
             {/* Date Range Section */}
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Date Range</Text>
@@ -562,15 +618,13 @@ const ActiveGroupsScreenModern = () => {
               <Text style={styles.filterSectionTitle}>Group Status</Text>
               <View style={styles.statusOptions}>
                 {[
-                  { key: "active", label: "Active", icon: "checkmark-circle", color: "#22C55E" },
-                  { key: "pending", label: "Pending", icon: "time", color: "#F59E0B" },
-                  { key: "private", label: "Private", icon: "lock-closed", color: "#A855F7" },
-                  { key: "public", label: "Public", icon: "globe", color: "#3B82F6" },
+                  { key: "private",label: "Private",icon: "lock-closed",color: "#A855F7" },
+                  { key: "public",label: "Public",icon: "globe",color: "#3B82F6" },
                 ].map((status) => (
                   <TouchableOpacity
                     key={status.key}
-                    style={[styles.statusOption, tempFilters.status === status.key && styles.selectedStatusOption]}
-                    onPress={() => setTempFilters({ ...tempFilters, status: status.key })}
+                    style={[styles.statusOption,tempFilters.status === status.key && styles.selectedStatusOption]}
+                    onPress={() => setTempFilters({ ...tempFilters,status: status.key })}
                   >
                     <Ionicons
                       name={status.icon}
@@ -594,11 +648,14 @@ const ActiveGroupsScreenModern = () => {
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Items per Page</Text>
               <View style={styles.pageSizeOptions}>
-                {[5, 10, 20, 50].map((size) => (
+                {[5,10,20,50].map((size) => (
                   <TouchableOpacity
                     key={size}
-                    style={[styles.pageSizeOption, tempFilters.validPageSize === size && styles.selectedPageSizeOption]}
-                    onPress={() => setTempFilters({ ...tempFilters, validPageSize: size })}
+                    style={[styles.pageSizeOption,tempFilters.validPageSize === size && styles.selectedPageSizeOption]}
+                    onPress={() => {
+                      setTempFilters({ ...tempFilters,validPageSize: size })
+                      setPageSize(size);
+                    }}
                   >
                     <Text
                       style={[
@@ -642,9 +699,9 @@ const ActiveGroupsScreenModern = () => {
                 value={tempFilters.startDate || new Date()}
                 mode="date"
                 display="spinner"
-                onChange={(event, selectedDate) => {
+                onChange={(event,selectedDate) => {
                   if (selectedDate) {
-                    setTempFilters({ ...tempFilters, startDate: selectedDate })
+                    setTempFilters({ ...tempFilters,startDate: selectedDate })
                   }
                 }}
               />
@@ -670,9 +727,9 @@ const ActiveGroupsScreenModern = () => {
                 value={tempFilters.endDate || new Date()}
                 mode="date"
                 display="spinner"
-                onChange={(event, selectedDate) => {
+                onChange={(event,selectedDate) => {
                   if (selectedDate) {
-                    setTempFilters({ ...tempFilters, endDate: selectedDate })
+                    setTempFilters({ ...tempFilters,endDate: selectedDate })
                   }
                 }}
               />
@@ -691,35 +748,48 @@ const ActiveGroupsScreenModern = () => {
       <DynamicStatusBar backgroundColor="#3B82F6" />
 
       {/* Header */}
-      <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
+      <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color="#0056d2" />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Community</Text>
-            <Text style={styles.headerSubtitle}>
-              {totalCount > 0 ? `${totalCount} communities found` : "Discover wellness groups"}
-            </Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row',alignItems: 'center' }}>
             <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-              <Ionicons name="options-outline" size={24} color="#FFFFFF" />
+              <Ionicons name="options-outline" size={24} color="#0056d2" />
               {(searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) && (
                 <View style={styles.filterBadge} />
               )}
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterButton, { marginLeft: 8, backgroundColor: '#8B5CF6' }]}
+              style={[styles.filterButton,{ marginLeft: 8,backgroundColor: '#0056d2' }]}
               onPress={() => navigation.navigate('MyGroupsScreen')}
               activeOpacity={0.8}
             >
-              <Ionicons name="person-circle" size={24} color="#fff" />
+              <Ionicons name="people-outline" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
-      </LinearGradient>
+      </View>
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabItem,activeTab === 'all' && styles.tabItemActive]}
+          onPress={() => handleTabChange('all')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText,activeTab === 'all' && styles.tabTextActive]}>All Groups</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem,activeTab === 'joined' && styles.tabItemActive]}
+          onPress={() => handleTabChange('joined')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText,activeTab === 'joined' && styles.tabTextActive]}>My Groups</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Search Bar */}
       <Animated.View
@@ -757,7 +827,16 @@ const ActiveGroupsScreenModern = () => {
       ) : (
         <FlatList
           data={groups}
-          keyExtractor={(item) => item.groupId?.toString() || Math.random().toString()}
+          onEndReached={loadMoreGroups}
+          ListFooterComponent={
+            loading && pageNumber > 1 ? (
+              <View style={{ padding: 20,alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+              </View>
+            ) : null
+          }
+          onEndReachedThreshold={0.2}
+          keyExtractor={(item,index) => item.groupId ? item.groupId.toString() : `group-${index}`}
           renderItem={renderGroup}
           ListHeaderComponent={renderCreateGroupHeader}
           ListEmptyComponent={renderEmpty}
@@ -790,12 +869,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   backButton: {
-    width: 40,
-    height: 40,
+    padding: 8,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+  },
+  filterButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
   },
   headerCenter: {
     flex: 1,
@@ -805,8 +886,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#FFFFFF",
-    textAlign: "center",
+    color: "#1E293B",
   },
   headerSubtitle: {
     fontSize: 14,
@@ -861,13 +941,13 @@ const styles = StyleSheet.create({
   createGroupSection: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 10,
+    paddingBottom: 20,
   },
   createGroupCard: {
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -910,10 +990,11 @@ const styles = StyleSheet.create({
   createGroupButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4F46E5",
+    color: "#0056d2",
   },
   listContainer: {
-    paddingBottom: 20,
+    paddingBottom: 50,
+    marginBottom: 30
   },
   groupCard: {
     marginHorizontal: 20,
@@ -921,7 +1002,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
@@ -957,7 +1038,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "#A855F7",
+    backgroundColor: "#0056d2",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1052,7 +1133,7 @@ const styles = StyleSheet.create({
   categoryBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#DCFCE7",
+    backgroundColor: "#0056D2",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
@@ -1060,7 +1141,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 12,
-    color: "#22C55E",
+    color: "#fff",
     fontWeight: "600",
   },
   ownerActions: {
@@ -1156,11 +1237,11 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   filterModalContent: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: "80%",
-    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    height: "60%",
   },
   modalHandle: {
     width: 40,
@@ -1364,6 +1445,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#FFFFFF",
     fontWeight: "600",
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    marginBottom: 2,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: {
+    borderBottomColor: '#0056d2',
+    backgroundColor: '#F1F5F9',
+  },
+  tabText: {
+    fontSize: 16,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#0056d2',
+    fontWeight: '700',
   },
 })
 

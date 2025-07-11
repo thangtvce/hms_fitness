@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -15,24 +15,38 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ExerciseDetailsScreen = ({ route, navigation }) => {
   const { exercise } = route.params;
+  const [categoryName, setCategoryName] = useState('');
 
-  // Get a placeholder image based on exercise name
+  useEffect(() => {
+    const fetchCategoryName = async () => {
+      if (typeof exercise.categoryId === 'number') {
+        try {
+          // Giả sử workoutService.getCategoryById đã có
+          const workoutService = require('services/apiWorkoutService').default;
+          const data = await workoutService.getCategoryById(exercise.categoryId);
+          setCategoryName(data?.categoryName || exercise.categoryId);
+        } catch (error) {
+          setCategoryName('N/A');
+        }
+      } else {
+        setCategoryName(exercise.categoryId ?? 'N/A');
+      }
+    };
+    fetchCategoryName();
+  }, [exercise.categoryId]);
+
   const getExerciseImage = (exerciseName) => {
-    // This would ideally be replaced with actual exercise images
     return `https://source.unsplash.com/600x400/?fitness,${exerciseName.replace(/\s/g, '')}`;
   };
 
-  // Add to Workout handler
   const handleAddToWorkout = async () => {
     try {
       const storedExercises = await AsyncStorage.getItem('scheduledExercises');
       let scheduledExercises = storedExercises ? JSON.parse(storedExercises) : [];
-      // Avoid duplicates
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
         Alert.alert('Info', `${exercise.exerciseName} is already in your workout schedule`);
         return;
       }
-      // Ensure mediaUrl is always present
       const exerciseToSave = {
         ...exercise,
         mediaUrl: exercise.mediaUrl || '',
@@ -48,7 +62,6 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero Image with Gradient Overlay */}
         <View style={styles.imageContainer}>
           <Image 
             source={{ uri: getExerciseImage(exercise.exerciseName) }}
@@ -69,7 +82,6 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
           </LinearGradient>
         </View>
 
-        {/* Stats Overview */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
             <Icon name="local-fire-department" size={24} color="#FF5252" />
@@ -109,7 +121,6 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
           </Text>
         </View>
 
-        {/* Category Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Icon name="category" size={22} color="#6C63FF" />
@@ -117,7 +128,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
           </View>
           <TouchableOpacity 
             style={styles.categoryButton}
-            onPress={() => navigation.navigate('CategoryDetails', { categoryId: exercise.categoryId })}
+            onPress={() => navigation.navigate('ExercisesByCategoryScreen', { categoryId: exercise.categoryId, categoryName: categoryName })}
           >
             <LinearGradient
               colors={['#6C63FF', '#4834DF']}
@@ -125,7 +136,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
               end={{ x: 1, y: 0 }}
               style={styles.categoryGradient}
             >
-              <Text style={styles.categoryText}>{exercise.categoryId}</Text>
+              <Text style={styles.categoryText}>{categoryName || 'Đang tải...'}</Text>
               <Icon name="chevron-right" size={20} color="#FFFFFF" />
             </LinearGradient>
           </TouchableOpacity>
@@ -151,7 +162,6 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.actionContainer}>
           <TouchableOpacity style={styles.actionButton}>
             <LinearGradient
@@ -178,7 +188,6 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Bottom Spacing */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
