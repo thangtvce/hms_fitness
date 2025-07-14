@@ -4,9 +4,7 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    ActivityIndicator,
     Platform,
-    Alert,
     BackHandler,
     Image,
     Modal,
@@ -15,6 +13,8 @@ import {
     Linking,
     Animated,
 } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { WebView } from "react-native-webview"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons"
@@ -122,15 +122,9 @@ const QRPaymentScreen = ({ route,navigation }) => {
         fetchBankAppList()
 
         const backAction = () => {
-            Alert.alert("Cancel Payment?","Are you sure you want to cancel this payment transaction?",[
-                { text: "Continue Payment",style: "cancel" },
-                {
-                    text: "Cancel Payment",
-                    style: "destructive",
-                    onPress: () => navigation.goBack(),
-                },
-            ])
-            return true
+            // No Alert, just go back
+            navigation.goBack();
+            return true;
         }
 
         const backHandler = BackHandler.addEventListener("hardwareBackPress",backAction)
@@ -162,7 +156,7 @@ const QRPaymentScreen = ({ route,navigation }) => {
             const sortedApps = data.apps.sort((a,b) => b.autofill - a.autofill)
             setBankApps(sortedApps)
         } catch (e) {
-            Alert.alert("Error","Unable to load bank apps list.")
+            showErrorFetchAPI("Unable to load bank apps list.")
         } finally {
             setLoadingApps(false)
         }
@@ -195,7 +189,7 @@ const QRPaymentScreen = ({ route,navigation }) => {
                 await Linking.openURL(storeUrl)
             }
         } catch (error) {
-            Alert.alert("Error",`Unable to open ${app.appName}.`)
+            showErrorFetchAPI(`Unable to open ${app.appName}.`)
         }
     }
 
@@ -269,12 +263,7 @@ const QRPaymentScreen = ({ route,navigation }) => {
         <View style={[styles.header, { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }]}> 
             <TouchableOpacity
                 style={[styles.backBtn, { backgroundColor: '#F1F5F9' }]}
-                onPress={() =>
-                    Alert.alert("Cancel Payment?","Are you sure you want to cancel this transaction?",[
-                        { text: "Continue",style: "cancel" },
-                        { text: "Cancel",onPress: () => navigation.goBack() },
-                    ])
-                }
+                onPress={() => navigation.goBack()}
             >
                 <Ionicons name="arrow-back" size={24} color="#000" />
             </TouchableOpacity>
@@ -371,38 +360,28 @@ const QRPaymentScreen = ({ route,navigation }) => {
             </View>
 
             <View style={[styles.qrContainer, { shadowColor: 'transparent', borderColor: '#E2E8F0' }]}> 
-                {loading && (
-                    <View style={styles.loadingOverlay}>
-                        <View style={styles.loadingContent}>
-                            <ActivityIndicator size="large" color="#000" />
-                            <Text style={[styles.loadingText, { color: '#000' }]}>Loading payment page...</Text>
-                            <View style={styles.loadingDots}>
-                                <View style={[styles.dot,styles.dot1, { backgroundColor: '#000' }]} />
-                                <View style={[styles.dot,styles.dot2, { backgroundColor: '#000' }]} />
-                                <View style={[styles.dot,styles.dot3, { backgroundColor: '#000' }]} />
-                            </View>
-                        </View>
-                    </View>
+                {loading && <Loading />}
+                {!loading && (
+                    <WebView
+                        ref={webViewRef}
+                        source={{ uri: paymentUrl }}
+                        style={styles.webView}
+                        onLoad={handleWebViewLoad}
+                        onError={handleWebViewError}
+                        onNavigationStateChange={handleNavigationStateChange}
+                        injectedJavaScript={injectedJavaScript}
+                        startInLoadingState={true}
+                        scalesPageToFit={true}
+                        showsVerticalScrollIndicator={false}
+                        showsHorizontalScrollIndicator={false}
+                        allowsBackForwardNavigationGestures={false}
+                        javaScriptEnabled={true}
+                        domStorageEnabled={true}
+                        mixedContentMode="compatibility"
+                        onMessage={(event) => {
+                        }}
+                    />
                 )}
-                <WebView
-                    ref={webViewRef}
-                    source={{ uri: paymentUrl }}
-                    style={styles.webView}
-                    onLoad={handleWebViewLoad}
-                    onError={handleWebViewError}
-                    onNavigationStateChange={handleNavigationStateChange}
-                    injectedJavaScript={injectedJavaScript}
-                    startInLoadingState={true}
-                    scalesPageToFit={true}
-                    showsVerticalScrollIndicator={false}
-                    showsHorizontalScrollIndicator={false}
-                    allowsBackForwardNavigationGestures={false}
-                    javaScriptEnabled={true}
-                    domStorageEnabled={true}
-                    mixedContentMode="compatibility"
-                    onMessage={(event) => {
-                    }}
-                />
             </View>
         </Animated.View>
     )
@@ -415,7 +394,7 @@ const QRPaymentScreen = ({ route,navigation }) => {
             onRequestClose={() => setShowBankModal(false)}
         >
             <View style={styles.modalOverlay}>
-                <Animated.View style={[styles.modalContent,{ opacity: fadeAnim }]}>
+                <Animated.View style={[styles.modalContent,{ opacity: fadeAnim }]}> 
                     <View style={styles.modalHeader}>
                         <View style={styles.modalTitleContainer}>
                             <MaterialCommunityIcons name="bank" size={24} color="#4F46E5" />
@@ -427,10 +406,7 @@ const QRPaymentScreen = ({ route,navigation }) => {
                     </View>
 
                     {loadingApps ? (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color="#4F46E5" />
-                            <Text style={styles.loadingText}>Loading banking apps...</Text>
-                        </View>
+                        <Loading />
                     ) : (
                         <ScrollView style={styles.bankGrid} showsVerticalScrollIndicator={false}>
                             <View style={styles.bankRow}>
@@ -548,26 +524,13 @@ const QRPaymentScreen = ({ route,navigation }) => {
     }
 
     if (webViewError) {
-        return (
-            <SafeAreaView style={styles.safeArea}>
-                {renderHeader()}
-                <View style={styles.errorContainer}>
-                    <View style={[styles.errorContent, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0' }]}> 
-                        <MaterialCommunityIcons name="wifi-off" size={64} color="#EF4444" />
-                        <Text style={styles.errorTitle}>Connection Error</Text>
-                        <Text style={styles.errorText}>
-                            Unable to load payment page. Please check your internet connection and try again.
-                        </Text>
-                        <TouchableOpacity style={styles.retryButton} onPress={refreshPayment}>
-                            <View style={[styles.retryButtonGradient, { backgroundColor: '#000' }]}> 
-                                <Ionicons name="refresh" size={20} color="#fff" />
-                                <Text style={[styles.retryButtonText, { color: '#fff' }]}>Try Again</Text>
-                            </View>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </SafeAreaView>
-        )
+        // Only show loading overlay and logo, no other content
+        return <Loading />;
+    }
+
+    if (loading) {
+        // Only show loading overlay and logo, no other content
+        return <Loading />;
     }
 
     return (

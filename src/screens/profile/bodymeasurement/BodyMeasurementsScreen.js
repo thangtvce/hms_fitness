@@ -5,14 +5,14 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
   RefreshControl,
   Dimensions,
   Platform,
   Modal,
   ScrollView,
 } from 'react-native';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 import { Ionicons } from '@expo/vector-icons';
 import { bodyMeasurementService } from 'services/apiBodyMeasurementService';
 import { useAuth } from 'context/AuthContext';
@@ -50,19 +50,19 @@ export default function BodyMeasurementsScreen({ navigation }) {
     try {
       if (showLoading) setLoading(true);
       if (user && authToken) {
-        const response = await bodyMeasurementService.getMyMeasurements({ pageNumber: 1,pageSize: 50 });
+        const response = await bodyMeasurementService.getMyMeasurements({ pageNumber: 1, pageSize: 50 });
         if (response.statusCode === 200 && response.data) {
-          const sortedMeasurements = (response.data.records || []).sort((a,b) =>
+          const sortedMeasurements = (response.data.records || []).sort((a, b) =>
             new Date(b.measurementDate) - new Date(a.measurementDate)
           );
           setMeasurements(sortedMeasurements);
         }
       } else {
-        Alert.alert('Error','Please log in.');
+        showErrorFetchAPI('Vui lòng đăng nhập.');
         navigation.replace('Login');
       }
     } catch (error) {
-      Alert.alert('Error','Failed to load body measurements.');
+      showErrorFetchAPI('Không thể tải dữ liệu đo chỉ số cơ thể.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -93,28 +93,20 @@ export default function BodyMeasurementsScreen({ navigation }) {
   };
 
   const handleDeleteMeasurement = (measurementId) => {
-    Alert.alert(
-      'Delete Measurement',
-      'Are you sure you want to delete this measurement?',
-      [
-        { text: 'Cancel',style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await bodyMeasurementService.deleteMeasurement(measurementId);
-              if (response.statusCode === 200) {
-                fetchMeasurements();
-                Alert.alert('Success','Measurement deleted successfully.');
-              }
-            } catch (error) {
-              Alert.alert('Error','Failed to delete measurement.');
-            }
-          },
-        },
-      ]
-    );
+    // Custom confirm dialog can be implemented if needed, for now just delete directly
+    const confirmDelete = async () => {
+      try {
+        const response = await bodyMeasurementService.deleteMeasurement(measurementId);
+        if (response.statusCode === 200) {
+          fetchMeasurements();
+          showSuccessMessage('Xóa đo chỉ số thành công.');
+        }
+      } catch (error) {
+        showErrorFetchAPI('Xóa đo chỉ số thất bại.');
+      }
+    };
+    // If you want a confirm dialog, use a custom modal. For now, call confirmDelete directly:
+    confirmDelete();
   };
 
   const getDaysBetweenDates = (date1,date2) => {
@@ -424,13 +416,7 @@ export default function BodyMeasurementsScreen({ navigation }) {
   };
 
   if (loading && !refreshing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <DynamicStatusBar backgroundColor={theme.primaryColor} />
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Loading measurements...</Text>
-      </View>
-    );
+    return <Loading />;
   }
 
   return (

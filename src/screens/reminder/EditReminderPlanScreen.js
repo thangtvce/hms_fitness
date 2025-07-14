@@ -7,16 +7,16 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   Platform,
-  ActivityIndicator,
   Modal,
   Dimensions,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useNavigation, useRoute } from "@react-navigation/native"
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 import Header from 'components/Header';
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { apiReminderService } from "services/apiReminderService"
@@ -155,6 +155,7 @@ export default function EditReminderPlanScreen() {
       setPendingFrequency(validFrequency)
     } catch (err) {
       setError("Failed to load reminder plan")
+      showErrorFetchAPI("Failed to load reminder plan.")
     } finally {
       setLoading(false)
     }
@@ -162,26 +163,27 @@ export default function EditReminderPlanScreen() {
 
   const handleSave = async () => {
     if (!plan.title?.trim()) {
-      Alert.alert("Validation Error", "Please enter a title for your reminder")
-      return
+      showErrorFetchAPI("Please enter a title for your reminder.");
+      return;
     }
     if (!plan.time) {
-      Alert.alert("Validation Error", "Please select a time for your reminder")
-      return
+      showErrorFetchAPI("Please select a time for your reminder.");
+      return;
     }
     if (plan.frequency === "Weekly" && !plan.daysOfWeek) {
-      Alert.alert("Validation Error", "Please select at least one day for weekly reminders")
-      return
+      showErrorFetchAPI("Please select at least one day for weekly reminders.");
+      return;
     }
 
-    setSaving(true)
+    setSaving(true);
     try {
-      await apiReminderService.updateReminderPlan(plan.planId, plan)
-      Alert.alert("Success", "Reminder updated successfully!", [{ text: "OK", onPress: () => navigation.goBack() }])
+      await apiReminderService.updateReminderPlan(plan.planId, plan);
+      showSuccessMessage("Reminder updated successfully!");
+      navigation.goBack();
     } catch (err) {
-      Alert.alert("Error", "Failed to update reminder. Please try again.")
+      showErrorFetchAPI("Failed to update reminder. Please try again.");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
@@ -423,12 +425,9 @@ export default function EditReminderPlanScreen() {
     return (
       <View style={styles.container}>
         {renderHeader()}
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#06B6D4" />
-          <Text style={styles.loadingText}>Loading reminder...</Text>
-        </View>
+        <Loading />
       </View>
-    )
+    );
   }
 
   if (error) {
@@ -582,26 +581,22 @@ export default function EditReminderPlanScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={saving}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.saveButtonGradient, { backgroundColor: '#0056d2' }]}> 
-            {saving ? (
-              <View style={styles.savingContent}>
-                <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text style={styles.saveButtonText}>Updating...</Text>
-              </View>
-            ) : (
+        {saving && <Loading />}
+        {!saving && (
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.saveButtonGradient, { backgroundColor: '#0056d2' }]}> 
               <View style={styles.saveContent}>
                 <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                 <Text style={styles.saveButtonText}>Update Reminder</Text>
               </View>
-            )}
-          </View>
-        </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {renderFrequencyPicker()}

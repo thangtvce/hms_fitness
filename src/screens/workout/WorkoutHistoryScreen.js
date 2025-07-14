@@ -1,4 +1,3 @@
-"use client"
 
 import { useState, useEffect } from "react"
 import {
@@ -7,18 +6,19 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   TextInput,
   Modal,
   Dimensions,
   ScrollView,
-  Alert,
   Animated,
+  Image,
 } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+
 import { useNavigation } from "@react-navigation/native"
-import { LinearGradient } from "expo-linear-gradient"
+import Header from "components/Header"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { theme } from "theme/color"
 import { workoutService } from "services/apiWorkoutService"
@@ -35,7 +35,6 @@ const ACTIVITY_TYPE_MAP = {
 const WorkoutHistoryScreen = () => {
   const navigation = useNavigation()
   const [historySessions, setHistorySessions] = useState([])
-  const [historyActivities, setHistoryActivities] = useState([])
   const [filteredSessions, setFilteredSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -62,41 +61,43 @@ const WorkoutHistoryScreen = () => {
     sortOrder: "desc",
   })
 
+
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 500,
       useNativeDriver: true,
-    }).start()
-    fetchHistory()
-  }, [])
+    }).start();
+    fetchSessions();
+  }, []);
+
+  // Chỉ lấy session thôi
+  const fetchSessions = async () => {
+    setLoading(true);
+    try {
+      const sessionsResponse = await workoutService.getMyWorkoutSessions({ pageNumber: 1, pageSize: 200 });
+      let sessions = [];
+      if (sessionsResponse && sessionsResponse.data && Array.isArray(sessionsResponse.data.sessions)) {
+        sessions = sessionsResponse.data.sessions;
+      } else if (Array.isArray(sessionsResponse)) {
+        sessions = sessionsResponse;
+      }
+      setHistorySessions(sessions.reverse());
+      setError(null);
+    } catch (err) {
+      setError(err.message || "Failed to fetch workout sessions");
+      showErrorFetchAPI(err.message || "Failed to fetch workout sessions");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    applyFilters()
-  }, [historySessions, filters])
+    applyFilters();
+  }, [historySessions, filters]);
 
-  const fetchHistory = async () => {
-    setLoading(true)
-    try {
-      const sessionsResponse = await workoutService.getMyWorkoutSessions({ pageNumber: 1, pageSize: 50 })
-      const activitiesResponse = await workoutService.getMyActivities({ pageNumber: 1, pageSize: 100 })
-
-
-      const sessions = sessionsResponse || []
-      const activities = activitiesResponse || []
-
-
-
-      setHistorySessions(Array.isArray(sessions) ? sessions : [])
-      setHistoryActivities(Array.isArray(activities) ? activities : [])
-      setError(null)
-    } catch (err) {
-      setError(err.message || "Failed to fetch workout history")
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }
+  const fetchHistory = fetchSessions;
 
   const applyFilters = () => {
     let filtered = [...historySessions]
@@ -149,11 +150,48 @@ const WorkoutHistoryScreen = () => {
     fetchHistory()
   }
 
-  const toggleSession = (sessionId) => {
+  // Khi expand session, fetch tên bài tập cho từng activity nếu chưa có
+  const toggleSession = async (sessionId) => {
     setExpandedSessions((prev) => ({
       ...prev,
       [sessionId]: !prev[sessionId],
-    }))
+    }));
+
+    // Nếu vừa expand (mở rộng)
+    if (!expandedSessions[sessionId]) {
+      // Tìm session
+      const sessionIdx = historySessions.findIndex(s => s.sessionId === sessionId);
+      if (sessionIdx === -1) return;
+      const session = historySessions[sessionIdx];
+      if (!session || !Array.isArray(session.userActivities)) return;
+
+      // Copy sessions để cập nhật state
+      const sessionsCopy = [...historySessions];
+      let updated = false;
+      // Duyệt từng activity, nếu chưa có exerciseName hoặc exerciseImage thì fetch
+      for (let i = 0; i < session.userActivities.length; i++) {
+        const act = session.userActivities[i];
+        if (act && act.exerciseId && (!act.exerciseName || !act.exerciseImage)) {
+          try {
+            const exercise = await workoutService.getExerciseById(act.exerciseId);
+            if (exercise) {
+              session.userActivities[i] = {
+                ...act,
+                exerciseName: exercise.exerciseName || act.exerciseName,
+                exerciseImage: exercise.imageUrl || exercise.image || null,
+              };
+              updated = true;
+            }
+          } catch (e) {
+            // Bỏ qua nếu lỗi
+          }
+        }
+      }
+      if (updated) {
+        sessionsCopy[sessionIdx] = { ...session };
+        setHistorySessions(sessionsCopy);
+      }
+    }
   }
 
   const openEditModal = (activity) => {
@@ -183,31 +221,22 @@ const WorkoutHistoryScreen = () => {
       }
 
       await workoutService.updateActivity(currentActivity.activityId, updatedActivity)
-      Alert.alert("Success", "Activity updated successfully")
+      showSuccessMessage("Activity updated successfully!")
       setEditModalVisible(false)
       fetchHistory() 
     } catch (err) {
-      Alert.alert("Error", err.message || "Failed to update activity")
+      showErrorFetchAPI(err.message || "Failed to update activity")
     }
   }
 
   const handleDeleteActivity = async (activityId) => {
-    Alert.alert("Delete Activity", "Are you sure you want to delete this activity?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await workoutService.deleteActivity(activityId)
-            Alert.alert("Success", "Activity deleted successfully")
-            fetchHistory() 
-          } catch (err) {
-            Alert.alert("Error", err.message || "Failed to delete activity")
-          }
-        },
-      },
-    ])
+    try {
+      await workoutService.deleteActivity(activityId)
+      showSuccessMessage("Activity deleted successfully!")
+      fetchHistory()
+    } catch (err) {
+      showErrorFetchAPI(err.message || "Failed to delete activity")
+    }
   }
 
   const resetFilters = () => {
@@ -245,64 +274,54 @@ const WorkoutHistoryScreen = () => {
       style={[styles.tabButton, activeTab === tabName && styles.activeTab]}
       onPress={() => setActiveTab(tabName)}
     >
-      <Ionicons name={icon} size={16} color={activeTab === tabName ? "#4F46E5" : "#64748B"} />
       <Text style={[styles.tabText, activeTab === tabName && styles.activeTabText]}>{title}</Text>
     </TouchableOpacity>
   )
 
   const renderStatsCards = () => {
-    const stats = getWorkoutStats()
-
+    const stats = getWorkoutStats();
     return (
       <View style={styles.statsContainer}>
-        <View style={[styles.statCard, styles.sessionsCard]}>
-          <Ionicons name="fitness" size={24} color="#4F46E5" />
-          <Text style={[styles.statValue, { color: "#4F46E5" }]}>{stats.totalSessions}</Text>
+        <View style={[styles.statCard, styles.primaryCard]}>
+          <Text style={[styles.statValue, styles.primaryText]}>{stats.totalSessions}</Text>
           <Text style={styles.statLabel}>Total Sessions</Text>
         </View>
-
-        <View style={[styles.statCard, styles.caloriesCard]}>
-          <Ionicons name="flame" size={24} color="#FF6B35" />
-          <Text style={[styles.statValue, { color: "#FF6B35" }]}>{Math.round(stats.totalCalories)}</Text>
+        <View style={[styles.statCard, styles.primaryCard]}>
+          <Text style={[styles.statValue, styles.primaryText]}>{Math.round(stats.totalCalories)}</Text>
           <Text style={styles.statLabel}>Total Calories</Text>
         </View>
-
-        <View style={[styles.statCard, styles.durationCard]}>
-          <Ionicons name="time" size={24} color="#10B981" />
-          <Text style={[styles.statValue, { color: "#10B981" }]}>{Math.round(stats.totalDuration)}</Text>
+        <View style={[styles.statCard, styles.primaryCard]}>
+          <Text style={[styles.statValue, styles.primaryText]}>{Math.round(stats.totalDuration)}</Text>
           <Text style={styles.statLabel}>Total Minutes</Text>
         </View>
-
-        <View style={[styles.statCard, styles.avgCard]}>
-          <Ionicons name="trending-up" size={24} color="#8B5CF6" />
-          <Text style={[styles.statValue, { color: "#8B5CF6" }]}>{Math.round(stats.avgCaloriesPerSession)}</Text>
+        <View style={[styles.statCard, styles.primaryCard]}>
+          <Text style={[styles.statValue, styles.primaryText]}>{Math.round(stats.avgCaloriesPerSession)}</Text>
           <Text style={styles.statLabel}>Avg Calories</Text>
         </View>
       </View>
-    )
-  }
+    );
+  };
 
   const renderChart = () => {
-    if (historySessions.length === 0) return null
-
-    const last7Sessions = historySessions.slice(-7).reverse()
+    if (historySessions.length === 0) return null;
+    // Lấy 7 session cuối cùng, giữ nguyên thứ tự từ cũ đến mới
+    const last7Sessions = historySessions.slice(-7);
     const data = {
       labels: last7Sessions.map((session) => {
-        const date = new Date(session.startTime)
-        return `${date.getMonth() + 1}/${date.getDate()}`
+        const date = new Date(session.startTime);
+        return `${date.getMonth() + 1}/${date.getDate()}`;
       }),
       datasets: [
         {
           data: last7Sessions.map((session) => session.totalCaloriesBurned),
-          color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
+          color: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
           strokeWidth: 3,
         },
       ],
-    }
-
+    };
     return (
       <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>📈 Recent Workout Performance</Text>
+        <Text style={styles.chartTitle}>Recent Workout Performance</Text>
         <LineChart
           data={data}
           width={width - 40}
@@ -312,13 +331,13 @@ const WorkoutHistoryScreen = () => {
             backgroundGradientFrom: "#ffffff",
             backgroundGradientTo: "#ffffff",
             decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(31, 41, 55, ${opacity})`,
+            color: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
+            labelColor: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
             style: { borderRadius: 16 },
             propsForDots: {
               r: "8",
               strokeWidth: "3",
-              stroke: "#4F46E5",
+              stroke: "#0056d2",
               fill: "#ffffff",
             },
             propsForBackgroundLines: {
@@ -334,133 +353,101 @@ const WorkoutHistoryScreen = () => {
           withOuterLines={true}
         />
       </View>
-    )
-  }
+    );
+  };
 
   const renderHistorySessionItem = ({ item, index }) => {
-    const isExpanded = expandedSessions[item.sessionId]
-    const sessionActivities = historyActivities.filter((activity) => activity.sessionId === item.sessionId)
-    const sessionDate = new Date(item.startTime)
-
+    const isExpanded = expandedSessions[item.sessionId];
+    const sessionDate = new Date(item.startTime);
+    const activities = Array.isArray(item.userActivities) ? item.userActivities : [];
     return (
-      <View style={styles.sessionCard}>
-        <TouchableOpacity onPress={() => toggleSession(item.sessionId)} style={styles.sessionHeader}>
-          <View style={styles.sessionDateContainer}>
-            <Text style={styles.sessionDay}>{sessionDate.getDate()}</Text>
-            <Text style={styles.sessionMonth}>{sessionDate.toLocaleDateString("en", { month: "short" })}</Text>
+      <View style={styles.sessionCardPrimary}>
+        <TouchableOpacity onPress={() => toggleSession(item.sessionId)} style={styles.sessionHeaderPrimary}>
+          <View style={styles.sessionDateContainerPrimary}>
+            <Text style={styles.sessionDayPrimary}>{sessionDate.getDate()}</Text>
+            <Text style={styles.sessionMonthPrimary}>{sessionDate.toLocaleDateString("en", { month: "short" })}</Text>
           </View>
-
-          <View style={styles.sessionInfo}>
-            <Text style={styles.sessionTitle}>Workout Session #{index + 1}</Text>
-            <Text style={styles.sessionDate}>{sessionDate.toLocaleDateString("en", { weekday: "long" })}</Text>
-            <View style={styles.sessionStats}>
-              <View style={styles.sessionStat}>
-                <Ionicons name="flame" size={14} color="#FF6B35" />
-                <Text style={styles.sessionStatText}>{item.totalCaloriesBurned} kcal</Text>
+          <View style={styles.sessionInfoPrimary}>
+            <Text style={styles.sessionTitlePrimary}>Workout Session #{index + 1}</Text>
+            <Text style={styles.sessionDatePrimary}>{sessionDate.toLocaleDateString("en", { weekday: "long" })}</Text>
+            <View style={styles.sessionStatsPrimary}>
+              <View style={styles.sessionStatPrimary}>
+                <Text style={styles.sessionStatTextPrimary}>{item.totalCaloriesBurned} kcal</Text>
               </View>
-              <View style={styles.sessionStat}>
-                <Ionicons name="time" size={14} color="#10B981" />
-                <Text style={styles.sessionStatText}>{item.totalDurationMinutes} min</Text>
-              </View>
-              <View style={styles.sessionStat}>
-                <Ionicons name="fitness" size={14} color="#8B5CF6" />
-                <Text style={styles.sessionStatText}>{sessionActivities.length} exercises</Text>
+              <View style={styles.sessionStatPrimary}>
+                <Text style={styles.sessionStatTextPrimary}>{item.totalDurationMinutes} sec</Text>
               </View>
             </View>
           </View>
-
-          <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color="#4F46E5" />
         </TouchableOpacity>
-
         {item.notes && (
-          <View style={styles.sessionNotes}>
-            <Ionicons name="document-text" size={14} color="#64748B" />
-            <Text style={styles.sessionNotesText}>{item.notes}</Text>
+          <View style={styles.sessionNotesPrimary}>
+            <Text style={styles.sessionNotesTextPrimary}>{item.notes}</Text>
           </View>
         )}
-
-        {isExpanded && sessionActivities.length > 0 && (
+        {isExpanded && (
           <View style={styles.activitiesContainer}>
-            <Text style={styles.activitiesTitle}> Exercise Activities</Text>
-            {sessionActivities.map((activity, activityIndex) => (
-              <View key={activity.activityId} style={styles.activityCard}>
-                <View style={styles.activityHeader}>
-                  <View style={styles.activityNumber}>
-                    <Text style={styles.activityNumberText}>{activityIndex + 1}</Text>
-                  </View>
-                  <View style={styles.activityInfo}>
-                    <Text style={styles.activityName}>Exercise #{activity.exerciseId}</Text>
-                    <Text style={styles.activityType}>
-                      {ACTIVITY_TYPE_MAP[activity.activityType] || `Type ${activity.activityType}`}
-                    </Text>
-                    <View style={styles.activityStats}>
-                      <View style={styles.activityStat}>
-                        <Ionicons name="flame" size={12} color="#FF6B35" />
-                        <Text style={styles.activityStatText}>{activity.caloriesBurned} kcal</Text>
-                      </View>
-                      <View style={styles.activityStat}>
-                        <Ionicons name="time" size={12} color="#10B981" />
-                        <Text style={styles.activityStatText}>{activity.durationMinutes} min</Text>
-                      </View>
-                      {activity.steps > 0 && (
-                        <View style={styles.activityStat}>
-                          <Ionicons name="footsteps" size={12} color="#3B82F6" />
-                          <Text style={styles.activityStatText}>{activity.steps} steps</Text>
+            <Text style={styles.activitiesTitle}>Activities</Text>
+            {activities.length === 0 ? (
+              <Text style={{ color: '#64748B', fontSize: 13 }}>No activities found for this session.</Text>
+            ) : (
+              activities.map((act, idx) => {
+                console.log('Activity data:', act);
+                if (!act || !act.exerciseId) return null;
+                return (
+                  <TouchableOpacity
+                    key={act.activityId || idx}
+                    style={styles.activityCard}
+                    onPress={() => {
+                      if (act && act.exerciseId) {
+                        navigation.navigate('ExerciseDetailsScreen', { exerciseId: act.exerciseId, activity: act });
+                      }
+                    }}
+                  >
+                    <View style={styles.activityHeader}>
+                      <View style={styles.activityNumber}><Text style={styles.activityNumberText}>{idx + 1}</Text></View>
+                      <View style={styles.activityInfo}>
+                        {/* Hiển thị hình ảnh bài tập nếu có */}
+                        {act.exerciseImage ? (
+                          <View style={{ marginBottom: 6 }}>
+                            <Image source={{ uri: act.exerciseImage }} style={{ width: 60, height: 60, borderRadius: 8, marginBottom: 4 }} resizeMode="cover" />
+                          </View>
+                        ) : null}
+                        <Text style={styles.activityName}>{act.exerciseName || 'Exercise'}</Text>
+                        <Text style={styles.activityType}>{ACTIVITY_TYPE_MAP[act.activityType] || 'Activity'}</Text>
+                        <View style={styles.activityStats}>
+                          <View style={styles.activityStat}><Text style={styles.activityStatText}>{act.caloriesBurned} kcal</Text></View>
+                          <View style={styles.activityStat}><Text style={styles.activityStatText}>{act.durationMinutes} sec</Text></View>
+                          {act.steps ? <View style={styles.activityStat}><Text style={styles.activityStatText}>{act.steps} steps</Text></View> : null}
+                          {act.distanceKm ? <View style={styles.activityStat}><Text style={styles.activityStatText}>{act.distanceKm} km</Text></View> : null}
                         </View>
-                      )}
-                      {activity.distanceKm > 0 && (
-                        <View style={styles.activityStat}>
-                          <Ionicons name="location" size={12} color="#F59E0B" />
-                          <Text style={styles.activityStatText}>{activity.distanceKm} km</Text>
-                        </View>
-                      )}
-                    </View>
-                    {activity.heartRate > 0 && (
-                      <View style={styles.activityExtra}>
-                        <Ionicons name="heart" size={12} color="#EF4444" />
-                        <Text style={styles.activityExtraText}>Heart Rate: {activity.heartRate} bpm</Text>
+                        <Text style={styles.activityTime}>{act.recordedAt ? new Date(act.recordedAt).toLocaleString() : ''}</Text>
                       </View>
-                    )}
-                    <View style={styles.activityExtra}>
-                      <Ionicons name="checkmark-circle" size={12} color="#10B981" />
-                      <Text style={styles.activityExtraText}>Status: {activity.goalStatus}</Text>
                     </View>
-                    <Text style={styles.activityTime}>{new Date(activity.recordedAt).toLocaleTimeString()}</Text>
-                  </View>
-                  <View style={styles.activityActions}>
-                    <TouchableOpacity style={styles.editActionButton} onPress={() => openEditModal(activity)}>
-                      <Ionicons name="create-outline" size={16} color="#10B981" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.deleteActionButton}
-                      onPress={() => handleDeleteActivity(activity.activityId)}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            ))}
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
         )}
       </View>
-    )
-  }
+    );
+  };
 
   const renderFilterModal = () => (
     <Modal visible={filterModalVisible} animationType="slide" transparent={true}>
       <View style={styles.modalOverlay}>
         <View style={styles.filterModalContent}>
           <View style={styles.filterModalHeader}>
-            <Text style={styles.filterModalTitle}>🔍 Filter Workout History</Text>
+            <Text style={styles.filterModalTitle}> Filter Workout History</Text>
             <TouchableOpacity style={styles.filterCloseButton} onPress={() => setFilterModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Text style={{ fontSize: 18, color: "#64748B" }}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.filterModalBody} showsVerticalScrollIndicator={false}>
             <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>🔍 Search Notes</Text>
+              <Text style={styles.filterLabel}> Search Notes</Text>
               <TextInput
                 style={styles.filterInput}
                 placeholder="Search in workout notes..."
@@ -471,7 +458,7 @@ const WorkoutHistoryScreen = () => {
             </View>
 
             <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>📅 Date Range</Text>
+              <Text style={styles.filterLabel}> Date Range</Text>
               <View style={styles.filterRow}>
                 <View style={styles.filterHalf}>
                   <Text style={styles.filterSubLabel}>Start Date</Text>
@@ -497,7 +484,7 @@ const WorkoutHistoryScreen = () => {
             </View>
 
             <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>🔥 Calorie Range</Text>
+              <Text style={styles.filterLabel}> Calorie Range</Text>
               <View style={styles.filterRow}>
                 <View style={styles.filterHalf}>
                   <Text style={styles.filterSubLabel}>Min Calories</Text>
@@ -525,7 +512,7 @@ const WorkoutHistoryScreen = () => {
             </View>
 
             <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>⏱️ Duration Range (minutes)</Text>
+              <Text style={styles.filterLabel}> Duration Range (minutes)</Text>
               <View style={styles.filterRow}>
                 <View style={styles.filterHalf}>
                   <Text style={styles.filterSubLabel}>Min Duration</Text>
@@ -553,7 +540,7 @@ const WorkoutHistoryScreen = () => {
             </View>
 
             <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>📊 Sort Options</Text>
+              <Text style={styles.filterLabel}> Sort Options</Text>
               <View style={styles.filterRow}>
                 <View style={styles.filterHalf}>
                   <Text style={styles.filterSubLabel}>Sort By</Text>
@@ -629,15 +616,15 @@ const WorkoutHistoryScreen = () => {
       <View style={styles.modalOverlay}>
         <View style={styles.editModalContent}>
           <View style={styles.editModalHeader}>
-            <Text style={styles.editModalTitle}>✏️ Edit Activity</Text>
+            <Text style={styles.editModalTitle}> Edit Activity</Text>
             <TouchableOpacity style={styles.editCloseButton} onPress={() => setEditModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Text style={{ fontSize: 18, color: "#64748B" }}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.editModalBody}>
             <View style={styles.editGroup}>
-              <Text style={styles.editLabel}>🔥 Calories Burned</Text>
+              <Text style={styles.editLabel}> Calories Burned</Text>
               <TextInput
                 style={styles.editInput}
                 value={editCalories}
@@ -649,7 +636,7 @@ const WorkoutHistoryScreen = () => {
             </View>
 
             <View style={styles.editGroup}>
-              <Text style={styles.editLabel}>⏱️ Duration (minutes)</Text>
+              <Text style={styles.editLabel}> Duration (minutes)</Text>
               <TextInput
                 style={styles.editInput}
                 value={editDuration}
@@ -666,7 +653,7 @@ const WorkoutHistoryScreen = () => {
               <Text style={styles.editCancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.editSaveButton} onPress={handleEditActivity}>
-              <Text style={styles.editSaveText}>💾 Save Changes</Text>
+              <Text style={styles.editSaveText}> Save Changes</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -678,10 +665,8 @@ const WorkoutHistoryScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingTitle}>Loading Workout History</Text>
-          <Text style={styles.loadingText}>Please wait a moment...</Text>
+        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
+          <Loading />
         </View>
       </SafeAreaView>
     )
@@ -693,34 +678,31 @@ const WorkoutHistoryScreen = () => {
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
 
       {/* Header */}
-      <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Workout History</Text>
-            <Text style={styles.headerSubtitle}>Track your fitness journey</Text>
-          </View>
-          <TouchableOpacity style={styles.filterButton} onPress={() => setFilterModalVisible(true)}>
-            <Ionicons name="options" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+      <Header
+        title="Workout History"
+        onBack={() => navigation.goBack()}
+        rightActions={[
+          {
+            icon: "options",
+            onPress: () => setFilterModalVisible(true),
+            color: "#0056d2",
+          },
+        ]}
+    
+      />
 
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { marginTop: 55 }]}> 
         {renderTabButton("overview", "Overview", "analytics")}
         {renderTabButton("sessions", "Sessions", "list")}
       </View>
 
-      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.container, { opacity: fadeAnim, marginTop: 30 }]}> 
         {error && (
           <View style={styles.errorContainer}>
-            <Ionicons name="warning" size={24} color="#EF4444" />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>⚠️ {error}</Text>
             <TouchableOpacity style={styles.retryButton} onPress={fetchHistory}>
-              <Text style={styles.retryButtonText}>🔄 Retry</Text>
+              <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -731,26 +713,16 @@ const WorkoutHistoryScreen = () => {
             {renderChart()}
 
             <View style={styles.overviewSection}>
-              <Text style={styles.sectionTitle}>📊 Quick Stats</Text>
+              <Text style={styles.sectionTitle}> Quick Stats</Text>
               <View style={styles.quickStatsCard}>
                 <Text style={styles.quickStatsText}>
                   You've completed{" "}
-                  <Text style={styles.quickStatsHighlight}>{historySessions.length} workout sessions</Text> and burned a
-                  total of{" "}
-                  <Text style={styles.quickStatsHighlight}>{Math.round(getWorkoutStats().totalCalories)} calories</Text>
-                  .
-                </Text>
-                <Text style={styles.quickStatsText}>
-                  Your average session burns{" "}
-                  <Text style={styles.quickStatsHighlight}>
-                    {Math.round(getWorkoutStats().avgCaloriesPerSession)} calories
-                  </Text>{" "}
-                  and lasts{" "}
-                  <Text style={styles.quickStatsHighlight}>
-                    {Math.round(getWorkoutStats().avgDurationPerSession)} minutes
-                  </Text>
-                  .
-                </Text>
+                <Text style={styles.primaryText}>{historySessions.length} workout sessions</Text> and burned a
+                total of <Text style={styles.primaryText}>{Math.round(getWorkoutStats().totalCalories)} calories</Text>.
+              </Text>
+              <Text style={styles.quickStatsText}>
+                Your average session burns <Text style={styles.primaryText}>{Math.round(getWorkoutStats().avgCaloriesPerSession)} calories</Text> and lasts <Text style={styles.primaryText}>{Math.round(getWorkoutStats().avgDurationPerSession)} minutes</Text>.
+              </Text>
               </View>
             </View>
           </ScrollView>
@@ -760,10 +732,9 @@ const WorkoutHistoryScreen = () => {
           <View style={styles.sessionsTab}>
             <View style={styles.sessionsHeader}>
               <Text style={styles.sectionTitle}>
-                🏋️ Workout Sessions ({filteredSessions.length}/{historySessions.length})
+                Workout Sessions ({filteredSessions.length}/{historySessions.length})
               </Text>
             </View>
-
             <FlatList
               data={filteredSessions}
               renderItem={renderHistorySessionItem}
@@ -772,7 +743,6 @@ const WorkoutHistoryScreen = () => {
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#4F46E5"]} />}
               ListEmptyComponent={
                 <View style={styles.emptyState}>
-                  <Ionicons name="fitness" size={64} color="#D1D5DB" />
                   <Text style={styles.emptyTitle}>No Workout Sessions Found</Text>
                   <Text style={styles.emptyText}>
                     {historySessions.length === 0
@@ -801,7 +771,7 @@ const WorkoutHistoryScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#FFFFFF",
   },
   header: {
     paddingVertical: 20,
@@ -863,7 +833,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   activeTab: {
-    borderBottomColor: "#4F46E5",
+    borderBottomColor: "#0056d2",
   },
   tabText: {
     fontSize: 12,
@@ -871,7 +841,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   activeTabText: {
-    color: "#4F46E5",
+    color: "#0056d2",
     fontWeight: "600",
   },
   container: {
@@ -917,17 +887,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  sessionsCard: {
-    backgroundColor: "#EEF2FF",
+  primaryCard: {
+    backgroundColor: "#e6f0fa",
   },
-  caloriesCard: {
-    backgroundColor: "#FFF7ED",
-  },
-  durationCard: {
-    backgroundColor: "#F0FDF4",
-  },
-  avgCard: {
-    backgroundColor: "#F5F3FF",
+  primaryText: {
+    color: "#0056d2",
+    fontWeight: "700",
   },
   statValue: {
     fontSize: 20,
@@ -996,82 +961,103 @@ const styles = StyleSheet.create({
   sessionsHeader: {
     marginBottom: 16,
   },
-  sessionCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
+  sessionCardPrimary: {
+    backgroundColor: "#e6f0fa",
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: "#0056d2",
+    shadowColor: "#0056d2",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  sessionHeader: {
+  sessionHeaderPrimary: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
   },
-  sessionDateContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#4F46E5",
+  sessionDateContainerPrimary: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: "#0056d2",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 18,
+    borderWidth: 2,
+    borderColor: "#fff",
   },
-  sessionDay: {
-    fontSize: 16,
+  sessionDayPrimary: {
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#FFFFFF",
+    color: "#fff",
+    textAlign: "center",
   },
-  sessionMonth: {
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.8)",
+  sessionMonthPrimary: {
+    fontSize: 11,
+    color: "#e6f0fa",
     textTransform: "uppercase",
-    fontWeight: "600",
+    fontWeight: "700",
+    textAlign: "center",
   },
-  sessionInfo: {
+  sessionInfoPrimary: {
     flex: 1,
   },
-  sessionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1F2937",
+  sessionTitlePrimary: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#0056d2",
     marginBottom: 2,
   },
-  sessionDate: {
-    fontSize: 12,
-    color: "#64748B",
+  sessionDatePrimary: {
+    fontSize: 13,
+    color: "#0056d2",
     marginBottom: 8,
+    fontWeight: "500",
   },
-  sessionStats: {
+  sessionStatsPrimary: {
     flexDirection: "row",
-    gap: 12,
+    gap: 16,
+    marginTop: 2,
   },
-  sessionStat: {
+  sessionStatPrimary: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: "#e6f0fa",
   },
-  sessionStatText: {
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: "500",
+  sessionStatTextPrimary: {
+    fontSize: 13,
+    color: "#0056d2",
+    fontWeight: "700",
   },
-  sessionNotes: {
+  sessionNotesPrimary: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#fff",
     padding: 12,
     borderRadius: 8,
-    marginBottom: 8,
-    gap: 8,
+    marginTop: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: "#0056d2",
+    shadowColor: "#0056d2",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  sessionNotesText: {
-    fontSize: 12,
-    color: "#64748B",
+  sessionNotesTextPrimary: {
+    fontSize: 13,
+    color: "#0056d2",
+    fontWeight: "600",
     flex: 1,
   },
   activitiesContainer: {
@@ -1313,8 +1299,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   activeSortButton: {
-    backgroundColor: "#4F46E5",
-    borderColor: "#4F46E5",
+    backgroundColor: "#0056d2",
+    borderColor: "#0056d2",
   },
   sortButtonText: {
     fontSize: 12,
@@ -1323,6 +1309,7 @@ const styles = StyleSheet.create({
   },
   activeSortButtonText: {
     color: "#FFFFFF",
+    fontWeight: "700",
   },
   filterModalButtons: {
     flexDirection: "row",
@@ -1349,7 +1336,7 @@ const styles = StyleSheet.create({
     flex: 2,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     alignItems: "center",
   },
   filterApplyText: {

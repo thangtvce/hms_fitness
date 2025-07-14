@@ -3,7 +3,6 @@ import {
   View,
   Text,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
   StyleSheet,
   TextInput,
@@ -14,8 +13,9 @@ import {
   Modal,
   ScrollView,
   RefreshControl,
-  Alert,
 } from "react-native";
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -100,7 +100,6 @@ export default function WorkoutListScreen() {
         const favoriteList = storedFavorites ? JSON.parse(storedFavorites) : [];
         setFavorites(favoriteList.map(item => item.exerciseId));
       } catch (error) {
-        console.error("Failed to load favorites:", error)
       }
       fetchCategories();
       fetchExercises();
@@ -127,7 +126,6 @@ export default function WorkoutListScreen() {
         setCategories({});
       }
     } catch (error) {
-      console.error("Failed to fetch categories:", error)
       setCategoryList([]);
       setCategories({});
     }
@@ -162,19 +160,16 @@ export default function WorkoutListScreen() {
     try {
       const storedExercises = await AsyncStorage.getItem('scheduledExercises');
       let scheduledExercises = storedExercises ? JSON.parse(storedExercises) : [];
-      
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
-        Alert.alert('Already Added', `${exercise.exerciseName} is already in your schedule`);
+        showErrorFetchAPI(`${exercise.exerciseName} is already in your schedule`);
         return;
       }
-      
       const exerciseToSave = { ...exercise, mediaUrl: exercise.mediaUrl || '' };
       scheduledExercises.push(exerciseToSave);
       await AsyncStorage.setItem('scheduledExercises', JSON.stringify(scheduledExercises));
-      
-      Alert.alert('Added to Schedule', `${exercise.exerciseName} added to your workout schedule`);
+      showSuccessMessage(`${exercise.exerciseName} added to your workout schedule`);
     } catch (error) {
-      Alert.alert("Error", "Failed to add exercise to schedule. Please try again.")
+      showErrorFetchAPI("Failed to add exercise to schedule. Please try again.");
     }
   }
 
@@ -269,15 +264,8 @@ export default function WorkoutListScreen() {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header 
-          title="Workout Library" 
-          onBack={() => navigation.goBack()} 
-          backgroundColor="#fff"
-          titleStyle={{ color: "#0056d2", fontWeight: "bold" }}
-        />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0056d2" />
-          <Text style={styles.loadingText}>Loading exercises...</Text>
+        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
+          <Loading />
         </View>
       </SafeAreaView>
     );

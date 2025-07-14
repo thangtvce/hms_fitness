@@ -8,18 +8,19 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Modal,
   FlatList,
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import Loading from "components/Loading"
 import { Ionicons } from "@expo/vector-icons"
 import { healthyLogService } from "services/apiHealthyLogService"
 import { useNavigation } from "@react-navigation/native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import Header from "../../components/Header"
+import Header from "components/Header"
 
 const MOOD_OPTIONS = [
   { label: "Select your mood", value: "" },
@@ -186,20 +187,16 @@ export default function HealthLogCreateScreen() {
         // Silent fail for check-in, do not block log
       }
 
-      Alert.alert("Success", "Health log created successfully!", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ])
+      showSuccessMessage("Health log created successfully!")
+      navigation.goBack()
     } catch (e) {
       if (e.errors) {
         const messages = Object.entries(e.errors)
           .map(([k, v]) => `• ${v.join(", ")}`)
           .join("\n")
-        Alert.alert("Validation Error", messages)
+        showErrorFetchAPI(messages)
       } else {
-        Alert.alert("Error", e.message || "Unable to create health log.")
+        showErrorFetchAPI(e.message || "Unable to create health log.")
       }
     } finally {
       setLoading(false)
@@ -354,6 +351,11 @@ export default function HealthLogCreateScreen() {
     </Modal>
   )
 
+  // Nếu loading true, chỉ render Loading overlay toàn màn hình
+  if (loading) {
+    return <Loading backgroundColor="rgba(255,255,255,0.8)" text="Saving..." />
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Absolute header, push content down */}
@@ -411,17 +413,10 @@ export default function HealthLogCreateScreen() {
             onPress={handleSubmit}
             disabled={loading}
           >
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <Ionicons name="sync" size={20} color="#fff" />
-                <Text style={styles.submitText}>Saving...</Text>
-              </View>
-            ) : (
-              <View style={styles.submitContent}>
-                <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                <Text style={styles.submitText}>Save Health Log</Text>
-              </View>
-            )}
+            <View style={styles.submitContent}>
+              <Ionicons name="checkmark-circle" size={20} color="#fff" />
+              <Text style={styles.submitText}>Save Health Log</Text>
+            </View>
           </TouchableOpacity>
         </View>
 

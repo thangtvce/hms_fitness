@@ -4,7 +4,6 @@ import {
   View,
   Text,
   FlatList,
-  ActivityIndicator,
   StyleSheet,
   TouchableOpacity,
   TextInput,
@@ -14,6 +13,8 @@ import {
   Dimensions,
   StatusBar,
 } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
 import { getExercisesByPlanId } from "services/apiWorkoutPlanService"
@@ -292,15 +293,15 @@ export default function WorkoutPlanExercisesScreen({ route }) {
       const stored = await AsyncStorage.getItem("scheduledExercises")
       const arr = stored ? JSON.parse(stored) : []
       if (arr.some((ex) => ex.exerciseId === exercise.exerciseId)) {
-        alert("Exercise already added to workout!")
+        showErrorFetchAPI("Exercise already added to workout!")
         return
       }
       arr.push(exercise)
       await AsyncStorage.setItem("scheduledExercises", JSON.stringify(arr))
       setSessionCount(arr.length)
-      alert("Added to workout!")
+      showSuccessMessage("Added to workout!")
     } catch {
-      alert("Error adding to workout!")
+      showErrorFetchAPI("Error adding to workout!")
     }
   }
 
@@ -661,10 +662,7 @@ export default function WorkoutPlanExercisesScreen({ route }) {
       {/* Content */}
       <View style={styles.content}>
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4F46E5" />
-            <Text style={styles.loadingText}>Loading exercises...</Text>
-          </View>
+          <Loading />
         ) : error ? (
           renderErrorState()
         ) : exercises.length === 0 ? (

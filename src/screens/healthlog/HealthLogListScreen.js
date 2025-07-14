@@ -6,10 +6,11 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Modal,
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import Loading from "components/Loading"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { healthyLogService } from "services/apiHealthyLogService"
@@ -71,9 +72,9 @@ export default function HealthLogListScreen() {
       setShowDeleteModal(false)
       setSelectedLog(null)
       fetchLogs(page)
-      Alert.alert("Success", "Health log deleted successfully.")
+      showSuccessMessage("Health log deleted successfully.")
     } catch (e) {
-      Alert.alert("Error", e.message || "Unable to delete health log.")
+      showErrorFetchAPI(e.message || "Unable to delete health log.")
     }
   }
 
@@ -351,6 +352,11 @@ export default function HealthLogListScreen() {
     </View>
   )
 
+  // Nếu loading true, chỉ render Loading overlay toàn màn hình
+  if (loading) {
+    return <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading health logs..." />
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Unified Header with rightActions for + button */}
@@ -375,12 +381,7 @@ export default function HealthLogListScreen() {
 
       {/* Content */}
       <View style={styles.content}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4F46E5" />
-            <Text style={styles.loadingText}>Loading health logs...</Text>
-          </View>
-        ) : error ? (
+        {error ? (
           renderErrorState()
         ) : logs.length === 0 ? (
           renderEmptyState()

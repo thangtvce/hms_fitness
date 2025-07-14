@@ -1,784 +1,1252 @@
-"use client"
-
-import { useState, useEffect, useRef } from "react"
+import React,{ useState,useEffect,useRef,useContext } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Alert,
+  TouchableOpacity,
   ActivityIndicator,
   Animated,
   Platform,
   Image,
   Dimensions,
-} from "react-native"
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { BlurView } from "expo-blur"
-import { useAuth } from "context/AuthContext"
-import { theme } from "theme/color"
-import { useNavigation, useRoute } from "@react-navigation/native"
-import { trainerService } from "services/apiTrainerService"
-import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
+  ScrollView,
+  Modal,
+} from 'react-native';
+import { Ionicons,MaterialCommunityIcons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AuthContext } from 'context/AuthContext';
+import { useNavigation,useRoute } from '@react-navigation/native';
+import { trainerService } from 'services/apiTrainerService';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
+import { RichEditor } from 'react-native-pell-rich-editor';
+import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 
-const { width, height } = Dimensions.get("window")
-const isIOS = Platform.OS === "ios"
+const { width } = Dimensions.get('window');
 
-const ServicePackageDetail = () => {
-  const { user, loading: authLoading } = useAuth()
-  const navigation = useNavigation()
-  const route = useRoute()
-  const { packageId } = route.params
-  const [packageData, setPackageData] = useState(null)
-  const [loading, setLoading] = useState(true)
+const TrainerPackageDetailScreen = () => {
+  const { user,loading: authLoading } = useContext(AuthContext);
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { packageId } = route.params || {};
+  const [packageData,setPackageData] = useState(null);
+  const [subscriptions,setSubscriptions] = useState([]);
+  const [ratings,setRatings] = useState([]);
+  const [averageRating,setAverageRating] = useState(0);
+  const [totalRatings,setTotalRatings] = useState(0);
+  const [loading,setLoading] = useState(true);
+  const [loadingSubscriptions,setLoadingSubscriptions] = useState(false);
+  const [loadingRatings,setLoadingRatings] = useState(false);
+  const [pageNumber,setPageNumber] = useState(1);
+  const [totalPages,setTotalPages] = useState(1);
+  const [ratingsPageNumber,setRatingsPageNumber] = useState(1);
+  const [ratingsTotalPages,setRatingsTotalPages] = useState(1);
+  const [showConfirmModal,setShowConfirmModal] = useState(false);
+  const [showRatingFilterModal,setShowRatingFilterModal] = useState(false);
+  const [confirmMessage,setConfirmMessage] = useState('');
+  const [confirmAction,setConfirmAction] = useState(null);
+  const [selectedStars,setSelectedStars] = useState(null); // null for all
 
-  // Enhanced animations
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(50)).current
-  const scaleAnim = useRef(new Animated.Value(0.9)).current
-  const headerOpacity = useRef(new Animated.Value(0)).current
-  const scrollY = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    // Staggered entrance animations
-    Animated.sequence([
-      Animated.timing(headerOpacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 100,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start()
-
-    return () => {
-      fadeAnim.setValue(0)
-      slideAnim.setValue(50)
-      scaleAnim.setValue(0.9)
-      headerOpacity.setValue(0)
-    }
-  }, [])
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    if (authLoading) return
-
-     if (!user?.roles?.includes('Trainer') && user?.roles?.includes('User')) {
-      Alert.alert("Access Denied", "This page is only accessible to trainers.")
-      navigation.goBack()
-      return
-    }
+    if (authLoading) return;
 
     if (!packageId) {
-      Alert.alert("Error", "Invalid package ID")
-      navigation.goBack()
-      return
+      showErrorFetchAPI(new Error('Invalid package ID'));
+      navigation.goBack();
+      return;
     }
 
     const fetchPackageDetails = async () => {
       try {
-        setLoading(true)
-        const response = await trainerService.getServicePackage({ PackageId: packageId, TrainerId: user.userId })
-        if (response.statusCode === 200 && response.data?.packages?.length > 0) {
-          const pkg = response.data.packages.find((p) => p.packageId === packageId)
-          if (pkg && pkg.trainerId === user.userId) {
-            setPackageData(pkg)
+        setLoading(true);
+        const response = await trainerService.getServicePackageById(packageId);
+        if (response.statusCode === 200 && response.data) {
+          if (response.data.trainerId === user.userId || response.data.trainerId === 0) {
+            setPackageData(response.data);
+            await fetchSubscriptions(1);
+            await fetchRatings(1);
+            startAnimations();
           } else {
-            Alert.alert("Error", "Package not found or you do not have permission to view it.")
-            navigation.goBack()
+            showErrorFetchAPI(new Error('You do not have permission to view this package.'));
+            navigation.goBack();
           }
         } else {
-          Alert.alert("Error", "Package not found.")
-          navigation.goBack()
+          showErrorFetchAPI(new Error('Package not found.'));
+          navigation.goBack();
         }
       } catch (error) {
-        console.error("Fetch Error:", error)
-        Alert.alert("Error", error.message || "Failed to load package details.")
-        navigation.goBack()
+        showErrorFetchAPI(error);
+        navigation.goBack();
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchPackageDetails()
-  }, [authLoading, user, packageId, navigation])
+    fetchPackageDetails();
+  },[authLoading,user,packageId,navigation]);
 
-  const getPackageIcon = (packageName) => {
-    if (!packageName) return "fitness"
-    const name = packageName.toLowerCase()
-    if (name.includes("yoga") || name.includes("meditation")) return "yoga"
-    if (name.includes("diet") || name.includes("nutrition")) return "nutrition"
-    if (name.includes("cardio") || name.includes("running")) return "cardio"
-    return "fitness"
-  }
-
-  const renderPackageIcon = (type) => {
-    const iconProps = { size: 28, style: styles.headerIcon }
-    switch (type) {
-      case "yoga":
-        return <MaterialCommunityIcons name="yoga" color="#10B981" {...iconProps} />
-      case "nutrition":
-        return <Ionicons name="nutrition" color="#F59E0B" {...iconProps} />
-      case "cardio":
-        return <Ionicons name="heart" color="#EF4444" {...iconProps} />
-      default:
-        return <MaterialCommunityIcons name="weight-lifter" color="#4F46E5" {...iconProps} />
-    }
-  }
-
-  const handleRestore = async () => {
+  const fetchSubscriptions = async (page) => {
     try {
-      const response = await trainerService.restoreServicePackage(packageId)
-      if (response.statusCode === 200) {
-        Alert.alert("Success", "Package restored successfully.", [{ text: "OK", onPress: () => navigation.goBack() }])
+      setLoadingSubscriptions(true);
+      const queryParams = { pageNumber: page,pageSize: 10 };
+      const response = await trainerService.getSubscriptionByPackageId(packageId,queryParams);
+      if (response.statusCode === 200 && response.data) {
+        setSubscriptions((prev) => (page === 1 ? response.data.subscriptions : [...prev,...response.data.subscriptions]));
+        setTotalPages(response.data.totalPages || 1);
+        setPageNumber(page);
       } else {
-        Alert.alert("Error", response.message || "Failed to restore package.")
+        showErrorFetchAPI(new Error('No subscriptions found.'));
       }
     } catch (error) {
-      Alert.alert("Error", error.message || "An error occurred while restoring the package.")
+      showErrorFetchAPI(error);
+    } finally {
+      setLoadingSubscriptions(false);
     }
-  }
+  };
 
-  if (loading || !packageData) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <DynamicStatusBar backgroundColor={theme.primaryColor} />
-        <LinearGradient colors={["#667eea", "#764ba2", "#f093fb"]} style={styles.loadingContainer}>
-          <View style={styles.loadingContent}>
-            <ActivityIndicator size="large" color="#FFFFFF" />
-            <Text style={styles.loadingText}>Loading package details...</Text>
+  const fetchRatings = async (page,stars = null) => {
+    try {
+      setLoadingRatings(true);
+      const queryParams = { pageNumber: page,pageSize: 10 };
+      if (stars !== null) {
+        queryParams.rating = stars;
+      }
+      const response = await trainerService.getTrainerRatingsByPackageId(packageId,queryParams);
+      if (response.statusCode === 200 && response.data) {
+        const newRatings = response.data.ratings;
+        setRatings((prev) => (page === 1 ? newRatings : [...prev,...newRatings]));
+        setRatingsTotalPages(response.data.totalPages || 1);
+        setRatingsPageNumber(page);
+        setAverageRating(response.data.averageRating || 0);
+        setTotalRatings(response.data.totalRatings || 0);
+      } else {
+        showErrorFetchAPI(new Error('No ratings found.'));
+      }
+    } catch (error) {
+      showErrorFetchAPI(error);
+    } finally {
+      setLoadingRatings(false);
+    }
+  };
+
+  const handleLoadMoreSubscriptions = () => {
+    if (pageNumber < totalPages && !loadingSubscriptions) {
+      fetchSubscriptions(pageNumber + 1);
+    }
+  };
+
+  const handleLoadMoreRatings = () => {
+    if (ratingsPageNumber < ratingsTotalPages && !loadingRatings) {
+      fetchRatings(ratingsPageNumber + 1,selectedStars);
+    }
+  };
+
+  const applyRatingFilter = (stars) => {
+    setSelectedStars(stars);
+    setRatings([]);
+    setRatingsPageNumber(1);
+    fetchRatings(1,stars);
+    setShowRatingFilterModal(false);
+  };
+
+  const startAnimations = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim,{
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim,{
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handleEdit = () => {
+    navigation.navigate('EditServicePackage',{ packageId });
+  };
+
+  const handleDelete = () => {
+    setConfirmMessage('Are you sure you want to delete this package? This action cannot be undone.');
+    setConfirmAction(() => async () => {
+      try {
+        const response = await trainerService.deleteServicePackage(packageId);
+        if (response.statusCode === 200) {
+          showSuccessMessage('Service package deleted successfully.');
+          navigation.navigate('TrainerServiceManagement');
+        } else {
+          showErrorFetchAPI(new Error(response.message || 'Failed to delete package.'));
+        }
+      } catch (error) {
+        showErrorFetchAPI(error);
+      }
+    });
+    setShowConfirmModal(true);
+  };
+
+  const formatMemberCount = (count) => {
+    if (!count) return '0';
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return count.toString();
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString || dateString === '0001-01-01T00:00:00') return 'Unknown';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US',{
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return 'Unknown';
+    }
+  };
+
+  const getPackageIcon = (packageName) => {
+    if (!packageName) return 'fitness';
+    const name = packageName.toLowerCase();
+    if (name.includes('yoga') || name.includes('meditation')) return 'yoga';
+    if (name.includes('diet') || name.includes('nutrition')) return 'nutrition';
+    if (name.includes('cardio') || name.includes('running')) return 'cardio';
+    return 'fitness';
+  };
+
+  const renderPackageIcon = (type) => {
+    const iconProps = { size: 32,style: styles.icon };
+    switch (type) {
+      case 'yoga':
+        return <MaterialCommunityIcons name="yoga" color="#22C55E" {...iconProps} />;
+      case 'nutrition':
+        return <Ionicons name="nutrition" color="#F59E0B" {...iconProps} />;
+      case 'cardio':
+        return <Ionicons name="heart" color="#EF4444" {...iconProps} />;
+      default:
+        return <MaterialCommunityIcons name="weight-lifter" color="#0056D2" {...iconProps} />;
+    }
+  };
+
+  const renderRatingStars = (rating) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <Ionicons
+          key={i}
+          name={i <= rating ? 'star' : 'star-outline'}
+          size={16}
+          color={i <= rating ? '#F59E0B' : '#CBD5E1'}
+        />
+      );
+    }
+    return <View style={styles.starContainer}>{stars}</View>;
+  };
+
+  const renderLoadingScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <DynamicStatusBar backgroundColor="#F8FAFC" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0056D2" />
+        <Text style={styles.loadingText}>Loading package details...</Text>
+      </View>
+    </SafeAreaView>
+  );
+
+  const renderImageSection = () => (
+    <Animated.View
+      style={[
+        styles.imageSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.imageContainer}>
+        <Image
+          source={{ uri: packageData.trainerAvatar || 'https://static.ladipage.net/5cf71dc895e50d03de993a28/untitled-1-01-20240406073058-6op7o.png' }}
+          style={styles.imagePreview}
+        />
+        <View style={styles.imageLabel}>
+          <Ionicons name="image" size={14} color="#FFFFFF" />
+          <Text style={styles.imageLabelText}>Package Avatar</Text>
+        </View>
+      </View>
+    </Animated.View>
+  );
+
+  const renderPackageInfo = () => (
+    <Animated.View
+      style={[
+        styles.infoSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.infoContainer}>
+        <Text style={styles.packageName}>{packageData?.packageName || 'Unknown Package'}</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Ionicons name="cash-outline" size={16} color="#0056D2" />
+            <Text style={styles.statText}>
+              {packageData?.price ? `$${packageData.price.toLocaleString()}` : 'Contact'}
+            </Text>
           </View>
-        </LinearGradient>
-      </SafeAreaView>
-    )
-  }
+          <View style={styles.statItem}>
+            <Ionicons name="calendar-outline" size={16} color="#0056D2" />
+            <Text style={styles.statText}>Created {formatDate(packageData?.createdAt)}</Text>
+          </View>
+        </View>
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Ionicons name="person-outline" size={16} color="#0056D2" />
+            <Text style={styles.statText}>By {packageData?.trainerFullName || 'Unknown'}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Ionicons name="mail-outline" size={16} color="#0056D2" />
+            <Text style={styles.statText}>{packageData?.trainerEmail || 'N/A'}</Text>
+          </View>
+        </View>
+        <View style={styles.statusRow}>
+          <View style={[styles.statusBadge,{ backgroundColor: packageData?.status === 'active' ? '#DCFCE7' : '#FEE2E2' }]}>
+            <Ionicons name="pulse" size={14} color={packageData?.status === 'active' ? '#22C55E' : '#EF4444'} />
+            <Text style={[styles.statusText,{ color: packageData?.status === 'active' ? '#22C55E' : '#EF4444' }]}>
+              {packageData?.status ? packageData.status.charAt(0).toUpperCase() + packageData.status.slice(1) : 'Active'}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
 
-  const packageType = getPackageIcon(packageData.packageName)
-  const statusColor = packageData.status === "active" ? "#10B981" : "#EF4444"
+  const renderDescription = () => (
+    <Animated.View
+      style={[
+        styles.descriptionSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldContainer}>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelContainer}>
+            <Ionicons name="document-text-outline" size={20} color="#0056D2" />
+            <Text style={styles.fieldLabel}>Description</Text>
+          </View>
+        </View>
+        {packageData?.description ? (
+          <View style={styles.descriptionContainer}>
+            <RichEditor
+              ref={null}
+              initialContentHTML={typeof packageData.description === 'string' ? packageData.description : ''}
+              disabled={true}
+              style={styles.richEditor}
+              editorStyle={{
+                backgroundColor: '#FFFFFF',
+                color: '#000000',
+                fontSize: 16,
+                fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+                lineHeight: 24,
+                padding: 16,
+              }}
+            />
+          </View>
+        ) : (
+          <View style={styles.noDescriptionContainer}>
+            <Text style={styles.noDescriptionText}>No description available.</Text>
+          </View>
+        )}
+      </View>
+    </Animated.View>
+  );
 
-  // Animated header background based on scroll
-  const headerBackgroundOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  })
+  const renderStats = () => (
+    <Animated.View
+      style={[
+        styles.statsSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldContainer}>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelContainer}>
+            <Ionicons name="stats-chart-outline" size={20} color="#0056D2" />
+            <Text style={styles.fieldLabel}>Package Stats</Text>
+          </View>
+        </View>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Text style={styles.statCardLabel}>Duration</Text>
+            <Text style={styles.statCardValue}>{packageData?.durationDays || 'N/A'} Days</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statCardLabel}>Current Subscribers</Text>
+            <Text style={styles.statCardValue}>{formatMemberCount(packageData?.currentSubscribers)}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statCardLabel}>Max Subscribers</Text>
+            <Text style={styles.statCardValue}>{formatMemberCount(packageData?.maxSubscribers)}</Text>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+
+  const renderTimeline = () => (
+    <Animated.View
+      style={[
+        styles.timelineSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldContainer}>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelContainer}>
+            <Ionicons name="time-outline" size={20} color="#0056D2" />
+            <Text style={styles.fieldLabel}>Timeline</Text>
+          </View>
+        </View>
+        <View style={styles.timelineGrid}>
+          <View style={styles.timelineCard}>
+            <Text style={styles.timelineCardLabel}>Created</Text>
+            <Text style={styles.timelineCardValue}>{formatDate(packageData?.createdAt)}</Text>
+          </View>
+          <View style={styles.timelineCard}>
+            <Text style={styles.timelineCardLabel}>Last Updated</Text>
+            <Text style={styles.timelineCardValue}>{packageData?.updatedAt ? formatDate(packageData.updatedAt) : 'Never'}</Text>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+
+  const renderSubscriptions = () => (
+    <Animated.View
+      style={[
+        styles.subscriptionsSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldContainer}>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelContainer}>
+            <Ionicons name="people-outline" size={20} color="#0056D2" />
+            <Text style={styles.fieldLabel}>Subscriptions</Text>
+          </View>
+        </View>
+        {subscriptions.length > 0 ? (
+          <View style={styles.subscriptionsGrid}>
+            {subscriptions.map((sub) => (
+              <View key={sub.subscriptionId} style={styles.subscriptionCard}>
+                <View style={styles.subscriptionHeader}>
+                  <Text style={styles.subscriptionName}>{sub.userFullName || 'Unknown'}</Text>
+                  <View
+                    style={[
+                      styles.subscriptionStatusBadge,
+                      { backgroundColor: sub.status === 'paid' ? '#DCFCE7' : '#FEE2E2' },
+                    ]}
+                  >
+                    <Ionicons
+                      name="pulse"
+                      size={12}
+                      color={sub.status === 'paid' ? '#22C55E' : '#EF4444'}
+                    />
+                    <Text
+                      style={[
+                        styles.subscriptionStatusText,
+                        { color: sub.status === 'paid' ? '#22C55E' : '#EF4444' },
+                      ]}
+                    >
+                      {sub.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : 'Unknown'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.subscriptionDetails}>
+                  <View style={styles.subscriptionDetailItem}>
+                    <Ionicons name="mail-outline" size={14} color="#0056D2" />
+                    <Text style={styles.subscriptionDetailText}>{sub.userEmail || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.subscriptionDetailItem}>
+                    <Ionicons name="calendar-outline" size={14} color="#0056D2" />
+                    <Text style={styles.subscriptionDetailText}>
+                      Start: {formatDate(sub.startDate)}
+                    </Text>
+                  </View>
+                  <View style={styles.subscriptionDetailItem}>
+                    <Ionicons name="calendar-outline" size={14} color="#0056D2" />
+                    <Text style={styles.subscriptionDetailText}>End: {formatDate(sub.endDate)}</Text>
+                  </View>
+                  <View style={styles.subscriptionDetailItem}>
+                    <Ionicons name="time-outline" size={14} color="#0056D2" />
+                    <Text style={styles.subscriptionDetailText}>
+                      Created: {formatDate(sub.createdAt)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.noSubscriptionsContainer}>
+            <Text style={styles.noSubscriptionsText}>No subscriptions found.</Text>
+          </View>
+        )}
+        {pageNumber < totalPages && (
+          <TouchableOpacity
+            style={[styles.loadMoreButton,loadingSubscriptions && styles.loadMoreButtonDisabled]}
+            onPress={handleLoadMoreSubscriptions}
+            disabled={loadingSubscriptions}
+          >
+            {loadingSubscriptions ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="reload" size={16} color="#FFFFFF" />
+                <Text style={styles.loadMoreButtonText}>Load More</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+    </Animated.View>
+  );
+
+  const renderRatings = () => (
+    <Animated.View
+      style={[
+        styles.ratingsSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldContainer}>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelContainer}>
+            <Ionicons name="star-outline" size={20} color="#0056D2" />
+            <Text style={styles.fieldLabel}>Ratings</Text>
+          </View>
+          <TouchableOpacity style={styles.filterButton} onPress={() => setShowRatingFilterModal(true)}>
+            <Ionicons name="options-outline" size={20} color="#0056D2" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.averageRatingContainer}>
+          {renderRatingStars(averageRating)}
+          <Text style={styles.averageRatingText}>
+            {averageRating.toFixed(1)} ({totalRatings} {totalRatings === 1 ? 'review' : 'reviews'})
+          </Text>
+        </View>
+        {ratings.length > 0 ? (
+          <View style={styles.ratingsGrid}>
+            {ratings.map((rating) => (
+              <View key={rating.ratingId} style={styles.ratingCard}>
+                <View style={styles.ratingHeader}>
+                  <Text style={styles.ratingUserName}>{rating.userFullName || 'Unknown'}</Text>
+                  {renderRatingStars(rating.rating)}
+                </View>
+                <Text style={styles.ratingFeedback}>{rating.feedbackText || 'No feedback'}</Text>
+                <Text style={styles.ratingDate}>{formatDate(rating.createdAt)}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.noRatingsContainer}>
+            <Text style={styles.noRatingsText}>No ratings found.</Text>
+          </View>
+        )}
+        {ratingsPageNumber < ratingsTotalPages && (
+          <TouchableOpacity
+            style={[styles.loadMoreButton,loadingRatings && styles.loadMoreButtonDisabled]}
+            onPress={handleLoadMoreRatings}
+            disabled={loadingRatings}
+          >
+            {loadingRatings ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="reload" size={16} color="#FFFFFF" />
+                <Text style={styles.loadMoreButtonText}>Load More</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+    </Animated.View>
+  );
+
+  const renderRatingFilterModal = () => (
+    <Modal
+      visible={showRatingFilterModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowRatingFilterModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.ratingFilterModalContent}>
+          <Text style={styles.modalTitle}>Filter by Stars</Text>
+          <TouchableOpacity style={styles.filterOption} onPress={() => applyRatingFilter(null)}>
+            <Text style={styles.filterOptionText}>All Stars</Text>
+          </TouchableOpacity>
+          {[5,4,3,2,1].map((stars) => (
+            <TouchableOpacity key={stars} style={styles.filterOption} onPress={() => applyRatingFilter(stars)}>
+              <Text style={styles.filterOptionText}>{stars} Stars</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity style={styles.closeModalButton} onPress={() => setShowRatingFilterModal(false)}>
+            <Text style={styles.closeModalText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderActionButtons = () => (
+    <Animated.View
+      style={[
+        styles.actionSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+        <Ionicons name="pencil" size={20} color="#FFFFFF" />
+        <Text style={styles.editButtonText}>Edit Package</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+        <Ionicons name="trash" size={20} color="#FFFFFF" />
+        <Text style={styles.deleteButtonText}>Delete Package</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  const renderConfirmModal = () => (
+    <Modal
+      visible={showConfirmModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowConfirmModal(false)}
+    >
+      <View style={styles.confirmModalOverlay}>
+        <View style={styles.confirmModalContent}>
+          <Text style={styles.confirmModalTitle}>Confirm Action</Text>
+          <Text style={styles.confirmModalText}>{confirmMessage}</Text>
+          <View style={styles.confirmModalActions}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowConfirmModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.confirmButton}
+              onPress={async () => {
+                await confirmAction();
+                setShowConfirmModal(false);
+              }}
+            >
+              <Text style={styles.confirmButtonText}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  if (loading || !packageData) return renderLoadingScreen();
 
   return (
-    <View style={styles.container}>
-      <DynamicStatusBar backgroundColor="transparent" />
-
-      {/* Enhanced Animated Header */}
-      <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
-        <LinearGradient
-          colors={["#667eea", "#764ba2", "#f093fb"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        >
-          <SafeAreaView style={styles.safeArea}>
-            <Animated.View style={[styles.headerBackground, { opacity: headerBackgroundOpacity }]}>
-              <BlurView intensity={80} style={StyleSheet.absoluteFill} />
-            </Animated.View>
-
-            <View style={styles.headerContent}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-                activeOpacity={0.8}
-                accessibilityLabel="Go back"
-              >
-                <View style={styles.buttonContainer}>
-                  <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-
-              <View style={styles.headerTitleContainer}>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                  {packageData.packageName || "Service Package"}
-                </Text>
-                <Text style={styles.headerSubtitle}>Package Details</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => navigation.navigate("EditServicePackage", { packageId })}
-                activeOpacity={0.8}
-                accessibilityLabel="Edit package"
-              >
-                <View style={styles.buttonContainer}>
-                  <Ionicons name="pencil" size={20} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        </LinearGradient>
-      </Animated.View>
-
-      {/* Enhanced Content */}
-      <Animated.ScrollView
-        style={styles.scrollView}
+    <SafeAreaView style={styles.container}>
+      <DynamicStatusBar backgroundColor="#F8FAFC" />
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#0056D2" />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>#PACKAGE{packageData?.packageId || 'Package'}</Text>
+          </View>
+          <TouchableOpacity style={styles.filterButton} onPress={handleEdit}>
+            <Ionicons name="pencil-outline" size={24} color="#0056D2" />
+          </TouchableOpacity>
+        </View>
+      </View>
+      <ScrollView
+        style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
-        scrollEventThrottle={16}
       >
-        {/* Enhanced Hero Card */}
-        <Animated.View
-          style={[
-            styles.heroCard,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
-            },
-          ]}
-        >
-          <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.heroCardGradient}>
-            {/* Enhanced Status Badge */}
-            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>
-                {packageData.status.charAt(0).toUpperCase() + packageData.status.slice(1)}
-              </Text>
-            </View>
-
-            {/* Enhanced Main Content */}
-            <View style={styles.heroContent}>
-              <View style={styles.avatarContainer}>
-                {packageData.trainerAvatar ? (
-                  <Image
-                    source={{ uri: packageData.trainerAvatar }}
-                    style={styles.trainerAvatar}
-                    accessibilityLabel="Trainer avatar"
-                  />
-                ) : (
-                  <View style={styles.iconContainer}>{renderPackageIcon(packageType)}</View>
-                )}
-                <View style={styles.avatarBorder} />
-              </View>
-
-              <View style={styles.titleSection}>
-                <Text style={styles.packageTitle}>{packageData.packageName || "Service Package"}</Text>
-                <Text style={styles.trainerInfo}>by You</Text>
-                <Text style={styles.trainerEmail}>{packageData.trainerEmail || "N/A"}</Text>
-              </View>
-            </View>
-
-            {/* Enhanced Price Section */}
-            <View style={styles.priceSection}>
-              <Text style={styles.priceLabel}>Package Price</Text>
-              <Text style={styles.priceValue}>
-                {packageData.price ? `$${packageData.price.toLocaleString()}` : "Contact"}
-              </Text>
-            </View>
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Enhanced Description Card */}
-        <Animated.View
-          style={[
-            styles.card,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <Ionicons name="document-text-outline" size={24} color="#4F46E5" />
-            <Text style={styles.cardTitle}>Description</Text>
-          </View>
-          <Text style={styles.description}>
-            {packageData.description ? packageData.description.replace(/<[^>]+>/g, "") : "No description available"}
-          </Text>
-        </Animated.View>
-
-        {/* Enhanced Stats Grid */}
-        <Animated.View
-          style={[
-            styles.statsGrid,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={[styles.statCard, styles.statCard1]}>
-            <LinearGradient colors={["#667eea", "#764ba2"]} style={styles.statGradient}>
-              <Ionicons name="calendar-outline" size={24} color="#FFFFFF" />
-              <Text style={styles.statValue}>{packageData.durationDays || "N/A"}</Text>
-              <Text style={styles.statLabel}>Days</Text>
-            </LinearGradient>
-          </View>
-
-          <View style={[styles.statCard, styles.statCard2]}>
-            <LinearGradient colors={["#f093fb", "#f5576c"]} style={styles.statGradient}>
-              <Ionicons name="people-outline" size={24} color="#FFFFFF" />
-              <Text style={styles.statValue}>{packageData.SubscriptionCount || 0}</Text>
-              <Text style={styles.statLabel}>Subscribers</Text>
-            </LinearGradient>
-          </View>
-        </Animated.View>
-
-        {/* Enhanced Timeline Card */}
-        <Animated.View
-          style={[
-            styles.card,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <Ionicons name="time-outline" size={24} color="#4F46E5" />
-            <Text style={styles.cardTitle}>Timeline</Text>
-          </View>
-
-          <View style={styles.timeline}>
-            <View style={styles.timelineItem}>
-              <View style={styles.timelineDot} />
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineLabel}>Created</Text>
-                <Text style={styles.timelineDate}>
-                  {new Date(packageData.createdAt).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.timelineLine} />
-
-            <View style={styles.timelineItem}>
-              <View style={[styles.timelineDot, styles.timelineDotActive]} />
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineLabel}>Last Updated</Text>
-                <Text style={styles.timelineDate}>
-                  {packageData.updatedAt
-                    ? new Date(packageData.updatedAt).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
-                    : "Never"}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Enhanced Action Button */}
-        {packageData.status !== "active" && (
-          <Animated.View
-            style={[
-              styles.actionContainer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.restoreButton}
-              onPress={handleRestore}
-              disabled={loading}
-              activeOpacity={0.8}
-              accessibilityLabel="Restore package"
-            >
-              <LinearGradient colors={["#10B981", "#059669"]} style={styles.restoreButtonGradient}>
-                <Ionicons name="refresh-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.restoreButtonText}>Restore Package</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {/* Bottom Spacing */}
-        <View style={styles.bottomSpacing} />
-      </Animated.ScrollView>
-    </View>
-  )
-}
+        {renderImageSection()}
+        {renderPackageInfo()}
+        {renderDescription()}
+        {renderStats()}
+        {renderTimeline()}
+        {renderSubscriptions()}
+        {renderRatings()}
+        {renderActionButtons()}
+      </ScrollView>
+      {renderConfirmModal()}
+      {renderRatingFilterModal()}
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
-  safeArea: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingContent: {
-    alignItems: "center",
-    padding: 32,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: "#FFFFFF",
-    marginTop: 16,
-    fontWeight: "600",
+    backgroundColor: '#F8FAFC',
   },
   header: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-  },
-  headerGradient: {
-    paddingTop: isIOS ? 0 : Platform.OS === "android" ? 25 : 0,
-  },
-  headerBackground: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 10,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
   },
   headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backButton: {
-    zIndex: 10,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
   },
-  editButton: {
-    zIndex: 10,
+  filterButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
   },
-  buttonContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  headerTitleContainer: {
+  headerCenter: {
     flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginHorizontal: 20,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    textAlign: "center",
+    fontWeight: '700',
+    color: '#1E293B',
+    textAlign: 'center',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
-    textAlign: "center",
-    marginTop: 2,
-  },
-  headerIcon: {
-    marginBottom: 4,
-  },
-  scrollView: {
+  scrollContainer: {
     flex: 1,
+    backgroundColor: '#F8FAFC',
   },
   scrollContent: {
-    paddingTop: isIOS ? 120 : 140,
-    paddingHorizontal: 20,
+    padding: 20,
   },
-  heroCard: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 16,
+    fontWeight: '500',
+  },
+  imageSection: {
     marginBottom: 24,
-    borderRadius: 24,
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.1,
-        shadowRadius: 24,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
   },
-  heroCardGradient: {
-    padding: 24,
-    position: "relative",
+  imageContainer: {
+    position: 'relative',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  imageLabel: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  imageLabelText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  infoSection: {
+    marginBottom: 24,
+  },
+  infoContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  packageName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 16,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 16,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   statusBadge: {
-    position: "absolute",
-    top: 20,
-    right: 20,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    zIndex: 10,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#FFFFFF",
-    marginRight: 6,
+    borderRadius: 8,
   },
   statusText: {
     fontSize: 12,
-    color: "#FFFFFF",
-    fontWeight: "600",
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
-  heroContent: {
-    alignItems: "center",
-    marginTop: 20,
-  },
-  avatarContainer: {
-    position: "relative",
-    marginBottom: 16,
-  },
-  trainerAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarBorder: {
-    position: "absolute",
-    top: -4,
-    left: -4,
-    right: -4,
-    bottom: -4,
-    borderRadius: 44,
-    borderWidth: 3,
-    borderColor: "#4F46E5",
-    opacity: 0.3,
-  },
-  titleSection: {
-    alignItems: "center",
-  },
-  packageTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1E293B",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  trainerInfo: {
-    fontSize: 16,
-    color: "#64748B",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  trainerEmail: {
-    fontSize: 14,
-    color: "#94A3B8",
-    fontWeight: "500",
-  },
-  priceSection: {
-    alignItems: "center",
-    marginTop: 24,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-  },
-  priceLabel: {
-    fontSize: 14,
-    color: "#64748B",
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  priceValue: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: "#4F46E5",
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginLeft: 12,
-  },
-  description: {
-    fontSize: 16,
-    color: "#64748B",
-    lineHeight: 24,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    gap: 16,
+  descriptionSection: {
     marginBottom: 24,
   },
-  statCard: {
-    flex: 1,
-    borderRadius: 20,
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
+  fieldContainer: {
+    marginBottom: 0,
   },
-  statGradient: {
-    padding: 20,
-    alignItems: "center",
+  fieldHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  fieldLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fieldLabel: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginLeft: 5,
+  },
+  descriptionContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  richEditor: {
     minHeight: 120,
-    justifyContent: "center",
+    backgroundColor: '#FFFFFF',
   },
-  statValue: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginTop: 8,
+  noDescriptionContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  noDescriptionText: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+  },
+  statsSection: {
+    marginBottom: 24,
+  },
+  statsGrid: {
+    gap: 12,
+  },
+  statCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  statCardLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
     marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.9)",
-    fontWeight: "600",
-  },
-  timeline: {
-    position: "relative",
-  },
-  timelineItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#CBD5E1",
-    marginRight: 16,
-  },
-  timelineDotActive: {
-    backgroundColor: "#4F46E5",
-  },
-  timelineLine: {
-    position: "absolute",
-    left: 5.5,
-    top: 24,
-    bottom: 24,
-    width: 1,
-    backgroundColor: "#E2E8F0",
-  },
-  timelineContent: {
-    flex: 1,
-  },
-  timelineLabel: {
-    fontSize: 14,
-    color: "#64748B",
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  timelineDate: {
+  statCardValue: {
     fontSize: 16,
-    color: "#1E293B",
-    fontWeight: "500",
+    fontWeight: '500',
+    color: '#1E293B',
   },
-  actionContainer: {
-    marginTop: 8,
+  subscriptionsSection: {
+    marginBottom: 24,
+  },
+  subscriptionsGrid: {
+    gap: 12,
+  },
+  subscriptionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  subscriptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  subscriptionStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  subscriptionStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  subscriptionDetails: {
+    gap: 8,
+  },
+  subscriptionDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  subscriptionDetailText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  noSubscriptionsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  noSubscriptionsText: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+  },
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0056D2',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  loadMoreButtonDisabled: {
+    opacity: 0.7,
+  },
+  loadMoreButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  timelineSection: {
+    marginBottom: 24,
+  },
+  timelineGrid: {
+    gap: 12,
+  },
+  timelineCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  timelineCardLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  timelineCardValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1E293B',
+  },
+  ratingsSection: {
+    marginBottom: 24,
+  },
+  averageRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 16,
   },
-  restoreButton: {
-    borderRadius: 16,
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#10B981",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
+  starContainer: {
+    flexDirection: 'row',
+    gap: 2,
   },
-  restoreButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-  },
-  restoreButtonText: {
+  averageRatingText: {
     fontSize: 16,
-    color: "#FFFFFF",
-    fontWeight: "700",
-    marginLeft: 8,
+    color: '#1E293B',
+    fontWeight: '500',
   },
-  bottomSpacing: {
-    height: 40,
+  ratingsGrid: {
+    gap: 12,
   },
-})
+  ratingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  ratingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  ratingUserName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  ratingFeedback: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  ratingDate: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'right',
+  },
+  noRatingsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  noRatingsText: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ratingFilterModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '80%',
+    alignItems: 'center',
+  },
+  filterOption: {
+    paddingVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterOptionText: {
+    fontSize: 16,
+    color: '#1E293B',
+  },
+  closeModalButton: {
+    marginTop: 20,
+  },
+  closeModalText: {
+    fontSize: 16,
+    color: '#0056D2',
+    fontWeight: '600',
+  },
+  actionSection: {
+    gap: 12,
+    marginBottom: 40,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0056D2',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  editButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 350,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  confirmModalText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  confirmModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: '#0056D2',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  icon: {
+    marginBottom: 8,
+  },
+});
 
-export default ServicePackageDetail;
+export default TrainerPackageDetailScreen;

@@ -5,14 +5,14 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   Dimensions,
   RefreshControl,
-  ActivityIndicator,
   Platform,
   Modal,
   ScrollView,
 } from "react-native"
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import { weightHistoryService } from "services/apiWeightHistoryService"
 import { useAuth } from "context/AuthContext"
@@ -63,17 +63,17 @@ export default function WeightHistoryScreen({ navigation }) {
         try {
             if (showLoading) setLoading(true)
             if (user && authToken) {
-                const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1,pageSize: 100 })
+                const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1, pageSize: 100 })
                 if (response.statusCode === 200 && response.data) {
                     const sortedRecords = (response.data.records || []).sort(
-                        (a,b) => new Date(b.recordedAt) - new Date(a.recordedAt),
+                        (a, b) => new Date(b.recordedAt) - new Date(a.recordedAt),
                     )
                     setHistory(sortedRecords)
                     calculateStats(sortedRecords)
                 }
             }
         } catch (error) {
-            Alert.alert("Error","Failed to load weight history. Please try again later.")
+            showErrorFetchAPI("Failed to load weight history. Please try again later.");
         } finally {
             setLoading(false)
             setRefreshing(false)
@@ -124,33 +124,22 @@ export default function WeightHistoryScreen({ navigation }) {
     }
 
     const handleDelete = async (historyId) => {
-        Alert.alert("Delete Entry","Are you sure you want to delete this weight entry?",[
-            {
-                text: "Cancel",
-                style: "cancel",
-            },
-            {
-                text: "Delete",
-                style: "destructive",
-                onPress: async () => {
-                    try {
-                        const response = await weightHistoryService.deleteWeightHistory(historyId)
-                        if (response.statusCode === 200) {
-                            await fetchWeightHistory()
-                            Alert.alert("Success","Weight entry deleted successfully.")
-                        }
-                    } catch (error) {
-                        Alert.alert("Error","Failed to delete weight entry.")
-                    }
-                },
-            },
-        ])
+        // For now, delete directly without confirm dialog (custom modal can be added if needed)
+        try {
+            const response = await weightHistoryService.deleteWeightHistory(historyId)
+            if (response.statusCode === 200) {
+                await fetchWeightHistory()
+                showSuccessMessage("Weight entry deleted successfully.")
+            }
+        } catch (error) {
+            showErrorFetchAPI("Failed to delete weight entry.")
+        }
     }
 
     const handleEdit = (item) => {
         if (!user || !user.userId) {
-            Alert.alert("Error","User information not found.")
-            return
+            showErrorFetchAPI("User information not found.");
+            return;
         }
         navigation.navigate("EditWeightScreen",{
             historyId: item.historyId,
@@ -519,12 +508,7 @@ export default function WeightHistoryScreen({ navigation }) {
     }
 
     if (loading && !refreshing) {
-        return (
-            <SafeAreaView style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary || "#0056d2"} />
-                <Text style={[styles.loadingText, { color: colors.primary || "#0056d2" }]}>Loading weight history...</Text>
-            </SafeAreaView>
-        )
+        return <Loading />;
     }
 
     return (

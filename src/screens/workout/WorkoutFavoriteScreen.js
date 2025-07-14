@@ -1,12 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Header from 'components/Header';
-import { Platform, ToastAndroid, Alert as RNAlert } from 'react-native';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 
 export default function WorkoutFavoriteScreen({ navigation }) {
 
@@ -16,37 +17,24 @@ export default function WorkoutFavoriteScreen({ navigation }) {
 
   // Toggle favorite
   const toggleFavorite = async (exercise) => {
-    console.log('toggleFavorite called', exercise);
-    // Log trạng thái favorite hiện tại
     try {
       const storedFavorites = await AsyncStorage.getItem('favoriteExercises');
       let favoriteList = storedFavorites ? JSON.parse(storedFavorites) : [];
       const exists = favoriteList.some((ex) => ex.exerciseId === exercise.exerciseId);
-      console.log('isFavorite before:', exists);
       let updatedList;
       if (exists) {
         updatedList = favoriteList.filter((ex) => ex.exerciseId !== exercise.exerciseId);
         await AsyncStorage.setItem('favoriteExercises', JSON.stringify(updatedList));
         setFavorites((prev) => prev.filter((ex) => ex.exerciseId !== exercise.exerciseId));
-        console.log('Unfavorited:', exercise.exerciseId, updatedList);
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Removed from favorite workouts successfully.', ToastAndroid.SHORT);
-        } else {
-          RNAlert.alert('Success', 'Removed from favorite workouts successfully.');
-        }
+        showSuccessMessage('Removed from favorite workouts successfully.');
       } else {
         updatedList = [...favoriteList, exercise];
         await AsyncStorage.setItem('favoriteExercises', JSON.stringify(updatedList));
         setFavorites(updatedList);
-        console.log('Favorited:', exercise.exerciseId, updatedList);
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Added to favorite workouts successfully.', ToastAndroid.SHORT);
-        } else {
-          RNAlert.alert('Success', 'Added to favorite workouts successfully.');
-        }
+        showSuccessMessage('Added to favorite workouts successfully.');
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to update favorites.");
+      showErrorFetchAPI('Failed to update favorites.');
     }
   };
 
@@ -59,6 +47,7 @@ export default function WorkoutFavoriteScreen({ navigation }) {
         setFavorites(favoriteList);
       } catch (error) {
         setFavorites([]);
+        showErrorFetchAPI('Failed to load favorite workouts.');
       } finally {
         setLoading(false);
       }
@@ -75,7 +64,9 @@ export default function WorkoutFavoriteScreen({ navigation }) {
           });
           setCategories(categoriesObj);
         }
-      } catch {}
+      } catch {
+        showErrorFetchAPI('Failed to load categories.');
+      }
     };
     const unsubscribe = navigation?.addListener('focus', () => {
       loadFavorites();
@@ -170,30 +161,34 @@ export default function WorkoutFavoriteScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header
-        title="Favorite Workouts"
-        onBack={() => navigation.goBack()}
-        backgroundColor="#fff"
-        titleStyle={{ color: '#0056d2', fontWeight: 'bold' }}
-      />
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0056d2" />
-        </View>
-      ) : favorites.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="heart-outline" size={64} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>No favorite workouts</Text>
-          <Text style={styles.emptyText}>You haven't added any workouts to your favorites yet.</Text>
+        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
+          <Loading />
         </View>
       ) : (
-        <FlatList
-          data={favorites}
-          keyExtractor={(item, index) => item.exerciseId ? `exercise-${item.exerciseId}` : `item-${index}`}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-        />
+        <>
+          <Header
+            title="Favorite Workouts"
+            onBack={() => navigation.goBack()}
+            backgroundColor="#fff"
+            titleStyle={{ color: '#0056d2', fontWeight: 'bold' }}
+          />
+          {favorites.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="heart-outline" size={64} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>No favorite workouts</Text>
+              <Text style={styles.emptyText}>You haven't added any workouts to your favorites yet.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={favorites}
+              keyExtractor={(item, index) => item.exerciseId ? `exercise-${item.exerciseId}` : `item-${index}`}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+        </>
       )}
     </SafeAreaView>
   );

@@ -17,6 +17,8 @@ import {
     Animated,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import Loading from "components/Loading";
 import { LinearGradient } from "expo-linear-gradient";
 import Header from "components/Header";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -118,7 +120,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
                     setCurrentPage(page);
                 }
             } catch (error) {
-                Alert.alert("Error","Failed to load leaderboard. Please try again.");
+                showErrorFetchAPI(error.message || "Failed to load leaderboard.");
             } finally {
                 setLoading(false);
                 setRefreshing(false);
@@ -657,18 +659,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
                 <Text style={{ fontSize: 16, color: '#0056d2', fontWeight: '700' }}>{totalUsers} users • Page {currentPage} of {totalPages}</Text>
             </LinearGradient>
             {loading && currentPage === 1 ? (
-                <Animated.View style={[styles.loaderContainer, { opacity: loaderFadeAnim }]}>
-                    <LinearGradient
-                        colors={["#4F46E5", "#6366F1"]}
-                        style={styles.loaderGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    >
-                        <ActivityIndicator size="large" color="#FFFFFF" />
-                        <Text style={styles.loaderText}>Fetching leaderboard data...</Text>
-                        <MaterialCommunityIcons name="trophy-outline" size={48} color="rgba(255, 255, 255, 0.8)" style={styles.loaderIcon} />
-                    </LinearGradient>
-                </Animated.View>
+                <Loading backgroundColor="rgba(255,255,255,0.9)" text="" />
             ) : (
                 <FlatList
                     ref={flatListRef}

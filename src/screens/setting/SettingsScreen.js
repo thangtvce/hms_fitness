@@ -27,31 +27,52 @@ import { theme } from "theme/color"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil"
 
 const { width: screenWidth,height: screenHeight } = Dimensions.get("window")
 
 const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/bmp'];
-const menuItems = [
-  { id: "1", title: "Profile", icon: "person-outline", description: "View and edit your profile" },
-  { id: "2", title: "Weight History", icon: "trending-up-outline", description: "Track your weight progress" },
-  { id: "3", title: "Body Measurements", icon: "body-outline", description: "View your body measurements" },
-  { id: "4", title: "My Subscriptions", icon: "card-outline", description: "View your active and past subscriptions" },
-  { id: "5", title: "Workout", icon: "barbell-outline", description: "View workout plans" },
-  { id: "8", title: "Leaderboard", icon: "trophy-outline", description: "View user rankings and achievements" },
-  { id: "9", title: "Saved Packages", icon: "bookmark-outline", description: "View your saved fitness packages" },
-  { id: "10", title: "History Report", icon: "document-text-outline", description: "View your report history" },
-  { id: "11", title: "History Post", icon: "document-text-outline", description: "View your post history" },
-  { id: "12", title: "Health Log Overview", icon: "nutrition-outline", description: "View your health log overview" },
-  { id: "13", title: "Workout Plan List", icon: "nutrition-outline", description: "View your workout plan list" },
-  { id: "14", title: "Workout History", icon: "barbell-outline", description: "View your workout history" },
-  { id: "15", title: "User Activity", icon: "barbell-outline", description: "View your user activity" },
-  { id: "16", title: "Nutrition Target", icon: "nutrition-outline", description: "Set your daily nutrition targets" },
-  { id: "17", title: "Food Log History", icon: "analytics-outline", description: "View your food log history" },
-  { id: "18", title: "Ticket List", icon: "list-outline", description: "View your tickets" },
-  { id: "20", title: "Reminder Plan List", icon: "alarm-outline", description: "View your reminder plans" },
-  { id: "21", title: "My Trainer Applications", icon: "document-text-outline", description: "View your trainer applications" },
-  { id: "22", title: "Theme Settings", icon: "color-palette-outline", description: "Change app theme" },
-  { id: "19", title: "Logout", icon: "log-out-outline", description: "Sign out of your account" },
+const menuItemsCommon = [
+  { id: "1",title: "Profile",icon: "person-outline",description: "View and edit your profile" },
+  { id: "2",title: "Weight History",icon: "trending-up-outline",description: "Track your weight progress" },
+  { id: "3",title: "Body Measurements",icon: "body-outline",description: "View your body measurements" },
+  { id: "4",title: "My Subscriptions",icon: "card-outline",description: "View your active and past subscriptions" },
+  { id: "5",title: "Workout",icon: "barbell-outline",description: "View workout plans" },
+
+  // Progress Comparison menu
+  { id: "23",title: "Progress Comparison",icon: "stats-chart-outline",description: "Compare your before/after progress" },
+
+  { id: "8",title: "Leaderboard",icon: "trophy-outline",description: "View user rankings and achievements" },
+  { id: "9",title: "Saved Packages",icon: "bookmark-outline",description: "View your saved fitness packages" },
+  { id: "10",title: "History Report",icon: "document-text-outline",description: "View your report history" },
+  { id: "11",title: "History Post",icon: "document-text-outline",description: "View your post history" },
+  { id: "12",title: "Health Log Overview",icon: "nutrition-outline",description: "View your health log overview" },
+  { id: "13",title: "Workout Plan List",icon: "nutrition-outline",description: "View your workout plan list" },
+  { id: "14",title: "Workout History",icon: "barbell-outline",description: "View your workout history" },
+  { id: "15",title: "User Activity",icon: "barbell-outline",description: "View your user activity" },
+  { id: "16",title: "Nutrition Target",icon: "nutrition-outline",description: "Set your daily nutrition targets" },
+  { id: "17",title: "Food Log History",icon: "analytics-outline",description: "View your food log history" },
+  { id: "18",title: "Ticket List",icon: "list-outline",description: "View your tickets" },
+  { id: "20",title: "Reminder Plan List",icon: "alarm-outline",description: "View your reminder plans" },
+  { id: "21",title: "My Trainer Applications",icon: "document-text-outline",description: "View your trainer applications" },
+  { id: "22",title: "Theme Settings",icon: "color-palette-outline",description: "Change app theme" },
+
+  { id: "19",title: "Logout",icon: "log-out-outline",description: "Sign out of your account" },
+];
+
+const menuItemsTrainerOnly = [
+  { id: "34",title: "Trainer Dashboard",icon: "speedometer-outline",description: "Go to trainer dashboard" },
+  { id: "38",title: "Trainee",icon: "people-outline",description: "View and manage your active trainees and their progress" },
+  { id: "37",title: "Subscription",icon: "card-outline",description: "Manage user subscriptions and plans" },
+
+  { id: "30",title: "Service Packages",icon: "cube-outline",description: "Manage your service packages" },
+  { id: "31",title: "Exercise",icon: "barbell-outline",description: "Manage your exercises" },
+  { id: "32",title: "Workout Plan",icon: "clipboard-outline",description: "Manage your workout plans" },
+
+  { id: "33",title: "Payment History",icon: "cash-outline",description: "View your payment history" },
+  { id: "35",title: "Trainer Rating",icon: "star-outline",description: "View and manage trainer ratings" },
+
+  { id: "19",title: "Logout",icon: "log-out-outline",description: "Sign out of your account" },
 ];
 
 const ImageZoomViewer = ({ visible,imageUri,onClose,onDelete,showDeleteButton = false }) => {
@@ -69,6 +90,8 @@ const ImageZoomViewer = ({ visible,imageUri,onClose,onDelete,showDeleteButton = 
     ]).start()
     setIsZoomed(false)
   }
+
+
 
   const handleDoubleTap = () => {
     const now = Date.now()
@@ -228,6 +251,14 @@ export default function SettingsScreen({ navigation }) {
   const [errors,setErrors] = useState({
     imageUrl: "",
   })
+  const [menuItems,setMenuItems] = useState([]);
+  useEffect(() => {
+    if (user?.roles.includes("Trainer")) {
+      setMenuItems(menuItemsTrainerOnly);
+    } else {
+      setMenuItems(menuItemsCommon);
+    }
+  },[user]);
 
   const [showImageViewer,setShowImageViewer] = useState(false)
 
@@ -294,14 +325,14 @@ export default function SettingsScreen({ navigation }) {
             if (dataResponse.statusCode !== 200) {
               throw new Error(dataResponse.message || 'Failed to update profile picture.');
             }
-            Alert.alert('Success','Profile picture updated successfully');
+            showSuccessMessage('Profile picture updated successfully');
           }
         } else {
           throw new Error(uploadResult.message || 'Failed to upload image.');
         }
       }
     } catch (error) {
-      Alert.alert('Error',error.message || 'Failed to pick image.');
+      showErrorFetchAPI(error);
     } finally {
       setImageUploading(false);
       setShowImageOptions(false);
@@ -361,14 +392,14 @@ export default function SettingsScreen({ navigation }) {
             if (dataResponse.statusCode !== 200) {
               throw new Error(dataResponse.message || 'Failed to update profile picture.');
             }
-            Alert.alert('Success','Profile picture updated successfully');
+            showSuccessMessage('Profile picture updated successfully');
           }
         } else {
           throw new Error(uploadResult.message || 'Failed to upload image.');
         }
       }
     } catch (error) {
-      Alert.alert('Error',error.response.message || 'Failed to take photo.');
+      showErrorFetchAPI(error);
     } finally {
       setImageUploading(false);
       setShowImageOptions(false);
@@ -384,13 +415,13 @@ export default function SettingsScreen({ navigation }) {
 
   const confirmUrlImage = async () => {
     if (!imageUrl.trim()) {
-      setErrors((prev) => ({ ...prev,imageUrl: "Please enter an image URL" }))
+      showErrorMessage((prev) => ({ ...prev,imageUrl: "Please enter an image URL" }))
       return
     }
 
     const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/
     if (!urlPattern.test(imageUrl.trim())) {
-      setErrors((prev) => ({ ...prev,imageUrl: "Please enter a valid URL" }))
+      showErrorMessage((prev) => ({ ...prev,imageUrl: "Please enter a valid URL" }))
       return
     }
 
@@ -404,13 +435,13 @@ export default function SettingsScreen({ navigation }) {
           throw new Error(dataResponse.message || "Failed to update profile picture.")
         }
         await AsyncStorage.setItem("userAvatar",imageUrl.trim())
-        Alert.alert("Success","Profile picture updated successfully")
+        showSuccessMessage("Profile picture updated successfully")
       }
 
       setImageUrl("")
       setShowUrlInput(false)
     } catch (error) {
-      Alert.alert("Error","Failed to update profile picture.")
+      showErrorFetchAPI(error);
     } finally {
       setImageUploading(false)
     }
@@ -423,10 +454,10 @@ export default function SettingsScreen({ navigation }) {
 
       if (user && user.userId) {
         await updateAvatar(user.userId,"")
-        Alert.alert("Success","Profile picture removed successfully")
+        showSuccessMessage("Profile picture removed successfully")
       }
     } catch (error) {
-      Alert.alert("Error","Failed to remove profile picture.")
+      showErrorFetchAPI("Failed to remove profile picture.")
     }
   }
 
@@ -448,10 +479,10 @@ export default function SettingsScreen({ navigation }) {
         const storedAvatar = await AsyncStorage.getItem("userAvatar")
         if (storedAvatar) setAvatar(storedAvatar)
       } else {
-        setError(response.message || "Failed to load profile.")
+        showErrorMessage(response.message || "Failed to load profile.")
       }
     } catch (error) {
-      setError("Failed to load data.")
+      showErrorFetchAPI(error);
     } finally {
       if (!isRefresh) {
         setLoading(false)
@@ -482,9 +513,9 @@ export default function SettingsScreen({ navigation }) {
     setIsLoggingOut(true)
     try {
       await logout()
-      navigation.replace("Login")
+      navigation.replace("Login");
     } catch (error) {
-      Alert.alert("Error","Logout failed. Please try again.")
+      showErrorFetchAPI(error);
     } finally {
       setIsLoggingOut(false)
       setShowLogoutModal(false)
@@ -512,11 +543,8 @@ export default function SettingsScreen({ navigation }) {
       case "Workout":
         navigation.navigate("WorkoutListScreen")
         break
-      case "Nutrition":
-        Alert.alert("Coming Soon","Nutrition tracking will be available in the next update.")
-        break
-      case "Health Goals":
-        navigation.navigate("HealthGoals")
+      case "Progress Comparison":
+        navigation.navigate("ProgressComparisonScreen")
         break
       case "Leaderboard":
         navigation.navigate("LeaderboardScreen")
@@ -564,16 +592,22 @@ export default function SettingsScreen({ navigation }) {
         navigation.navigate("TrainerWorkoutPlanManagement");
         break;
       case "Payment History":
-        navigation.navigate("TrainerPaymentHistory");
+        navigation.navigate("TrainerPayoutManagement");
         break;
       case "Trainer Dashboard":
         navigation.navigate("TrainerDashboard");
         break;
-      case "Student Management":
-        navigation.navigate("UserList");
+      case "Trainer Rating":
+        navigation.navigate("TrainerRatingDetailScreen");
+        break;
+      case "Subscription":
+        navigation.navigate("TrainerSubscriptionManagement");
         break;
       case "Reminder Plan List":
         navigation.navigate("ReminderPlanListScreen");
+        break;
+      case "Trainee":
+        navigation.navigate("TrainerUserManagementScreen");
         break;
       case "My Trainer Applications":
         navigation.navigate("TrainerApplicationListScreen");
@@ -689,16 +723,16 @@ export default function SettingsScreen({ navigation }) {
                 <Ionicons name="camera" size={18} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
-            <View style={[styles.profileInfoBox, { flexDirection: 'row', alignItems: 'center' }]}> 
+            <View style={[styles.profileInfoBox,{ flexDirection: 'row',alignItems: 'center' }]}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.profileName} numberOfLines={1} ellipsizeMode="tail">{dataResponse?.fullName || "User"}</Text>
+                <Text style={styles.profileName}>{dataResponse?.fullName || "User"}</Text>
                 <Text style={styles.profileEmail}>{dataResponse?.email || "N/A"}</Text>
                 <View style={styles.profileBadge}>
                   <Ionicons name="fitness" size={12} color="#2563EB" />
                   <Text style={styles.profileBadgeText}>Health Enthusiast</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate("Profile")}> 
+              <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate("Profile")}>
                 <Ionicons name="create-outline" size={20} color="#2563EB" />
               </TouchableOpacity>
             </View>

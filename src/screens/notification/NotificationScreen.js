@@ -6,14 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  ActivityIndicator,
   RefreshControl,
-  Alert,
   TextInput,
   Modal,
   Switch,
   ScrollView,
 } from "react-native";
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons";
 import apiNotificationService from "services/apiNotificationService";
 import { LinearGradient } from "expo-linear-gradient";
@@ -97,9 +97,11 @@ export default function NotificationScreen({ navigation }) {
         setStats({ total, unread, expired });
       } else {
         setError("Failed to load notifications.");
+        showErrorFetchAPI("Failed to load notifications.");
       }
     } catch (err) {
       setError(err.message || "Failed to load notifications.");
+      showErrorFetchAPI(err.message || "Failed to load notifications.");
     } finally {
       setLoading(false);
       if (isRefresh) setRefreshing(false);
@@ -119,8 +121,9 @@ export default function NotificationScreen({ navigation }) {
         ...prev,
         unread: isRead ? prev.unread - 1 : prev.unread + 1,
       }));
+      showSuccessMessage(`Notification marked as ${isRead ? "read" : "unread"}.`);
     } catch (err) {
-      Alert.alert("Error", err.message || "Failed to update notification status.");
+      showErrorFetchAPI(err.message || "Failed to update notification status.");
     }
   };
 
@@ -132,33 +135,21 @@ export default function NotificationScreen({ navigation }) {
         ...prev,
         unread: isRead ? 0 : prev.total,
       }));
-      Alert.alert("Success", `All notifications marked as ${isRead ? "read" : "unread"}.`);
+      showSuccessMessage(`All notifications marked as ${isRead ? "read" : "unread"}.`);
     } catch (err) {
-      Alert.alert("Error", err.message || "Failed to update all notifications.");
+      showErrorFetchAPI(err.message || "Failed to update all notifications.");
     }
   };
 
   const deleteExpiredNotifications = async () => {
-    Alert.alert(
-      "Delete Expired Notifications",
-      "Are you sure you want to delete all expired notifications?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await apiNotificationService.deleteExpiredNotifications(user.userId);
-              fetchNotifications();
-              Alert.alert("Success", "Expired notifications deleted.");
-            } catch (err) {
-              Alert.alert("Error", err.message || "Failed to delete expired notifications.");
-            }
-          },
-        },
-      ]
-    );
+    // No Alert popup, just delete and show toast
+    try {
+      await apiNotificationService.deleteExpiredNotifications(user.userId);
+      fetchNotifications();
+      showSuccessMessage("Expired notifications deleted.");
+    } catch (err) {
+      showErrorFetchAPI(err.message || "Failed to delete expired notifications.");
+    }
   };
 
   const applyFilters = () => {
@@ -450,17 +441,8 @@ export default function NotificationScreen({ navigation }) {
   );
 
   if (loading && !refreshing) {
-    return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-        <DynamicStatusBar backgroundColor={colors.headerBackground} />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary || "#0056d2"} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary || "#6B7280" }]}>
-            Loading notifications...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
+    // Only show loading overlay and logo, no other content
+    return <Loading />;
   }
 
   if (error && !refreshing) {

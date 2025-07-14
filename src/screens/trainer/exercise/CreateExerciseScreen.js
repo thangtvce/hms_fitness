@@ -1,1205 +1,1878 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React,{ useState,useRef,useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Alert,
   ActivityIndicator,
-  Animated,
   Image,
-  KeyboardAvoidingView,
-  Platform,
-  Dimensions,
   Modal,
+  Animated,
+  Platform,
+  ScrollView,
+  KeyboardAvoidingView,
+  Dimensions,
+  TouchableWithoutFeedback,
+  PanResponder,
   FlatList,
+  Keyboard,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Video } from 'expo-av';
-import { useAuth } from 'context/AuthContext';
-import { theme } from 'theme/color';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from 'context/AuthContext';
 import { trainerService } from 'services/apiTrainerService';
-import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
-import * as ImagePicker from 'expo-image-picker';
+import { apiUploadImageCloudService } from 'services/apiUploadImageCloudService';
 import { apiUploadVideoCloudService } from 'services/apiUploadVideoCloudService';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { RichEditor,RichToolbar,actions } from 'react-native-pell-rich-editor';
+import { Video } from 'expo-av';
+import YoutubePlayer from 'react-native-youtube-iframe';
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from 'utils/toastUtil';
 
-const { width } = Dimensions.get('window');
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp'];
-const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'];
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const { width,height } = Dimensions.get('window');
+const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/bmp'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4','video/quicktime','video/x-msvideo','video/x-matroska','video/webm'];
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
-
-// Custom Button Component
-const CustomButton = ({ 
-  title, 
-  onPress, 
-  variant = 'primary', 
-  size = 'medium', 
-  disabled = false, 
-  loading = false, 
-  icon, 
-  style,
-  ...props 
-}) => {
-  const getButtonStyle = () => {
-    const baseStyle = [styles.customButton];
-    switch (variant) {
-      case 'primary': baseStyle.push(styles.primaryButton); break;
-      case 'secondary': baseStyle.push(styles.secondaryButton); break;
-      case 'outline': baseStyle.push(styles.outlineButton); break;
-      case 'ghost': baseStyle.push(styles.ghostButton); break;
-      case 'danger': baseStyle.push(styles.dangerButton); break;
-    }
-    switch (size) {
-      case 'small': baseStyle.push(styles.smallButton); break;
-      case 'large': baseStyle.push(styles.largeButton); break;
-      default: baseStyle.push(styles.mediumButton);
-    }
-    if (disabled) baseStyle.push(styles.disabledButton);
-    if (style) baseStyle.push(style);
-    return baseStyle;
-  };
-
-  const getTextStyle = () => {
-    const baseStyle = [styles.customButtonText];
-    switch (variant) {
-      case 'primary':
-      case 'danger': baseStyle.push(styles.primaryButtonText); break;
-      case 'secondary': baseStyle.push(styles.secondaryButtonText); break;
-      case 'outline':
-      case 'ghost': baseStyle.push(styles.outlineButtonText); break;
-    }
-    switch (size) {
-      case 'small': baseStyle.push(styles.smallButtonText); break;
-      case 'large': baseStyle.push(styles.largeButtonText); break;
-    }
-    return baseStyle;
-  };
-
-  return (
-    <TouchableOpacity
-      style={getButtonStyle()}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
-      {...props}
-    >
-      {loading ? (
-        <View style={styles.buttonContent}>
-          <ActivityIndicator 
-            size="small" 
-            color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : '#4F46E5'} 
-          />
-          <Text style={[getTextStyle(), { marginLeft: 8 }]}>Loading...</Text>
-        </View>
-      ) : (
-        <View style={styles.buttonContent}>
-          {icon && (
-            <Ionicons 
-              name={icon} 
-              size={size === 'small' ? 16 : size === 'large' ? 24 : 20} 
-              color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : '#4F46E5'} 
-            />
-          )}
-          <Text style={getTextStyle()}>{title}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-};
-
-// Custom Select Component
-const CustomSelect = ({ 
-  label, 
-  value, 
-  onSelect, 
-  options, 
-  placeholder = "Select an option", 
-  error, 
-  required = false,
-  icon = "chevron-down"
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(null);
-
-  useEffect(() => {
-    const selected = options.find(option => option.value === value);
-    setSelectedOption(selected);
-  }, [value, options]);
-
-  const handleSelect = (option) => {
-    setSelectedOption(option);
-    onSelect(option.value);
-    setIsVisible(false);
-  };
-
-  return (
-    <View style={styles.inputCard}>
-      <View style={styles.labelContainer}>
-        <Text style={styles.inputLabel}>{label}</Text>
-        {required && <Text style={styles.requiredAsterisk}>*</Text>}
-      </View>
-      
-      <TouchableOpacity
-        style={[styles.selectButton, error && styles.inputError]}
-        onPress={() => setIsVisible(true)}
-        activeOpacity={0.7}
-      >
-        <Text style={[
-          styles.selectButtonText, 
-          !selectedOption && styles.selectPlaceholder
-        ]}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </Text>
-        <Ionicons 
-          name={icon} 
-          size={20} 
-          color={error ? '#EF4444' : '#64748B'} 
-        />
-      </TouchableOpacity>
-      
-      {error && <Text style={styles.errorText}>{error}</Text>}
-
-      <Modal
-        visible={isVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setIsVisible(false)}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{label}</Text>
-              <TouchableOpacity 
-                onPress={() => setIsVisible(false)}
-                style={styles.modalCloseButton}
-              >
-                <Ionicons name="close" size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={options}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.optionItem,
-                    item.value === value && styles.selectedOption
-                  ]}
-                  onPress={() => handleSelect(item)}
-                >
-                  <Text style={[
-                    styles.optionText,
-                    item.value === value && styles.selectedOptionText
-                  ]}>
-                    {item.label}
-                  </Text>
-                  {item.value === value && (
-                    <Ionicons name="checkmark" size={20} color="#4F46E5" />
-                  )}
-                </TouchableOpacity>
-              )}
-              showsVerticalScrollIndicator={false}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
-  );
-};
-
-// Toggle Button Group Component
-const ToggleButtonGroup = ({ 
-  options, 
-  selectedValue, 
-  onSelect, 
-  label, 
-  style 
-}) => {
-  return (
-    <View style={[styles.inputCard, style]}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <View style={styles.toggleContainer}>
-        {options.map((option, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.toggleButton,
-              selectedValue === option.value && styles.toggleButtonActive,
-              index === 0 && styles.toggleButtonFirst,
-              index === options.length - 1 && styles.toggleButtonLast
-            ]}
-            onPress={() => onSelect(option.value)}
-            activeOpacity={0.8}
-          >
-            {option.icon && (
-              <Ionicons 
-                name={option.icon} 
-                size={18} 
-                color={selectedValue === option.value ? '#FFFFFF' : '#64748B'} 
-              />
-            )}
-            <Text style={[
-              styles.toggleButtonText,
-              selectedValue === option.value && styles.toggleButtonTextActive
-            ]}>
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-};
-
-// Enhanced Input Component
-const CustomInput = ({ 
-  label, 
-  value, 
-  onChangeText, 
-  placeholder, 
-  error, 
-  multiline = false, 
-  keyboardType = 'default',
-  required = false,
-  leftIcon,
-  rightIcon,
-  onRightIconPress,
-  ...props 
-}) => (
-  <View style={styles.inputCard}>
-    <View style={styles.labelContainer}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      {required && <Text style={styles.requiredAsterisk}>*</Text>}
-    </View>
-    <View style={[styles.inputContainer, error && styles.inputError]}>
-      {leftIcon && (
-        <Ionicons name={leftIcon} size={20} color="#64748B" style={styles.inputIcon} />
-      )}
-      <TextInput
-        style={[
-          styles.input, 
-          multiline && styles.multilineInput,
-          leftIcon && styles.inputWithLeftIcon,
-          rightIcon && styles.inputWithRightIcon
-        ]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
-        multiline={multiline}
-        keyboardType={keyboardType}
-        textAlignVertical={multiline ? 'top' : 'center'}
-        {...props}
-      />
-      {rightIcon && (
-        <TouchableOpacity onPress={onRightIconPress} style={styles.rightIconContainer}>
-          <Ionicons name={rightIcon} size={20} color="#64748B" />
-        </TouchableOpacity>
-      )}
-    </View>
-    {error && <Text style={styles.errorText}>{error}</Text>}
-  </View>
-);
-
-// Media Upload Component
-const MediaUploadSection = ({ 
-  useMediaUpload, 
-  setUseMediaUpload, 
-  mediaUri, 
-  onPickMedia, 
-  mediaUrl, 
-  onChangeMediaUrl, 
-  actionLoading, 
-  error, 
-  setMediaUri, 
-  isImage = true 
-}) => {
-  const mediaSourceOptions = [
-    { label: 'Upload', value: true, icon: 'cloud-upload-outline' },
-    { label: 'URL', value: false, icon: 'link-outline' }
-  ];
-
-  return (
-    <>
-      <ToggleButtonGroup
-        label={`${isImage ? 'Image' : 'Video'} Source`}
-        options={mediaSourceOptions}
-        selectedValue={useMediaUpload}
-        onSelect={setUseMediaUpload}
-      />
-
-      {useMediaUpload ? (
-        <View style={styles.inputCard}>
-          <Text style={styles.inputLabel}>{isImage ? 'Upload Image' : 'Upload Video'}</Text>
-          <CustomButton
-            title={mediaUri ? `Change ${isImage ? 'Image' : 'Video'}` : `Select ${isImage ? 'Image' : 'Video'}`}
-            onPress={onPickMedia}
-            variant="outline"
-            icon={isImage ? 'camera-outline' : 'videocam-outline'}
-            loading={actionLoading}
-            style={{ marginTop: 8 }}
-          />
-          {mediaUri && (
-            <View style={styles.mediaPreviewContainer}>
-              {isImage ? (
-                <Image source={{ uri: mediaUri }} style={styles.mediaPreview} />
-              ) : (
-                <Video
-                  source={{ uri: mediaUri }}
-                  style={styles.mediaPreview}
-                  useNativeControls
-                  resizeMode="cover"
-                  shouldPlay={false}
-                />
-              )}
-              <TouchableOpacity 
-                style={styles.removeImageButton}
-                onPress={() => setMediaUri(null)}
-              >
-                <Ionicons name="close-circle" size={24} color="#EF4444" />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      ) : (
-        <CustomInput
-          label={`${isImage ? 'Image' : 'Video'} URL`}
-          value={mediaUrl}
-          onChangeText={onChangeMediaUrl}
-          placeholder={isImage ? 'https://example.com/image.jpg' : 'https://www.youtube.com/watch?v=... or https://example.com/video.mp4'}
-          error={error}
-          autoCapitalize="none"
-          autoCorrect={false}
-          leftIcon="link-outline"
-        />
-      )}
-    </>
-  );
-};
+const GENDER_OPTIONS = ['Male','Female','Other'];
+const DEFAULT_VIDEO_BACKGROUND = 'https://via.placeholder.com/600x400.png?text=Video+Placeholder';
+const DEFAULT_IMAGE_BACKGROUND = 'https://via.placeholder.com/600x400.png?text=Image+Placeholder';
 
 const CreateExerciseScreen = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user,loading: authLoading } = useAuth();
   const navigation = useNavigation();
-  const [newExercise, setNewExercise] = useState({
+  const [exerciseData,setExerciseData] = useState({
     exerciseName: '',
     description: '',
     categoryId: null,
-    genderSpecific: 'Unisex',
+    genderSpecific: null,
+    caloriesBurnedPerMin: '',
     imageUrl: '',
     mediaUrl: '',
-    caloriesBurnedPerMin: '',
     isPrivate: 0,
+    trainerId: user?.userId || 0,
   });
-  const [categories, setCategories] = useState([]);
-  const [imageUri, setImageUri] = useState(null);
-  const [videoUri, setVideoUri] = useState(null);
-  const [useImageUpload, setUseImageUpload] = useState(true);
-  const [useVideoUpload, setUseVideoUpload] = useState(true);
-  const [formErrors, setFormErrors] = useState({});
-  const [actionLoading, setActionLoading] = useState(false);
+  const [categories,setCategories] = useState([]);
+  const [errors,setErrors] = useState({});
+  const [touched,setTouched] = useState({});
+  const [creating,setCreating] = useState(false);
+  const [showImageOptions,setShowImageOptions] = useState(false);
+  const [showVideoOptions,setShowVideoOptions] = useState(false);
+  const [showImageUrlInput,setShowImageUrlInput] = useState(false);
+  const [showVideoUrlInput,setShowVideoUrlInput] = useState(false);
+  const [showCategoryModal,setShowCategoryModal] = useState(false);
+  const [showGenderModal,setShowGenderModal] = useState(false);
+  const [showVideoPreview,setShowVideoPreview] = useState(false);
+  const [imageUrl,setImageUrl] = useState('');
+  const [videoUrl,setVideoUrl] = useState('');
+  const [urlError,setUrlError] = useState('');
+  const [mediaUploading,setMediaUploading] = useState(false);
+  const [thumbnail,setThumbnail] = useState('');
+  const [videoThumbnail,setVideoThumbnail] = useState('');
+  const [cloudImageUrl,setCloudImageUrl] = useState('');
+  const [cloudVideoUrl,setCloudVideoUrl] = useState('');
+  const [keyboardHeight,setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible,setIsKeyboardVisible] = useState(false);
+  const [currentInputFocused,setCurrentInputFocused] = useState(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const richText = useRef();
+  const scrollViewRef = useRef();
+  const containerRef = useRef();
 
-  const genderOptions = useMemo(() => [
-    { label: 'Unisex', value: 'Unisex' },
-    { label: 'Male', value: 'Male' },
-    { label: 'Female', value: 'Female' }
-  ], []);
-
-  const visibilityOptions = useMemo(() => [
-    { label: 'Public', value: 0 },
-    { label: 'Private', value: 1 }
-  ], []);
-
-  const categoryOptions = useMemo(() => [
-    { label: 'Select Category', value: null },
-    ...categories.map(category => ({
-      label: category.categoryName,
-      value: category.categoryId
-    }))
-  ], [categories]);
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => false,
+      onPanResponderGrant: () => {
+        if (isKeyboardVisible && !currentInputFocused) {
+          Keyboard.dismiss();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user?.roles?.includes('Trainer') && user?.roles?.includes('User')) {
-      Alert.alert('Access Denied', 'This page is only accessible to trainers.');
-      navigation.goBack();
-      return;
-    }
     fetchCategories();
-  }, [authLoading, user, fetchCategories]);
+    Animated.parallel([
+      Animated.timing(fadeAnim,{
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim,{
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim,{
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  },[authLoading]);
 
-  const pickMedia = useCallback(async (isImage = true) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Please allow access to your media library.');
-      return;
-    }
-    
-    setActionLoading(true);
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow',(e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setIsKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide',() => {
+      setKeyboardHeight(0);
+      setIsKeyboardVisible(false);
+      setCurrentInputFocused(null);
+    });
+    const keyboardWillShowListener = Keyboard.addListener('keyboardWillShow',(e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setIsKeyboardVisible(true);
+    });
+    const keyboardWillHideListener = Keyboard.addListener('keyboardWillHide',() => {
+      setKeyboardHeight(0);
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+      keyboardWillShowListener?.remove();
+      keyboardWillHideListener?.remove();
+    };
+  },[]);
+
+  const fetchCategories = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: isImage ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
-        allowsEditing: true,
-        quality: 0.8,
-        aspect: isImage ? [16, 9] : undefined,
-      });
-      
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const selectedAsset = result.assets[0];
-        const mimeType = selectedAsset.mimeType || (isImage ? `image/${selectedAsset.uri.split('.').pop().toLowerCase()}` : `video/${selectedAsset.uri.split('.').pop().toLowerCase()}`);
-        
-        const allowedTypes = isImage ? ALLOWED_IMAGE_TYPES : ALLOWED_VIDEO_TYPES;
-        const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_VIDEO_SIZE;
-        
-        console.log(`Selected ${isImage ? 'image' : 'video'}:`, { uri: selectedAsset.uri, mimeType, fileSize: selectedAsset.fileSize });
-        
-        if (!allowedTypes.includes(mimeType)) {
-          Alert.alert('Error', `Only ${allowedTypes.join(', ')} ${isImage ? 'images' : 'videos'} are allowed.`);
-          return;
-        }
-        
-        if (selectedAsset.fileSize && selectedAsset.fileSize > maxSize) {
-          Alert.alert('Error', `${isImage ? 'Image' : 'Video'} size exceeds ${isImage ? '5MB' : '100MB'} limit.`);
-          return;
-        }
-        
-        if (isImage) {
-          setImageUri(selectedAsset.uri);
-        } else {
-          setVideoUri(selectedAsset.uri);
-        }
+      const response = await trainerService.getExerciseCategory();
+      if (response.statusCode === 200 && Array.isArray(response.data?.categories)) {
+        setCategories(response.data.categories);
+      } else {
+        setCategories([]);
       }
     } catch (error) {
-      console.error(`Error picking ${isImage ? 'image' : 'video'}:`, error);
-      Alert.alert('Error', `Failed to pick ${isImage ? 'image' : 'video'}. Please try again.`);
-    } finally {
-      setActionLoading(false);
-    }
-  }, []);
-
-  const uploadMedia = useCallback(async (uri, isImage = true) => {
-    if (!uri || typeof uri !== 'string') {
-      Alert.alert('Error', `No valid ${isImage ? 'image' : 'video'} selected for upload.`);
-      return null;
-    }
-    
-    try {
-      const formData = new FormData();
-      const uriParts = uri.split('.');
-      const fileExtension = uriParts[uriParts.length - 1].toLowerCase();
-      const mimeType = isImage 
-        ? `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
-        : `video/${fileExtension === 'mov' ? 'quicktime' : fileExtension}`;
-      
-      const allowedTypes = isImage ? ALLOWED_IMAGE_TYPES : ALLOWED_VIDEO_TYPES;
-      const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_VIDEO_SIZE;
-      
-      if (!allowedTypes.includes(mimeType)) {
-        Alert.alert('Error', `Only ${allowedTypes.join(', ')} ${isImage ? 'images' : 'videos'} are allowed.`);
-        return null;
-      }
-      
-      const file = {
-        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
-        name: `${isImage ? 'image' : 'video'}_${Date.now()}.${fileExtension}`,
-        type: mimeType,
-      };
-      
-      console.log(`Preparing to upload ${isImage ? 'image' : 'video'}:`, file);
-      
-      formData.append('file', file);
-      
-      console.log('FormData content:', formData);
-      
-      const response = isImage
-        ? await trainerService.uploadMedia(formData)
-        : await apiUploadVideoCloudService.uploadVideo(formData);
-      
-      console.log(`Upload ${isImage ? 'image' : 'video'} response:`, response);
-      
-      if (response.statusCode === 200 && response.data?.mediaUrl) {
-        return response.data.mediaUrl;
-      } else if (!isImage && !response.isError && response.videoUrl) {
-        return response.videoUrl;
-      }
-      
-      throw new Error(response.message || `Failed to upload ${isImage ? 'image' : 'video'}.`);
-    } catch (error) {
-      console.error(`Error uploading ${isImage ? 'image' : 'video'}:`, error);
-      Alert.alert('Error', error.message || `Failed to upload ${isImage ? 'image' : 'video'}.`);
-      return null;
-    }
-  }, []);
-
-  const validateMediaUrl = (url, isImage = true) => {
-    if (isImage) {
-      const imageUrlPattern = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|bmp))$/i;
-      return url && imageUrlPattern.test(url);
-    } else {
-      const videoUrlPattern = /^(https?:\/\/)(www\.youtube\.com\/watch\?v=|youtu\.be\/|.*\.(?:mp4|mov|avi|mkv|webm))/i;
-      return url && videoUrlPattern.test(url);
+      showErrorFetchAPI(error);
+      setCategories([]);
     }
   };
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      setActionLoading(true);
-      const response = await trainerService.getAllExerciseCategories();
-      console.log('Categories response:', response);
-      if (response.statusCode === 200 && response.data?.categories) {
-        setCategories(response.data.categories);
-      } else {
-        Alert.alert('Error', response.message || 'Unable to load categories.');
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      Alert.alert('Error', error.message || 'Failed to load categories.');
-    } finally {
-      setActionLoading(false);
-    }
-  }, []);
-
-  const resetFormAndReload = useCallback(() => {
-    setNewExercise({
-      exerciseName: '',
-      description: '',
-      categoryId: null,
-      genderSpecific: 'Unisex',
-      imageUrl: '',
-      mediaUrl: '',
-      caloriesBurnedPerMin: '',
-      isPrivate: 0,
-    });
-    setImageUri(null);
-    setVideoUri(null);
-    setUseImageUpload(true);
-    setUseVideoUpload(true);
-    setFormErrors({});
-    fetchCategories();
-  }, [fetchCategories]);
-
-  const validateExerciseForm = () => {
+  const validateForm = () => {
     const errors = {};
-    
-    if (!newExercise.exerciseName.trim()) {
+
+    if (!exerciseData.exerciseName.trim()) {
       errors.exerciseName = 'Exercise name is required.';
-    } else if (newExercise.exerciseName.trim().length < 3) {
-      errors.exerciseName = 'Exercise name must be at least 3 characters long.';
+    } else if (exerciseData.exerciseName.length < 3 || exerciseData.exerciseName.length > 255) {
+      errors.exerciseName = 'Exercise name must be between 3 and 255 characters.';
     }
-    
-    if (!newExercise.categoryId) {
+    if (exerciseData.description && exerciseData.description.length > 500) {
+      errors.description = 'Description cannot exceed 500 characters.';
+    }
+    if (!exerciseData.categoryId) {
       errors.categoryId = 'Category is required.';
     }
-    
-    if (!newExercise.genderSpecific) {
-      errors.genderSpecific = 'Gender specification is required.';
+    if (exerciseData.genderSpecific && !GENDER_OPTIONS.includes(exerciseData.genderSpecific)) {
+      errors.genderSpecific = 'Gender must be Male, Female, or Other.';
     }
-    
-    if (newExercise.imageUrl && !validateMediaUrl(newExercise.imageUrl, true)) {
-      errors.imageUrl = 'Invalid image URL.';
+    if (exerciseData.caloriesBurnedPerMin && (isNaN(parseFloat(exerciseData.caloriesBurnedPerMin)) || parseFloat(exerciseData.caloriesBurnedPerMin) < 0)) {
+      errors.caloriesBurnedPerMin = 'Calories burned per minute must be a non-negative number.';
     }
-    
-    if (newExercise.mediaUrl && !validateMediaUrl(newExercise.mediaUrl, false)) {
-      errors.mediaUrl = 'Invalid video URL. Please use a YouTube link or a valid video URL.';
+    if (exerciseData.mediaUrl && exerciseData.mediaUrl.length > 1000) {
+      errors.mediaUrl = 'Media URL cannot exceed 1000 characters.';
     }
-    
-    if (newExercise.caloriesBurnedPerMin && isNaN(parseFloat(newExercise.caloriesBurnedPerMin))) {
-      errors.caloriesBurnedPerMin = 'Please enter a valid number.';
-    } else if (parseFloat(newExercise.caloriesBurnedPerMin) < 0) {
-      errors.caloriesBurnedPerMin = 'Calories burned cannot be negative.';
+    if (exerciseData.isPrivate !== 0 && exerciseData.isPrivate !== 1) {
+      errors.isPrivate = 'Privacy must be 0 (public) or 1 (private).';
     }
-    
-    setFormErrors(errors);
+
+    setErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const handleCreateExercise = useCallback(async () => {
-    if (!validateExerciseForm()) {
-      Alert.alert('Validation Error', 'Please correct the errors in the form.');
-      return;
-    }
-    
-    try {
-      setActionLoading(true);
-      let imageUrl = newExercise.imageUrl;
-      let mediaUrl = newExercise.mediaUrl;
-      
-      if (useImageUpload && imageUri) {
-        imageUrl = await uploadMedia(imageUri, true);
-        if (!imageUrl) return;
-      } else if (!useImageUpload && newExercise.imageUrl && !validateMediaUrl(newExercise.imageUrl, true)) {
-        Alert.alert('Validation Error', 'Please enter a valid image URL.');
-        return;
-      }
-      
-      if (useVideoUpload && videoUri) {
-        mediaUrl = await uploadMedia(videoUri, false);
-        if (!mediaUrl) return;
-      } else if (!useVideoUpload && newExercise.mediaUrl && !validateMediaUrl(newExercise.mediaUrl, false)) {
-        Alert.alert('Validation Error', 'Please enter a valid video URL (e.g., YouTube or direct video link).');
-        return;
-      }
-      
-      const exerciseData = {
-        exerciseName: newExercise.exerciseName.trim(),
-        description: newExercise.description.trim(),
-        categoryId: newExercise.categoryId,
-        genderSpecific: newExercise.genderSpecific,
-        imageUrl: imageUrl || null,
-        mediaUrl: mediaUrl || null,
-        caloriesBurnedPerMin: parseFloat(newExercise.caloriesBurnedPerMin) || 0,
-        trainerId: user.userId,
-        isPrivate: newExercise.isPrivate,
-      };
-      
-      console.log('Creating exercise with data:', exerciseData);
-      const response = await trainerService.createFitnessExercise(exerciseData);
-      console.log('Create exercise response:', response);
-      
-      if (response.statusCode === 201) {
-        Alert.alert('Success', 'Exercise created successfully.', [
-          {
-            text: 'OK',
-            onPress: () => {
-              resetFormAndReload();
-              navigation.navigate('TrainerExerciseManagement');
-            }
-          }
-        ]);
-      } else {
-        throw new Error(response.message || 'Failed to create exercise.');
-      }
-    } catch (error) {
-      console.error('Error creating exercise:', error);
-      let errorMessage = 'Failed to create exercise.';
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message.includes('entity changes')) {
-        errorMessage = 'Unable to save exercise. Please check your input data and try again.';
-      }
-      Alert.alert('Error', errorMessage);
-    } finally {
-      setActionLoading(false);
-    }
-  }, [newExercise, imageUri, videoUri, useImageUpload, useVideoUpload, user, resetFormAndReload, navigation]);
-
-  const updateExerciseField = (field, value) => {
-    setNewExercise(prev => ({ ...prev, [field]: value }));
-    if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: null }));
+  const handleInputChange = (field,value) => {
+    setExerciseData((prev) => ({ ...prev,[field]: value }));
+    if (touched[field]) {
+      setErrors((prev) => ({ ...prev,[field]: null }));
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      
-      <LinearGradient colors={['#4F46E5', '#6366F1', '#818CF8']} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+  const handleInputBlur = (field) => {
+    setTouched((prev) => ({ ...prev,[field]: true }));
+    setCurrentInputFocused(null);
+    validateForm();
+  };
+
+  const handleInputFocus = (field) => {
+    setCurrentInputFocused(field);
+  };
+
+  const createFormDataFromBase64 = (base64String,fileName = `media-${Date.now()}.jpg`) => {
+    const formData = new FormData();
+    const mimeTypeMatch = base64String.match(/^data:(image\/[a-z]+);base64,/);
+    const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+    const cleanedBase64 = base64String.replace(/^data:image\/[a-z]+;base64,/,'');
+    formData.append('file',{
+      uri: `data:${mimeType};base64,${cleanedBase64}`,
+      type: mimeType,
+      name: fileName,
+    });
+    return formData;
+  };
+
+  const createVideoFormData = (uri,fileName = `video-${Date.now()}.mp4`,type = 'video/mp4') => {
+    const formData = new FormData();
+    formData.append('file',{
+      uri,
+      type,
+      name: fileName,
+    });
+    return formData;
+  };
+
+  const isValidUrl = (url) => {
+    const urlRegex = /^(https?:\/\/[^\s$.?#].[^\s]*)$/i;
+    return urlRegex.test(url);
+  };
+
+  const isValidYouTubeUrl = (url) => {
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/(watch\?v=|embed\/|v\/|.+\?v=)?([^&=%?]{11})/;
+    return youtubeRegex.test(url);
+  };
+
+  const getYouTubeVideoId = (url) => {
+    const videoIdMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    return videoIdMatch ? videoIdMatch[1] : null;
+  };
+
+  const checkImageUrl = async (url) => {
+    try {
+      const response = await fetch(url,{ method: 'HEAD' });
+      const contentType = response.headers.get('content-type');
+      return response.ok && contentType?.startsWith('image/');
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const getYouTubeThumbnail = (url) => {
+    const videoId = getYouTubeVideoId(url);
+    return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '';
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'To select images, please grant access to your photo library in your device settings.',
+          [
+            { text: 'Cancel',style: 'cancel' },
+            { text: 'Open Settings',onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+      setMediaUploading(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16,9],
+        quality: 0.8,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedAsset = result.assets[0];
+        if (selectedAsset.base64) {
+          const base64Image = `data:image/jpeg;base64,${selectedAsset.base64}`;
+          setThumbnail(base64Image);
+          setCloudImageUrl('');
+          handleInputChange('imageUrl',base64Image);
+        } else {
+          setThumbnail(selectedAsset.uri);
+          setCloudImageUrl('');
+          handleInputChange('imageUrl',selectedAsset.uri);
+          showErrorFetchAPI(new Error('Base64 not available. Using local URI, which may not persist.'));
+        }
+      }
+    } catch (error) {
+      showErrorFetchAPI(error);
+    } finally {
+      setMediaUploading(false);
+      setShowImageOptions(false);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'To take photos, please grant access to your camera in your device settings.',
+          [
+            { text: 'Cancel',style: 'cancel' },
+            { text: 'Open Settings',onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+      setMediaUploading(true);
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [16,9],
+        quality: 0.8,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedAsset = result.assets[0];
+        if (selectedAsset.base64) {
+          const base64Image = `data:image/jpeg;base64,${selectedAsset.base64}`;
+          setThumbnail(base64Image);
+          setCloudImageUrl('');
+          handleInputChange('imageUrl',base64Image);
+        } else {
+          setThumbnail(selectedAsset.uri);
+          setCloudImageUrl('');
+          handleInputChange('imageUrl',selectedAsset.uri);
+          showErrorFetchAPI(new Error('Base64 not available. Using local URI, which may not persist.'));
+        }
+      }
+    } catch (error) {
+      showErrorFetchAPI(error);
+    } finally {
+      setMediaUploading(false);
+      setShowImageOptions(false);
+    }
+  };
+
+  const handleImageUrl = () => {
+    setShowImageOptions(false);
+    setShowImageUrlInput(true);
+    setImageUrl('');
+    setUrlError('');
+  };
+
+  const confirmImageUrl = async () => {
+    if (!imageUrl.trim()) {
+      setUrlError('Please enter an image URL.');
+      return;
+    }
+    if (!isValidUrl(imageUrl)) {
+      setUrlError('Please enter a valid URL starting with http:// or https://.');
+      return;
+    }
+    setMediaUploading(true);
+    const isImageReachable = await checkImageUrl(imageUrl);
+    setMediaUploading(false);
+    if (!isImageReachable) {
+      setUrlError('The URL does not point to a valid image or is unreachable.');
+      return;
+    }
+    setThumbnail(imageUrl);
+    setCloudImageUrl(imageUrl);
+    handleInputChange('imageUrl',imageUrl);
+    setShowImageUrlInput(false);
+    setImageUrl('');
+    setUrlError('');
+  };
+
+  const handlePickVideo = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'To select videos, please grant access to your photo library in your device settings.',
+          [
+            { text: 'Cancel',style: 'cancel' },
+            { text: 'Open Settings',onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+      setMediaUploading(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedAsset = result.assets[0];
+        if (ALLOWED_VIDEO_TYPES.includes(selectedAsset.type)) {
+          setVideoThumbnail(selectedAsset.uri);
+          setCloudVideoUrl('');
+          handleInputChange('mediaUrl',selectedAsset.uri);
+        } else {
+          showErrorFetchAPI(new Error(`Invalid video type. Allowed: ${ALLOWED_VIDEO_TYPES.join(', ')}`));
+        }
+      }
+    } catch (error) {
+      showErrorFetchAPI(error);
+    } finally {
+      setMediaUploading(false);
+      setShowVideoOptions(false);
+    }
+  };
+
+  const handleVideoUrl = () => {
+    setShowVideoOptions(false);
+    setShowVideoUrlInput(true);
+    setVideoUrl('');
+    setUrlError('');
+  };
+
+  const confirmVideoUrl = () => {
+    if (!videoUrl.trim()) {
+      setUrlError('Please enter a YouTube URL.');
+      return;
+    }
+    if (!isValidYouTubeUrl(videoUrl)) {
+      setUrlError('Please enter a valid YouTube URL.');
+      return;
+    }
+    const thumbnailUrl = getYouTubeThumbnail(videoUrl);
+    setVideoThumbnail(thumbnailUrl);
+    setCloudVideoUrl(videoUrl);
+    handleInputChange('mediaUrl',videoUrl);
+    setShowVideoUrlInput(false);
+    setVideoUrl('');
+    setUrlError('');
+  };
+
+  const cancelMediaUrlInput = () => {
+    setShowImageUrlInput(false);
+    setShowVideoUrlInput(false);
+    setImageUrl('');
+    setVideoUrl('');
+    setUrlError('');
+  };
+
+  const handleRemoveImage = () => {
+    Alert.alert('Remove Image','Are you sure you want to remove this image?',[
+      { text: 'Cancel',style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          setThumbnail('');
+          setCloudImageUrl('');
+          handleInputChange('imageUrl','');
+        },
+      },
+    ]);
+  };
+
+  const handleRemoveVideo = () => {
+    Alert.alert('Remove Video','Are you sure you want to remove this video?',[
+      { text: 'Cancel',style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          setVideoThumbnail('');
+          setCloudVideoUrl('');
+          handleInputChange('mediaUrl','');
+        },
+      },
+    ]);
+  };
+
+  const handlePreviewVideo = () => {
+    if (exerciseData.mediaUrl) {
+      setShowVideoPreview(true);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!validateForm()) {
+      showErrorFetchAPI(new Error('Please fix the errors before creating the exercise.'));
+      return;
+    }
+
+    setCreating(true);
+    let finalImageUrl = cloudImageUrl;
+    let finalVideoUrl = cloudVideoUrl;
+
+    try {
+      if (thumbnail && thumbnail.startsWith('data:image') && !cloudImageUrl) {
+        const formData = createFormDataFromBase64(thumbnail);
+        const uploadResult = await apiUploadImageCloudService.uploadImage(formData);
+        if (!uploadResult.isError && uploadResult.imageUrl) {
+          finalImageUrl = uploadResult.imageUrl;
+          setCloudImageUrl(uploadResult.imageUrl);
+        } else {
+          showErrorFetchAPI(new Error('Image upload failed. Please try selecting the image again.'));
+          setCreating(false);
+          return;
+        }
+      }
+
+      if (videoThumbnail && !videoThumbnail.startsWith('http') && !cloudVideoUrl) {
+        const formData = createVideoFormData(videoThumbnail);
+        const uploadResult = await apiUploadVideoCloudService.uploadVideo(formData);
+        if (!uploadResult.isError && uploadResult.videoUrl) {
+          finalVideoUrl = uploadResult.videoUrl;
+          setCloudVideoUrl(uploadResult.videoUrl);
+        } else {
+          showErrorFetchAPI(new Error('Video upload failed. Please try selecting the video again.'));
+          setCreating(false);
+          return;
+        }
+      }
+
+      const payload = {
+        exerciseName: exerciseData.exerciseName,
+        description: exerciseData.description || null,
+        categoryId: exerciseData.categoryId ? parseInt(exerciseData.categoryId) : null,
+        genderSpecific: exerciseData.genderSpecific || null,
+        caloriesBurnedPerMin: exerciseData.caloriesBurnedPerMin ? parseFloat(exerciseData.caloriesBurnedPerMin) : null,
+        imageUrl: finalImageUrl || null,
+        mediaUrl: finalVideoUrl || null,
+        isPrivate: exerciseData.isPrivate,
+        trainerId: user.userId,
+      };
+
+      if (payload.imageUrl && payload.imageUrl.length > 1000) {
+        showErrorMessage('Image URL cannot exceed 1000 characters.');
+      }
+
+      const response = await trainerService.createFitnessExercise(payload);
+      if (response.statusCode === 201) {
+        showSuccessMessage('Exercise created successfully!');
+        setTimeout(() => {
+          navigation.navigate('TrainerExerciseManagement');
+        },1000);
+      } else {
+        throw new Error(`Error ${response.statusCode}: ${response.message || 'Failed to create exercise.'}`);
+      }
+    } catch (error) {
+      showErrorFetchAPI(error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+    setCurrentInputFocused(null);
+  };
+
+  const getCategoryName = (categoryId) => {
+    const category = categories.find((cat) => cat.categoryId === categoryId);
+    return category ? category.categoryName : 'Select Category';
+  };
+
+  const renderImageSection = () => (
+    <Animated.View
+      style={[
+        styles.imageSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      {thumbnail ? (
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: thumbnail }} style={styles.imagePreview} resizeMode="cover" />
+          <LinearGradient colors={['transparent','rgba(0,0,0,0.3)']} style={styles.imageOverlay} />
+          <TouchableOpacity style={styles.removeImageButton} onPress={handleRemoveImage}>
+            <View style={styles.removeImageButtonInner}>
+              <Ionicons name="close" size={16} color="#FFFFFF" />
+            </View>
           </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
+          <TouchableOpacity style={styles.editImageButton} onPress={() => setShowImageOptions(true)}>
+            <View style={styles.editImageButtonInner}>
+              <Ionicons name="pencil" size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          <View style={styles.imageLabel}>
+            <Ionicons name="image" size={14} color="#FFFFFF" />
+            <Text style={styles.imageLabelText}>Exercise Image</Text>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.addImageContainer} onPress={() => setShowImageOptions(true)}>
+          <Image source={{ uri: DEFAULT_IMAGE_BACKGROUND }} style={styles.imagePreview} resizeMode="cover" />
+          <LinearGradient colors={['transparent','rgba(0,0,0,0.3)']} style={styles.imageOverlay} />
+          <View style={styles.addImageContent}>
+            <View style={styles.addImageIcon}>
+              <Ionicons name="camera-outline" size={32} color="#0056D2" />
+            </View>
+            <Text style={styles.addImageTitle}>Add Exercise Image</Text>
+            <Text style={styles.addImageSubtitle}>Make your exercise stand out with an image</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+
+  const renderVideoSection = () => (
+    <Animated.View
+      style={[
+        styles.imageSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      {videoThumbnail ? (
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: videoThumbnail }} style={styles.imagePreview} resizeMode="cover" />
+          <LinearGradient colors={['transparent','rgba(0,0,0,0.3)']} style={styles.imageOverlay} />
+          <TouchableOpacity style={styles.removeImageButton} onPress={handleRemoveVideo}>
+            <View style={styles.removeImageButtonInner}>
+              <Ionicons name="close" size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.editImageButton} onPress={() => setShowVideoOptions(true)}>
+            <View style={styles.editImageButtonInner}>
+              <Ionicons name="pencil" size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.playVideoButton} onPress={handlePreviewVideo}>
+            <View style={styles.playVideoButtonInner}>
+              <Ionicons name="play" size={24} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          <View style={styles.imageLabel}>
+            <Ionicons name="videocam" size={14} color="#FFFFFF" />
+            <Text style={styles.imageLabelText}>Exercise Video</Text>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.addImageContainer} onPress={() => setShowVideoOptions(true)}>
+          <Image source={{ uri: DEFAULT_VIDEO_BACKGROUND }} style={styles.imagePreview} resizeMode="cover" />
+          <LinearGradient colors={['transparent','rgba(0,0,0,0.3)']} style={styles.imageOverlay} />
+          <View style={styles.addImageContent}>
+            <View style={styles.addImageIcon}>
+              <Ionicons name="videocam-outline" size={32} color="#0056D2" />
+            </View>
+            <Text style={styles.addImageTitle}>Add Exercise Video</Text>
+            <Text style={styles.addImageSubtitle}>Add a video or YouTube link</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+
+  const renderVideoPreviewModal = () => (
+    <Modal
+      visible={showVideoPreview}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowVideoPreview(false)}
+    >
+      <TouchableWithoutFeedback onPress={() => setShowVideoPreview(false)}>
+        <View style={styles.videoPreviewModalOverlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.videoPreviewContainer}>
+              <TouchableOpacity
+                style={styles.videoPreviewCloseButton}
+                onPress={() => setShowVideoPreview(false)}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+              {isValidYouTubeUrl(exerciseData.mediaUrl) ? (
+                <YoutubePlayer
+                  height={height * 0.6}
+                  width={width * 0.9}
+                  videoId={getYouTubeVideoId(exerciseData.mediaUrl)}
+                  play={false}
+                  onError={() => {
+                    showErrorMessage('Failed to load YouTube video.');
+                    setShowVideoPreview(false);
+                  }}
+                />
+              ) : (
+                <Video
+                  source={{ uri: exerciseData.mediaUrl }}
+                  style={styles.videoPlayer}
+                  useNativeControls
+                  resizeMode="contain"
+                  onError={(error) => {
+                    showErrorMessage('Failed to load video.');
+                    setShowVideoPreview(false);
+                  }}
+                />
+              )}
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+
+  const renderFormField = (label,value,onChangeText,onBlur,placeholder,multiline = false,icon,keyboardType = 'default') => {
+    let maxLength = label === 'Exercise Name' ? 255 : label === 'Description' ? 500 : null;
+    return (
+      <Animated.View
+        style={[
+          styles.fieldContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelContainer}>
+            {icon && <Ionicons name={icon} size={16} color="#0056D2" style={styles.fieldIcon} />}
+            <Text style={styles.fieldLabel}>{label}</Text>
+          </View>
+          {maxLength && (
+            <Text style={styles.fieldCounter}>
+              {value.replace(/<[^>]*>/g,'').length}/{maxLength}
+            </Text>
+          )}
+        </View>
+        <View style={[styles.inputContainer,errors[onBlur.split('.')[1]] && styles.inputError]}>
+          <TextInput
+            style={[styles.input,multiline && styles.multilineInput]}
+            placeholder={placeholder}
+            placeholderTextColor="#9CA3AF"
+            value={value}
+            onChangeText={onChangeText}
+            onFocus={() => handleInputFocus(onBlur.split('.')[1])}
+            onBlur={() => handleInputBlur(onBlur.split('.')[1])}
+            multiline={multiline}
+            textAlignVertical={multiline ? 'top' : 'center'}
+            maxLength={maxLength}
+            keyboardType={keyboardType}
+          />
+        </View>
+        {errors[onBlur.split('.')[1]] && (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={14} color="#EF4444" />
+            <Text style={styles.errorText}>{errors[onBlur.split('.')[1]]}</Text>
+          </View>
+        )}
+      </Animated.View>
+    );
+  };
+
+  const renderRichEditor = () => (
+    <Animated.View
+      style={[
+        styles.fieldContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldHeader}>
+        <View style={styles.fieldLabelContainer}>
+          <Ionicons name="document-text-outline" size={16} color="#0056D2" style={styles.fieldIcon} />
+          <Text style={styles.fieldLabel}>Description</Text>
+        </View>
+        <Text style={styles.fieldCounter}>{exerciseData.description.replace(/<[^>]*>/g,'').length}/500</Text>
+      </View>
+      <View style={[styles.richEditorContainer,errors.description && styles.inputError]}>
+        <RichToolbar
+          editor={richText}
+          actions={[
+            actions.setBold,
+            actions.setItalic,
+            actions.setUnderline,
+            actions.insertBulletsList,
+            actions.insertOrderedList,
+            actions.undo,
+            actions.redo,
+          ]}
+          iconTint="#374151"
+          selectedIconTint="#0056D2"
+          style={styles.richToolbar}
+          iconSize={18}
+        />
+        <RichEditor
+          ref={richText}
+          onChange={(text) => handleInputChange('description',text)}
+          onFocus={() => handleInputFocus('description')}
+          onBlur={() => handleInputBlur('description')}
+          placeholder="Describe the exercise..."
+          style={styles.richEditor}
+          initialContentHTML={exerciseData.description}
+          editorStyle={{
+            backgroundColor: '#FFFFFF',
+            color: '#1E293B',
+            fontSize: 16,
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+            lineHeight: 24,
+            padding: 16,
+          }}
+        />
+      </View>
+      {errors.description && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={14} color="#EF4444" />
+          <Text style={styles.errorText}>{errors.description}</Text>
+        </View>
+      )}
+    </Animated.View>
+  );
+
+  const renderCategorySelector = () => (
+    <Animated.View
+      style={[
+        styles.fieldContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldHeader}>
+        <View style={styles.fieldLabelContainer}>
+          <Ionicons name="list-outline" size={16} color="#0056D2" style={styles.fieldIcon} />
+          <Text style={styles.fieldLabel}>Category</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={[styles.inputContainer,errors.categoryId && styles.inputError]}
+        onPress={() => setShowCategoryModal(true)}
+      >
+        <Text style={styles.input}>{getCategoryName(exerciseData.categoryId)}</Text>
+        <Ionicons name="chevron-down" size={20} color="#6B7280" style={styles.dropdownIcon} />
+      </TouchableOpacity>
+      {errors.categoryId && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={14} color="#EF4444" />
+          <Text style={styles.errorText}>{errors.categoryId}</Text>
+        </View>
+      )}
+    </Animated.View>
+  );
+
+  const renderGenderSelector = () => (
+    <Animated.View
+      style={[
+        styles.fieldContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldHeader}>
+        <View style={styles.fieldLabelContainer}>
+          <Ionicons name="person-outline" size={16} color="#0056D2" style={styles.fieldIcon} />
+          <Text style={styles.fieldLabel}>Gender Specific</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={[styles.inputContainer,errors.genderSpecific && styles.inputError]}
+        onPress={() => setShowGenderModal(true)}
+      >
+        <Text style={styles.input}>{exerciseData.genderSpecific || 'Select Gender'}</Text>
+        <Ionicons name="chevron-down" size={20} color="#6B7280" style={styles.dropdownIcon} />
+      </TouchableOpacity>
+      {
+        errors.genderSpecific && (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={14} color="#EF4444" />
+            <Text style={styles.errorText}>{errors.genderSpecific}</Text>
+          </View>
+        )
+      }
+    </Animated.View >
+  );
+
+  const renderPrivacySelector = () => (
+    <Animated.View
+      style={[
+        styles.privacySection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.fieldHeader}>
+        <View style={styles.fieldLabelContainer}>
+          <Ionicons name="shield-outline" size={16} color="#0056D2" style={styles.fieldIcon} />
+          <Text style={styles.fieldLabel}>Privacy Setting</Text>
+        </View>
+      </View>
+      <View style={styles.privacyOptions}>
+        <TouchableOpacity
+          style={[styles.privacyOption,exerciseData.isPrivate === 0 && styles.privacyOptionActive]}
+          onPress={() => handleInputChange('isPrivate',0)}
+        >
+          <View style={styles.privacyOptionHeader}>
+            <Ionicons name="globe-outline" size={20} color={exerciseData.isPrivate === 0 ? '#FFFFFF' : '#0056D2'} />
+            <Text style={[styles.privacyOptionTitle,exerciseData.isPrivate === 0 && styles.privacyOptionTitleActive]}>
+              Public
+            </Text>
+          </View>
+          <Text style={[styles.privacyOptionDesc,exerciseData.isPrivate === 0 && styles.privacyOptionDescActive]}>
+            Anyone can access this exercise
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.privacyOption,exerciseData.isPrivate === 1 && styles.privacyOptionActive]}
+          onPress={() => handleInputChange('isPrivate',1)}
+        >
+          <View style={styles.privacyOptionHeader}>
+            <Ionicons name="lock-closed-outline" size={20} color={exerciseData.isPrivate === 1 ? '#FFFFFF' : '#0056D2'} />
+            <Text style={[styles.privacyOptionTitle,exerciseData.isPrivate === 1 && styles.privacyOptionTitleActive]}>
+              Private
+            </Text>
+          </View>
+          <Text style={[styles.privacyOptionDesc,exerciseData.isPrivate === 1 && styles.privacyOptionDescActive]}>
+            Only approved users can access
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {errors.isPrivate && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={14} color="#EF4444" />
+          <Text style={styles.errorText}>{errors.isPrivate}</Text>
+        </View>
+      )}
+    </Animated.View>
+  );
+
+  const renderCategoryModal = () => (
+    <Modal
+      visible={showCategoryModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowCategoryModal(false)}
+    >
+      <TouchableWithoutFeedback onPress={() => setShowCategoryModal(false)}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <Animated.View style={[styles.dropdownModal,{ transform: [{ scale: scaleAnim }] }]}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Category</Text>
+                <TouchableOpacity onPress={() => setShowCategoryModal(false)} style={styles.modalCloseButton}>
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={categories}
+                keyExtractor={(item) => item.categoryId.toString()}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      handleInputChange('categoryId',item.categoryId);
+                      setShowCategoryModal(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{item.categoryName}</Text>
+                  </TouchableOpacity>
+                )}
+                style={styles.dropdownList}
+              />
+            </Animated.View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+
+  const renderGenderModal = () => (
+    <Modal
+      visible={showGenderModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowGenderModal(false)}
+    >
+      <TouchableWithoutFeedback onPress={() => setShowGenderModal(false)}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <Animated.View style={[styles.dropdownModal,{ transform: [{ scale: scaleAnim }] }]}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Gender</Text>
+                <TouchableOpacity onPress={() => setShowGenderModal(false)} style={styles.modalCloseButton}>
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.dropdownList}>
+                {GENDER_OPTIONS.map((gender) => (
+                  <TouchableOpacity
+                    key={gender}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      handleInputChange('genderSpecific',gender);
+                      setShowGenderModal(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{gender}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Animated.View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+
+  const renderMediaOptionsModal = (isImage) => (
+    <Modal
+      visible={isImage ? showImageOptions : showVideoOptions}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => (isImage ? setShowImageOptions(false) : setShowVideoOptions(false))}
+    >
+      <TouchableWithoutFeedback onPress={() => (isImage ? setShowImageOptions(false) : setShowVideoOptions(false))}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <Animated.View style={[styles.imageOptionsModal,{ transform: [{ scale: scaleAnim }] }]}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{isImage ? 'Add Image' : 'Add Video'}</Text>
+                <TouchableOpacity
+                  onPress={() => (isImage ? setShowImageOptions(false) : setShowVideoOptions(false))}
+                  style={styles.modalCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.imageOptionsContainer}>
+                {isImage ? (
+                  <>
+                    <TouchableOpacity style={styles.imageOption} onPress={handleTakePhoto} disabled={mediaUploading}>
+                      <LinearGradient colors={['#0056D2','#0041A3']} style={styles.imageOptionGradient}>
+                        <Ionicons name="camera" size={28} color="#FFFFFF" />
+                      </LinearGradient>
+                      <View style={styles.imageOptionContent}>
+                        <Text style={styles.imageOptionTitle}>Take Photo</Text>
+                        <Text style={styles.imageOptionSubtitle}>Use your camera</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.imageOption} onPress={handlePickImage} disabled={mediaUploading}>
+                      <LinearGradient colors={['#10B981','#059669']} style={styles.imageOptionGradient}>
+                        <Ionicons name="images" size={28} color="#FFFFFF" />
+                      </LinearGradient>
+                      <View style={styles.imageOptionContent}>
+                        <Text style={styles.imageOptionTitle}>Choose from Gallery</Text>
+                        <Text style={styles.imageOptionSubtitle}>Select existing photo</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.imageOption} onPress={handleImageUrl} disabled={mediaUploading}>
+                      <LinearGradient colors={['#F59E0B','#D97706']} style={styles.imageOptionGradient}>
+                        <Ionicons name="link" size={28} color="#FFFFFF" />
+                      </LinearGradient>
+                      <View style={styles.imageOptionContent}>
+                        <Text style={styles.imageOptionTitle}>Enter URL</Text>
+                        <Text style={styles.imageOptionSubtitle}>Paste image link</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity style={styles.imageOption} onPress={handlePickVideo} disabled={mediaUploading}>
+                      <LinearGradient colors={['#10B981','#059669']} style={styles.imageOptionGradient}>
+                        <Ionicons name="videocam" size={28} color="#FFFFFF" />
+                      </LinearGradient>
+                      <View style={styles.imageOptionContent}>
+                        <Text style={styles.imageOptionTitle}>Choose from Gallery</Text>
+                        <Text style={styles.imageOptionSubtitle}>Select existing video</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.imageOption} onPress={handleVideoUrl} disabled={mediaUploading}>
+                      <LinearGradient colors={['#F59E0B','#D97706']} style={styles.imageOptionGradient}>
+                        <Ionicons name="link" size={28} color="#FFFFFF" />
+                      </LinearGradient>
+                      <View style={styles.imageOptionContent}>
+                        <Text style={styles.imageOptionTitle}>Enter YouTube URL</Text>
+                        <Text style={styles.imageOptionSubtitle}>Paste YouTube video link</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+              {mediaUploading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#0056D2" />
+                  <Text style={styles.loadingText}>Processing {isImage ? 'image' : 'video'}...</Text>
+                </View>
+              )}
+            </Animated.View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+
+  const renderUrlInputModal = (isImage) => (
+    <Modal
+      visible={isImage ? showImageUrlInput : showVideoUrlInput}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={cancelMediaUrlInput}
+    >
+      <TouchableWithoutFeedback onPress={cancelMediaUrlInput}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <Animated.View style={[styles.urlInputModal,{ transform: [{ scale: scaleAnim }] }]}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{isImage ? 'Enter Image URL' : 'Enter YouTube URL'}</Text>
+                <TouchableOpacity onPress={cancelMediaUrlInput} style={styles.modalCloseButton}>
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.urlInputContainer}>
+                <TextInput
+                  style={[styles.urlInput,urlError && styles.urlInputError]}
+                  placeholder={isImage ? 'https://example.com/image.jpg' : 'https://youtube.com/watch?v=...'}
+                  placeholderTextColor="#9CA3AF"
+                  value={isImage ? imageUrl : videoUrl}
+                  onChangeText={(text) => {
+                    if (isImage) setImageUrl(text);
+                    else setVideoUrl(text);
+                    setUrlError('');
+                  }}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                  returnKeyType="done"
+                  onSubmitEditing={isImage ? confirmImageUrl : confirmVideoUrl}
+                  autoFocus={true}
+                />
+                {urlError && (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                    <Text style={styles.errorText}>{urlError}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.urlModalButtons}>
+                <TouchableOpacity style={styles.urlCancelButton} onPress={cancelMediaUrlInput}>
+                  <Text style={styles.urlCancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.urlConfirmButton}
+                  onPress={isImage ? confirmImageUrl : confirmVideoUrl}
+                  disabled={mediaUploading}
+                >
+                  {mediaUploading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.urlConfirmButtonText}>Confirm</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#0056D2" />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Create Exercise</Text>
-            <Text style={styles.headerSubtitle}>Add a new exercise to your collection</Text>
+            <Text style={styles.headerSubtitle}>Add a new fitness exercise</Text>
           </View>
           <View style={styles.headerRight} />
         </View>
-      </LinearGradient>
-
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView 
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+      </View>
+      <View style={styles.mainContainer} ref={containerRef} {...panResponder.panHandlers}>
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <Animated.View 
-            style={[
-              styles.formContainer, 
-              { 
-                opacity: fadeAnim, 
-                transform: [{ translateY: slideAnim }] 
-              }
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollContainer}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingBottom: isKeyboardVisible ? keyboardHeight + 50 : 50,
+              },
             ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
-            <CustomInput
-              label="Exercise Name"
-              value={newExercise.exerciseName}
-              onChangeText={(text) => updateExerciseField('exerciseName', text)}
-              placeholder="Enter exercise name"
-              error={formErrors.exerciseName}
-              required
-              leftIcon="fitness-outline"
-            />
-
-            <CustomInput
-              label="Description"
-              value={newExercise.description}
-              onChangeText={(text) => updateExerciseField('description', text)}
-              placeholder="Describe the exercise..."
-              multiline
-              leftIcon="document-text-outline"
-            />
-
-            <CustomSelect
-              label="Category"
-              value={newExercise.categoryId}
-              onSelect={(value) => updateExerciseField('categoryId', value)}
-              options={categoryOptions}
-              error={formErrors.categoryId}
-              required
-              icon="grid-outline"
-            />
-
-            <CustomSelect
-              label="Gender Specification"
-              value={newExercise.genderSpecific}
-              onSelect={(value) => updateExerciseField('genderSpecific', value)}
-              options={genderOptions}
-              error={formErrors.genderSpecific}
-              required
-              icon="people-outline"
-            />
-
-            <CustomInput
-              label="Calories Burned Per Minute"
-              value={newExercise.caloriesBurnedPerMin}
-              onChangeText={(text) => updateExerciseField('caloriesBurnedPerMin', text)}
-              placeholder="0"
-              keyboardType="numeric"
-              error={formErrors.caloriesBurnedPerMin}
-              leftIcon="flame-outline"
-            />
-
-            <CustomSelect
-              label="Visibility"
-              value={newExercise.isPrivate}
-              onSelect={(value) => updateExerciseField('isPrivate', value)}
-              options={visibilityOptions}
-              icon="eye-outline"
-            />
-
-            <MediaUploadSection
-              useMediaUpload={useImageUpload}
-              setUseMediaUpload={setUseImageUpload}
-              mediaUri={imageUri}
-              onPickMedia={() => pickMedia(true)}
-              mediaUrl={newExercise.imageUrl}
-              onChangeMediaUrl={(text) => updateExerciseField('imageUrl', text)}
-              actionLoading={actionLoading}
-              error={formErrors.imageUrl}
-              setMediaUri={setImageUri}
-              isImage={true}
-            />
-
-            <MediaUploadSection
-              useMediaUpload={useVideoUpload}
-              setUseMediaUpload={setUseVideoUpload}
-              mediaUri={videoUri}
-              onPickMedia={() => pickMedia(false)}
-              mediaUrl={newExercise.mediaUrl}
-              onChangeMediaUrl={(text) => updateExerciseField('mediaUrl', text)}
-              actionLoading={actionLoading}
-              error={formErrors.mediaUrl}
-              setMediaUri={setVideoUri}
-              isImage={false}
-            />
-          </Animated.View>
-        </ScrollView>
-
-        <Animated.View style={[styles.buttonContainer, { opacity: fadeAnim }]}>
-          <View style={styles.actionButtonsContainer}>
-            <CustomButton
-              title="Cancel"
-              onPress={() => navigation.goBack()}
-              variant="ghost"
-              size="medium"
-              style={styles.cancelButton}
-            />
-            <CustomButton
-              title="Create Exercise"
-              onPress={handleCreateExercise}
-              variant="primary"
-              size="medium"
-              loading={actionLoading}
-              icon="add-circle-outline"
-              style={styles.createButton}
-            />
-          </View>
-        </Animated.View>
-      </KeyboardAvoidingView>
+            <TouchableWithoutFeedback>
+              <View style={styles.formContent}>
+                {renderImageSection()}
+                {renderVideoSection()}
+                {renderFormField(
+                  'Exercise Name',
+                  exerciseData.exerciseName,
+                  (text) => handleInputChange('exerciseName',text),
+                  'field.exerciseName',
+                  'Enter exercise name...',
+                  false,
+                  'barbell-outline'
+                )}
+                {renderRichEditor()}
+                {renderCategorySelector()}
+                {renderGenderSelector()}
+                {renderFormField(
+                  'Calories Burned (per min)',
+                  exerciseData.caloriesBurnedPerMin,
+                  (text) => handleInputChange('caloriesBurnedPerMin',text),
+                  'field.caloriesBurnedPerMin',
+                  'Enter calories burned per minute',
+                  false,
+                  'flame-outline',
+                  'numeric'
+                )}
+                {renderPrivacySelector()}
+                <Animated.View
+                  style={[
+                    styles.createButtonContainer,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={[styles.createButton,(creating || mediaUploading) && styles.createButtonDisabled]}
+                    onPress={handleCreate}
+                    disabled={creating || mediaUploading}
+                    accessibilityLabel="Create Exercise"
+                  >
+                    <LinearGradient colors={['#0056D2','#0041A3']} style={styles.createButtonGradient}>
+                      {creating || mediaUploading ? (
+                        <View style={styles.createButtonLoading}>
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                          <Text style={styles.createButtonText}>
+                            {mediaUploading ? 'Uploading Media...' : 'Creating Exercise...'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={styles.createButtonContent}>
+                          <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+                          <Text style={styles.createButtonText}>Create Exercise</Text>
+                        </View>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
+            </TouchableWithoutFeedback>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+      {isKeyboardVisible && (
+        <TouchableWithoutFeedback onPress={dismissKeyboard}>
+          <View style={styles.keyboardDismissOverlay} pointerEvents="box-none" />
+        </TouchableWithoutFeedback>
+      )}
+      {renderMediaOptionsModal(true)}
+      {renderMediaOptionsModal(false)}
+      {renderUrlInputModal(true)}
+      {renderUrlInputModal(false)}
+      {renderCategoryModal()}
+      {renderGenderModal()}
+      {renderVideoPreviewModal()}
     </SafeAreaView>
   );
 };
 
-// Styles
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  keyboardAvoid: {
-    flex: 1,
-  },
   header: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingTop: Platform.OS === 'android' ? 10 : 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    zIndex: 1000,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   backButton: {
     padding: 10,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    accessibilityLabel: 'Go Back',
   },
-  headerTextContainer: {
+  headerCenter: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 16,
+    marginHorizontal: 20,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
   },
   headerRight: {
     width: 44,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  content: {
+  mainContainer: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 24,
   },
-  formContainer: {
-    paddingBottom: 24,
+  keyboardContainer: {
+    flex: 1,
   },
-  inputCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  labelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  requiredAsterisk: {
-    color: '#EF4444',
-    fontSize: 16,
-    marginLeft: 4,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  scrollContainer: {
+    flex: 1,
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    minHeight: 50,
   },
-  input: {
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  formContent: {
     flex: 1,
-    padding: 16,
-    fontSize: 16,
-    color: '#1E293B',
   },
-  multilineInput: {
-    height: 100,
-    textAlignVertical: 'top',
+  keyboardDismissOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: -1,
   },
-  inputWithLeftIcon: {
-    paddingLeft: 8,
+  imageSection: {
+    marginBottom: 32,
   },
-  inputWithRightIcon: {
-    paddingRight: 8,
-  },
-  inputIcon: {
-    marginLeft: 16,
-  },
-  rightIconContainer: {
-    padding: 16,
-  },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: 12,
-    marginTop: 8,
-    fontWeight: '500',
-  },
-  customButton: {
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  imageContainer: {
+    position: 'relative',
+    borderRadius: 20,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0,height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  buttonContent: {
+  imagePreview: {
+    width: '100%',
+    height: 220,
+    resizeMode: 'cover',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    accessibilityLabel: 'Remove Image',
+  },
+  removeImageButtonInner: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  editImageButton: {
+    position: 'absolute',
+    top: 16,
+    right: 60,
+    accessibilityLabel: 'Edit Image',
+  },
+  editImageButtonInner: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 86, 210, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  playVideoButton: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -30 },{ translateY: -30 }],
+    accessibilityLabel: 'Play Video',
+  },
+  playVideoButtonInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0, 86, 210, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  imageLabel: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  customButtonText: {
+  imageLabelText: {
+    fontSize: 14,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
-  primaryButton: {
-    backgroundColor: '#4F46E5',
+  addImageContainer: {
+    position: 'relative',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderStyle: 'dashed',
   },
-  secondaryButton: {
-    backgroundColor: '#F1F5F9',
+  addImageContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 48,
   },
-  outlineButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#4F46E5',
+  addImageIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F0F9FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  ghostButton: {
-    backgroundColor: 'transparent',
+  addImageTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 8,
   },
-  dangerButton: {
-    backgroundColor: '#EF4444',
+  addImageSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
   },
-  primaryButtonText: {
-    color: '#FFFFFF',
+  fieldContainer: {
+    marginBottom: 28,
   },
-  secondaryButtonText: {
+  fieldHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  fieldLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fieldIcon: {
+    marginRight: 8,
+  },
+  fieldLabel: {
+    fontSize: 17,
+    fontWeight: '600',
     color: '#1E293B',
   },
-  outlineButtonText: {
-    color: '#4F46E5',
+  fieldCounter: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
   },
-  smallButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  mediumButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-  },
-  largeButton: {
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-  },
-  smallButtonText: {
-    fontSize: 14,
-  },
-  largeButtonText: {
-    fontSize: 18,
-  },
-  disabledButton: {
-    backgroundColor: '#CBD5E1',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  selectButton: {
+  inputContainer: {
+    display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    minHeight: 50,
-  },
-  selectButtonText: {
-    fontSize: 16,
-    color: '#1E293B',
-  },
-  selectPlaceholder: {
-    color: '#94A3B8',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    width: width * 0.9,
-    maxHeight: '70%',
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  inputError: {
+    borderColor: '#EF4444',
+  },
+  input: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    fontSize: 16,
+    color: '#1E293B',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  multilineInput: {
+    height: 120,
+    textAlignVertical: 'top',
+  },
+  richEditorContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  richToolbar: {
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  richEditor: {
+    minHeight: 140,
+    backgroundColor: '#FFFFFF',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#EF4444',
+    marginLeft: 6,
+    flex: 1,
+    fontWeight: '500',
+  },
+  privacySection: {
+    marginBottom: 28,
+  },
+  privacyOptions: {
+    gap: 16,
+  },
+  privacyOption: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  privacyOptionActive: {
+    borderColor: '#0056D2',
+    backgroundColor: '#0056D2',
+  },
+  privacyOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  privacyOptionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginLeft: 12,
+  },
+  privacyOptionTitleActive: {
+    color: '#FFFFFF',
+  },
+  privacyOptionDesc: {
+    fontSize: 15,
+    color: '#6B7280',
+    lineHeight: 22,
+  },
+  privacyOptionDescActive: {
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  createButtonContainer: {
+    marginTop: 24,
+  },
+  createButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 8 },
+    shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 8,
   },
-  modalHeader: {
+  createButtonDisabled: {
+    opacity: 0.7,
+  },
+  createButtonGradient: {
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  createButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  createButtonLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  createButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  videoPreviewModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPreviewContainer: {
+    width: '90%',
+    height: '60%',
+    backgroundColor: '#000',
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  videoPlayer: {
+    width: '100%',
+    height: '100%',
+  },
+  videoPreviewCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#D1D5DB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  imageOptionsModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    maxHeight: '75%',
+  },
+  dropdownModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    maxHeight: '50%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 20,
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#1E293B',
   },
   modalCloseButton: {
-    padding: 4,
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  selectedOption: {
-    backgroundColor: '#F0F9FF',
-  },
-  optionText: {
-    fontSize: 16,
-    color: '#1E293B',
-  },
-  selectedOptionText: {
-    color: '#4F46E5',
-    fontWeight: '600',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    padding: 4,
-    marginTop: 8,
-  },
-  toggleButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 6,
+    alignItems: 'center',
+    accessibilityLabel: 'Close Modal',
   },
-  toggleButtonActive: {
-    backgroundColor: '#4F46E5',
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
+  imageOptionsContainer: {
+    padding: 24,
+    gap: 20,
   },
-  toggleButtonFirst: {
-    marginRight: 2,
-  },
-  toggleButtonLast: {
-    marginLeft: 2,
-  },
-  toggleButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  toggleButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  mediaPreviewContainer: {
-    marginTop: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    position: 'relative',
-  },
-  mediaPreview: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 12,
-    padding: 4,
-  },
-  buttonContainer: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+  imageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
+    padding: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 3,
+    elevation: 4,
   },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    gap: 12,
+  imageOptionGradient: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 20,
   },
-  cancelButton: {
+  imageOptionContent: {
     flex: 1,
   },
-  createButton: {
-    flex: 2,
+  imageOptionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+  imageOptionSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  dropdownList: {
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+  },
+  dropdownItem: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: '#1E293B',
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 16,
+    fontWeight: '500',
+  },
+  urlInputModal: {
+    position: 'absolute',
+    top: '20%',
+    left: 10,
+    right: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    maxHeight: '60%',
+  },
+  urlInputContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  urlInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    marginTop: 10,
+    fontSize: 16,
+    color: '#1E293B',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  urlModalButtons: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  urlCancelButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    accessibilityLabel: 'Cancel URL Input',
+  },
+  urlCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  urlConfirmButton: {
+    flex: 1,
+    backgroundColor: '#0056D2',
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    accessibilityLabel: 'Confirm URL',
+  },
+  urlConfirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  urlInputError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
+  },
+  dropdownIcon: {
+    marginRight: 16,
   },
 });
 

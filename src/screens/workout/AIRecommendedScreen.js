@@ -3,19 +3,19 @@ import {
   View,
   Text,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
   StyleSheet,
   Image,
   Dimensions,
   Animated,
   ScrollView,
-  Alert,
   TextInput,
   Modal,
   Platform,
   RefreshControl,
 } from 'react-native';
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { aiRecommentService } from 'services/apiAIRecommentService';
@@ -175,20 +175,19 @@ const AIRecommendedScreen = () => {
       const storedFavorites = await AsyncStorage.getItem('favoriteExercises');
       let favoriteList = storedFavorites ? JSON.parse(storedFavorites) : [];
       const isFavorited = favorites.includes(exercise.exerciseId);
-      
       if (isFavorited) {
         favoriteList = favoriteList.filter((item) => item.exerciseId !== exercise.exerciseId);
         setFavorites(favorites.filter((id) => id !== exercise.exerciseId));
         await AsyncStorage.setItem('favoriteExercises', JSON.stringify(favoriteList));
-        Alert.alert('Success', 'Removed from favorites successfully');
+        showSuccessMessage('Removed from favorites successfully');
       } else {
         favoriteList.push(exercise);
         setFavorites([...favorites, exercise.exerciseId]);
         await AsyncStorage.setItem('favoriteExercises', JSON.stringify(favoriteList));
-        Alert.alert('Success', 'Added to favorites successfully');
+        showSuccessMessage('Added to favorites successfully');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to update favorites. Please try again.');
+      showErrorFetchAPI('Failed to update favorites. Please try again.');
     }
   };
 
@@ -197,18 +196,16 @@ const AIRecommendedScreen = () => {
     try {
       const storedExercises = await AsyncStorage.getItem('scheduledExercises');
       let scheduledExercises = storedExercises ? JSON.parse(storedExercises) : [];
-      
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
-        Alert.alert('Info', `${exercise.exerciseName} is already in your schedule`);
+        showErrorFetchAPI(`${exercise.exerciseName} is already in your schedule`);
         return;
       }
-      
       const exerciseToSave = { ...exercise, mediaUrl: exercise.mediaUrl || '' };
       scheduledExercises.push(exerciseToSave);
       await AsyncStorage.setItem('scheduledExercises', JSON.stringify(scheduledExercises));
-      Alert.alert('Success', `${exercise.exerciseName} added to your workout schedule`);
+      showSuccessMessage(`${exercise.exerciseName} added to your workout schedule`);
     } catch (error) {
-      Alert.alert('Error', 'Failed to add exercise to schedule. Please try again.');
+      showErrorFetchAPI('Failed to add exercise to schedule. Please try again.');
     }
   };
 
@@ -527,7 +524,7 @@ const AIRecommendedScreen = () => {
       </Text>
       <TouchableOpacity 
         style={styles.emptyButton} 
-        onPress={() => navigation.navigate('WorkoutScreen')}
+        onPress={() => navigation.navigate('WorkoutListScreen')}
       >
         <LinearGradient
           colors={["#6366F1", "#8B5CF6"]}
@@ -616,12 +613,8 @@ const AIRecommendedScreen = () => {
 
       {/* Content */}
       <View style={styles.contentContainer}>
-        {aiLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6366F1" />
-            <Text style={styles.loadingText}>Loading AI recommendations...</Text>
-          </View>
-        ) : aiError ? (
+        <Loading visible={aiLoading} />
+        {!aiLoading && aiError ? (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
             <Text style={styles.errorTitle}>Something went wrong</Text>
@@ -630,7 +623,7 @@ const AIRecommendedScreen = () => {
               <Text style={styles.retryButtonText}>Try Again</Text>
             </TouchableOpacity>
           </View>
-        ) : sortedItems.length > 0 ? (
+        ) : !aiLoading && sortedItems.length > 0 ? (
           <FlatList
             data={sortedItems}
             renderItem={renderExerciseItem}
@@ -650,9 +643,7 @@ const AIRecommendedScreen = () => {
               />
             }
           />
-        ) : (
-          renderEmpty()
-        )}
+        ) : !aiLoading && renderEmpty()}
       </View>
 
       {renderSortModal()}

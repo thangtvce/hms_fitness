@@ -5,15 +5,15 @@ import {
   View,
   Text,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
   Image,
   StyleSheet,
-  Alert,
   TextInput,
   Modal,
   ScrollView,
 } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import { useNavigation, useRoute } from "@react-navigation/native"
 import { getExercisesByPlanId } from "services/apiWorkoutPlanService"
@@ -166,7 +166,7 @@ export default function WorkoutPlanExercisesDetailScreen() {
 
       // Check for duplicates
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
-        Alert.alert("Already Added", `${exercise.exerciseName} is already in your workout session!`)
+        showErrorFetchAPI(`${exercise.exerciseName} is already in your workout session!`)
         return
       }
 
@@ -180,12 +180,9 @@ export default function WorkoutPlanExercisesDetailScreen() {
       await AsyncStorage.setItem("scheduledExercises", JSON.stringify(scheduledExercises))
       setSessionCount(scheduledExercises.length)
 
-      Alert.alert("Success", `${exercise.exerciseName} added to workout session!`, [
-        { text: "OK" },
-        { text: "View Session", onPress: () => navigation.navigate("WorkoutSessionScreen") },
-      ])
+      showSuccessMessage(`${exercise.exerciseName} added to workout session!`)
     } catch (e) {
-      Alert.alert("Error", "Unable to add to workout session.")
+      showErrorFetchAPI("Unable to add to workout session.")
     }
   }
 
@@ -609,10 +606,7 @@ export default function WorkoutPlanExercisesDetailScreen() {
       {/* Content */}
       <View style={styles.content}>
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4F46E5" />
-            <Text style={styles.loadingText}>Loading exercises...</Text>
-          </View>
+          <Loading />
         ) : error ? (
           renderErrorState()
         ) : exercises.length === 1 && exerciseId ? (

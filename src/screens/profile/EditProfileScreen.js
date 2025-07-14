@@ -5,15 +5,14 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Animated,
-  ActivityIndicator,
-  theme,
   Modal,
 } from "react-native"
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import { profileService } from "services/apiProfileService"
 import { useAuth } from "context/AuthContext"
@@ -104,12 +103,8 @@ export default function EditProfileScreen({ navigation, route }) {
 
   const bmiCategory = getBmiCategory(bmiValue)
 
-  if (!fontsLoaded) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.primary }]}> 
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    )
+  if (!fontsLoaded || isLoading) {
+    return <Loading />;
   }
 
   const validateForm = () => {
@@ -185,10 +180,10 @@ export default function EditProfileScreen({ navigation, route }) {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       const response = await profileService.updateProfile(user.userId,{
         ...formData,
@@ -196,15 +191,16 @@ export default function EditProfileScreen({ navigation, route }) {
         height: formData.height ? Number.parseFloat(formData.height) : null,
         weight: formData.weight ? Number.parseFloat(formData.weight) : null,
         bodyFatPercentage: formData.bodyFatPercentage ? Number.parseFloat(formData.bodyFatPercentage) : null,
-      })
+      });
 
       if (response.statusCode === 200) {
-        Alert.alert("Success","Profile updated successfully.",[{ text: "OK",onPress: () => navigation.goBack() }])
+        showSuccessMessage("Profile updated successfully.");
+        navigation.goBack();
       }
     } catch (error) {
-      Alert.alert("Error",error.message || "Failed to update profile.")
+      showErrorFetchAPI(error.message || "Failed to update profile.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 

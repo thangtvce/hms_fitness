@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 import { addTrainerRating } from 'services/apiWorkoutPlanService';
 
 export default function RateTrainerScreen({ route, navigation }) {
@@ -18,7 +20,7 @@ export default function RateTrainerScreen({ route, navigation }) {
 
   const handleSubmit = async () => {
     if (!rating || isNaN(rating) || rating < 1 || rating > 5) {
-      Alert.alert('Lỗi', 'Vui lòng nhập số sao từ 1 đến 5!');
+      showErrorFetchAPI('Please enter a star rating from 1 to 5!');
       return;
     }
     setLoading(true);
@@ -30,11 +32,11 @@ export default function RateTrainerScreen({ route, navigation }) {
         rating: Number(rating),
         feedbackText,
       };
-      const res = await addTrainerRating(ratingDto);
-      Alert.alert('Thành công', 'Đánh giá đã được gửi!');
+      await addTrainerRating(ratingDto);
+      showSuccessMessage('Your rating has been submitted!');
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Lỗi', e.message || 'Không thể gửi đánh giá');
+      showErrorFetchAPI(e.message || 'Could not submit rating');
     } finally {
       setLoading(false);
     }
@@ -42,26 +44,34 @@ export default function RateTrainerScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Đánh giá huấn luyện viên</Text>
-      <Text>Huấn luyện viên: {subscription.trainerFullName}</Text>
-      <Text>Email: {subscription.trainerEmail}</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Số sao (1-5)"
-        keyboardType="numeric"
-        value={rating}
-        onChangeText={setRating}
-        editable={!loading}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Nhận xét"
-        value={feedbackText}
-        onChangeText={setFeedbackText}
-        multiline
-        editable={!loading}
-      />
-      <Button title={loading ? 'Đang gửi...' : 'Gửi đánh giá'} onPress={handleSubmit} disabled={loading} />
+      {loading ? (
+        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
+          <Loading />
+        </View>
+      ) : (
+        <>
+          <Text style={styles.header}>Đánh giá huấn luyện viên</Text>
+          <Text>Huấn luyện viên: {subscription.trainerFullName}</Text>
+          <Text>Email: {subscription.trainerEmail}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Số sao (1-5)"
+            keyboardType="numeric"
+            value={rating}
+            onChangeText={setRating}
+            editable={!loading}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Nhận xét"
+            value={feedbackText}
+            onChangeText={setFeedbackText}
+            multiline
+            editable={!loading}
+          />
+          <Button title={'Gửi đánh giá'} onPress={handleSubmit} disabled={loading} />
+        </>
+      )}
     </View>
   );
 }

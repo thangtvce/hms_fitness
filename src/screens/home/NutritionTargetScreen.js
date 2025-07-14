@@ -13,6 +13,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import Slider from "@react-native-community/slider";
 import Header from "../../components/Header";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import Loading from "components/Loading";
 const { width } = Dimensions.get('window');
 
 // Expanded preset targets (50+ options)
@@ -95,13 +97,22 @@ const NutritionTargetScreen = () => {
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [filter, setFilter] = useState("All");
   const [lastSaved, setLastSaved] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const saved = await AsyncStorage.getItem("nutritionTarget");
-      if (saved) {
-        setTarget(JSON.parse(saved));
-        setLastSaved(JSON.parse(saved));
+      setLoading(true);
+      try {
+        const saved = await AsyncStorage.getItem("nutritionTarget");
+        if (saved) {
+          setTarget(JSON.parse(saved));
+          setLastSaved(JSON.parse(saved));
+        }
+        // showSuccessMessage("Nutrition target loaded successfully!");
+      } catch (e) {
+        showErrorFetchAPI(e.message || "Failed to load nutrition target");
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
@@ -135,23 +146,26 @@ const NutritionTargetScreen = () => {
 
   const handleSave = async () => {
     if (!target.calories || !target.carbs || !target.protein || !target.fats) {
-      Alert.alert("Missing Values", "Please set all nutrition targets before saving");
+      showErrorFetchAPI("Please set all nutrition targets before saving");
       return;
     }
 
-    // Save as latest
-    await AsyncStorage.setItem("nutritionTarget", JSON.stringify(target));
-    // Save as per-day
-    const todayKey = getTodayKey();
-    await AsyncStorage.setItem(`nutritionTarget_${todayKey}`, JSON.stringify(target));
+    setLoading(true);
+    try {
+      // Save as latest
+      await AsyncStorage.setItem("nutritionTarget", JSON.stringify(target));
+      // Save as per-day
+      const todayKey = getTodayKey();
+      await AsyncStorage.setItem(`nutritionTarget_${todayKey}`, JSON.stringify(target));
 
-    setLastSaved(target); // update UI immediately
-
-    Alert.alert(
-      "Success!", 
-      "Your nutrition targets have been saved successfully!", 
-      [{ text: "Continue", onPress: () => navigation.navigate("HomeScreen") }]
-    );
+      setLastSaved(target); // update UI immediately
+      showSuccessMessage("Your nutrition targets have been saved successfully!");
+      navigation.navigate("HomeScreen");
+    } catch (e) {
+      showErrorFetchAPI(e.message || "Failed to save nutrition target");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredPresets = filter === "All" 
@@ -191,6 +205,10 @@ const NutritionTargetScreen = () => {
     { key: 'fats', label: 'Fats', color: '#F9CA24', max: 200, unit: 'g' },
   ];
   const [selectedMacro, setSelectedMacro] = useState('calories');
+
+  if (loading) {
+    return <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading nutrition target..." />
+  }
 
   return (
     <View style={styles.container}>
@@ -303,7 +321,7 @@ const NutritionTargetScreen = () => {
             >
               <View style={styles.presetHeader}>
                 <Text style={styles.presetName}>{preset.name}</Text>
-                <View style={[styles.typeTag, { backgroundColor: getTypeColor(preset.type) }]}>
+                <View style={[styles.typeTag, { backgroundColor: getTypeColor(preset.type) }]}> 
                   <Text style={styles.typeTagText}>{preset.type}</Text>
                 </View>
               </View>

@@ -9,12 +9,12 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
-  ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
   ScrollView,
 } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -176,23 +176,15 @@ const WorkoutSessionScreen = () => {
   }
 
   const removeExercise = (exerciseId) => {
-    Alert.alert("Remove Exercise", "Are you sure you want to remove this exercise?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => {
-          const updatedExercises = scheduledExercises.filter((ex) => ex.exerciseId !== exerciseId)
-          setScheduledExercises(updatedExercises)
-          saveScheduledExercises(updatedExercises)
-        },
-      },
-    ])
+    const updatedExercises = scheduledExercises.filter((ex) => ex.exerciseId !== exerciseId)
+    setScheduledExercises(updatedExercises)
+    saveScheduledExercises(updatedExercises)
+    showSuccessMessage("Exercise removed from session!")
   }
 
   const startWorkout = async () => {
     if (scheduledExercises.length === 0) {
-      Alert.alert("Error", "No exercises scheduled")
+      showErrorFetchAPI("No exercises scheduled")
       return
     }
     // Prepare params to pass to the new screen
@@ -328,7 +320,7 @@ const WorkoutSessionScreen = () => {
       }
       const sessionResponse = await workoutService.createWorkoutSessionsBulk([session])
   
-      Alert.alert("Success", "Workout session and activities logged successfully!")
+      showSuccessMessage("Workout session and activities logged successfully!")
       setScheduledExercises([])
       await AsyncStorage.removeItem("scheduledExercises")
       await AsyncStorage.removeItem('workoutSessionStartTime')
@@ -341,7 +333,7 @@ const WorkoutSessionScreen = () => {
         errorMessage = `Bad request: ${err.response.data?.message || "Invalid activity data"}`
       }
       setError(errorMessage)
-      Alert.alert("Error", errorMessage)
+      showErrorFetchAPI(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -725,12 +717,7 @@ const WorkoutSessionScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingTitle}>Loading Workout Session</Text>
-          <Text style={styles.loadingText}>Please wait a moment...</Text>
-        </View>
+        <Loading />
       </SafeAreaView>
     )
   }

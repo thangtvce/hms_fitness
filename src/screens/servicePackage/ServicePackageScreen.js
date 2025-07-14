@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  ActivityIndicator,
   TextInput,
   Animated,
   Platform,
@@ -14,6 +13,8 @@ import {
   ScrollView,
   Image,
 } from "react-native";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import Loading from "components/Loading";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "context/AuthContext";
@@ -67,7 +68,6 @@ export default function ServicePackageScreen({ navigation }) {
         setLoading(false);
         return;
       }
-      
       setLoading(true);
       try {
         const params = {
@@ -79,15 +79,12 @@ export default function ServicePackageScreen({ navigation }) {
           sortBy: filters.sortBy,
           sortDescending: filters.sortDescending,
         };
-        
         const res = await trainerService.getAllActiveServicePackage(params);
         const data = res.data?.packages || [];
-        
         setPackages((prev) => (page === 1 ? data : [...prev, ...data]));
         setTotalPages(res.data?.totalPages || 1);
         setTotalItems(res.data?.totalCount || data.length);
         setHasMore(res.data?.pageNumber < res.data?.totalPages);
-        
         const trainerClientsMap = calculateTrainerClients(data);
         setTrainerClients(trainerClientsMap);
         await fetchTrainerRatings(data);
@@ -97,6 +94,7 @@ export default function ServicePackageScreen({ navigation }) {
         setTotalPages(1);
         setTotalItems(0);
         setHasMore(false);
+        showErrorFetchAPI("Unable to load packages: " + (e?.message || "Unknown error"));
       }
       setLoading(false);
     },
@@ -515,6 +513,10 @@ export default function ServicePackageScreen({ navigation }) {
     </View>
   );
 
+  if (loading && pageNumber === 1) {
+    return <Loading />;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#FFFFFF" />
@@ -565,24 +567,17 @@ export default function ServicePackageScreen({ navigation }) {
       {/* Promo Banner */}
       {renderPromoBanner()}
 
-      {loading && pageNumber === 1 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading packages...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={packages}
-          keyExtractor={(item) => item.packageId.toString()}
-          renderItem={renderPackage}
-          contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={renderEmpty}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          showsVerticalScrollIndicator={false}
-          style={styles.flatList}
-        />
-      )}
+      <FlatList
+        data={packages}
+        keyExtractor={(item) => item.packageId.toString()}
+        renderItem={renderPackage}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={renderEmpty}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        showsVerticalScrollIndicator={false}
+        style={styles.flatList}
+      />
 
       {renderFilterModal()}
     </SafeAreaView>

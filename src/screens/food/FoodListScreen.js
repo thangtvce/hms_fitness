@@ -1,6 +1,5 @@
-"use client"
 import { useState, useEffect, useRef } from "react"
-import Loading from '../../components/Loading';
+import Loading from 'components/Loading';
 import {
   View,
   Text,
@@ -55,7 +54,7 @@ const LAYOUT_OPTIONS = [
   { columns: 2, icon: "grid-outline", label: "2 cols" },
   { columns: 3, icon: "apps-outline", label: "3 cols" },
   { columns: 4, icon: "keypad-outline", label: "4 cols" },
-  { columns: "quick", icon: "flash-outline", label: "Quick" }, // Changed to "quick" mode
+  { columns: "quick", icon: "flash-outline", label: "Quick" },
 ]
 
 const MIN_SERVING = 1
@@ -489,11 +488,9 @@ const FoodListScreen = () => {
       }
 
       if (typeof food === "object") {
-        console.log("Food to log:", JSON.stringify(food))
-        console.log("Image field:", image)
+
       } else {
-        console.log("Food to log:", food)
-        console.log("Image field:", image)
+     
       }
 
       await addFoodToLog(today, mealType, logData)
@@ -1289,7 +1286,7 @@ const FoodListScreen = () => {
   }
 
   if (loading && !refreshing) {
-    return <Loading backgroundColor="#F9FAFB" logoSize={220} />;
+    return <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading foods..." />;
   }
 
   return (

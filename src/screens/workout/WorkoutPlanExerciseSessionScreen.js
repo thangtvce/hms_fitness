@@ -5,11 +5,9 @@ import {
   View,
   Text,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
   Image,
   StyleSheet,
-  Alert,
   ScrollView,
   TextInput,
   Modal,
@@ -17,6 +15,8 @@ import {
   ImageBackground,
   StatusBar,
 } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -231,33 +231,22 @@ export default function WorkoutPlanExerciseSessionScreen() {
   }
 
   const clearAll = async () => {
-    Alert.alert(
-      "Remove all exercises",
-      "Are you sure you want to remove all exercises from this session?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove all",
-          style: "destructive",
-          onPress: async () => {
-            await AsyncStorage.removeItem("scheduledExercises")
-            setExercises([])
-            setFilteredExercises([])
-            setTotalCalories(0)
-            setTotalDuration(0)
-          },
-        },
-      ]
-    )
+    // No confirmation dialog, just clear and show success toast
+    await AsyncStorage.removeItem("scheduledExercises")
+    setExercises([])
+    setFilteredExercises([])
+    setTotalCalories(0)
+    setTotalDuration(0)
+    showSuccessMessage("All exercises removed from session!")
   }
 
   const handleStartSession = () => {
     if (!user?.userId) {
-      Alert.alert("Error", "User information not found. Please log in again!")
+      showErrorFetchAPI("User information not found. Please log in again!")
       return
     }
     if (exercises.length === 0) {
-      Alert.alert("No exercises", "Please add exercises to start!")
+      showErrorFetchAPI("Please add exercises to start!")
       return
     }
     navigation.navigate("WorkoutSessionActiveScreen", { exercises, userId: user.userId })
@@ -337,10 +326,7 @@ export default function WorkoutPlanExerciseSessionScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Đang tải bài tập...</Text>
-        </View>
+        <Loading />
       </SafeAreaView>
     )
   }

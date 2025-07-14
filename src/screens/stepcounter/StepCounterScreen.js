@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect, useContext, useRef } from "react"
 import { LineChart } from "react-native-chart-kit"
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert, Animated } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Animated } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import Loading from "components/Loading";
 import { Ionicons } from "@expo/vector-icons"
 import { AnimatedCircularProgress } from "react-native-circular-progress"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -194,13 +196,11 @@ const StepCounterScreen = ({ navigation }) => {
         RecordedAt: now.toISOString(),
       }
 
-      const sessionRes = await workoutService.createWorkoutSession(workoutSession)
-      const activityRes = await workoutService.createActivity(activity)
-
-    
-      Alert.alert("Success", "Step data saved successfully!")
+      await workoutService.createWorkoutSession(workoutSession)
+      await workoutService.createActivity(activity)
+      showSuccessMessage("Step data saved successfully!")
     } catch (err) {
-      Alert.alert("Error", err.message || "Unable to save data")
+      showErrorFetchAPI(err.message || "Unable to save data")
     }
   }
 

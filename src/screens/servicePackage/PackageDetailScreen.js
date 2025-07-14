@@ -5,15 +5,15 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
-  Alert,
   TouchableOpacity,
   Image,
   Dimensions,
   Animated,
   Platform,
 } from "react-native"
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import HTML from "react-native-render-html"
 import { LinearGradient } from "expo-linear-gradient"
 import { useAuth } from "context/AuthContext"
@@ -77,8 +77,9 @@ const PackageDetailScreen = ({ route, navigation }) => {
       if (!initialPackage?.packageId || !initialPackage?.trainerId) {
         setError("Invalid package or trainer data provided.")
         setLoading(false)
-        Alert.alert("Error", "Invalid package data provided.", [{ text: "OK", onPress: () => navigation.goBack() }])
-        return
+        showErrorFetchAPI("Invalid package data provided.");
+        navigation.goBack();
+        return;
       }
 
       try {
@@ -95,7 +96,8 @@ const PackageDetailScreen = ({ route, navigation }) => {
       } catch (error) {
         setError("Failed to fetch trainer data.")
         setLoading(false)
-        Alert.alert("Error", "Unable to load trainer details.", [{ text: "OK", onPress: () => navigation.goBack() }])
+        showErrorFetchAPI("Unable to load trainer details.");
+        navigation.goBack();
       }
     }
 
@@ -173,17 +175,15 @@ Join me on the fitness journey! Download HMS 3DO: ${
 
       await Share.share(shareOptions)
     } catch (error) {
-      Alert.alert("Error", `Unable to share service details: ${error.message}`)
+      showErrorFetchAPI(`Unable to share service details: ${error.message}`)
     }
   }
 
   const handleSavePackage = async () => {
     if (!user?.userId) {
-      Alert.alert("Login Required", "Please log in to save this package.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Login", onPress: () => navigation.navigate("Login") },
-      ])
-      return
+      showErrorFetchAPI("Please log in to save this package.");
+      navigation.navigate("Login");
+      return;
     }
 
     try {
@@ -193,7 +193,7 @@ Join me on the fitness journey! Download HMS 3DO: ${
       if (isSaved) {
         packages = packages.filter((pkg) => pkg.packageId !== packageData.packageId)
         setIsSaved(false)
-        Alert.alert("Success", "Package removed from saved list.")
+        showSuccessMessage("Package removed from saved list.");
       } else {
         const packageToSave = {
           packageId: packageData.packageId,
@@ -212,27 +212,25 @@ Join me on the fitness journey! Download HMS 3DO: ${
         }
         packages.push(packageToSave)
         setIsSaved(true)
-        Alert.alert("Success", "Package saved successfully!")
+        showSuccessMessage("Package saved successfully!");
       }
 
       await AsyncStorage.setItem("@SavedPackages", JSON.stringify(packages))
     } catch (error) {
-      Alert.alert("Error", "Unable to save package: " + error.message)
+      showErrorFetchAPI("Unable to save package: " + error.message);
     }
   }
 
   const handleCheckout = () => {
     if (!user?.userId) {
-      Alert.alert("Login Required", "Please log in to enroll in this package.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Login", onPress: () => navigation.navigate("Login") },
-      ])
-      return
+      showErrorFetchAPI("Please log in to enroll in this package.");
+      navigation.navigate("Login");
+      return;
     }
 
     if (!packageData?.price || packageData.price <= 0) {
-      Alert.alert("Notice", "Invalid service package price.")
-      return
+      showErrorFetchAPI("Invalid service package price.");
+      return;
     }
 
     navigation.navigate("Payment", {
@@ -287,14 +285,9 @@ Join me on the fitness journey! Download HMS 3DO: ${
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingSpinner}>
-            <ActivityIndicator size="large" color="#0056d2" />
-          </View>
-          <Text style={styles.loadingText}>Loading package details...</Text>
-        </View>
+        <Loading />
       </SafeAreaView>
-    )
+    );
   }
 
   if (!packageData || error) {

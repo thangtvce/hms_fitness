@@ -6,14 +6,15 @@ import {
     TouchableOpacity,
     FlatList,
     TextInput,
-    ActivityIndicator,
-    Alert,
     Animated,
     Modal,
     ScrollView,
     Platform,
-    Dimensions,
+    Dimensions
+
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import Loading from "components/Loading";
 import { LinearGradient } from "expo-linear-gradient"
 // import { LinearGradient } from "expo-linear-gradient"
 import Header from "components/Header"
@@ -92,7 +93,7 @@ const MySubscriptionScreen = ({ navigation }) => {
             }
 
             if (!user?.userId) {
-                Alert.alert("Authentication Error","Please log in to view your subscriptions.")
+                showErrorFetchAPI("Please log in to view your subscriptions.");
                 setLoading(false)
                 setRefreshing(false)
                 return
@@ -126,14 +127,14 @@ const MySubscriptionScreen = ({ navigation }) => {
                 setTotalCount(response.data.totalCount || 0)
                 setHasMore(page < response.data.totalPages)
             } else {
-                Alert.alert("Notice",response.message || "Unable to load subscriptions.")
+                showErrorFetchAPI(response.message || "Unable to load subscriptions.");
                 setSubscriptions([])
                 setTotalPages(1)
                 setTotalCount(0)
                 setHasMore(false)
             }
         } catch (error) {
-            Alert.alert("Error",error.message || "An error occurred while loading subscriptions.")
+            showErrorFetchAPI(error.message || "An error occurred while loading subscriptions.");
             setSubscriptions([])
             setTotalPages(1)
             setTotalCount(0)
@@ -662,10 +663,7 @@ const MySubscriptionScreen = ({ navigation }) => {
 
             {/* Content */}
             {loading && pageNumber === 1 ? (
-                <View style={styles.loaderContainer}>
-                    <ActivityIndicator size="large" color="#0056d2" />
-                    <Text style={styles.loaderText}>Loading your subscriptions...</Text>
-                </View>
+                <Loading />
             ) : (
                 <FlatList
                     data={subscriptions}
@@ -679,8 +677,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                     ListFooterComponent={
                         loading && pageNumber > 1 ? (
                             <View style={styles.footerLoader}>
-                                <ActivityIndicator size="small" color="#0056d2" />
-                                <Text style={styles.footerLoaderText}>Loading more...</Text>
+                                <Loading size="small" />
                             </View>
                         ) : null
                     }

@@ -1,15 +1,15 @@
-"use client"
 
 import { useEffect, useState } from "react"
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert } from "react-native"
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "react-native"
 import { Video } from "expo-av"
-import { Ionicons } from "@expo/vector-icons" // Using Ionicons for consistency
+import { Ionicons } from "@expo/vector-icons" 
 import { LinearGradient } from "expo-linear-gradient"
 import { SafeAreaView } from "react-native-safe-area-context"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import Header from "components/Header"
-import workoutService from "services/apiWorkoutService" // Assuming this service is correctly imported
-
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import workoutService from "services/apiWorkoutService"
 const ExerciseDetailsScreen = ({ route, navigation }) => {
   const { exercise } = route.params
 
@@ -25,15 +25,19 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
     return "image"
   })
   const [isFavorite, setIsFavorite] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     const checkFavorite = async () => {
       try {
+        setLoading(true)
         const storedFavorites = await AsyncStorage.getItem("favoriteExercises")
         const favoriteList = storedFavorites ? JSON.parse(storedFavorites) : []
         setIsFavorite(favoriteList.some((ex) => ex.exerciseId === exercise.exerciseId))
       } catch (error) {
         setIsFavorite(false)
+      } finally {
+        setLoading(false)
       }
     }
     checkFavorite()
@@ -41,6 +45,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
 
   const toggleFavorite = async () => {
     try {
+      setLoading(true)
       const storedFavorites = await AsyncStorage.getItem("favoriteExercises")
       const favoriteList = storedFavorites ? JSON.parse(storedFavorites) : []
       const exists = favoriteList.some((ex) => ex.exerciseId === exercise.exerciseId)
@@ -52,9 +57,11 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
       }
       await AsyncStorage.setItem("favoriteExercises", JSON.stringify(updatedList))
       setIsFavorite(!exists)
-      Alert.alert("Success", exists ? "Removed from favorites" : "Added to favorites")
+      showSuccessMessage(exists ? "Removed from favorites" : "Added to favorites")
     } catch (error) {
-      Alert.alert("Error", "Failed to update favorites.")
+      showErrorFetchAPI("Failed to update favorites.")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -62,10 +69,13 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
     const fetchCategoryName = async () => {
       if (typeof exercise.categoryId === "number") {
         try {
+          setLoading(true)
           const data = await workoutService.getCategoryById(exercise.categoryId)
           setCategoryName(data?.categoryName || exercise.categoryId)
         } catch (error) {
           setCategoryName("N/A")
+        } finally {
+          setLoading(false)
         }
       } else {
         setCategoryName(exercise.categoryId ?? "N/A")
@@ -80,10 +90,11 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
 
   const handleAddToWorkout = async () => {
     try {
+      setLoading(true)
       const storedExercises = await AsyncStorage.getItem("scheduledExercises")
       const scheduledExercises = storedExercises ? JSON.parse(storedExercises) : []
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
-        Alert.alert("Info", `${exercise.exerciseName} is already in your workout schedule`)
+        showErrorFetchAPI(`${exercise.exerciseName} is already in your workout schedule`)
         return
       }
       const exerciseToSave = {
@@ -92,161 +103,171 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
       }
       scheduledExercises.push(exerciseToSave)
       await AsyncStorage.setItem("scheduledExercises", JSON.stringify(scheduledExercises))
-      Alert.alert("Success", `${exercise.exerciseName} added to your workout schedule`)
+      showSuccessMessage(`${exercise.exerciseName} added to your workout schedule`)
     } catch (error) {
-      Alert.alert("Error", "Failed to add exercise to schedule. Please try again.")
+      showErrorFetchAPI("Failed to add exercise to schedule. Please try again.")
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header
-        title={exercise.exerciseName || "Exercise Details"}
-        onBack={() => navigation.goBack()}
-        backgroundColor="#fff"
-        titleStyle={{ color: "#6C63FF", fontWeight: "bold" }}
-        rightActions={[
-          {
-            icon: isFavorite ? "heart" : "heart-outline",
-            onPress: toggleFavorite,
-            color: isFavorite ? "#EF4444" : "#6C63FF",
-          },
-          {
-            icon: "add-circle-outline",
-            onPress: handleAddToWorkout,
-            color: "#0056d2",
-          },
-        ]}
-      />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollViewContent, { marginTop: 55 }] }>
-        <View
-          style={[
-            styles.mediaContainer,
-            (mediaType === "image" || mediaType === "video") && { backgroundColor: "#FFFFFF" },
-          ]}
-        >
-          {mediaType === "video" && exercise.mediaUrl && isVideo(exercise.mediaUrl) ? (
-            <Video
-              source={{ uri: exercise.mediaUrl }}
-              style={styles.heroMedia}
-              useNativeControls
-              resizeMode="cover"
-              shouldPlay={true}
-              isLooping={true}
-              posterSource={{ uri: exercise.imageUrl || getExerciseImage(exercise.exerciseName) }}
-              posterStyle={{ width: "100%", height: "100%" }}
-            />
-          ) : (
-            <Image
-              source={{ uri: exercise.imageUrl || getExerciseImage(exercise.exerciseName) }}
-              style={styles.heroMedia}
-              resizeMode="cover"
-            />
-          )}
-          <LinearGradient colors={["transparent", "rgba(0,0,0,0.8)"]} style={styles.imageGradient} />
+      {loading ? (
+        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
+          <Loading />
         </View>
-        {/* Toggle buttons for media type */}
-        <View style={styles.mediaToggleContainer}>
-          <TouchableOpacity
-            style={[styles.mediaToggleButton, mediaType === "image" && styles.mediaToggleButtonActive]}
-            onPress={() => setMediaType("image")}
-            disabled={mediaType === "image"}
-          >
-            <Text style={[styles.mediaToggleText, mediaType === "image" && styles.mediaToggleTextActive]}>Image</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.mediaToggleButton,
-              mediaType === "video" && styles.mediaToggleButtonActive,
-              !exercise.mediaUrl || !isVideo(exercise.mediaUrl) ? styles.mediaToggleButtonDisabled : null,
+      ) : (
+        <>
+          <Header
+            title={exercise.exerciseName || "Exercise Details"}
+            onBack={() => navigation.goBack()}
+            backgroundColor="#fff"
+            titleStyle={{ color: "#6C63FF", fontWeight: "bold" }}
+            rightActions={[
+              {
+                icon: isFavorite ? "heart" : "heart-outline",
+                onPress: toggleFavorite,
+                color: isFavorite ? "#EF4444" : "#6C63FF",
+              },
+              {
+                icon: "add-circle-outline",
+                onPress: handleAddToWorkout,
+                color: "#0056d2",
+              },
             ]}
-            onPress={() => setMediaType("video")}
-            disabled={!exercise.mediaUrl || !isVideo(exercise.mediaUrl) || mediaType === "video"}
-          >
-            <Text
+          />
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollViewContent, { marginTop: 55 }] }>
+            <View
               style={[
-                styles.mediaToggleText,
-                mediaType === "video" && styles.mediaToggleTextActive,
-                (!exercise.mediaUrl || !isVideo(exercise.mediaUrl)) && styles.mediaToggleTextDisabled,
+                styles.mediaContainer,
+                (mediaType === "image" || mediaType === "video") && { backgroundColor: "#FFFFFF" },
               ]}
             >
-              Video
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* New Key Metrics Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Key Metrics</Text>
-          <View style={styles.metricsGrid}>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>{exercise.caloriesBurnedPerMin ?? "N/A"}</Text>
-              <Text style={styles.metricLabel}>kcal/min</Text>
+              {mediaType === "video" && exercise.mediaUrl && isVideo(exercise.mediaUrl) ? (
+                <Video
+                  source={{ uri: exercise.mediaUrl }}
+                  style={styles.heroMedia}
+                  useNativeControls
+                  resizeMode="cover"
+                  shouldPlay={true}
+                  isLooping={true}
+                  posterSource={{ uri: exercise.imageUrl || getExerciseImage(exercise.exerciseName) }}
+                  posterStyle={{ width: "100%", height: "100%" }}
+                />
+              ) : (
+                <Image
+                  source={{ uri: exercise.imageUrl || getExerciseImage(exercise.exerciseName) }}
+                  style={styles.heroMedia}
+                  resizeMode="cover"
+                />
+              )}
+              <LinearGradient colors={["transparent", "rgba(0,0,0,0.8)"]} style={styles.imageGradient} />
             </View>
-            {exercise.genderSpecific && (
-              <View style={styles.metricCard}>
-                <Text style={styles.metricValue}>{exercise.genderSpecific}</Text>
-                <Text style={styles.metricLabel}>Gender</Text>
+            {/* Toggle buttons for media type */}
+            <View style={styles.mediaToggleContainer}>
+              <TouchableOpacity
+                style={[styles.mediaToggleButton, mediaType === "image" && styles.mediaToggleButtonActive]}
+                onPress={() => setMediaType("image")}
+                disabled={mediaType === "image"}
+              >
+                <Text style={[styles.mediaToggleText, mediaType === "image" && styles.mediaToggleTextActive]}>Image</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.mediaToggleButton,
+                  mediaType === "video" && styles.mediaToggleButtonActive,
+                  !exercise.mediaUrl || !isVideo(exercise.mediaUrl) ? styles.mediaToggleButtonDisabled : null,
+                ]}
+                onPress={() => setMediaType("video")}
+                disabled={!exercise.mediaUrl || !isVideo(exercise.mediaUrl) || mediaType === "video"}
+              >
+                <Text
+                  style={[
+                    styles.mediaToggleText,
+                    mediaType === "video" && styles.mediaToggleTextActive,
+                    (!exercise.mediaUrl || !isVideo(exercise.mediaUrl)) && styles.mediaToggleTextDisabled,
+                  ]}
+                >
+                  Video
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* New Key Metrics Section */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Key Metrics</Text>
+              <View style={styles.metricsGrid}>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{exercise.caloriesBurnedPerMin ?? "N/A"}</Text>
+                  <Text style={styles.metricLabel}>kcal/min</Text>
+                </View>
+                {exercise.genderSpecific && (
+                  <View style={styles.metricCard}>
+                    <Text style={styles.metricValue}>{exercise.genderSpecific}</Text>
+                    <Text style={styles.metricLabel}>Gender</Text>
+                  </View>
+                )}
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>
+                    {new Date(exercise.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </Text>
+                  <Text style={styles.metricLabel}>Added On</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Category Card */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Category</Text>
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() =>
+                  navigation.navigate("ExercisesByCategoryScreen", {
+                    categoryId: exercise.categoryId,
+                    categoryName: categoryName,
+                  })
+                }
+              >
+                <Text style={styles.categoryText}>{categoryName || "Loading..."}</Text>
+                <Ionicons name="chevron-forward-outline" size={20} color="#9E9E9E" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Description Card */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              <View style={styles.descriptionCard}>
+                <Text style={styles.descriptionText}>
+                  {exercise.description ||
+                    "No description available for this exercise. Try checking the category details for more information about similar exercises."}
+                </Text>
+              </View>
+            </View>
+
+            {/* Optional: Instructions if available in exercise object */}
+            {exercise.instructions && exercise.instructions.length > 0 && (
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>Instructions</Text>
+                <View style={styles.instructionsCard}>
+                  {exercise.instructions.map((step, index) => (
+                    <View key={index} style={styles.instructionItem}>
+                      <Text style={styles.instructionNumber}>{index + 1}.</Text>
+                      <Text style={styles.instructionText}>{step}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>
-                {new Date(exercise.createdAt).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </Text>
-              <Text style={styles.metricLabel}>Added On</Text>
-            </View>
-          </View>
-        </View>
 
-        {/* Category Card */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Category</Text>
-          <TouchableOpacity
-            style={styles.categoryCard}
-            onPress={() =>
-              navigation.navigate("ExercisesByCategoryScreen", {
-                categoryId: exercise.categoryId,
-                categoryName: categoryName,
-              })
-            }
-          >
-            <Text style={styles.categoryText}>{categoryName || "Loading..."}</Text>
-            <Ionicons name="chevron-forward-outline" size={20} color="#9E9E9E" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Description Card */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <View style={styles.descriptionCard}>
-            <Text style={styles.descriptionText}>
-              {exercise.description ||
-                "No description available for this exercise. Try checking the category details for more information about similar exercises."}
-            </Text>
-          </View>
-        </View>
-
-        {/* Optional: Instructions if available in exercise object */}
-        {exercise.instructions && exercise.instructions.length > 0 && (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Instructions</Text>
-            <View style={styles.instructionsCard}>
-              {exercise.instructions.map((step, index) => (
-                <View key={index} style={styles.instructionItem}>
-                  <Text style={styles.instructionNumber}>{index + 1}.</Text>
-                  <Text style={styles.instructionText}>{step}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
+            <View style={styles.bottomSpacing} />
+          </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   )
 }

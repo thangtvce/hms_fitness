@@ -16,6 +16,7 @@ apiClient.interceptors.request.use(
     if (accessToken && config.headers) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
+    console.log(accessToken)
     return config;
   },
   (error) => Promise.reject(error),
@@ -50,49 +51,18 @@ apiClient.interceptors.response.use(
 );
 
 export const trainerService = {
-  // Lấy danh sách đơn ứng tuyển của chính user hiện tại
   async getMyTrainerApplications(queryParams = {}) {
     try {
-      const response = await apiClient.get('/TrainerApplication/me', { params: queryParams });
+      const response = await apiClient.get('/TrainerApplication/me',{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
     }
   },
-  // Lấy điểm đánh giá trung bình của trainer
-  async getTrainerAverageRating(trainerId) {
-    try {
-      const response = await apiClient.get(`/TrainerRating/average/${trainerId}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-   async getFitnessExercisesByTrainer(queryParams = {}) {
-    try {
-      const response = await apiClient.get('/TrainerFitnessExercise/me', { params: queryParams });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-  
-  async getWorkoutPlansByTrainerId(trainerId, queryParams = {}) {
-    try {
-      const response = await apiClient.get(`/WorkoutPlan/trainer/${trainerId}`, { params: queryParams });
-      return response.data;
-    } catch (error) {
-      const errorResponse = {
-        status: error.response?.status || 500,
-        data: error.response?.data || null,
-        message: error.response?.data?.message || error.message || 'Failed to fetch trainer workout plans',
-      };
-      throw errorResponse;
-    }
-  },
+
   async getMyTrainerApplications(queryParams = {}) {
     try {
-      const response = await apiClient.get('/TrainerApplication/me', { params: queryParams });
+      const response = await apiClient.get('/TrainerApplication/me',{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -100,24 +70,34 @@ export const trainerService = {
   },
   async submitTrainerApplication(applicationDto) {
     try {
-      const response = await apiClient.post('/TrainerApplication', applicationDto);
+      const response = await apiClient.post('/TrainerApplication',applicationDto);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
     }
   },
-  async getAllActiveServicePackage(queryParams = {}) {
+
+  async getApprovedTrainerApplication(trainerId) {
     try {
-      const response = await apiClient.get('/ServicePackage/all-active-package',{ params: queryParams });
+      const response = await apiClient.get(`TrainerApplication/user/approved/${trainerId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+  // Service package
+  async getServicePackageByTrainerId(id,queryParams = {}) {
+    try {
+      const response = await apiClient.get(`/ServicePackage/trainer/${id}`,{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  async getServicePackage(queryParams = {}) {
+  async toggleServicePackageStatus(id,status) {
     try {
-      const response = await apiClient.get('/ServicePackage',{ params: queryParams });
+      const response = await apiClient.put(`/ServicePackage/byTrainer/${id}/status`,{ status });
       return response.data;
     } catch (error) {
       throw error;
@@ -126,34 +106,7 @@ export const trainerService = {
 
   async getServicePackageById(id) {
     try {
-      const response = await apiClient.get(`/ServicePackage/active/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async getActiveServicePackage(id) {
-    try {
-      const response = await apiClient.get(`/ServicePackage/active/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-async getApprovedTrainerApplication(trainerId) {
-    try {
-      const response = await apiClient.get(`TrainerApplication/user/approved/${trainerId}`);
-      // The API returns the trainer info in response.data.data
-      // Return the whole response (status, message, data, etc.)
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error;
-    }
-  },
-  async getTrainerServicePackage(trainerId,packageId) {
-    try {
-      const response = await apiClient.get(`/ServicePackage/trainer/${trainerId}/${packageId}/active`);
+      const response = await apiClient.get(`/ServicePackage/trainer/packageById/${id}`);
       return response.data;
     } catch (error) {
       throw error;
@@ -162,7 +115,7 @@ async getApprovedTrainerApplication(trainerId) {
 
   async createServicePackage(packageData) {
     try {
-      const response = await apiClient.post('/ServicePackage',packageData);
+      const response = await apiClient.post('/ServicePackage/trainer',packageData);
       return response.data;
     } catch (error) {
       throw error;
@@ -171,7 +124,7 @@ async getApprovedTrainerApplication(trainerId) {
 
   async updateServicePackage(id,packageData) {
     try {
-      const response = await apiClient.put(`/ServicePackage/${id}`,packageData);
+      const response = await apiClient.put(`/ServicePackage/byTrainer/${id}`,packageData);
       return response.data;
     } catch (error) {
       throw error;
@@ -187,58 +140,328 @@ async getApprovedTrainerApplication(trainerId) {
     }
   },
 
-  async restoreServicePackage(id) {
+  // Exercise
+  async getExerciseCategory() {
     try {
-      const response = await apiClient.post(`/ServicePackage/restore/${id}`);
+      const queryParams = {
+        PageSize: 1000,
+        PageNumber: 1
+      }
+      const response = await apiClient.get(`/ExerciseCategory/all-active-categories`,{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  async restoreMultipleServicePackage(packageIds) {
+  async getExerciseByTrainerId(queryParams) {
     try {
-      const response = await apiClient.post('/ServicePackage/restore-multiple',{ packageIds });
+      const response = await apiClient.get(`/FitnessExercise/trainer`,{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  async restoreAllServicePackage() {
+  async getExerciseByBank(queryParams) {
     try {
-      const response = await apiClient.post('/ServicePackage/restore-all');
+      const response = await apiClient.get(`/FitnessExercise/view/0`,{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  async getServicePackageStatistics() {
+  async getFitnessExerciseById(id) {
     try {
-      const response = await apiClient.get('/ServicePackage/statistics');
+      const response = await apiClient.get(`/TrainerFitnessExercise/me/${id}`);
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  createPayment: async (paymentData) => {
+  async createFitnessExercise(exerciseData) {
     try {
-      const response = await apiClient.post('/api/userpayment',paymentData);
+      const response = await apiClient.post('/TrainerFitnessExercise',exerciseData);
       return response.data;
     } catch (error) {
-      throw error.response?.data || error;
+      throw error;
     }
   },
-  initializePaymentSheet: async (paymentData) => {
+
+  async updateFitnessExercise(id,exerciseData) {
     try {
-      const response = await apiClient.post('/api/payment/initialize',paymentData);
+      const response = await apiClient.put(`/TrainerFitnessExercise/${id}`,exerciseData);
       return response.data;
     } catch (error) {
-      throw error.response?.data || error;
+      throw error;
     }
   },
+
+  async deleteExercise(id) {
+    try {
+      const response = await apiClient.delete(`/TrainerFitnessExercise/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  //Pay out
+  async getMyPayouts(trainerId,queryParams = {}) {
+    try {
+      const response = await apiClient.get(`/TrainerPayout/trainer/${trainerId}`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getMyPayoutsById(payoutId) {
+    try {
+      const response = await apiClient.get(`/TrainerPayout/${payoutId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getMyPayoutsStatistics(trainerId,queryParams) {
+    try {
+      const response = await apiClient.get(`/TrainerPayout/statistics/trainer/${trainerId}`,{ queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  // Trainer rating
+  async getTrainerAverageRating(trainerId) {
+    try {
+      const response = await apiClient.get(`/TrainerRating/average/${trainerId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async getTrainerStatistic(trainerId) {
+    try {
+      const response = await apiClient.get(`/TrainerRating/statistics/trainer/${trainerId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async getTrainerRatings(trainerId,queryParams) {
+    try {
+      const response = await apiClient.get(`/TrainerRating/detailed/trainer/${trainerId}`,{ queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async getTrainerRatingsBySubscriptionId(subscriptionId) {
+    try {
+      const response = await apiClient.get(`/TrainerRating/subscription/${subscriptionId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getTrainerRatingsByPackageId(packageId,queryParams) {
+    try {
+      const response = await apiClient.get(`/TrainerRating/package/active/${packageId}`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  // Subscription
+  async getMySubscription(trainerId,queryParams) {
+    try {
+      const response = await apiClient.get(`/Subscription/trainer/${trainerId}`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getMySubscriptionById(subscriptionId) {
+    try {
+      const response = await apiClient.get(`/Subscription/${subscriptionId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getSubscriptionStatistic(queryParams) {
+    try {
+      const response = await apiClient.get(`/Subscription/trainer/me/statistics`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getSubscriptionByPackageId(packageId,queryParams) {
+    try {
+      const response = await apiClient.get(`/Subscription/byMyPackageId/${packageId}`,{ params: { queryParams } });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async getSubscriptionsByTrainerId(trainerId,queryParams = {}) {
+    try {
+      const response = await apiClient.get(`/Subscription/trainer/${trainerId}`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  // Workout plan
+  async getWorkoutPlansByTrainerId(trainerId,queryParams = {}) {
+    try {
+      const response = await apiClient.get(`/WorkoutPlan/trainer/${trainerId}/all`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getWorkoutPlansId(planId) {
+    try {
+      const response = await apiClient.get(`/WorkoutPlan/${planId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getWorkoutPlansBySubscriptionId(subscriptionId,queryParams) {
+    try {
+      const response = await apiClient.get(`/WorkoutPlan/subscription/${subscriptionId}`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async addWorkoutPlan(workoutData) {
+    try {
+      const response = await apiClient.post(`/WorkoutPlan`,workoutData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async updateWorkoutPlan(planId,workoutData) {
+    try {
+      const response = await apiClient.put(`/WorkoutPlan/${planId}`,workoutData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async deleteWorkoutPlan(planId) {
+    try {
+      const response = await apiClient.delete(`/WorkoutPlan/${planId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getWorkoutPlanStatistic(trainerId,queryParams) {
+    try {
+      const response = await apiClient.get(`/WorkoutPlan/statistics/trainer/${trainerId}`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getWorkoutPlansById(planId) {
+    try {
+      const response = await apiClient.get(`/WorkoutPlan/${planId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getPlanExerciseByPlanId(id,queryParams) {
+    try {
+      const response = await apiClient.get(`/WorkoutPlanExercise/plan/${id}`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getPlanExerciseById(id) {
+    try {
+      const response = await apiClient.get(`/WorkoutPlanExercise/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async updatePlanExercise(id,exerciseData) {
+    try {
+      const response = await apiClient.put(`/WorkoutPlanExercise/${id}`,exerciseData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async createPlanExercise(exerciseData) {
+    try {
+      const response = await apiClient.post('/WorkoutPlanExercise',exerciseData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  // View user for trainer
+  async viewUserForTrainer(userId) {
+    try {
+      const response = await apiClient.get(`/User/trainer/user/${userId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async viewProgressUserForTrainer(userId) {
+    try {
+      const response = await apiClient.get(`/Subscription/trainer/me/subscriber/${userId}/progress-comparisons`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  async getAllUserForTrainer(queryParams) {
+    try {
+      const response = await apiClient.get(`/Subscription/trainer/me/active-paid-subscribers`,{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Trainer dashboard
+  async getDashboardStatistic(startDate,endDate) {
+    try {
+      const response = await apiClient.get(
+        `/Subscription/trainer/me/revenue-statistics`,
+        {
+          params: {
+            startDate,
+            endDate
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  // end
   getProgressPhotos: async (queryParams = {}) => {
     try {
       const params = new URLSearchParams({
@@ -288,7 +511,8 @@ async getApprovedTrainerApplication(trainerId) {
     } catch (error) {
       throw error.response?.data || error;
     }
-  },updateComparison: async (comparisonId,comparisonData) => {
+  },
+  updateComparison: async (comparisonId,comparisonData) => {
     try {
       const response = await apiClient.put(`/api/progresscomparison/${comparisonId}`,comparisonData);
       return response.data;
@@ -296,117 +520,11 @@ async getApprovedTrainerApplication(trainerId) {
       throw error.response?.data || error;
     }
   },
-  //////////////////////////////////////////////////////////////////
-  async fetchRelatedPackages(trainerId, packageId) {
-    try {
-      const response = await apiClient.get(`/ServicePackage/trainer/${trainerId}/${packageId}/active`, { params: { packageId } });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
 
-  async getSubscriptionCountByPackageId(packageId) {
-    try {
-      const response = await apiClient.get(`/Subscription/count`, { params: { PackageId: packageId } });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async getServicePackageByTrainerId(id, queryParams = {}) {
-    try {
-      const response = await apiClient.get(`/ServicePackage/trainer/${id}`, { params: queryParams });
-      const packages = response.data.data?.Packages || [];
-      const subscriptionCounts = await Promise.all(
-        packages.map(async (pkg) => {
-          const countResponse = await this.getSubscriptionCountByPackageId(pkg.PackageId);
-          return { ...pkg, SubscriptionCount: countResponse.data?.data || 0 };
-        })
-      );
-      return {
-        ...response.data,
-        data: {
-          ...response.data.data,
-          Packages: subscriptionCounts,
-        },
-      };
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async toggleServicePackageStatus(id, status) {
-    try {
-      const response = await apiClient.patch(`/ServicePackage/${id}/status`, { status });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async getSubscriptionsByTrainerId(trainerId, queryParams = {}) {
-    try {
-      const response = await apiClient.get(`/Subscription/trainer/${trainerId}`, { params: queryParams });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
 
   async getDeletedServicePackages(queryParams = {}) {
     try {
-      const response = await apiClient.get('/ServicePackage/deleted', { params: queryParams });
-      const packages = response.data.data?.Packages || [];
-      const subscriptionCounts = await Promise.all(
-        packages.map(async (pkg) => {
-          const countResponse = await this.getSubscriptionCountByPackageId(pkg.PackageId);
-          return { ...pkg, SubscriptionCount: countResponse.data?.data || 0 };
-        })
-      );
-      return {
-        ...response.data,
-        data: {
-          ...response.data.data,
-          Packages: subscriptionCounts,
-        },
-      };
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async getAllPayouts(queryParams = {}) {
-    try {
-      const response = await apiClient.get('/TrainerPayout', { params: queryParams });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async getPlanExerciseById(id) {
-    try {
-      const response = await apiClient.get(`/WorkoutPlanExercise/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async updatePlanExercise(id, exerciseData) {
-    try {
-      const response = await apiClient.put(`/WorkoutPlanExercise/${id}`, exerciseData);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async createPlanExercise(exerciseData) {
-    try {
-      const response = await apiClient.post('/WorkoutPlanExercise', exerciseData);
+      const response = await apiClient.get('/ServicePackage/deleted',{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error;
@@ -424,7 +542,7 @@ async getApprovedTrainerApplication(trainerId) {
   // Trainer Application Endpoints
   async getAllApplications(queryParams = {}) {
     try {
-      const response = await apiClient.get('/TrainerApplication', { params: queryParams });
+      const response = await apiClient.get('/TrainerApplication',{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error;
@@ -433,7 +551,7 @@ async getApprovedTrainerApplication(trainerId) {
 
   async getMyApplications(queryParams = {}) {
     try {
-      const response = await apiClient.get('/TrainerApplication/me', { params: queryParams });
+      const response = await apiClient.get('/TrainerApplication/me',{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error;
@@ -451,25 +569,25 @@ async getApprovedTrainerApplication(trainerId) {
 
   async submitApplication(applicationData) {
     try {
-      const response = await apiClient.post('/TrainerApplication', applicationData);
+      const response = await apiClient.post('/TrainerApplication',applicationData);
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  async approveApplication(id, notes) {
+  async approveApplication(id,notes) {
     try {
-      const response = await apiClient.put(`/TrainerApplication/${id}/approve`, notes);
+      const response = await apiClient.put(`/TrainerApplication/${id}/approve`,notes);
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  async rejectApplication(id, notes) {
+  async rejectApplication(id,notes) {
     try {
-      const response = await apiClient.put(`/TrainerApplication/${id}/reject`, notes);
+      const response = await apiClient.put(`/TrainerApplication/${id}/reject`,notes);
       return response.data;
     } catch (error) {
       throw error;
@@ -487,7 +605,7 @@ async getApprovedTrainerApplication(trainerId) {
 
   async getApplicationStatistics(queryParams = {}) {
     try {
-      const response = await apiClient.get('/TrainerApplication/statistics', { params: queryParams });
+      const response = await apiClient.get('/TrainerApplication/statistics',{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error;
@@ -502,7 +620,6 @@ async getApprovedTrainerApplication(trainerId) {
       throw error;
     }
   },
-//////////////////////////////////////////////////////////////////
 };
 
 export default trainerService;

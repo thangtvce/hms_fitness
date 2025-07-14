@@ -7,13 +7,14 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Dimensions,
   RefreshControl,
   Modal,
   PanResponder,
   Animated,
 } from "react-native";
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "context/AuthContext";
 import { profileService } from "services/apiProfileService";
@@ -773,26 +774,17 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleReset = () => {
-    Alert.alert(
-      "Reset Progress",
-      "Are you sure you want to reset your level, XP, and streak? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await apiUserService.resetProgress(user.userId);
-              Alert.alert("Success", "Your progress has been reset!");
-              onRefresh();
-            } catch (error) {
-              Alert.alert("Error", "Failed to reset progress. Please try again.");
-            }
-          },
-        },
-      ]
-    );
+    // Custom confirm dialog using toast (no Alert)
+    // You may want to implement a custom modal for confirmation in the future
+    showErrorFetchAPI("Reset confirmation is not implemented. Please use a custom modal if needed.");
+    // Example for actual reset logic (uncomment and use a custom modal for confirmation):
+    // try {
+    //   await apiUserService.resetProgress(user.userId);
+    //   showSuccessMessage("Your progress has been reset!");
+    //   onRefresh();
+    // } catch (error) {
+    //   showErrorFetchAPI("Failed to reset progress. Please try again.");
+    // }
   };
 
   useEffect(() => {
@@ -841,6 +833,11 @@ export default function ProfileScreen({ navigation }) {
 
   useEffect(() => {}, [headerHeight]);
 
+  // Show loading overlay if any main data is loading
+  if (loading.userData || loading.profile || loading.bodyMeasurements || loading.weightHistory) {
+    return <Loading />;
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
@@ -867,10 +864,10 @@ export default function ProfileScreen({ navigation }) {
           navigation={navigation}
           latestWeight={latestWeight}
           latestMeasurement={latestMeasurement}
-          loading={loading.profile || loading.weightHistory || loading.bodyMeasurements}
+          loading={false}
           primaryColor="#0056d2"
         />
-        <HealthGoalsCard profile={profile} navigation={navigation} loading={loading.profile} />
+        <HealthGoalsCard profile={profile} navigation={navigation} loading={false} />
         <View style={styles.goalsCard}>
           <View style={styles.goalsHeader}>
             <Text style={styles.goalsTitle}>Body Metrics</Text>
@@ -904,7 +901,7 @@ export default function ProfileScreen({ navigation }) {
           title="Latest Body Measurement"
           onAction={handleAddBodyMeasurement}
           actionIcon="add"
-          loading={loading.bodyMeasurements}
+          loading={false}
         >
           {latestMeasurement ? (
             <BodyMeasurementItem item={latestMeasurement} />
@@ -931,7 +928,7 @@ export default function ProfileScreen({ navigation }) {
           title="Latest Weight"
           onAction={handleAddWeightHistory}
           actionIcon="add"
-          loading={loading.weightHistory}
+          loading={false}
         >
           {latestWeight ? (
             <WeightHistoryItem item={latestWeight} previousWeight={previousWeight} />

@@ -1,5 +1,7 @@
 import { useState, useEffect, useContext } from "react"
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Modal } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import Svg, { Circle } from "react-native-svg"
 import { Ionicons } from "@expo/vector-icons"
 import { Video } from "expo-av"
@@ -86,6 +88,7 @@ const WorkoutInProgressScreen = ({ route, navigation }) => {
   const [exerciseStartTime, setExerciseStartTime] = useState(null)
   const [localExerciseIndex, setLocalExerciseIndex] = useState(currentExerciseIndex)
   const [showExerciseInfo, setShowExerciseInfo] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   // Ready screen countdown
   useEffect(() => {
@@ -174,7 +177,10 @@ const WorkoutInProgressScreen = ({ route, navigation }) => {
             webViewStyle={styles.videoContainer}
             initialPlayerParams={{ controls: 1, modestbranding: 1, rel: 0, showinfo: 0, fs: 0 }}
             webViewProps={{ allowsInlineMediaPlayback: true }}
-            onError={(error) => setError && setError("YouTube Error: " + error)}
+            onError={(error) => {
+              setError && setError("YouTube Error: " + error)
+              showErrorFetchAPI("YouTube Error: " + error)
+            }}
             onChangeState={() => {}}
           />
         </View>
@@ -195,7 +201,10 @@ const WorkoutInProgressScreen = ({ route, navigation }) => {
             isLooping={true}
             useNativeControls={true}
             style={styles.videoContainer}
-            onError={(error) => setError && setError("Video Error: " + error)}
+            onError={(error) => {
+              setError && setError("Video Error: " + error)
+              showErrorFetchAPI("Video Error: " + error)
+            }}
           />
         </View>
       )
@@ -226,6 +235,14 @@ const WorkoutInProgressScreen = ({ route, navigation }) => {
   const workoutProgress = Math.round(((effectiveExerciseIndex + 1) / scheduledExercises.length) * 100)
   const exercisesLeft = scheduledExercises.length - (effectiveExerciseIndex + 1)
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
+        <Loading />
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
       {showReadyScreen ? (
@@ -248,7 +265,9 @@ const WorkoutInProgressScreen = ({ route, navigation }) => {
             <ReadyCircleProgress seconds={readySeconds} maxSeconds={15} />
             <TouchableOpacity
               style={styles.startButton}
-              onPress={() => {
+              onPress={async () => {
+                // Clear workoutLogs before start to avoid duplicate/old logs
+                try { await AsyncStorage.removeItem("workoutLogs"); } catch (e) {}
                 setShowReadyScreen(false)
                 setWorkoutStartTime(new Date())
                 setWorkoutElapsed(0)
@@ -434,8 +453,8 @@ const WorkoutInProgressScreen = ({ route, navigation }) => {
                 <TouchableOpacity
                   style={styles.newControlButton}
                   onPress={async () => {
-                    const endTime = new Date()
-                    setExerciseEndTime(endTime)
+                    const endTime = new Date();
+                    setExerciseEndTime(endTime);
 
                     try {
                       const log = {
@@ -449,35 +468,38 @@ const WorkoutInProgressScreen = ({ route, navigation }) => {
                         index: effectiveExerciseIndex + 1,
                         userId: user?.userId || null,
                         sessionId: route.params?.sessionId || null,
-                      }
-                      const prevLogs = await AsyncStorage.getItem("workoutLogs")
-                      const logsArr = prevLogs ? JSON.parse(prevLogs) : []
-                      logsArr.push(log)
-                      await AsyncStorage.setItem("workoutLogs", JSON.stringify(logsArr))
+                      };
+                      const prevLogs = await AsyncStorage.getItem("workoutLogs");
+                      const logsArr = prevLogs ? JSON.parse(prevLogs) : [];
+                      logsArr.push(log);
+                      await AsyncStorage.setItem("workoutLogs", JSON.stringify(logsArr));
                     } catch (err) {
                       // Handle error silently
                     }
 
                     if (effectiveExerciseIndex < scheduledExercises.length - 1) {
-                      setShowRestScreen(true)
-                      setRestSeconds(15)
+                      setShowRestScreen(true);
+                      setRestSeconds(15);
                     } else {
+                      // Đảm bảo chỉ tạo session 1 lần duy nhất
                       try {
-                        const logsRaw = await AsyncStorage.getItem("workoutLogs")
-                        const logsArr = logsRaw ? JSON.parse(logsRaw) : []
-                        if (!logsArr.length) throw new Error("No workout logs found")
+                        const logsRaw = await AsyncStorage.getItem("workoutLogs");
+                        const logsArr = logsRaw ? JSON.parse(logsRaw) : [];
+                        console.log('DEBUG: workoutLogs before create session:', logsArr);
+                        if (!logsArr.length) throw new Error("No workout logs found");
 
-                        let sessionStart = logsArr[0]?.startTime
+                        let sessionStart = logsArr[0]?.startTime;
                         if (!sessionStart) {
                           sessionStart =
                             exerciseStartTime?.toISOString() ||
                             workoutStartTime?.toISOString() ||
-                            new Date().toISOString()
+                            new Date().toISOString();
                         }
-                        const sessionEnd = logsArr[logsArr.length - 1].endTime
-                        const totalCalories = logsArr.reduce((sum, l) => sum + (l.caloriesBurnedPerMin || 0), 0)
-                        const totalDuration = Math.floor((new Date(sessionEnd) - new Date(sessionStart)) / 1000)
+                        const sessionEnd = logsArr[logsArr.length - 1].endTime;
+                        const totalCalories = logsArr.reduce((sum, l) => sum + (l.caloriesBurnedPerMin || 0), 0);
+                        const totalDuration = Math.floor((new Date(sessionEnd) - new Date(sessionStart)) / 1000);
 
+                        const notes = `Logged ${logsArr.length} exercise${logsArr.length === 1 ? '' : 's'}`;
                         const sessionPayload = [
                           {
                             UserId: user?.userId,
@@ -485,18 +507,20 @@ const WorkoutInProgressScreen = ({ route, navigation }) => {
                             EndTime: sessionEnd,
                             TotalCaloriesBurned: totalCalories,
                             TotalDurationMinutes: totalDuration,
-                            Notes: "string",
+                            Notes: notes,
                           },
-                        ]
+                        ];
 
-                        const sessionRes = await workoutService.createWorkoutSessionsBulk(sessionPayload)
-                        const sessionId =
-                          Array.isArray(sessionRes) && sessionRes.length > 0
-                            ? sessionRes[0].id || sessionRes[0].sessionId
-                            : null
+                        // Kiểm tra lại không gọi API tạo session ở nơi khác
+                        const sessionRes = await workoutService.createWorkoutSessionsBulk(sessionPayload);
+                        let sessionId = null;
+                        if (sessionRes && sessionRes.data && Array.isArray(sessionRes.data.createdSessions) && sessionRes.data.createdSessions.length > 0) {
+                          const createdSession = sessionRes.data.createdSessions[0];
+                          sessionId = createdSession.id || createdSession.sessionId || null;
+                        }
 
                         const activities = logsArr.map((l) => {
-                          const duration = Math.floor((new Date(l.endTime) - new Date(l.startTime)) / 1000)
+                          const duration = Math.floor((new Date(l.endTime) - new Date(l.startTime)) / 1000);
                           return {
                             UserId: user?.userId,
                             ActivityType: 1,
@@ -511,16 +535,16 @@ const WorkoutInProgressScreen = ({ route, navigation }) => {
                             GoalStatus: "Failed",
                             IsSummary: true,
                             RecordedAt: l.endTime,
-                          }
-                        })
+                          };
+                        });
 
-                        await workoutService.createActivitiesBulk(activities)
-                        await AsyncStorage.removeItem("workoutLogs")
-                        completeWorkout()
-                        navigation.goBack()
+                        await workoutService.createActivitiesBulk(activities);
+                        await AsyncStorage.removeItem("workoutLogs");
+                        completeWorkout();
+                        navigation.goBack();
                       } catch (err) {
-                        completeWorkout()
-                        navigation.goBack()
+                        completeWorkout();
+                        navigation.goBack();
                       }
                     }
                   }}

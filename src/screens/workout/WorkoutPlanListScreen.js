@@ -6,13 +6,14 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
   TextInput,
   Modal,
   ScrollView,
   Dimensions,
 } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { useNavigation } from "@react-navigation/native"
@@ -494,10 +495,7 @@ export default function WorkoutPlanListScreen({ route }) {
       {/* Content */}
       <View style={styles.content}>
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4F46E5" />
-            <Text style={styles.loadingText}>Loading your workout plans...</Text>
-          </View>
+          <Loading />
         ) : error ? (
           renderErrorState()
         ) : plans.length === 0 ? (

@@ -5,14 +5,14 @@ import {
     StyleSheet,
     FlatList,
     TouchableOpacity,
-    Alert,
-    ActivityIndicator,
     RefreshControl,
     Dimensions,
     Platform,
     ScrollView,
     Animated,
 } from 'react-native';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 import { Ionicons } from '@expo/vector-icons';
 import { apiUserWaterLogService } from 'services/apiUserWaterLogService';
 import { useAuth } from 'context/AuthContext';
@@ -91,7 +91,7 @@ export default function WaterComparisonScreen({ navigation }) {
                 processAvailableDates(logs);
             }
         } catch (error) {
-            Alert.alert('Error','Failed to load water log dates.');
+            showErrorFetchAPI('Failed to load water log dates.');
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -154,7 +154,7 @@ export default function WaterComparisonScreen({ navigation }) {
             : [...selectedDates,dateKey];
 
         if (newSelectedDates.length > 10) {
-            Alert.alert('Limit Reached','You can select maximum 10 dates for comparison.');
+            showErrorFetchAPI('You can select maximum 10 dates for comparison.');
             return;
         }
 
@@ -535,10 +535,7 @@ export default function WaterComparisonScreen({ navigation }) {
         return (
             <SafeAreaView style={styles.loadingContainer}>
                 <DynamicStatusBar backgroundColor={theme.primaryColor} />
-                <View style={styles.loadingContent}>
-                    <ActivityIndicator size="large" color="#2563EB" />
-                    <Text style={styles.loadingText}>Loading comparison data...</Text>
-                </View>
+                <Loading backgroundColor="#fff" logoSize={180} />
             </SafeAreaView>
         );
     }

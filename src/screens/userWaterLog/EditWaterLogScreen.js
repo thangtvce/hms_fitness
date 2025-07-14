@@ -5,8 +5,6 @@ import {
     StyleSheet,
     TextInput,
     TouchableOpacity,
-    Alert,
-    ActivityIndicator,
     ScrollView,
     KeyboardAvoidingView,
     Platform,
@@ -14,6 +12,8 @@ import {
     Animated,
     Modal,
 } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { apiUserWaterLogService } from "services/apiUserWaterLogService"
@@ -116,39 +116,39 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
 
             // UserId validation
             if (!user || !user.userId) {
-                Alert.alert("Authentication Error", "Please log in to continue.");
+                showErrorFetchAPI("Please log in to continue.");
                 return;
             }
             const userId = Number.parseInt(user.userId, 10);
             if (isNaN(userId) || userId <= 0) {
-                Alert.alert("UserId is required.", "UserId must be a positive integer.");
+                showErrorFetchAPI("UserId must be a positive integer.");
                 return;
             }
             if (userId !== formData.userId) {
-                Alert.alert("Error", "You can only edit your own water logs.");
+                showErrorFetchAPI("You can only edit your own water logs.");
                 return;
             }
 
             // AmountMl validation
             let amountMl = null;
             if (formData.amountMl === undefined || formData.amountMl === null || formData.amountMl === "") {
-                Alert.alert("AmountMl is required.", "AmountMl is required.");
+                showErrorFetchAPI("AmountMl is required.");
                 return;
             }
             amountMl = Number.parseFloat(formData.amountMl);
             if (isNaN(amountMl)) {
-                Alert.alert("AmountMl is required.", "AmountMl is required.");
+                showErrorFetchAPI("AmountMl is required.");
                 return;
             }
             if (amountMl < 1 || amountMl > 999999.99) {
-                Alert.alert("Amount out of range.", "Amount must be between 1 and 999,999.99 ml.");
+                showErrorFetchAPI("Amount must be between 1 and 999,999.99 ml.");
                 return;
             }
 
             // ConsumptionDate validation
             const consumptionDate = formData.consumptionDate;
             if (!(consumptionDate instanceof Date) || isNaN(consumptionDate.getTime())) {
-                Alert.alert("ConsumptionDate is required.", "ConsumptionDate is required.");
+                showErrorFetchAPI("ConsumptionDate is required.");
                 return;
             }
             // Only compare date part (not time)
@@ -156,21 +156,21 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
             const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const logDate = new Date(consumptionDate.getFullYear(), consumptionDate.getMonth(), consumptionDate.getDate());
             if (logDate > localToday) {
-                Alert.alert("ConsumptionDate cannot be in the future.", "ConsumptionDate cannot be in the future.");
+                showErrorFetchAPI("ConsumptionDate cannot be in the future.");
                 return;
             }
 
             // Notes validation
             const notes = formData.notes?.trim() || null;
             if (notes && notes.length > 500) {
-                Alert.alert("Notes too long.", "Notes cannot exceed 500 characters.");
+                showErrorFetchAPI("Notes cannot exceed 500 characters.");
                 return;
             }
 
             // Status validation
             let status = formData.status || "active";
             if (status && status.length > 20) {
-                Alert.alert("Status too long.", "Status cannot exceed 20 characters.");
+                showErrorFetchAPI("Status cannot exceed 20 characters.");
                 return;
             }
 
@@ -187,12 +187,13 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
             const response = await apiUserWaterLogService.updateWaterLog(formData.logId, payload);
 
             if (response.statusCode === 200) {
-                Alert.alert("Success", "Water log updated successfully!", [{ text: "OK", onPress: () => navigation.goBack() }]);
+                showSuccessMessage("Water log updated successfully!");
+                navigation.goBack();
             } else {
-                Alert.alert("Error", response.message || "Failed to update water log.");
+                showErrorFetchAPI(response.message || "Failed to update water log.");
             }
         } catch (error) {
-            Alert.alert("Error", error.message || "Failed to update water log.");
+            showErrorFetchAPI(error.message || "Failed to update water log.");
         } finally {
             setLoading(false);
         }
@@ -346,14 +347,8 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                             disabled={loading}
                             activeOpacity={0.8}
                         >
-                            {loading ? (
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                                <>
-                                    <Ionicons name="save" size={20} color="#FFFFFF" />
-                                    <Text style={styles.saveButtonText}>Update Entry</Text>
-                                </>
-                            )}
+                            <Ionicons name="save" size={20} color="#FFFFFF" />
+                            <Text style={styles.saveButtonText}>Update Entry</Text>
                         </TouchableOpacity>
 
                         {/* Info Card */}
@@ -432,6 +427,7 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                     </View>
                 </View>
             </Modal>
+        {loading && <Loading />}
         </SafeAreaView>
     )
 }

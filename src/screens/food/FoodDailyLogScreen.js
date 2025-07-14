@@ -1,6 +1,6 @@
-"use client"
 
 import { useEffect, useState } from "react"
+import Loading from "components/Loading"
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   Animated,
   Keyboard,
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useNavigation } from "@react-navigation/native"
@@ -89,7 +90,7 @@ const FoodDailyLogScreen = () => {
       console.log('Food log data for date', date, data)
       setLog(data)
     } catch (error) {
-      Alert.alert("Error", "Unable to load food log: " + error.message)
+      showErrorFetchAPI("Unable to load food log: " + error.message)
     }
   }
 
@@ -116,7 +117,6 @@ const FoodDailyLogScreen = () => {
             }
           }
           const mealType = log.mealType || "Breakfast"
-          // Ensure the mealType array exists, even for unexpected types
           if (!grouped[log.consumptionDate][mealType]) {
             grouped[log.consumptionDate][mealType] = []
           }
@@ -145,11 +145,11 @@ const FoodDailyLogScreen = () => {
         setCalendarData(calendarData)
       } else {
         setCalendarData([])
-        Alert.alert("Error", response.message || "Unable to load calendar data.")
+        showErrorFetchAPI(response.message || "Unable to load calendar data.")
       }
     } catch (error) {
       setCalendarData([])
-      Alert.alert("Error", "Unable to load calendar data: " + error.message)
+      showErrorFetchAPI("Unable to load calendar data: " + error.message)
     }
   }
 
@@ -171,7 +171,6 @@ const FoodDailyLogScreen = () => {
       const foodsToSave = []
       MEAL_TYPES.forEach((mealType) => {
         log[mealType].forEach((food) => {
-          // Đảm bảo các trường là số và không undefined/null
           const foodToPush = {
             ...food,
             userId: userId,
@@ -184,7 +183,6 @@ const FoodDailyLogScreen = () => {
             fats: Number(food.fats) || 0,
             quantity: Number(food.quantity) || 1,
           };
-          // Xóa các trường undefined/null
           Object.keys(foodToPush).forEach(key => {
             if (foodToPush[key] === undefined || foodToPush[key] === null) {
               delete foodToPush[key];
@@ -195,14 +193,13 @@ const FoodDailyLogScreen = () => {
       })
 
       if (foodsToSave.length === 0) {
-        Alert.alert("Notice", "No food items to save.")
+        showErrorFetchAPI("No food items to save.")
         setLoading(false)
         return
       }
 
       const res = await foodService.createNutritionLogsBulk(foodsToSave, userId)
       if (res.statusCode === 201) {
-        // Check-in logic: only check-in once per day
         try {
           const today = new Date();
           const year = today.getFullYear();
@@ -215,17 +212,16 @@ const FoodDailyLogScreen = () => {
             await AsyncStorage.setItem(todayKey, '1');
           }
         } catch (e) {
-          // Silent fail for check-in, do not block log
         }
-        Alert.alert("Success", "Food log saved to server!")
+        showSuccessMessage("Food log saved to server!")
         await clearFoodLogByDate(date)
         loadLog()
         loadCalendarData()
       } else {
-        Alert.alert("Error", res.message || "Unable to save food log.")
+        showErrorFetchAPI(res.message || "Unable to save food log.")
       }
     } catch (e) {
-      Alert.alert("Error", e.message || "Unable to save food log.")
+      showErrorFetchAPI(e.message || "Unable to save food log.")
     } finally {
       setLoading(false)
     }
@@ -244,8 +240,9 @@ const FoodDailyLogScreen = () => {
             setLog(updatedLog)
             await clearFoodLogByDate(date)
             await addFoodToLog(date, mealType, updatedLog[mealType])
+            showSuccessMessage("Food item deleted!")
           } catch (error) {
-            Alert.alert("Error", "Unable to delete food item: " + error.message)
+            showErrorFetchAPI("Unable to delete food item: " + error.message)
           }
         },
       },
@@ -266,7 +263,6 @@ const FoodDailyLogScreen = () => {
 
     try {
       const updatedLog = { ...log };
-      // Parse portionSize & servingSize
       const parsedPortionSize = Number.parseFloat(editingFood.food.portionSize) || 1;
       const parsedServingSize = Number.parseFloat(editingFood.food.servingSize) || 1;
       const parsedQuantity = Number.parseFloat(editingFood.food.quantity) || 1;
@@ -290,9 +286,9 @@ const FoodDailyLogScreen = () => {
 
       setEditModalVisible(false);
       setEditingFood(null);
-      Alert.alert("Success", "Food log updated!");
+      showSuccessMessage("Food log updated!");
     } catch (error) {
-      Alert.alert("Error", "Unable to update food item: " + error.message);
+      showErrorFetchAPI("Unable to update food item: " + error.message);
     }
   }  
 
@@ -831,29 +827,17 @@ const FoodDailyLogScreen = () => {
     </Modal>
   )
 
+
   if (authLoading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-        <View style={styles.loadingContent}>
-          <Icon name="hourglass-empty" size={48} color="#4F46E5" />
-          <Text style={styles.loadingTitle}>Loading User Information</Text>
-          <Text style={styles.loadingText}>Please wait a moment...</Text>
-        </View>
-      </SafeAreaView>
+      <Loading backgroundColor="rgba(255,255,255,0.8)" logoSize={120} text="Loading User Information\nPlease wait a moment..." />
     )
   }
 
+
   if (!user) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-        <View style={styles.loadingContent}>
-          <Icon name="lock" size={48} color="#4F46E5" />
-          <Text style={styles.loadingTitle}>Authentication Required</Text>
-          <Text style={styles.loadingText}>Please log in to view your food diary.</Text>
-        </View>
-      </SafeAreaView>
+      <Loading backgroundColor="rgba(255,255,255,0.8)" logoSize={120} text="Authentication Required\nPlease log in to view your food diary." />
     )
   }
 
@@ -913,6 +897,11 @@ const FoodDailyLogScreen = () => {
 
       {renderEditModal()}
       {renderHistoryDetailModal()}
+
+      {/* Loading overlay for save-to-server and other loading states */}
+      {loading && (
+        <Loading backgroundColor="rgba(255,255,255,0.7)" logoSize={100} text="Saving food log..." />
+      )}
     </SafeAreaView>
   )
 }

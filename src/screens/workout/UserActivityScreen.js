@@ -1,4 +1,3 @@
-"use client"
 
 import { useState, useEffect } from "react"
 import {
@@ -16,6 +15,8 @@ import {
   Animated,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { useNavigation } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
@@ -75,6 +76,7 @@ const UserActivityScreen = () => {
       setError(null)
     } catch (err) {
       setError(err.message || "Failed to fetch user activities")
+      showErrorFetchAPI(err.message || "Failed to fetch user activities")
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -185,16 +187,20 @@ const UserActivityScreen = () => {
 
       await workoutService.updateActivity(currentActivity.activityId, updatedActivity)
       setEditModalVisible(false)
+      showSuccessMessage("Activity updated successfully!")
       fetchActivities()
     } catch (err) {
+      showErrorFetchAPI(err.message || "Failed to update activity")
     }
   }
 
   const handleDeleteActivity = async (activityId) => {
     try {
       await workoutService.deleteActivity(activityId)
+      showSuccessMessage("Activity deleted successfully!")
       fetchActivities()
     } catch (err) {
+      showErrorFetchAPI(err.message || "Failed to delete activity")
     }
   }
 
@@ -601,10 +607,8 @@ const UserActivityScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingTitle}>Loading Your Activities</Text>
-          <Text style={styles.loadingText}>Please wait a moment...</Text>
+        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
+          <Loading />
         </View>
       </SafeAreaView>
     )

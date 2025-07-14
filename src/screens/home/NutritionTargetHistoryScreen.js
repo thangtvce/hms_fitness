@@ -3,39 +3,50 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, SafeAreaView } from
 import Icon from "react-native-vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import dayjs from "dayjs";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import Loading from "components/Loading";
 
 const FILTERS = ["All", "Completed", "Not Met"];
 
 const NutritionTargetHistoryScreen = () => {
   const [history, setHistory] = useState([]);
   const [filter, setFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      // Lấy history
-      const raw = await AsyncStorage.getItem("nutritionTargetHistory");
-      let historyArr = [];
-      if (raw) historyArr = JSON.parse(raw);
-      // Lấy target hiện tại từ AsyncStorage
-      const rawTarget = await AsyncStorage.getItem("nutritionTarget");
-      let currentTarget = { carbs: 0, protein: 0, fats: 0, calories: 0 };
-      if (rawTarget) currentTarget = JSON.parse(rawTarget);
-      // Nếu entry nào thiếu targetCarbs/targetProtein/targetFats/targetCalories thì bổ sung từ target hiện tại
-      const fixed = historyArr.map(item => ({
-        ...item,
-        targetCarbs: item.targetCarbs ?? currentTarget.carbs,
-        targetProtein: item.targetProtein ?? currentTarget.protein,
-        targetFats: item.targetFats ?? currentTarget.fats,
-        targetCalories: item.targetCalories ?? currentTarget.calories,
-        completed:
-          Number(item.carbs) >= Number(item.targetCarbs ?? currentTarget.carbs) &&
-          Number(item.protein) >= Number(item.targetProtein ?? currentTarget.protein) &&
-          Number(item.fats) >= Number(item.targetFats ?? currentTarget.fats) &&
-          (typeof item.netCalories === 'number' && typeof (item.targetCalories ?? currentTarget.calories) === 'number'
-            ? Number(item.netCalories) >= Number(item.targetCalories ?? currentTarget.calories)
-            : true),
-      }));
-      setHistory(fixed);
+      setLoading(true);
+      try {
+        // Lấy history
+        const raw = await AsyncStorage.getItem("nutritionTargetHistory");
+        let historyArr = [];
+        if (raw) historyArr = JSON.parse(raw);
+        // Lấy target hiện tại từ AsyncStorage
+        const rawTarget = await AsyncStorage.getItem("nutritionTarget");
+        let currentTarget = { carbs: 0, protein: 0, fats: 0, calories: 0 };
+        if (rawTarget) currentTarget = JSON.parse(rawTarget);
+        // Nếu entry nào thiếu targetCarbs/targetProtein/targetFats/targetCalories thì bổ sung từ target hiện tại
+        const fixed = historyArr.map(item => ({
+          ...item,
+          targetCarbs: item.targetCarbs ?? currentTarget.carbs,
+          targetProtein: item.targetProtein ?? currentTarget.protein,
+          targetFats: item.targetFats ?? currentTarget.fats,
+          targetCalories: item.targetCalories ?? currentTarget.calories,
+          completed:
+            Number(item.carbs) >= Number(item.targetCarbs ?? currentTarget.carbs) &&
+            Number(item.protein) >= Number(item.targetProtein ?? currentTarget.protein) &&
+            Number(item.fats) >= Number(item.targetFats ?? currentTarget.fats) &&
+            (typeof item.netCalories === 'number' && typeof (item.targetCalories ?? currentTarget.calories) === 'number'
+              ? Number(item.netCalories) >= Number(item.targetCalories ?? currentTarget.calories)
+              : true),
+        }));
+        setHistory(fixed);
+        // showSuccessMessage("Nutrition target history loaded successfully!");
+      } catch (e) {
+        showErrorFetchAPI(e.message || "Failed to load nutrition target history");
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -55,6 +66,10 @@ const NutritionTargetHistoryScreen = () => {
       </Text>
     );
   };
+
+  if (loading) {
+    return <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading nutrition target history..." />
+  }
 
   return (
     <SafeAreaView style={styles.container}>

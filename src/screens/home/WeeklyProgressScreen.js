@@ -1,13 +1,12 @@
 "use client"
 
 import { useEffect, useState, useContext } from "react"
-import { getGeminiHealthAdvice } from "../../utils/gemini"
-import {
+import { getGeminiHealthAdvice } from "utils/gemini"
+import { 
   View,
   Text,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
   Dimensions,
@@ -15,6 +14,8 @@ import {
   FlatList,
   PanResponder,
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import Loading from "components/Loading"
 import { weightHistoryService } from "services/apiWeightHistoryService"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { AuthContext } from "context/AuthContext"
@@ -24,7 +25,7 @@ import { AnimatedCircularProgress } from "react-native-circular-progress"
 import { LineChart, BarChart } from "react-native-chart-kit"
 import { Ionicons } from "@expo/vector-icons"
 import SelectModal from "components/SelectModal"
-import { useWaterTotal } from "../../context/WaterTotalContext"
+import { useWaterTotal } from "context/WaterTotalContext"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
 
@@ -40,7 +41,6 @@ export default function WeeklyProgressScreen({ route }) {
         return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 20;
       },
       onPanResponderRelease: (evt, gestureState) => {
-        // Đảo ngược: kéo qua phải (dx > 30) là tăng ngày, kéo qua trái (dx < -30) là giảm ngày
         if (gestureState.dx > 30) {
           setOffset(offset - 1);
         } else if (gestureState.dx < -30) {
@@ -137,15 +137,12 @@ export default function WeeklyProgressScreen({ route }) {
 };
   // Fetch calories data
   const fetchCaloriesData = async () => {
-     setCaloriesData(null); // Reset before fetch
+    setCaloriesData(null); // Reset before fetch
+    setLoading(true)
     try {
-      setLoading(true)
       const dateKey = getDateKey(caloriesFilter, caloriesOffset)
       const displayDate = formatDateDisplay(caloriesFilter, caloriesOffset);
-
-
-console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', caloriesOffset, 'display:', displayDate);      const raw = await AsyncStorage.getItem(`dailyStats_${dateKey}`)
-
+      const raw = await AsyncStorage.getItem(`dailyStats_${dateKey}`)
       if (raw) {
         const parsed = JSON.parse(raw)
         setCaloriesData(parsed)
@@ -153,8 +150,8 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
         setCaloriesData(null)
       }
     } catch (error) {
-      console.error("Error fetching calories data:", error)
       setCaloriesData(null)
+      showErrorFetchAPI(error.message || "Error fetching calories data")
     } finally {
       setLoading(false)
     }
@@ -164,24 +161,19 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
   const fetchMacrosData = async () => {
     setMacrosData(null); // Reset before fetch
     setMacroAdvice("");
+    setLoading(true)
     try {
-      setLoading(true)
       const dateKey = getDateKey(macrosFilter, macrosOffset)
-      console.log('[Macros] Fetching for key:', `dailyStats_${dateKey}`)
       const raw = await AsyncStorage.getItem(`dailyStats_${dateKey}`)
-
       if (raw) {
         const parsed = JSON.parse(raw)
         setMacrosData(parsed)
-
         // Fetch AI advice for macros
         if (parsed.macros) {
           const carbs = parsed.macros.carbs || 0
           const protein = parsed.macros.protein || 0
           const fats = parsed.macros.fats || 0
-
           const prompt = `Give health advice for someone who consumed ${carbs}g carbs, ${protein}g protein, ${fats}g fats today. Keep it under 100 words.`
-
           try {
             const advice = await getGeminiHealthAdvice(prompt)
             setMacroAdvice(advice)
@@ -194,8 +186,8 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
         setMacroAdvice("")
       }
     } catch (error) {
-      console.error("Error fetching macros data:", error)
       setMacrosData(null)
+      showErrorFetchAPI(error.message || "Error fetching macros data")
     } finally {
       setLoading(false)
     }
@@ -206,9 +198,8 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
     setStepsData([{ steps: 0, date: getDateKey(weightFilter, weightOffset) }]);
     setWaterData([{ waterIntake: 0, date: getDateKey(weightFilter, weightOffset) }]);
     setWeightHistory([]);
+    setLoading(true)
     try {
-      setLoading(true)
-
       // Fetch weight history
       const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1, pageSize: 30 })
       if (response.statusCode === 200 && response.data && response.data.records) {
@@ -217,7 +208,6 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
 
       // Fetch steps and water data for current period
       const dateKey = getDateKey(weightFilter, weightOffset)
-      console.log('[Weight/Water] Fetching for key:', `dailyStats_${dateKey}`)
       const raw = await AsyncStorage.getItem(`dailyStats_${dateKey}`)
 
       let waterIntake = 0;
@@ -264,8 +254,8 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
         setStepCounterSteps(0);
       }
     } catch (error) {
-      console.error("Error fetching weight data:", error)
       setStepCounterSteps(0);
+      showErrorFetchAPI(error.message || "Error fetching weight data")
     } finally {
       setLoading(false)
     }
@@ -460,7 +450,7 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
           />
 
           {loading ? (
-            <ActivityIndicator size="large" color="#1976D2" style={styles.loader} />
+            <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading calories data..." />
           ) : (
             <View style={styles.dataCard}>
               {caloriesData?.caloriesSummary ? (
@@ -593,7 +583,7 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
           />
 
           {loading ? (
-            <ActivityIndicator size="large" color="#1976D2" style={styles.loader} />
+            <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading macros data..." />
           ) : (
             <>
               {macrosData?.macros ? (
@@ -701,7 +691,7 @@ console.log('[Calories] Fetching for key:', `dailyStats_${dateKey}`, 'offset:', 
           />
 
           {loading ? (
-            <ActivityIndicator size="large" color="#1976D2" style={styles.loader} />
+            <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading weight data..." />
           ) : (
             <>
               {/* Weight Chart */}

@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
-  ActivityIndicator
 } from 'react-native';
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -145,12 +146,8 @@ const CategoryDetailsScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
           
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4CAF50" />
-              <Text style={styles.loadingText}>Loading exercises...</Text>
-            </View>
-          ) : (
+          <Loading visible={loading} />
+          {!loading && (
             <FlatList
               data={exercises}
               keyExtractor={(item) => item.exerciseId}

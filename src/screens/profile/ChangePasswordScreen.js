@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Animated,
-  ActivityIndicator,
 } from "react-native"
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import { authService } from "services/apiAuthService"
 import { AuthContext,useAuth } from "context/AuthContext"
@@ -91,12 +91,8 @@ export default function ChangePasswordScreen({ navigation }) {
     }
   },[otpRequested])
 
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-      </View>
-    )
+  if (!fontsLoaded || isLoading) {
+    return <Loading />;
   }
 
   const validateEmail = (email) => {
@@ -181,10 +177,10 @@ export default function ChangePasswordScreen({ navigation }) {
       if (response.statusCode === 200) {
         setOtpRequested(true)
         setOtpTimer(900)
-        Alert.alert("Success","OTP sent to your email. Please check your inbox.")
+        showSuccessMessage("OTP sent to your email. Please check your inbox.")
       }
     } catch (error) {
-      Alert.alert("Error",error?.response?.data?.message || "Failed to request OTP. Please try again.")
+      showErrorFetchAPI(error?.response?.data?.message || "Failed to request OTP. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -201,10 +197,11 @@ export default function ChangePasswordScreen({ navigation }) {
         newPassword: formData.newPassword,
       })
       if (response.statusCode === 200) {
-        Alert.alert("Success","Password changed successfully.",[{ text: "OK",onPress: () => navigation.goBack() }])
+        showSuccessMessage("Password changed successfully.");
+        navigation.goBack();
       }
     } catch (error) {
-      Alert.alert("Error",error?.response?.data?.message || "Failed to change password. Please try again.")
+      showErrorFetchAPI(error?.response?.data?.message || "Failed to change password. Please try again.");
     } finally {
       setIsLoading(false)
     }

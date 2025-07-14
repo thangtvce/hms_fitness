@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React,{ useState,useEffect,useRef,useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  Alert,
   ActivityIndicator,
   Animated,
   Platform,
@@ -14,78 +13,93 @@ import {
   Modal,
   ScrollView,
   Image,
+  RefreshControl,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons,MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from 'context/AuthContext';
-import { theme } from 'theme/color';
-import { StatusBar } from 'expo-status-bar';
-import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import { useNavigation } from '@react-navigation/native';
 import { trainerService } from 'services/apiTrainerService';
-import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { BarChart, PieChart } from 'react-native-chart-kit';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
+import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 
 const { width } = Dimensions.get('window');
 
 const TrainerServiceManagement = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user,loading: authLoading } = useAuth();
   const navigation = useNavigation();
-  const [allPackages, setAllPackages] = useState([]);
-  const [displayedPackages, setDisplayedPackages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [showStatsModal, setShowStatsModal] = useState(false);
-  const [statistics, setStatistics] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [hasMore, setHasMore] = useState(true);
-  const [activeTab, setActiveTab] = useState('active');
-  const [selectedPackages, setSelectedPackages] = useState([]);
-  const [filterErrors, setFilterErrors] = useState({});
+  const [allPackages,setAllPackages] = useState([]);
+  const [displayedPackages,setDisplayedPackages] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [refreshing,setRefreshing] = useState(false);
+  const [showFilterModal,setShowFilterModal] = useState(false);
+  const [pageNumber,setPageNumber] = useState(1);
+  const [pageSize,setPageSize] = useState(10);
+  const [totalPages,setTotalPages] = useState(1);
+  const [totalItems,setTotalItems] = useState(0);
+  const [searchTerm,setSearchTerm] = useState('');
+  const [hasMore,setHasMore] = useState(true);
+  const [activeTab,setActiveTab] = useState('all');
+  const [selectedPackages,setSelectedPackages] = useState([]);
+  const [showStartDatePicker,setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker,setShowEndDatePicker] = useState(false);
+  const [showConfirmModal,setShowConfirmModal] = useState(false);
+  const [confirmMessage,setConfirmMessage] = useState('');
+  const [confirmAction,setConfirmAction] = useState(null);
 
-  const [filters, setFilters] = useState({
+  const [filters,setFilters] = useState({
     minPrice: '',
     maxPrice: '',
     minDays: '',
     maxDays: '',
     status: 'all',
-    sortBy: 'packageId',
-    sortDescending: true,
     startDate: null,
     endDate: null,
   });
 
-  const [tempFilters, setTempFilters] = useState(filters);
+  const [tempFilters,setTempFilters] = useState(filters);
+  const [filterErrors,setFilterErrors] = useState({});
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-    ]).start();
-    return () => {
-      fadeAnim.setValue(0);
-      slideAnim.setValue(30);
-    };
-  }, []);
+  const memoizedFilters = useMemo(() => filters,[
+    filters.minPrice,
+    filters.maxPrice,
+    filters.minDays,
+    filters.maxDays,
+    filters.status,
+    filters.startDate,
+    filters.endDate,
+  ]);
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user?.roles?.includes('Trainer') && user?.roles?.includes('User')) {
-      Alert.alert('Access Denied', 'This page is only accessible to trainers.');
-      navigation.goBack();
-      return;
-    }
     fetchAllPackages();
-  }, [authLoading, user]);
+  },[authLoading,user,pageNumber,pageSize,searchTerm,memoizedFilters,activeTab]);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim,{
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim,{
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim,{
+        toValue: 1,
+        tension: 120,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  },[]);
 
   const validateFilters = (filtersToValidate) => {
     const errors = {};
@@ -101,202 +115,127 @@ const TrainerServiceManagement = () => {
     if (filtersToValidate.maxDays && isNaN(parseInt(filtersToValidate.maxDays))) {
       errors.maxDays = 'Maximum days must be a valid number';
     }
-    if (filtersToValidate.minPrice && filtersToValidate.maxPrice && 
-        parseFloat(filtersToValidate.minPrice) > parseFloat(filtersToValidate.maxPrice)) {
+    if (
+      filtersToValidate.minPrice &&
+      filtersToValidate.maxPrice &&
+      parseFloat(filtersToValidate.minPrice) > parseFloat(filtersToValidate.maxPrice)
+    ) {
       errors.priceRange = 'Minimum price cannot exceed maximum price';
     }
-    if (filtersToValidate.minDays && filtersToValidate.maxDays && 
-        parseInt(filtersToValidate.minDays) > parseInt(filtersToValidate.maxDays)) {
+    if (
+      filtersToValidate.minDays &&
+      filtersToValidate.maxDays &&
+      parseInt(filtersToValidate.minDays) > parseInt(filtersToValidate.maxDays)
+    ) {
       errors.daysRange = 'Minimum days cannot exceed maximum days';
+    }
+    if (
+      filtersToValidate.startDate &&
+      filtersToValidate.endDate &&
+      filtersToValidate.startDate > filtersToValidate.endDate
+    ) {
+      errors.dateRange = 'Start date must be earlier than or equal to end date';
     }
     return errors;
   };
 
-  const fetchAllPackages = useCallback(async () => {
+  const fetchAllPackages = async () => {
     try {
       setLoading(true);
       const params = {
-        PageNumber: 1,
-        PageSize: 1000,
+        PageNumber: pageNumber,
+        PageSize: pageSize,
         TrainerId: user.userId,
-      };
-
-      const response = await trainerService.getServicePackageByTrainerId(user.userId, params);
-      let packages = [];
-      if (response.statusCode === 200 && Array.isArray(response.data?.packages)) {
-        packages = response.data.packages.filter(
-          pkg => pkg.trainerId === user.userId
-        );
-      }
-
-      setAllPackages(packages);
-      applyFrontendFilters(packages);
-      setTotalItems(packages.length);
-      setTotalPages(Math.ceil(packages.length / pageSize));
-    } catch (error) {
-      console.error('Fetch Error:', error);
-      Alert.alert('Error', error.message || 'An error occurred while loading service packages.');
-      setAllPackages([]);
-      setDisplayedPackages([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, pageSize]);
-
-  const applyFrontendFilters = useCallback((packages) => {
-    let filteredPackages = [...packages];
-
-    if (searchTerm) {
-      filteredPackages = filteredPackages.filter(pkg =>
-        pkg.packageName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pkg.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filters.minPrice) {
-      filteredPackages = filteredPackages.filter(pkg => pkg.price >= parseFloat(filters.minPrice));
-    }
-    if (filters.maxPrice) {
-      filteredPackages = filteredPackages.filter(pkg => pkg.price <= parseFloat(filters.maxPrice));
-    }
-    if (filters.minDays) {
-      filteredPackages = filteredPackages.filter(pkg => pkg.durationDays >= parseInt(filters.minDays));
-    }
-    if (filters.maxDays) {
-      filteredPackages = filteredPackages.filter(pkg => pkg.durationDays <= parseInt(filters.maxDays));
-    }
-    if (filters.status !== 'all') {
-      filteredPackages = filteredPackages.filter(pkg => pkg.status === filters.status);
-    }
-    if (filters.startDate) {
-      filteredPackages = filteredPackages.filter(
-        pkg => new Date(pkg.createdAt) >= new Date(filters.startDate)
-      );
-    }
-    if (filters.endDate) {
-      filteredPackages = filteredPackages.filter(
-        pkg => new Date(pkg.createdAt) <= new Date(filters.endDate)
-      );
-    }
-
-    const sortByMapping = {
-      packageId: 'packageId',
-      price: 'price',
-      days: 'durationDays',
-      created: 'createdAt',
-    };
-    filteredPackages.sort((a, b) => {
-      const key = sortByMapping[filters.sortBy] || 'packageId';
-      const valueA = a[key] ?? '';
-      const valueB = b[key] ?? '';
-      if (valueA < valueB) return filters.sortDescending ? 1 : -1;
-      if (valueA > valueB) return filters.sortDescending ? -1 : 1;
-      return 0;
-    });
-
-    if (activeTab === 'active') {
-      filteredPackages = filteredPackages.filter(pkg => pkg.status === 'active');
-    } else if (activeTab === 'inactive') {
-      filteredPackages = filteredPackages.filter(pkg => pkg.status === 'inactive');
-    }
-
-    const startIndex = (pageNumber - 1) * pageSize;
-    const paginatedPackages = filteredPackages.slice(startIndex, startIndex + pageSize);
-
-    setDisplayedPackages(paginatedPackages);
-    setTotalItems(filteredPackages.length);
-    setTotalPages(Math.ceil(filteredPackages.length / pageSize));
-    setHasMore(pageNumber < Math.ceil(filteredPackages.length / pageSize));
-  }, [searchTerm, filters, activeTab, pageNumber, pageSize]);
-
-  useEffect(() => {
-    applyFrontendFilters(allPackages);
-  }, [allPackages, searchTerm, filters, activeTab, pageNumber, pageSize]);
-
-  const fetchStatistics = useCallback(async () => {
-    try {
-      const params = {
+        Status: activeTab === 'all' ? undefined : activeTab,
+        MinPrice: filters.minPrice ? parseFloat(filters.minPrice) : undefined,
+        MaxPrice: filters.maxPrice ? parseFloat(filters.maxPrice) : undefined,
+        MinDays: filters.minDays ? parseInt(filters.minDays) : undefined,
+        MaxDays: filters.maxDays ? parseInt(filters.maxDays) : undefined,
         StartDate: filters.startDate ? filters.startDate.toISOString() : undefined,
         EndDate: filters.endDate ? filters.endDate.toISOString() : undefined,
-        TrainerId: user.userId,
+        SearchTerm: searchTerm || undefined,
       };
-      const response = await trainerService.getServicePackageStatistics(params);
-      if (response.statusCode === 200) {
-        setStatistics(response.data);
-        setShowStatsModal(true);
+      console.log('Fetching packages with params:',params);
+      const response = await trainerService.getServicePackageByTrainerId(user.userId,params);
+      let packages = [];
+      if (response.statusCode === 200 && Array.isArray(response.data?.packages)) {
+        packages = response.data.packages.filter((pkg) => pkg.trainerId === user.userId || pkg.trainerId === 0);
+        setAllPackages((prev) => (pageNumber === 1 ? packages : [...prev,...packages]));
+        setDisplayedPackages((prev) => (pageNumber === 1 ? packages : [...prev,...packages]));
+        setTotalItems(response.data.totalCount || packages.length);
+        setTotalPages(response.data.totalPages || Math.ceil(packages.length / pageSize));
+        setHasMore(pageNumber < (response.data.totalPages || Math.ceil(packages.length / pageSize)));
       } else {
-        Alert.alert('Error', response.message || 'Failed to fetch statistics.');
+        setAllPackages([]);
+        setDisplayedPackages([]);
+        setTotalItems(0);
+        setTotalPages(1);
+        setHasMore(false);
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'An error occurred while fetching statistics.');
+      showErrorFetchAPI(error);
+      setAllPackages([]);
+      setDisplayedPackages([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-  }, [filters.startDate, filters.endDate, user.userId]);
+  };
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = () => {
     setRefreshing(true);
     setPageNumber(1);
-    fetchAllPackages().finally(() => setRefreshing(false));
-  }, [fetchAllPackages]);
+    fetchAllPackages();
+  };
 
-  const handleSearch = useCallback((text) => {
+  const handleSearch = (text) => {
     setSearchTerm(text);
     setPageNumber(1);
-  }, []);
+  };
 
-  const handleNextPage = useCallback(() => {
-    if (hasMore && !loading) {
-      setPageNumber(prev => prev + 1);
+  const loadMorePackages = () => {
+    if (!loading && hasMore) {
+      setPageNumber((prev) => prev + 1);
     }
-  }, [hasMore, loading]);
+  };
 
-  const handlePreviousPage = useCallback(() => {
-    if (pageNumber > 1 && !loading) {
-      setPageNumber(prev => prev - 1);
-    }
-  }, [pageNumber, loading]);
-
-  const applyTempFilters = useCallback(() => {
+  const applyTempFilters = () => {
     const errors = validateFilters(tempFilters);
     if (Object.keys(errors).length > 0) {
       setFilterErrors(errors);
-      Alert.alert('Invalid Filters', 'Please correct the filter inputs.');
-      return;
-    }
-    if (tempFilters.startDate && tempFilters.endDate && tempFilters.startDate > tempFilters.endDate) {
-      setFilterErrors({ dateRange: 'Start date must be earlier than or equal to end date.' });
-      Alert.alert('Invalid Date Range', 'Start date must be earlier than or equal to end date.');
+      showErrorFetchAPI(new Error('Please correct the filter inputs.'));
       return;
     }
     setFilters(tempFilters);
     setFilterErrors({});
     setPageNumber(1);
     setShowFilterModal(false);
-  }, [tempFilters]);
+  };
 
-  const resetTempFilters = useCallback(() => {
-    setTempFilters({
-      minPrice: '',
-      maxPrice: '',
-      minDays: '',
-      maxDays: '',
-      status: 'all',
-      sortBy: 'packageId',
-      sortDescending: true,
-      startDate: null,
-      endDate: null,
-    });
-    setFilterErrors({});
-  }, []);
-
-  const clearFilters = useCallback(() => {
+  const resetTempFilters = () => {
     const defaultFilters = {
       minPrice: '',
       maxPrice: '',
       minDays: '',
       maxDays: '',
       status: 'all',
-      sortBy: 'packageId',
-      sortDescending: true,
+      startDate: null,
+      endDate: null,
+    };
+    setTempFilters(defaultFilters);
+    setFilterErrors({});
+  };
+
+  const clearFilters = () => {
+    const defaultFilters = {
+      minPrice: '',
+      maxPrice: '',
+      minDays: '',
+      maxDays: '',
+      status: 'all',
       startDate: null,
       endDate: null,
     };
@@ -305,200 +244,265 @@ const TrainerServiceManagement = () => {
     setSearchTerm('');
     setPageNumber(1);
     setFilterErrors({});
-  }, []);
+  };
 
-  const handleToggleStatusMultiple = async () => {
+  const handleToggleStatus = (packageId,currentStatus) => {
+    console.log('handleToggleStatus called with packageId:',packageId,'currentStatus:',currentStatus);
+    setConfirmMessage(`Are you sure you want to ${currentStatus === 'active' ? 'deactivate' : 'activate'} this package?`);
+    setConfirmAction(() => async () => {
+      try {
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        const response = await trainerService.toggleServicePackageStatus(packageId,newStatus);
+        if (response.statusCode === 200) {
+          showSuccessMessage(`Package ${newStatus} successfully.`);
+          setPageNumber(1);
+          fetchAllPackages();
+        } else {
+          showErrorFetchAPI(new Error(response.message || 'Failed to toggle package status.'));
+        }
+      } catch (error) {
+        showErrorFetchAPI(error);
+      }
+    });
+    setShowConfirmModal(true);
+    console.log('showConfirmModal set to true');
+  };
+
+  const handleToggleStatusMultiple = () => {
     if (selectedPackages.length === 0) {
-      Alert.alert('Notice', 'Please select at least one package to toggle status.');
+      showErrorFetchAPI(new Error('Please select at least one package to toggle status.'));
       return;
     }
-    try {
-      setLoading(true);
-      const response = await Promise.all(
-        selectedPackages.map(id => 
-          trainerService.toggleServicePackageStatus(id, 'active')
-        )
-      );
-      const failed = response.filter(r => r.statusCode !== 200);
-      if (failed.length === 0) {
-        Alert.alert('Success', `${selectedPackages.length} packages activated successfully.`);
-        setSelectedPackages([]);
-        fetchAllPackages();
-      } else {
-        Alert.alert('Error', 'Some packages failed to update.');
+    console.log('handleToggleStatusMultiple called with selectedPackages:',selectedPackages);
+    setConfirmMessage(`Are you sure you want to activate ${selectedPackages.length} package${selectedPackages.length > 1 ? 's' : ''}?`);
+    setConfirmAction(() => async () => {
+      try {
+        setLoading(true);
+        const response = await Promise.all(
+          selectedPackages.map((id) => trainerService.toggleServicePackageStatus(id,'active'))
+        );
+        const failed = response.filter((r) => r.statusCode !== 200);
+        if (failed.length === 0) {
+          showSuccessMessage(`${selectedPackages.length} packages activated successfully.`);
+          setSelectedPackages([]);
+          setPageNumber(1);
+          fetchAllPackages();
+        } else {
+          showErrorFetchAPI(new Error('Some packages failed to update.'));
+        }
+      } catch (error) {
+        showErrorFetchAPI(error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      Alert.alert('Error', error.message || 'An error occurred while toggling package status.');
-    } finally {
-      setLoading(false);
-    }
+    });
+    setShowConfirmModal(true);
+    console.log('showConfirmModal set to true for multiple toggle');
   };
 
   const togglePackageSelection = (packageId) => {
     setSelectedPackages((prev) =>
-      prev.includes(packageId)
-        ? prev.filter((id) => id !== packageId)
-        : [...prev, packageId]
+      prev.includes(packageId) ? prev.filter((id) => id !== packageId) : [...prev,packageId]
     );
   };
 
-  const getPackageIcon = useCallback((packageName) => {
+  const getPackageIcon = (packageName) => {
     if (!packageName) return 'fitness';
     const name = packageName.toLowerCase();
     if (name.includes('yoga') || name.includes('meditation')) return 'yoga';
     if (name.includes('diet') || name.includes('nutrition')) return 'nutrition';
     if (name.includes('cardio') || name.includes('running')) return 'cardio';
     return 'fitness';
-  }, []);
+  };
 
-  const renderPackageIcon = useCallback((type) => {
+  const renderPackageIcon = (type) => {
     switch (type) {
       case 'yoga':
-        return <MaterialCommunityIcons name="yoga" size={24} color="#10B981" />;
+        return <MaterialCommunityIcons name="yoga" size={24} color="#22C55E" />;
       case 'nutrition':
         return <Ionicons name="nutrition" size={24} color="#F59E0B" />;
       case 'cardio':
         return <Ionicons name="heart" size={24} color="#EF4444" />;
       default:
-        return <MaterialCommunityIcons name="weight-lifter" size={24} color="#4F46E5" />;
+        return <MaterialCommunityIcons name="weight-lifter" size={24} color="#0056D2" />;
     }
-  }, []);
+  };
 
-  const PackageItem = useCallback(({ item }) => {
+  const PackageItem = ({ item }) => {
     const packageType = getPackageIcon(item.packageName);
-    const statusColor = item.status === 'active' ? '#10B981' : '#EF4444';
-
-    const handleToggleStatus = async () => {
-      try {
-        const newStatus = item.status === 'active' ? 'inactive' : 'active';
-        const response = await trainerService.toggleServicePackageStatus(item.packageId, newStatus);
-        if (response.statusCode === 200) {
-          Alert.alert('Success', `Package ${newStatus} successfully.`);
-          fetchAllPackages();
-        } else {
-          Alert.alert('Error', response.message || 'Failed to toggle package status.');
-        }
-      } catch (error) {
-        Alert.alert('Error', error.message || 'An error occurred while toggling the package status.');
-      }
-    };
+    const statusInfo = item.status === 'active' ? { color: '#22C55E',bgColor: '#DCFCE7',text: 'Active' } : { color: '#EF4444',bgColor: '#FEE2E2',text: 'Inactive' };
 
     return (
-      <Animated.View style={[styles.packageItem, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <Animated.View
+        style={[
+          styles.groupCard,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim },{ scale: scaleAnim }],
+          },
+        ]}
+      >
         <TouchableOpacity
-          style={styles.packageCard}
-          onPress={() => navigation.navigate('ServicePackageDetail', { packageId: item.packageId })}
-          activeOpacity={0.8}
-          accessibilityLabel={`View details of ${item.packageName}`}
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('TrainerPackageDetailScreen',{ packageId: item.packageId })}
         >
-          <LinearGradient colors={['#FFFFFF', '#F8FAFC']} style={styles.cardGradient}>
-            {activeTab === 'inactive' && (
-              <TouchableOpacity
-                style={styles.selectionCheckbox}
-                onPress={() => togglePackageSelection(item.packageId)}
-                accessibilityLabel={`Select ${item.packageName}`}
-              >
-                <Ionicons
-                  name={selectedPackages.includes(item.packageId) ? 'checkbox' : 'square-outline'}
-                  size={20}
-                  color="#4F46E5"
-                />
-              </TouchableOpacity>
-            )}
+          <View style={styles.cardContainer}>
             <View style={styles.cardHeader}>
-              {item.trainerAvatar ? (
-                <Image
-                  source={{ uri: item.trainerAvatar }}
-                  style={styles.trainerAvatar}
-                  accessibilityLabel="Trainer avatar"
-                />
-              ) : (
-                <View style={styles.iconContainer}>{renderPackageIcon(packageType)}</View>
-              )}
-              <View style={styles.cardTitleContainer}>
-                <Text style={styles.packageName}>{item.packageName || 'Service Package'}</Text>
-                <Text style={styles.trainerName}>by You</Text>
-                <Text style={styles.trainerEmail}>{item.trainerEmail || 'N/A'}</Text>
+              <View style={styles.headerLeft}>
+                <View style={styles.avatarContainer}>
+                  {item.trainerAvatar ? (
+                    <Image source={{ uri: item.trainerAvatar }} style={styles.groupAvatar} />
+                  ) : (
+                    <View style={styles.iconContainer}>{renderPackageIcon(packageType)}</View>
+                  )}
+                </View>
+                <View style={styles.groupDetails}>
+                  <Text style={styles.groupName} numberOfLines={1}>
+                    {item.packageName || 'Service Package'}
+                  </Text>
+                  <View style={styles.statsRow}>
+                    <View style={styles.memberStat}>
+                      <Ionicons name="pricetag" size={14} color="#22C55E" />
+                      <Text style={styles.memberCount}>
+                        {item.price ? `$${item.price.toLocaleString()}` : 'Contact'}
+                      </Text>
+                    </View>
+                    <View style={styles.statusIndicator}>
+                      <View style={[styles.statusDot,{ backgroundColor: statusInfo.color }]} />
+                      <Text style={[styles.statusText,{ color: statusInfo.color }]}>
+                        {statusInfo.text}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
               </View>
-              <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                <Text style={styles.statusText}>
-                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                </Text>
+              <View style={styles.headerRight}>
+                <TouchableOpacity
+                  style={[styles.joinBtn,{ backgroundColor: item.status === 'active' ? '#EF4444' : '#22C55E' }]}
+                  onPress={() => handleToggleStatus(item.packageId,item.status)}
+                >
+                  <Ionicons
+                    name={item.status === 'active' ? 'close' : 'checkmark'}
+                    size={16}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.joinBtnText}>
+                    {item.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('EditServicePackage', { packageId: item.packageId })}
-                disabled={loading}
-                accessibilityLabel={`Edit ${item.packageName}`}
-              >
-                <Ionicons name="pencil" size={18} color="#4F46E5" />
-              </TouchableOpacity>
-              
             </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.packageDescription} numberOfLines={2}>
-                {item.description ? item.description.replace(/<[^>]+>/g, '') : 'No description available'}
+            <View style={styles.descriptionSection}>
+              <Text style={styles.descriptionText} numberOfLines={2}>
+                {item.description ? item.description.replace(/<[^>]+>/g,'') : 'No description available'}
               </Text>
-              <View style={styles.packageDetailsContainer}>
-                <View style={styles.packageDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#EEF2FF' }]}>
-                    <Ionicons name="pricetag-outline" size={14} color="#4F46E5" />
-                  </View>
-                  <Text style={styles.packageDetailText}>
-                    {item.price ? `$${item.price.toLocaleString()}` : 'Contact'}
-                  </Text>
-                </View>
-                <View style={styles.packageDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#F0FDF4' }]}>
-                    <Ionicons name="calendar-outline" size={14} color="#10B981" />
-                  </View>
-                  <Text style={styles.packageDetailText}>{item.durationDays || 'N/A'} days</Text>
-                </View>
-                <View style={styles.packageDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#FFF7ED' }]}>
-                    <Ionicons name="people-outline" size={14} color="#F59E0B" />
-                  </View>
-                  <Text style={styles.packageDetailText}>
-                    {item.SubscriptionCount || 0} subscribers
-                  </Text>
-                </View>
+            </View>
+            <View style={styles.cardFooter}>
+              <View style={styles.categoryBadge}>
+                <Ionicons name="calendar" size={12} color="#FFFFFF" />
+                <Text style={styles.categoryText}>{item.durationDays || 'N/A'} days</Text>
               </View>
-              <View style={styles.dateContainer}>
-                <Text style={styles.dateText}>
-                  Created: {new Date(item.createdAt).toLocaleDateString()}
-                </Text>
-                <Text style={styles.dateText}>
-                  Updated: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : 'N/A'}
-                </Text>
+              <View style={styles.ownerActions}>
+                <TouchableOpacity
+                  style={styles.editBtn}
+                  onPress={() => navigation.navigate('EditServicePackage',{ packageId: item.packageId })}
+                >
+                  <Ionicons name="pencil" size={16} color="#0056D2" />
+                  <Text style={styles.editBtnText}>Edit</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </Animated.View>
     );
-  }, [fadeAnim, slideAnim, loading, navigation, getPackageIcon, renderPackageIcon, activeTab, selectedPackages]);
+  };
 
-  const sortOptions = useMemo(() => [
-    { label: 'Package ID', value: 'packageId', icon: 'key-outline' },
-    { label: 'Price', value: 'price', icon: 'pricetag-outline' },
-    { label: 'Duration', value: 'days', icon: 'calendar-outline' },
-    { label: 'Created Date', value: 'created', icon: 'time-outline' },
-  ], []);
+  const renderCreatePackageHeader = () => (
+    <Animated.View
+      style={[
+        styles.createGroupSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.createGroupCard}>
+        <View style={styles.createGroupContent}>
+          <View style={styles.createGroupLeft}>
+            <View style={styles.createGroupIcon}>
+              <Ionicons name="add-circle" size={32} color="#0056D2" />
+            </View>
+            <View style={styles.createGroupText}>
+              <Text style={styles.createGroupTitle}>Create Package</Text>
+              <Text style={styles.createGroupSubtitle}>Offer a new service package</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.createGroupButton}
+            onPress={() => navigation.navigate('CreateServicePackage')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.createGroupButtonText}>Create</Text>
+            <Ionicons name="arrow-forward" size={16} color="#0056D2" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Animated.View>
+  );
 
-  const pageSizeOptions = useMemo(() => [
-    { label: '5', value: 5 },
-    { label: '10', value: 10 },
-    { label: '20', value: 20 },
-    { label: '50', value: 50 },
-  ], []);
+  const renderEmpty = () => (
+    <Animated.View
+      style={[
+        styles.emptyContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
+    >
+      <View style={styles.emptyIconContainer}>
+        <MaterialCommunityIcons name="weight-lifter" size={80} color="#CBD5E1" />
+      </View>
+      <Text style={styles.emptyTitle}>No Service Packages Found</Text>
+      <Text style={styles.emptyText}>
+        {searchTerm || filters.status !== 'all' || filters.startDate || filters.endDate
+          ? 'No packages match your current filters. Try adjusting your search criteria.'
+          : 'Create a new service package to start offering your services!'}
+      </Text>
+      <TouchableOpacity
+        style={styles.emptyActionButton}
+        onPress={() => {
+          if (searchTerm || filters.status !== 'all' || filters.startDate || filters.endDate) {
+            clearFilters();
+          } else {
+            navigation.navigate('CreateServicePackage');
+          }
+        }}
+      >
+        <Ionicons
+          name={searchTerm || filters.status !== 'all' || filters.startDate || filters.endDate ? 'refresh' : 'add-circle'}
+          size={20}
+          color="#FFFFFF"
+        />
+        <Text style={styles.emptyActionText}>
+          {searchTerm || filters.status !== 'all' || filters.startDate || filters.endDate ? 'Clear Filters' : 'Create Package'}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
 
-  const statusOptions = useMemo(() => [
-    { label: 'All', value: 'all' },
-    { label: 'Active', value: 'active' },
-    { label: 'Inactive', value: 'inactive' },
-  ], []);
+  const formatDisplayDate = (date) => {
+    if (!date) return 'Select Date';
+    return date.toLocaleDateString('en-US',{
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
 
-  const FilterModal = useCallback(() => (
+  const renderFilterModal = () => (
     <Modal
       visible={showFilterModal}
       transparent={true}
@@ -510,44 +514,56 @@ const TrainerServiceManagement = () => {
       }}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.filterModalContent}>
-          <View style={styles.dragHandle} />
-          <View style={styles.filterHeader}>
-            <Text style={styles.filterTitle}>Filter & Sort</Text>
+        <Animated.View style={[styles.filterModalContent,{ transform: [{ scale: scaleAnim }] }]}>
+          <View style={styles.modalHandle} />
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter Packages</Text>
             <TouchableOpacity
               onPress={() => {
                 setShowFilterModal(false);
                 setTempFilters(filters);
                 setFilterErrors({});
               }}
-              style={styles.closeButton}
-              accessibilityLabel="Close filter modal"
+              style={styles.modalCloseBtn}
             >
               <Ionicons name="close" size={24} color="#64748B" />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.filterScrollView} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Date Range</Text>
+              <View style={styles.dateRangeContainer}>
+                <TouchableOpacity style={styles.dateButton} onPress={() => setShowStartDatePicker(true)}>
+                  <Ionicons name="calendar-outline" size={16} color="#0056D2" />
+                  <Text style={styles.dateButtonText}>{formatDisplayDate(tempFilters.startDate)}</Text>
+                </TouchableOpacity>
+                <Text style={styles.dateRangeSeparator}>to</Text>
+                <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndDatePicker(true)}>
+                  <Ionicons name="calendar-outline" size={16} color="#0056D2" />
+                  <Text style={styles.dateButtonText}>{formatDisplayDate(tempFilters.endDate)}</Text>
+                </TouchableOpacity>
+              </View>
+              {filterErrors.dateRange && <Text style={styles.errorText}>{filterErrors.dateRange}</Text>}
+            </View>
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Price Range</Text>
-              <View style={styles.rangeInputContainer}>
+              <View style={styles.dateRangeContainer}>
                 <TextInput
-                  style={[styles.rangeInput, filterErrors.minPrice && styles.inputError]}
+                  style={[styles.dateButton,filterErrors.minPrice && styles.inputError]}
                   placeholder="Min Price"
                   value={tempFilters.minPrice}
-                  onChangeText={(text) => setTempFilters({ ...tempFilters, minPrice: text })}
+                  onChangeText={(text) => setTempFilters({ ...tempFilters,minPrice: text })}
                   keyboardType="numeric"
                   placeholderTextColor="#94A3B8"
-                  accessibilityLabel="Minimum price"
                 />
-                <Text style={styles.rangeSeparator}>to</Text>
+                <Text style={styles.dateRangeSeparator}>to</Text>
                 <TextInput
-                  style={[styles.rangeInput, filterErrors.maxPrice && styles.inputError]}
+                  style={[styles.dateButton,filterErrors.maxPrice && styles.inputError]}
                   placeholder="Max Price"
                   value={tempFilters.maxPrice}
-                  onChangeText={(text) => setTempFilters({ ...tempFilters, maxPrice: text })}
+                  onChangeText={(text) => setTempFilters({ ...tempFilters,maxPrice: text })}
                   keyboardType="numeric"
                   placeholderTextColor="#94A3B8"
-                  accessibilityLabel="Maximum price"
                 />
               </View>
               {filterErrors.priceRange && <Text style={styles.errorText}>{filterErrors.priceRange}</Text>}
@@ -556,25 +572,23 @@ const TrainerServiceManagement = () => {
             </View>
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Duration (Days)</Text>
-              <View style={styles.rangeInputContainer}>
+              <View style={styles.dateRangeContainer}>
                 <TextInput
-                  style={[styles.rangeInput, filterErrors.minDays && styles.inputError]}
+                  style={[styles.dateButton,filterErrors.minDays && styles.inputError]}
                   placeholder="Min Days"
                   value={tempFilters.minDays}
-                  onChangeText={(text) => setTempFilters({ ...tempFilters, minDays: text })}
+                  onChangeText={(text) => setTempFilters({ ...tempFilters,minDays: text })}
                   keyboardType="numeric"
                   placeholderTextColor="#94A3B8"
-                  accessibilityLabel="Minimum duration"
                 />
-                <Text style={styles.rangeSeparator}>to</Text>
+                <Text style={styles.dateRangeSeparator}>to</Text>
                 <TextInput
-                  style={[styles.rangeInput, filterErrors.maxDays && styles.inputError]}
+                  style={[styles.dateButton,filterErrors.maxDays && styles.inputError]}
                   placeholder="Max Days"
                   value={tempFilters.maxDays}
-                  onChangeText={(text) => setTempFilters({ ...tempFilters, maxDays: text })}
+                  onChangeText={(text) => setTempFilters({ ...tempFilters,maxDays: text })}
                   keyboardType="numeric"
                   placeholderTextColor="#94A3B8"
-                  accessibilityLabel="Maximum duration"
                 />
               </View>
               {filterErrors.daysRange && <Text style={styles.errorText}>{filterErrors.daysRange}</Text>}
@@ -582,400 +596,198 @@ const TrainerServiceManagement = () => {
               {filterErrors.maxDays && <Text style={styles.errorText}>{filterErrors.maxDays}</Text>}
             </View>
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Date Range</Text>
-              <View style={styles.datePickerContainer}>
-                <DateTimePicker
-                  value={tempFilters.startDate || new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(event, date) =>
-                    setTempFilters({ ...tempFilters, startDate: date || null })
-                  }
-                  style={styles.datePicker}
-                  accessibilityLabel="Start date"
-                />
-                <Text style={styles.rangeSeparator}>to</Text>
-                <DateTimePicker
-                  value={tempFilters.endDate || new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(event, date) =>
-                    setTempFilters({ ...tempFilters, endDate: date || null })
-                  }
-                  style={styles.datePicker}
-                  accessibilityLabel="End date"
-                />
-              </View>
-              {filterErrors.dateRange && <Text style={styles.errorText}>{filterErrors.dateRange}</Text>}
-            </View>
-            <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Status</Text>
-              <View style={styles.pickerWrapper}>
-                <Ionicons name="checkbox-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                <Picker
-                  selectedValue={tempFilters.status}
-                  onValueChange={(value) => setTempFilters({ ...tempFilters, status: value })}
-                  style={styles.picker}
-                  dropdownIconColor="#64748B"
-                  accessibilityLabel="Filter by status"
-                >
-                  {statusOptions.map((option) => (
-                    <Picker.Item key={option.value} label={option.label} value={option.value} />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Sort By</Text>
-              <View style={styles.sortOptionsGrid}>
-                {sortOptions.map((option) => (
+              <View style={styles.statusOptions}>
+                {[
+                  { key: 'all',label: 'All',icon: 'filter',color: '#0056D2' },
+                  { key: 'active',label: 'Active',icon: 'checkmark-circle',color: '#22C55E' },
+                  { key: 'inactive',label: 'Inactive',icon: 'close-circle',color: '#EF4444' },
+                ].map((status) => (
                   <TouchableOpacity
-                    key={option.value}
-                    style={[styles.sortOptionCard, tempFilters.sortBy === option.value && styles.selectedSortCard]}
-                    onPress={() => setTempFilters({ ...tempFilters, sortBy: option.value })}
-                    accessibilityLabel={`Sort by ${option.label}`}
+                    key={status.key}
+                    style={[
+                      styles.statusOption,
+                      tempFilters.status === status.key && styles.selectedStatusOption,
+                    ]}
+                    onPress={() => setTempFilters({ ...tempFilters,status: status.key })}
                   >
                     <Ionicons
-                      name={option.icon}
-                      size={24}
-                      color={tempFilters.sortBy === option.value ? '#4F46E5' : '#64748B'}
+                      name={status.icon}
+                      size={18}
+                      color={tempFilters.status === status.key ? '#FFFFFF' : status.color}
                     />
                     <Text
-                      style={[styles.sortOptionText, tempFilters.sortBy === option.value && styles.selectedSortText]}
+                      style={[
+                        styles.statusOptionText,
+                        tempFilters.status === status.key && styles.selectedStatusOptionText,
+                      ]}
                     >
-                      {option.label}
+                      {status.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Sort Order</Text>
-              <View style={styles.sortDirectionContainer}>
-                <TouchableOpacity
-                  style={[styles.sortDirectionButton, !tempFilters.sortDescending && styles.selectedSortDirection]}
-                  onPress={() => setTempFilters({ ...tempFilters, sortDescending: false })}
-                  accessibilityLabel="Sort ascending"
-                >
-                  <Ionicons
-                    name="arrow-up"
-                    size={20}
-                    color={!tempFilters.sortDescending ? '#FFFFFF' : '#64748B'}
-                  />
-                  <Text
-                    style={[styles.sortDirectionText, !tempFilters.sortDescending && styles.selectedSortDirectionText]}
-                  >
-                    Ascending
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.sortDirectionButton, tempFilters.sortDescending && styles.selectedSortDirection]}
-                  onPress={() => setTempFilters({ ...tempFilters, sortDescending: true })}
-                  accessibilityLabel="Sort descending"
-                >
-                  <Ionicons
-                    name="arrow-down"
-                    size={20}
-                    color={tempFilters.sortDescending ? '#FFFFFF' : '#64748B'}
-                  />
-                  <Text
-                    style={[styles.sortDirectionText, tempFilters.sortDescending && styles.selectedSortDirectionText]}
-                  >
-                    Descending
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Items per Page</Text>
-              <View style={styles.pageSizeGrid}>
-                {pageSizeOptions.map((option) => (
+              <View style={styles.pageSizeOptions}>
+                {[5,10,20,50].map((size) => (
                   <TouchableOpacity
-                    key={option.value}
-                    style={[styles.pageSizeCard, pageSize === option.value && styles.selectedPageSizeCard]}
-                    onPress={() => setPageSize(option.value)}
-                    accessibilityLabel={`Set ${option.label} items per page`}
+                    key={size}
+                    style={[styles.pageSizeOption,pageSize === size && styles.selectedPageSizeOption]}
+                    onPress={() => {
+                      setPageSize(size);
+                      setPageNumber(1);
+                    }}
                   >
                     <Text
-                      style={[styles.pageSizeCardText, pageSize === option.value && styles.selectedPageSizeCardText]}
+                      style={[
+                        styles.pageSizeOptionText,
+                        pageSize === size && styles.selectedPageSizeOptionText,
+                      ]}
                     >
-                      {option.label}
-                    </Text>
-                    <Text
-                      style={[styles.pageSizeCardLabel, pageSize === option.value && styles.selectedPageSizeCardLabel]}
-                    >
-                      items
+                      {size}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
           </ScrollView>
-          <View style={styles.filterActions}>
-            <TouchableOpacity
-              style={styles.clearFiltersButton}
-              onPress={resetTempFilters}
-              accessibilityLabel="Clear all filters"
-            >
-              <Text style={styles.clearFiltersText}>Clear All</Text>
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.resetButton} onPress={resetTempFilters}>
+              <Ionicons name="refresh" size={16} color="#64748B" />
+              <Text style={styles.resetButtonText}>Reset</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.applyFiltersButton}
-              onPress={applyTempFilters}
-              accessibilityLabel="Apply filters"
-            >
-              <Text style={styles.applyFiltersText}>Apply Filters</Text>
+            <TouchableOpacity style={styles.applyButton} onPress={applyTempFilters}>
+              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              <Text style={styles.applyButtonText}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </View>
-    </Modal>
-  ), [tempFilters, filters, sortOptions, pageSizeOptions, statusOptions, applyTempFilters, resetTempFilters, filterErrors]);
-
-  const StatsModal = useCallback(() => {
-    if (!statistics) {
-      return (
-        <Modal
-          visible={showStatsModal}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowStatsModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.statsModalContent}>
-              <View style={styles.dragHandle} />
-              <View style={styles.filterHeader}>
-                <Text style={styles.filterTitle}>Package Statistics</Text>
-                <TouchableOpacity
-                  onPress={() => setShowStatsModal(false)}
-                  style={styles.closeButton}
-                  accessibilityLabel="Close statistics modal"
-                >
+      {showStartDatePicker && (
+        <Modal visible={showStartDatePicker} transparent={true} animationType="fade">
+          <View style={styles.datePickerOverlay}>
+            <View style={styles.datePickerContainer}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select Start Date</Text>
+                <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
                   <Ionicons name="close" size={24} color="#64748B" />
                 </TouchableOpacity>
               </View>
-              <ScrollView style={styles.statsScrollView}>
-                <Text style={styles.statsEmpty}>No statistics available.</Text>
-              </ScrollView>
+              <DateTimePicker
+                value={tempFilters.startDate || new Date()}
+                mode="date"
+                display="spinner"
+                onChange={(event,selectedDate) => {
+                  if (selectedDate) {
+                    setTempFilters({ ...tempFilters,startDate: selectedDate });
+                  }
+                  if (Platform.OS === 'android') setShowStartDatePicker(false);
+                }}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity style={styles.datePickerConfirm} onPress={() => setShowStartDatePicker(false)}>
+                  <Text style={styles.datePickerConfirmText}>Confirm</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </Modal>
-      );
-    }
-
-    const packageDistributionData = {
-      labels: ['Total', 'Active', 'Inactive'],
-      datasets: [
-        {
-          data: [
-            statistics.totalPackages || 0,
-            statistics.activePackages || 0,
-            statistics.inactivePackages || 0,
-          ],
-        },
-      ],
-    };
-
-    const pieChartData = [
-      {
-        name: 'Active',
-        population: statistics.activePackages || 0,
-        color: '#10B981',
-        legendFontColor: '#1E293B',
-        legendFontSize: 14,
-      },
-      {
-        name: 'Inactive',
-        population: statistics.inactivePackages || 0,
-        color: '#EF4444',
-        legendFontColor: '#1E293B',
-        legendFontSize: 14,
-      },
-    ].filter(item => item.population > 0);
-
-    const chartConfig = {
-      backgroundColor: '#FFFFFF',
-      backgroundGradientFrom: '#FFFFFF',
-      backgroundGradientTo: '#FFFFFF',
-      decimalPlaces: 0,
-      color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
-      labelColor: (opacity = 1) => `rgba(30, 41, 59, ${opacity})`,
-      style: {
-        borderRadius: 16,
-      },
-      propsForDots: {
-        r: '6',
-        strokeWidth: '2',
-        stroke: '#4F46E5',
-      },
-      propsForLabels: {
-        fontSize: 12,
-        fontWeight: '500',
-      },
-    };
-
-    return (
-      <Modal
-        visible={showStatsModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowStatsModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.statsModalContent}>
-            <View style={styles.dragHandle} />
-            <View style={styles.filterHeader}>
-              <Text style={styles.filterTitle}>Package Statistics</Text>
-              <TouchableOpacity
-                onPress={() => setShowStatsModal(false)}
-                style={styles.closeButton}
-                accessibilityLabel="Close statistics modal"
-              >
-                <Ionicons name="close" size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.statsScrollView}>
-              {packageDistributionData.datasets[0].data.every(val => val === 0) ? (
-                <Text style={styles.statsEmpty}>No statistics data available to display.</Text>
-              ) : (
-                <>
-                  <View style={styles.statsSection}>
-                    <Text style={styles.statsSectionTitle}>Package Distribution</Text>
-                    {packageDistributionData.datasets[0].data.every(val => val === 0) ? (
-                      <Text style={styles.statsEmpty}>No package data to display.</Text>
-                    ) : (
-                      <BarChart
-                        data={packageDistributionData}
-                        width={width - 80}
-                        height={220}
-                        yAxisLabel=""
-                        yAxisSuffix=""
-                        chartConfig={chartConfig}
-                        style={styles.chart}
-                        showValuesOnTopOfBars
-                        withInnerLines={false}
-                        accessibilityLabel="Bar chart showing package distribution"
-                      />
-                    )}
-                  </View>
-                  <View style={styles.statsSection}>
-                    <Text style={styles.statsSectionTitle}>Package Proportion</Text>
-                    {pieChartData.length === 0 ? (
-                      <Text style={styles.statsEmpty}>No package data to display.</Text>
-                    ) : (
-                      <PieChart
-                        data={pieChartData}
-                        width={width - 80}
-                        height={220}
-                        chartConfig={chartConfig}
-                        accessor="population"
-                        backgroundColor="transparent"
-                        paddingLeft="15"
-                        absolute
-                        style={styles.chart}
-                        accessibilityLabel="Pie chart showing active vs inactive packages"
-                      />
-                    )}
-                  </View>
-                </>
+      )}
+      {showEndDatePicker && (
+        <Modal visible={showEndDatePicker} transparent={true} animationType="fade">
+          <View style={styles.datePickerOverlay}>
+            <View style={styles.datePickerContainer}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select End Date</Text>
+                <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                  <Ionicons name="close" size={24} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={tempFilters.endDate || new Date()}
+                mode="date"
+                display="spinner"
+                onChange={(event,selectedDate) => {
+                  if (selectedDate) {
+                    setTempFilters({ ...tempFilters,endDate: selectedDate });
+                  }
+                  if (Platform.OS === 'android') setShowEndDatePicker(false);
+                }}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity style={styles.datePickerConfirm} onPress={() => setShowEndDatePicker(false)}>
+                  <Text style={styles.datePickerConfirmText}>Confirm</Text>
+                </TouchableOpacity>
               )}
-            </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
-    );
-  }, [statistics]);
-
-  const EmptyList = useCallback(() => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="fitness-outline" size={64} color="#CBD5E1" accessibilityLabel="No packages icon" />
-      <Text style={styles.emptyTitle}>No Service Packages Found</Text>
-      <Text style={styles.emptyText}>
-        No packages match your current search and filter criteria. Try adjusting the filters or create a new package.
-      </Text>
-      <TouchableOpacity
-        style={styles.createButton}
-        onPress={() => navigation.navigate('CreateServicePackage')}
-        accessibilityLabel="Create new package"
-      >
-        <Text style={styles.createButtonText}>Create Package</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.clearFiltersButton}
-        onPress={clearFilters}
-        accessibilityLabel="Clear all filters"
-      >
-        <Text style={styles.clearFiltersText}>Clear Filters</Text>
-      </TouchableOpacity>
-    </View>
-  ), [clearFilters, navigation]);
+        </Modal>
+      )}
+    </Modal>
+  );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <LinearGradient colors={['#4F46E5', '#6366F1', '#818CF8']} style={styles.header}>
+    <SafeAreaView style={styles.container}>
+      <DynamicStatusBar backgroundColor="#F8FAFC" />
+      <View style={styles.header}>
         <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#0056D2" />
           </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Service Package</Text>
-            <Text style={styles.headerSubtitle}>Manage your service packages</Text>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Service Packages</Text>
           </View>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => navigation.navigate('CreateServicePackage')}
-            accessibilityLabel="Create new package"
-          >
-            <Ionicons name="add-outline" size={24} color="#FFFFFF" />
+          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
+            <Ionicons name="options-outline" size={24} color="#0056D2" />
+            {(searchTerm || filters.status !== 'all' || filters.startDate || filters.endDate) && (
+              <View style={styles.filterBadge} />
+            )}
           </TouchableOpacity>
         </View>
-      </LinearGradient>
-
-      <View style={styles.tabContainer}>
+      </View>
+      <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'active' && styles.activeTab]}
+          style={[styles.tabItem,activeTab === 'all' && styles.tabItemActive]}
+          onPress={() => {
+            setActiveTab('all');
+            setPageNumber(1);
+            setSelectedPackages([]);
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText,activeTab === 'all' && styles.tabTextActive]}>All</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem,activeTab === 'active' && styles.tabItemActive]}
           onPress={() => {
             setActiveTab('active');
             setPageNumber(1);
             setSelectedPackages([]);
-            fetchAllPackages();
           }}
+          activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>Active</Text>
+          <Text style={[styles.tabText,activeTab === 'active' && styles.tabTextActive]}>Active</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'inactive' && styles.activeTab]}
+          style={[styles.tabItem,activeTab === 'inactive' && styles.tabItemActive]}
           onPress={() => {
             setActiveTab('inactive');
             setPageNumber(1);
             setSelectedPackages([]);
-            fetchAllPackages();
           }}
+          activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, activeTab === 'inactive' && styles.activeTabText]}>Inactive</Text>
+          <Text style={[styles.tabText,activeTab === 'inactive' && styles.tabTextActive]}>Inactive</Text>
         </TouchableOpacity>
-        {/* <TouchableOpacity
-          style={styles.statsButton}
-          onPress={fetchStatistics}
-          accessibilityLabel="View package statistics"
-        >
-          <Ionicons name="stats-chart-outline" size={20} color="#4F46E5" />
-          <Text style={styles.statsButtonText}>Stats</Text>
-        </TouchableOpacity> */}
       </View>
-
       {activeTab === 'inactive' && (
         <View style={styles.actionBar}>
           <TouchableOpacity
-            style={[styles.actionBarButton, selectedPackages.length === 0 && styles.disabledActionBarButton]}
+            style={[styles.actionBarButton,selectedPackages.length === 0 && styles.disabledActionBarButton]}
             onPress={handleToggleStatusMultiple}
-            disabled={loading || selectedPackages.length === 0}
-            accessibilityLabel="Activate selected packages"
+            disabled={selectedPackages.length === 0}
           >
             <Text style={styles.actionBarButtonText}>
               Activate Selected ({selectedPackages.length})
@@ -983,563 +795,520 @@ const TrainerServiceManagement = () => {
           </TouchableOpacity>
         </View>
       )}
-
-      <Animated.View style={[styles.searchContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
+      <Animated.View
+        style={[
+          styles.searchSection,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#64748B" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search your packages..."
+            placeholder="Search service packages..."
             value={searchTerm}
             onChangeText={handleSearch}
-            autoCapitalize="none"
             placeholderTextColor="#94A3B8"
-            accessibilityLabel="Search packages"
           />
           {searchTerm ? (
-            <TouchableOpacity
-              onPress={() => handleSearch('')}
-              style={styles.clearSearchButton}
-              accessibilityLabel="Clear search"
-            >
+            <TouchableOpacity onPress={() => handleSearch('')} style={styles.clearSearch}>
               <Ionicons name="close-circle" size={20} color="#94A3B8" />
             </TouchableOpacity>
           ) : null}
         </View>
-        <View style={styles.searchActions}>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setShowFilterModal(true)}
-            accessibilityLabel="Open filter modal"
-          >
-            <Ionicons name="options-outline" size={20} color="#4F46E5" />
-            <Text style={styles.filterButtonText}>Filter</Text>
-          </TouchableOpacity>
-          <View style={styles.resultsInfo}>
-            <Text style={styles.resultsText}>
-              {totalItems} packages found • Page {pageNumber} of {totalPages}
-            </Text>
-          </View>
-        </View>
       </Animated.View>
-
-      {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loaderText}>Loading your packages...</Text>
+      {loading && pageNumber === 1 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0056D2" />
+          <Text style={styles.loadingText}>Loading packages...</Text>
         </View>
       ) : (
         <FlatList
           data={displayedPackages}
+          onEndReached={loadMorePackages}
+          onEndReachedThreshold={0.2}
           keyExtractor={(item) => item.packageId.toString()}
           renderItem={PackageItem}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={EmptyList}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
+          ListHeaderComponent={renderCreatePackageHeader}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0056D2']} tintColor="#0056D2" />
+          }
           showsVerticalScrollIndicator={false}
-          initialNumToRender={10}
-          windowSize={21}
           ListFooterComponent={
             loading && pageNumber > 1 ? (
-              <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color="#4F46E5" />
-                <Text style={styles.footerLoaderText}>Loading more...</Text>
+              <View style={{ padding: 20,alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#0056D2" />
               </View>
             ) : null
           }
         />
       )}
-
-      {totalItems > 0 && (
-        <Animated.View style={[styles.paginationContainer, { opacity: fadeAnim }]}>
-          <TouchableOpacity
-            style={[styles.paginationButton, pageNumber <= 1 || loading ? styles.disabledButton : null]}
-            onPress={handlePreviousPage}
-            disabled={pageNumber <= 1 || loading}
-            accessibilityLabel="Previous page"
-          >
-            <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.pageInfoContainer}>
-            <Text style={styles.pageInfo}>Page {pageNumber} of {totalPages}</Text>
+      {renderFilterModal()}
+      <Modal
+        visible={showConfirmModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowConfirmModal(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmModalContent}>
+            <Text style={styles.confirmModalTitle}>Confirm Action</Text>
+            <Text style={styles.confirmModalText}>{confirmMessage}</Text>
+            <View style={styles.confirmModalActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowConfirmModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={async () => {
+                  await confirmAction();
+                  setShowConfirmModal(false);
+                }}
+              >
+                <Text style={styles.confirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <TouchableOpacity
-            style={[styles.paginationButton, pageNumber >= totalPages || loading ? styles.disabledButton : null]}
-            onPress={handleNextPage}
-            disabled={pageNumber >= totalPages || loading}
-            accessibilityLabel="Next page"
-          >
-            <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </Animated.View>
-      )}
-
-      <FilterModal />
-      <StatsModal />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
- 
-   inputError: {
-    borderColor: '#EF4444',
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#EF4444',
-    marginTop: 4,
-    marginLeft: 12,
-  }, safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: theme.primaryColor,
+    backgroundColor: '#F8FAFC',
   },
   header: {
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-    paddingBottom: 16,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 10,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
   },
   backButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#F1F5F9',
   },
-  headerTextContainer: {
+  headerCenter: {
     flex: 1,
     alignItems: 'center',
+    marginHorizontal: 20,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    color: '#1E293B',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  headerActionButton: {
+  filterButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#F1F5F9',
   },
-  tabContainer: {
+  filterBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#F59E0B',
+  },
+  tabBar: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    marginBottom: 2,
   },
-  tabButton: {
+  tabItem: {
     flex: 1,
-    paddingVertical: 12,
     alignItems: 'center',
-  },
-  activeTab: {
+    paddingVertical: 12,
     borderBottomWidth: 2,
-    borderBottomColor: '#4F46E5',
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: {
+    borderBottomColor: '#0056D2',
+    backgroundColor: '#F1F5F9',
   },
   tabText: {
     fontSize: 16,
     color: '#64748B',
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  activeTabText: {
-    color: '#4F46E5',
+  tabTextActive: {
+    color: '#0056D2',
     fontWeight: '700',
   },
-  statsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EEF2FF',
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    margin: 8,
-  },
-  statsButtonText: {
-    fontSize: 14,
-    color: '#4F46E5',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
   actionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
+    padding: 15,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
   actionBarButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#22C55E',
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
   },
   disabledActionBarButton: {
     backgroundColor: '#CBD5E1',
   },
   actionBarButtonText: {
-    color: '#FFFFFF',
     fontSize: 14,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
-  searchContainer: {
-    backgroundColor: '#F8FAFC',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 24,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+  searchSection: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  searchInputContainer: {
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   searchIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     color: '#1E293B',
-    paddingVertical: 12,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  clearSearchButton: {
-    padding: 4,
+  clearSearch: {
+    padding: 5,
   },
-  searchActions: {
+  createGroupSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  createGroupCard: {
+    borderRadius: 16,
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  createGroupContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  filterButton: {
+  createGroupLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EEF2FF',
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#4F46E5',
+    flex: 1,
   },
-  filterButtonText: {
-    fontSize: 14,
-    color: '#4F46E5',
-    fontWeight: '600',
-    marginLeft: 8,
+  createGroupIcon: {
+    marginRight: 15,
   },
-  resultsInfo: {
-    alignItems: 'center',
+  createGroupText: {
+    flex: 1,
   },
-  resultsText: {
+  createGroupTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  createGroupSubtitle: {
     fontSize: 14,
     color: '#64748B',
-    fontWeight: '500',
   },
-  listContent: {
-    padding: 16,
-    paddingBottom: 100,
-    backgroundColor: '#F8FAFC',
+  createGroupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 8,
   },
-  packageItem: {
-    marginBottom: 16,
+  createGroupButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0056D2',
   },
-  packageCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
+  listContainer: {
+    paddingBottom: 50,
+  },
+  groupCard: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  cardGradient: {
-    padding: 16,
-    position: 'relative',
-  },
-  selectionCheckbox: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    zIndex: 10,
+  cardContainer: {
+    padding: 20,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    marginBottom: 15,
   },
-  trainerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 15,
+  },
+  groupAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F1F5F9',
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
-  cardTitleContainer: {
+  groupDetails: {
     flex: 1,
   },
-  packageName: {
+  groupName: {
     fontSize: 18,
     fontWeight: '700',
     color: '#1E293B',
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  trainerName: {
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  memberStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  memberCount: {
     fontSize: 14,
     color: '#64748B',
     fontWeight: '500',
   },
-  trainerEmail: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '400',
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
-  statusBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    marginRight: 8,
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  headerRight: {
+    marginLeft: 15,
+  },
+  joinBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  joinBtnText: {
     fontSize: 12,
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  actionButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    marginLeft: 8,
+  descriptionSection: {
+    marginBottom: 15,
   },
-  cardContent: {
-    marginTop: 8,
-  },
-  packageDescription: {
+  descriptionText: {
     fontSize: 14,
     color: '#64748B',
     lineHeight: 20,
-    marginBottom: 12,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  packageDetailsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  packageDetailItem: {
+  cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  detailIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  packageDetailText: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  dateContainer: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
   },
-  dateText: {
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0056D2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 5,
+  },
+  categoryText: {
     fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
-  loaderContainer: {
+  ownerActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  editBtnText: {
+    fontSize: 12,
+    color: '#0056D2',
+    fontWeight: '600',
+  },
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#F8FAFC',
+    padding: 40,
   },
-  loaderText: {
+  loadingText: {
     fontSize: 16,
-    color: '#4F46E5',
-    marginTop: 16,
-    fontWeight: '500',
-  },
-  footerLoader: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  footerLoaderText: {
-    fontSize: 14,
-    color: '#4F46E5',
-    marginLeft: 8,
+    color: '#0056D2',
+    marginTop: 15,
     fontWeight: '500',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#F8FAFC',
+    padding: 40,
+  },
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 25,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1E293B',
-    marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 10,
+    textAlign: 'center',
   },
   emptyText: {
     fontSize: 16,
     color: '#64748B',
     textAlign: 'center',
-    marginBottom: 24,
     lineHeight: 24,
+    marginBottom: 30,
   },
-  createButton: {
-    backgroundColor: '#4F46E5',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+  emptyActionButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 25,
+    paddingVertical: 15,
+    borderRadius: 25,
+    gap: 10,
   },
-  createButtonText: {
+  emptyActionText: {
     fontSize: 16,
     color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  paginationContainer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  paginationButton: {
-    backgroundColor: '#4F46E5',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  disabledButton: {
-    backgroundColor: '#CBD5E1',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  pageInfoContainer: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  pageInfo: {
-    fontSize: 16,
-    color: '#1E293B',
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
-    alignItems: 'stretch',
   },
   filterModalContent: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: '85%',
-    minHeight: '50%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    height: '60%',
   },
-  statsModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: '70%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  dragHandle: {
+  modalHandle: {
     width: 40,
     height: 4,
     backgroundColor: '#CBD5E1',
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 10,
   },
-  filterHeader: {
+  modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
-  filterTitle: {
+  modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#1E293B',
   },
-  closeButton: {
-    padding: 4,
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  filterScrollView: {
+  modalContent: {
     flex: 1,
     paddingHorizontal: 20,
   },
-  statsScrollView: {
-    paddingHorizontal: 20,
-  },
   filterSection: {
-    marginVertical: 16,
+    marginVertical: 15,
   },
   filterSectionTitle: {
     fontSize: 16,
@@ -1547,200 +1316,228 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     marginBottom: 12,
   },
-  rangeInputContainer: {
+  dateRangeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
-  datePickerContainer: {
+  dateButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  datePicker: {
-    flex: 1,
-  },
-  rangeInput: {
-    flex: 1,
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 15,
     paddingVertical: 12,
-    fontSize: 16,
-    color: '#1E293B',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  rangeSeparator: {
-    fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  sortOptionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  sortOptionCard: {
-    flex: 1,
-    minWidth: '25%',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  selectedSortCard: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#4F46E5',
-  },
-  sortOptionText: {
-    fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
-    marginTop: 8,
-  },
-  selectedSortText: {
-    color: '#4F46E5',
-    fontWeight: '600',
-  },
-  sortDirectionContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  sortDirectionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     gap: 8,
   },
-  selectedSortDirection: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
+  dateButtonText: {
+    fontSize: 14,
+    color: '#1E293B',
+    flex: 1,
   },
-  sortDirectionText: {
+  dateRangeSeparator: {
     fontSize: 14,
     color: '#64748B',
     fontWeight: '500',
   },
-  selectedSortDirectionText: {
+  statusOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  statusOption: {
+    flex: 1,
+    minWidth: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 10,
+  },
+  selectedStatusOption: {
+    backgroundColor: '#0056D2',
+    borderColor: '#0056D2',
+  },
+  statusOptionText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  selectedStatusOptionText: {
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  pageSizeGrid: {
+  pageSizeOptions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
-  pageSizeCard: {
+  pageSizeOption: {
     flex: 1,
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
-    padding: 8,
+    padding: 15,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    minHeight: 50,
+    justifyContent: 'center',
   },
-  selectedPageSizeCard: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
+  selectedPageSizeOption: {
+    backgroundColor: '#0056D2',
+    borderColor: '#0056D2',
   },
-  pageSizeCardText: {
-    fontSize: 18,
+  pageSizeOptionText: {
+    fontSize: 16,
     color: '#1E293B',
     fontWeight: '700',
   },
-  selectedPageSizeCardText: {
+  selectedPageSizeOptionText: {
     color: '#FFFFFF',
   },
-  pageSizeCardLabel: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 4,
-  },
-  selectedPageSizeCardLabel: {
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  filterActions: {
+  modalActions: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingTop: 20,
     gap: 12,
   },
-  clearFiltersButton: {
+  resetButton: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 14,
-    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 15,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    gap: 8,
   },
-  clearFiltersText: {
+  resetButtonText: {
     fontSize: 16,
-    color: '#4F46E5',
+    color: '#64748B',
     fontWeight: '600',
   },
-  applyFiltersButton: {
+  applyButton: {
     flex: 1,
-    backgroundColor: '#4F46E5',
-    paddingVertical: 14,
-    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0056D2',
+    paddingVertical: 15,
+    borderRadius: 12,
+    gap: 8,
   },
-  applyFiltersText: {
+  applyButtonText: {
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  pickerWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  picker: {
+  datePickerOverlay: {
     flex: 1,
-    height: 50,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  datePickerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 350,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
     color: '#1E293B',
   },
-  inputIcon: {
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  statsSection: {
-    marginVertical: 16,
-  },
-  statsSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 12,
-  },
-  statsEmpty: {
-    fontSize: 16,
-    color: '#64748B',
-    textAlign: 'center',
+  datePickerConfirm: {
+    backgroundColor: '#0056D2',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
     marginTop: 20,
   },
-  chart: {
-    marginVertical: 8,
+  datePickerConfirmText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmModalContent: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 350,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  confirmModalText: {
+    fontSize: 16,
+    color: '#64748B',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  confirmModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: '#0056D2',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 

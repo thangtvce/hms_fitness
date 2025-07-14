@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
   RefreshControl,
   TextInput,
@@ -12,12 +11,14 @@ import {
   Dimensions
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { LinearGradient } from "expo-linear-gradient"
+import { LinearGradient } from "expo-linear-gradient";
 import Icon from 'react-native-vector-icons/Ionicons';
 import Header from 'components/Header';
 import ticketService from 'services/apiTicketService';
 import { AuthContext } from 'context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 
 const { width, height } = Dimensions.get('window');
 
@@ -41,21 +42,20 @@ const TicketListScreen = () => {
       const params = {};
       if (statusFilter && statusFilter !== 'All') params.Status = statusFilter;
       if (searchTerm && searchTerm.trim() !== '') params.SearchTerm = searchTerm.trim();
-      
       const data = await ticketService.getMyTickets(params);
       const ticketsArr = Array.isArray(data.tickets) ? data.tickets : [];
-      
       const validTickets = ticketsArr.filter(
         (item) => item && (item.id || item.ticketId) && item.title && item.status && item.createdAt
       ).map(t => ({ ...t, id: t.id || t.ticketId }));
-      
       setTickets(validTickets);
       if (validTickets.length !== ticketsArr.length) {
         setError('Some tickets are missing required fields');
+        showErrorFetchAPI('Some tickets are missing required fields');
       }
     } catch (err) {
       setError(err.message || 'Failed to load tickets');
       setTickets([]);
+      showErrorFetchAPI(err?.message || 'Failed to load tickets');
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -237,10 +237,7 @@ const TicketListScreen = () => {
       {/* Content */}
       <View style={styles.content}>
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4F46E5" />
-            <Text style={styles.loadingText}>Loading tickets...</Text>
-          </View>
+          <Loading />
         ) : error ? (
           <View style={styles.errorContainer}>
             <Icon name="alert-circle" size={48} color="#EF4444" />

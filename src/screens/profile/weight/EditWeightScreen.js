@@ -5,13 +5,13 @@ import {
     TextInput,
     StyleSheet,
     TouchableOpacity,
-    Alert,
     Platform,
-    ActivityIndicator,
     ScrollView,
     Modal,
     Animated,
 } from "react-native"
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import { weightHistoryService } from "services/apiWeightHistoryService"
 import DateTimePicker from "@react-native-community/datetimepicker"
@@ -84,25 +84,25 @@ export default function EditWeightScreen({ navigation,route }) {
     const handleSave = async () => {
         // UserId validation
         if (!userId || isNaN(Number.parseInt(userId)) || Number.parseInt(userId) <= 0) {
-            Alert.alert("Invalid Input", "UserId must be a positive integer.");
+            showErrorFetchAPI("UserId must be a positive integer.");
             return;
         }
 
         // Weight validation: required, 0.1-500
         if (!formData.weight || isNaN(Number.parseFloat(formData.weight))) {
-            Alert.alert("Invalid Input", "Weight is required and must be a valid number.");
+            showErrorFetchAPI("Weight is required and must be a valid number.");
             return;
         }
         const weightValue = Number.parseFloat(formData.weight);
         if (weightValue < 0.1 || weightValue > 500) {
-            Alert.alert("Invalid Input", "Weight must be between 0.1 and 500 kg.");
+            showErrorFetchAPI("Weight must be between 0.1 and 500 kg.");
             return;
         }
 
         // RecordedAt validation: not in the future
         const now = new Date();
         if (formData.recordedAt && formData.recordedAt > now) {
-            Alert.alert("Invalid Input", "RecordedAt cannot be in the future.");
+            showErrorFetchAPI("Recorded date cannot be in the future.");
             return;
         }
 
@@ -117,17 +117,13 @@ export default function EditWeightScreen({ navigation,route }) {
 
             const response = await weightHistoryService.updateWeightHistory(historyId, payload);
             if (response.statusCode === 200) {
-                Alert.alert("Success", "Weight has been updated successfully.", [
-                    {
-                        text: "OK",
-                        onPress: () => navigation.goBack(),
-                    },
-                ]);
+                showSuccessMessage("Weight updated successfully.");
+                navigation.goBack();
             } else {
-                Alert.alert("Error", response.message || "Failed to update weight entry.");
+                showErrorFetchAPI(response.message || "Failed to update weight entry.");
             }
         } catch (error) {
-            Alert.alert("Error", "Unable to update weight entry. Please try again.");
+            showErrorFetchAPI("Unable to update weight entry. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -140,6 +136,10 @@ export default function EditWeightScreen({ navigation,route }) {
             month: "short",
             day: "numeric",
         })
+    }
+
+    if (isLoading) {
+        return <Loading />;
     }
 
     return (
@@ -247,14 +247,10 @@ export default function EditWeightScreen({ navigation,route }) {
                                 onPress={handleSave}
                                 disabled={isLoading}
                             >
-                                {isLoading ? (
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                ) : (
-                                    <>
-                                        <Ionicons name="save-outline" size={18} color="#FFFFFF" style={styles.saveIcon} />
-                                        <Text style={styles.saveButtonText}>Save Changes</Text>
-                                    </>
-                                )}
+                                <>
+                                    <Ionicons name="save-outline" size={18} color="#FFFFFF" style={styles.saveIcon} />
+                                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                                </>
                             </TouchableOpacity>
                         </View>
                     </View>

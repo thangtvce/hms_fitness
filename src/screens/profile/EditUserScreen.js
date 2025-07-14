@@ -6,8 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
-  Alert,
-  ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +15,8 @@ import {
   Keyboard,
   Linking,
 } from "react-native"
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
 import { LinearGradient } from "expo-linear-gradient"
@@ -190,12 +190,8 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
     }
   },[showDatePicker])
 
-  if (!fontsLoaded) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.primary }]}> 
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    )
+  if (!fontsLoaded || loading) {
+    return <Loading />;
   }
 
   const handleInputChange = (field,value) => {
@@ -265,17 +261,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
       if (status !== 'granted') {
         setHasGalleryPermission(false);
-        Alert.alert(
-          'Permission Required',
-          'To select images, please grant access to your photo library in your device settings.',
-          [
-            { text: 'Cancel',style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => Linking.openSettings(),
-            },
-          ],
-        );
+        showErrorFetchAPI('To select images, please grant access to your photo library in your device settings.');
         return;
       }
 
@@ -295,7 +281,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
         const imageType = selectedAsset.type === 'image' ? 'image/jpeg' : (selectedAsset.type || 'image/jpeg');
 
         if (!ALLOWED_TYPES.includes(imageType)) {
-          Alert.alert('Error',`Invalid image type. Only ${ALLOWED_TYPES.join(', ')} are allowed.`);
+          showErrorFetchAPI(`Invalid image type. Only ${ALLOWED_TYPES.join(', ')} are allowed.`);
           return;
         }
 
@@ -307,7 +293,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
         }
       }
     } catch (error) {
-      Alert.alert('Error','Failed to pick image.');
+      showErrorFetchAPI('Failed to pick image.');
     } finally {
       setImageUploading(false);
       setShowImageOptions(false);
@@ -320,17 +306,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
       if (status !== 'granted') {
         setHasCameraPermission(false);
-        Alert.alert(
-          'Permission Required',
-          'To take photos, please grant access to your camera in your device settings.',
-          [
-            { text: 'Cancel',style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => Linking.openSettings(),
-            },
-          ],
-        );
+        showErrorFetchAPI('To take photos, please grant access to your camera in your device settings.');
         return;
       }
 
@@ -349,7 +325,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
         const imageType = selectedAsset.type === 'image' ? 'image/jpeg' : (selectedAsset.type || 'image/jpeg');
 
         if (!ALLOWED_TYPES.includes(imageType)) {
-          Alert.alert('Error',`Invalid image type. Only ${ALLOWED_TYPES.join(', ')} are allowed.`);
+          showErrorFetchAPI(`Invalid image type. Only ${ALLOWED_TYPES.join(', ')} are allowed.`);
           return;
         }
 
@@ -361,7 +337,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
         }
       }
     } catch (error) {
-      Alert.alert('Error','Failed to take photo.');
+      showErrorFetchAPI('Failed to take photo.');
     } finally {
       setImageUploading(false);
       setShowImageOptions(false);
@@ -450,13 +426,13 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
       const response = await apiUserService.updateUser(formData.userId,userDto);
       if (response.statusCode === 200) {
-        Alert.alert('Success','Profile updated successfully.');
+        showSuccessMessage('Profile updated successfully.');
         navigation.goBack();
       } else {
         throw new Error(response.message || 'Failed to update profile');
       }
     } catch (error) {
-      Alert.alert('Error',error.message || 'Failed to update profile.');
+      showErrorFetchAPI(error.message || 'Failed to update profile.');
     } finally {
       setLoading(false);
     }
@@ -484,9 +460,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
           <View style={styles.avatarSection}>
             <View style={styles.avatarContainer}>
               {imageUploading ? (
-                <View style={[styles.avatarLoading, { backgroundColor: colors.card || '#E2E8F0' }]}> 
-                  <ActivityIndicator size="large" color={colors.primary} />
-                </View>
+                <Loading />
               ) : (
                 <Image
                   source={{ uri: formData.avatar || "https://via.placeholder.com/150?text=User" }}

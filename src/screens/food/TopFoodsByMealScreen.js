@@ -1,16 +1,25 @@
 import React, { useEffect, useState } from "react"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { View, Text, ScrollView, Image, TouchableOpacity } from "react-native"
 import Header from 'components/Header'
 import dayjs from "dayjs"
+import Loading from "components/Loading"
 
 const TopFoodsByMealScreen = ({ route, logs, navigation }) => {
   // Get logs from route params or prop, fallback to empty array
   const data = (route?.params?.logs) || logs || [];
+
   const [topFoodsByMeal, setTopFoodsByMeal] = useState({ Breakfast: [], Lunch: [], Dinner: [] })
   const [selectedMeal, setSelectedMeal] = useState('Breakfast')
+  const [loading, setLoading] = useState(false)
+
 
   useEffect(() => {
-    calculateTopFoodsByMeal()
+    setLoading(true)
+    setTimeout(() => {
+      calculateTopFoodsByMeal()
+      setLoading(false)
+    }, 400)
   }, [data])
 
   const calculateTopFoodsByMeal = () => {
@@ -57,6 +66,10 @@ const TopFoodsByMealScreen = ({ route, logs, navigation }) => {
 
   const getRankTextColor = (index) => {
     return index < 3 ? '#000000' : '#FFFFFF'
+  }
+
+  if (loading) {
+    return <Loading backgroundColor="rgba(255,255,255,0.8)" logoSize={120} text="Loading top foods..." />
   }
 
   return (

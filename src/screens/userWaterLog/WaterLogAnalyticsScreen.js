@@ -15,8 +15,9 @@ import {
   TextInput,
   Dimensions,
   Platform,
-  ActivityIndicator,
 } from "react-native";
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons";
 import { BarChart } from "react-native-chart-kit";
 import Header from "components/Header";
@@ -101,7 +102,6 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
       const filterObj = CHART_FILTERS.find(f => f.id === chartFilter) || CHART_FILTERS[0];
       let startDate, endDate;
       if (filterObj.id === '1d') {
-        // Always use today in Vietnam timezone (real local time, regardless of device timezone)
         const todayVN = dayjs.utc().tz('Asia/Ho_Chi_Minh', true);
         startDate = todayVN.startOf('day').toDate();
         endDate = todayVN.endOf('day').toDate();
@@ -134,9 +134,11 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         generateChartData(records, filterObj, startDate, endDate);
       } else {
         setChartData(null);
+        showErrorFetchAPI("Failed to fetch chart data.");
       }
     } catch (error) {
       setChartData(null);
+      showErrorFetchAPI("An error occurred while fetching chart data.");
     } finally {
       setChartLoading(false);
     }
@@ -336,7 +338,6 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         endDate = new Date(customEndDate);
         endDate.setHours(23, 59, 59, 999);
       } else if (logFilter === '1d') {
-        // Always use today in Vietnam timezone for both query and filtering
         const todayVN = dayjs().tz('Asia/Ho_Chi_Minh');
         startDate = todayVN.startOf('day').toDate();
         endDate = todayVN.endOf('day').toDate();
@@ -360,15 +361,10 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
       const response = await apiUserWaterLogService.getMyWaterLogs(queryParams);
       if (response?.statusCode === 200 && response?.data) {
         let records = response.data.records || [];
-        // For 1D, filter logs to only those with consumptionDate === today (Asia/Ho_Chi_Minh)
         if (logFilter === '1d') {
-        // Always get current time in Vietnam timezone (real local time, regardless of device timezone)
           const todayVN = dayjs().tz('Asia/Ho_Chi_Minh', true);
           const todayStr = todayVN.format('YYYY-MM-DD');
-          console.log('[WaterLogAnalyticsScreen] todayVN:', todayVN.format(), 'todayStr:', todayStr);
-          console.log('[WaterLogAnalyticsScreen] all records:', records.map(l => l.consumptionDate));
           records = records.filter(log => {
-            // Try to robustly parse the log date in Vietnam time
             let dVN;
             if (typeof log.consumptionDate === 'string') {
               dVN = dayjs.tz(log.consumptionDate, 'Asia/Ho_Chi_Minh');
@@ -380,10 +376,8 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
             }
             return dVN.isValid() && dVN.format('YYYY-MM-DD') === todayStr;
           });
-          console.log('[WaterLogAnalyticsScreen] filtered records:', records.map(l => l.consumptionDate));
         }
         setLogs(records);
-        // Calculate statistics
         const total = records.reduce((sum, log) => sum + (log.amountMl || 0), 0);
         setTotalAmount(total);
         setTotalLogs(records.length);
@@ -393,12 +387,14 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         setTotalAmount(0);
         setTotalLogs(0);
         setAverageAmount(0);
+        showErrorFetchAPI("Failed to fetch water logs.");
       }
     } catch (error) {
       setLogs([]);
       setTotalAmount(0);
       setTotalLogs(0);
       setAverageAmount(0);
+      showErrorFetchAPI("An error occurred while fetching water logs.");
     } finally {
       setLoading(false);
     }
@@ -459,7 +455,6 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Water Consumption Chart</Text>
       </View>
-      
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false} 
@@ -484,13 +479,9 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
           </TouchableOpacity>
         ))}
       </ScrollView>
-
       <View style={styles.chartContainer}>
         {chartLoading ? (
-          <View style={styles.chartLoadingContainer}>
-            <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={styles.loadingText}>Loading chart...</Text>
-          </View>
+          <Loading visible={true} />
         ) : chartData && chartData.datasets[0].data.some(val => val > 0) ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <BarChart
@@ -667,22 +658,21 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
 
       {renderSearchBar()}
 
+      {/* Loading overlay for logs (full screen, white, logo only) */}
+      <Loading visible={loading} />
+
       <ScrollView 
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        pointerEvents={loading ? "none" : "auto"}
       >
         {renderChart()}
         {renderLogsList()}
 
         {/* Logs List */}
         <View style={styles.logsContainer}>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#2563EB" />
-              <Text style={styles.loadingText}>Loading logs...</Text>
-            </View>
-          ) : logs.length === 0 ? (
+          {!loading && logs.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="water-outline" size={64} color="#CBD5E1" />
               <Text style={styles.emptyTitle}>No Water Logs Found</Text>
@@ -693,59 +683,51 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
                 }
               </Text>
             </View>
-          ) : (
-            logs.map((item) => {
-              // Ngày lấy từ consumptionDate, giờ chỉ lấy từ recordedAt (nếu không có thì để trống)
-              let dateVN = null;
-              let timeVN = null;
-              // Lấy ngày từ consumptionDate
-              if (item.consumptionDate) {
-                if (typeof item.consumptionDate === 'string') {
-                  dateVN = dayjs.tz(item.consumptionDate, 'Asia/Ho_Chi_Minh');
-                  if (!dateVN.isValid()) {
-                    dateVN = dayjs.tz(item.consumptionDate + ' 00:00:00', 'Asia/Ho_Chi_Minh');
-                  }
-                } else {
-                  dateVN = dayjs(item.consumptionDate).tz('Asia/Ho_Chi_Minh');
+          ) : !loading && logs.map((item) => {
+            let dateVN = null;
+            let timeVN = null;
+            if (item.consumptionDate) {
+              if (typeof item.consumptionDate === 'string') {
+                dateVN = dayjs.tz(item.consumptionDate, 'Asia/Ho_Chi_Minh');
+                if (!dateVN.isValid()) {
+                  dateVN = dayjs.tz(item.consumptionDate + ' 00:00:00', 'Asia/Ho_Chi_Minh');
                 }
+              } else {
+                dateVN = dayjs(item.consumptionDate).tz('Asia/Ho_Chi_Minh');
               }
-
-              // Chỉ lấy giờ từ recordedAt, đảm bảo parse đúng UTC nếu thiếu 'Z'
-              if (item.recordedAt) {
-                let recordedAtStr = item.recordedAt;
-                // Nếu không có Z hoặc offset, thêm Z để dayjs hiểu là UTC
-                if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(recordedAtStr)) {
-                  recordedAtStr += 'Z';
-                }
-                timeVN = dayjs(recordedAtStr).tz('Asia/Ho_Chi_Minh');
+            }
+            if (item.recordedAt) {
+              let recordedAtStr = item.recordedAt;
+              if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(recordedAtStr)) {
+                recordedAtStr += 'Z';
               }
-              const formattedDate = dateVN && dateVN.isValid() ? dateVN.format('MMM D, YYYY') : '';
-              const formattedTime = timeVN && timeVN.isValid() ? timeVN.format('hh:mm A') : '';
-
-              return (
-                <View key={item.logId} style={styles.logCard}>
-                  <View style={styles.logCardHeader}>
-                    <View style={styles.dateTimeContainer}>
-                      <Text style={styles.logDate}>{formattedDate}</Text>
-                      <Text style={styles.logTime}>{formattedTime ? `Time Update: ${formattedTime}` : ''}</Text>
-                    </View>
-                    <View style={styles.amountDisplay}>
-                      <Ionicons name="water" size={24} color="#2563EB" />
-                      <Text style={styles.amountValue}>{item.amountMl || 0} ml</Text>
-                    </View>
+              timeVN = dayjs(recordedAtStr).tz('Asia/Ho_Chi_Minh');
+            }
+            const formattedDate = dateVN && dateVN.isValid() ? dateVN.format('MMM D, YYYY') : '';
+            const formattedTime = timeVN && timeVN.isValid() ? timeVN.format('hh:mm A') : '';
+            return (
+              <View key={item.logId} style={styles.logCard}>
+                <View style={styles.logCardHeader}>
+                  <View style={styles.dateTimeContainer}>
+                    <Text style={styles.logDate}>{formattedDate}</Text>
+                    <Text style={styles.logTime}>{formattedTime ? `Time Update: ${formattedTime}` : ''}</Text>
                   </View>
-                  {item.notes && (
-                    <View style={styles.notesSection}>
-                      <Ionicons name="document-text" size={16} color="#64748B" />
-                      <Text style={styles.notesText} numberOfLines={2}>
-                        {item.notes}
-                      </Text>
-                    </View>
-                  )}
+                  <View style={styles.amountDisplay}>
+                    <Ionicons name="water" size={24} color="#2563EB" />
+                    <Text style={styles.amountValue}>{item.amountMl || 0} ml</Text>
+                  </View>
                 </View>
-              );
-            })
-          )}
+                {item.notes && (
+                  <View style={styles.notesSection}>
+                    <Ionicons name="document-text" size={16} color="#64748B" />
+                    <Text style={styles.notesText} numberOfLines={2}>
+                      {item.notes}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
 

@@ -1,4 +1,3 @@
-"use client"
 
 import { useState,useEffect,useRef } from "react"
 import {
@@ -10,13 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   ScrollView,
   Dimensions,
   Image,
   Animated,
   ImageBackground,
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { useFonts,Inter_400Regular,Inter_600SemiBold,Inter_700Bold } from "@expo-google-fonts/inter"
 import { Ionicons } from "@expo/vector-icons"
 import apiAuthService from "services/apiAuthService"
@@ -96,7 +95,7 @@ export default function OtpScreen() {
       const emailValidationError = validateEmail(email)
       if (emailValidationError) {
         setEmailError(emailValidationError)
-        Alert.alert("Validation Error",emailValidationError)
+        showErrorFetchAPI(emailValidationError)
         return
       }
 
@@ -104,7 +103,7 @@ export default function OtpScreen() {
       const response = await apiAuthService.forgotPassword({ email })
 
       if (response && response.message) {
-        Alert.alert("Success",response.message || "Reset code sent successfully. Please check your email.")
+        showSuccessMessage(response.message || "Reset code sent successfully. Please check your email.")
         navigation.navigate("ForgetPassword",{ email })
       } else {
         throw new Error("Invalid response from server")
@@ -125,7 +124,7 @@ export default function OtpScreen() {
         errorMessage = error.message
       }
 
-      Alert.alert("Error",errorMessage)
+      showErrorFetchAPI(errorMessage)
     } finally {
       setIsLoading(false)
     }

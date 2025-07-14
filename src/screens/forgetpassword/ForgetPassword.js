@@ -8,12 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   ScrollView,
   Dimensions,
   Image,
   Animated,
 } from 'react-native';
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { useFonts,Inter_400Regular,Inter_600SemiBold,Inter_700Bold } from '@expo-google-fonts/inter';
 import { Ionicons } from '@expo/vector-icons';
 import apiAuthService from 'services/apiAuthService';
@@ -183,7 +183,7 @@ export default function ForgetPassword() {
       const confirmPasswordValidation = validateConfirmPassword(confirmPassword);
 
       if (emailValidation) {
-        Alert.alert('Validation Error', emailValidation);
+        showErrorFetchAPI(emailValidation);
         return;
       }
 
@@ -193,7 +193,7 @@ export default function ForgetPassword() {
 
       if (otpValidation || passwordValidation || confirmPasswordValidation) {
         const firstError = otpValidation || passwordValidation || confirmPasswordValidation;
-        Alert.alert('Validation Error',firstError);
+        showErrorFetchAPI(firstError);
         return;
       }
 
@@ -206,11 +206,8 @@ export default function ForgetPassword() {
       });
 
       if (response && response.message) {
-        Alert.alert(
-          'Success',
-          'Your password has been reset successfully.',
-          [{ text: 'OK',onPress: () => navigation.replace('Login') }]
-        );
+        showSuccessMessage('Your password has been reset successfully.');
+        navigation.replace('Login');
       } else {
         throw new Error('Invalid response from server');
       }
@@ -240,7 +237,7 @@ export default function ForgetPassword() {
         errorMessage = error.message;
       }
 
-      Alert.alert('Error',errorMessage);
+      showErrorFetchAPI(errorMessage);
     } finally {
       setIsLoading(false);
     }

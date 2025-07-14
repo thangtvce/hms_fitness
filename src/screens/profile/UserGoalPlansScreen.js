@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
@@ -11,6 +10,8 @@ import {
   Dimensions,
   Switch,
 } from "react-native";
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { aiRecommentService } from "services/apiAIRecommentService";
@@ -69,6 +70,7 @@ const UserGoalPlansScreen = () => {
       } catch (err) {
         const errorMessage = err.response?.data?.message || err.message || "Failed to load user goal plans.";
         setError(errorMessage);
+        showErrorFetchAPI(errorMessage);
       } finally {
         setLoading(false);
         if (isRefresh) setRefreshing(false);
@@ -414,20 +416,19 @@ const UserGoalPlansScreen = () => {
     </View>
   );
 
+  if (authLoading || (loading && !refreshing)) {
+    return <Loading />;
+  }
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background || "#F9FAFB" }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background || "#F9FAFB" }]}> 
       <Header
         title="AI Goal Plans"
         onBack={() => navigation.goBack()}
         rightActions={[{ icon: "options-outline", onPress: () => setShowFilters(true), color: colors.primary }]}
       />
 
-      {authLoading || (loading && !refreshing) ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary || "#0056d2"} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary || "#6B7280" }]}>Loading goal plans...</Text>
-        </View>
-      ) : error ? (
+      {error ? (
         <View style={styles.centered}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.error || "#EF4444"} />
           <Text style={[styles.errorText, { color: colors.error || "#EF4444" }]}>{error}</Text>
@@ -441,7 +442,7 @@ const UserGoalPlansScreen = () => {
       ) : !userId ? (
         <View style={styles.centered}>
           <Ionicons name="person-outline" size={48} color={colors.error || "#EF4444"} />
-          <Text style={[styles.errorText, { color: colors.error || "#EF4444" }]}>
+          <Text style={[styles.errorText, { color: colors.error || "#EF4444" }]}> 
             Please log in to view your goal plans.
           </Text>
         </View>

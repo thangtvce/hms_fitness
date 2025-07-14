@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   Platform,
   Dimensions,
 } from 'react-native';
@@ -15,6 +14,9 @@ import { useAuth } from 'context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
+
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
@@ -92,6 +94,8 @@ export default function AddReminderPlanScreen({ navigation, route }) {
     isActive: true,
   });
 
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     if (user && user.userId) {
       setForm((prev) => ({ ...prev, userId: user.userId.toString() }));
@@ -156,6 +160,7 @@ export default function AddReminderPlanScreen({ navigation, route }) {
 
   const handleSubmit = async () => {
     if (!validate()) return;
+    setIsLoading(true);
     try {
       const payload = {
         ...form,
@@ -163,16 +168,18 @@ export default function AddReminderPlanScreen({ navigation, route }) {
         isActive: !!form.isActive,
       };
       await apiReminderService.addReminderPlan(payload);
-      Alert.alert('Success', 'Reminder plan created successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      setIsLoading(false);
+      showSuccessMessage('Reminder plan created successfully!');
+      navigation.goBack();
     } catch (error) {
+      setIsLoading(false);
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
+        showErrorFetchAPI('Failed to create reminder plan.');
       } else if (error.message) {
-        Alert.alert('Error', error.message);
+        showErrorFetchAPI(error.message);
       } else {
-        Alert.alert('Error', 'Failed to create reminder plan.');
+        showErrorFetchAPI('Failed to create reminder plan.');
       }
     }
   };
@@ -481,17 +488,22 @@ export default function AddReminderPlanScreen({ navigation, route }) {
         containerStyle={{ position: 'relative', zIndex: 10 }}
       />
 
-      {renderStepIndicator()}
+      {isLoading && <Loading />}
 
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {currentStep === 1 && renderTypeSelection()}
-        {currentStep === 2 && renderDetailsForm()}
-        {currentStep === 3 && renderScheduleSettings()}
-      </ScrollView>
+      {!isLoading && (
+        <>
+          {renderStepIndicator()}
+          <ScrollView 
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {currentStep === 1 && renderTypeSelection()}
+            {currentStep === 2 && renderDetailsForm()}
+            {currentStep === 3 && renderScheduleSettings()}
+          </ScrollView>
+        </>
+      )}
     </View>
   );
 }

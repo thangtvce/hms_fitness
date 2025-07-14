@@ -1,4 +1,4 @@
-import { useState,useRef,useEffect } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
     View,
     Text,
@@ -14,6 +14,7 @@ import {
     ActivityIndicator,
     Linking,
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import { CameraView,CameraType,useCameraPermissions } from 'expo-camera';
 
@@ -22,6 +23,7 @@ import * as ImagePicker from "expo-image-picker"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
 import { theme } from "theme/color";
 import { StatusBar } from "expo-status-bar";
+import Loading from "components/Loading"
 
 const { width,height } = Dimensions.get("window")
 
@@ -96,7 +98,7 @@ export default function FoodScannerScreen({ navigation }) {
                     setShowResults(true)
                 },2500)
             } catch (error) {
-                Alert.alert("Error","Failed to take picture")
+            showErrorFetchAPI("Failed to take picture")
             }
         }
     }
@@ -121,7 +123,7 @@ export default function FoodScannerScreen({ navigation }) {
                 },2500)
             }
         } catch (error) {
-            Alert.alert("Error","Failed to select image from gallery")
+            showErrorFetchAPI("Failed to select image from gallery")
         }
     }
 
@@ -183,24 +185,17 @@ export default function FoodScannerScreen({ navigation }) {
     }
 
     const shareToFeed = () => {
-        Alert.alert("Share to Feed","Your meal has been shared to your health feed!",[
-            { text: "OK",onPress: () => navigation.goBack() },
-        ])
+        showSuccessMessage("Your meal has been shared to your health feed!")
+        navigation.goBack()
     }
 
     const viewDetails = () => {
-        Alert.alert(
-            "Nutrition Details",
-            `Detailed nutrition information for ${analysisResult?.name}\n\nThis feature will show complete macro and micronutrient breakdown.`,
-        )
+        showSuccessMessage(`Detailed nutrition information for ${analysisResult?.name}. (Macro/micronutrient breakdown coming soon!)`)
     }
 
     if (hasPermission === null) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#4F46E5" />
-                <Text style={styles.loadingText}>Requesting camera permission...</Text>
-            </View>
+            <Loading backgroundColor="rgba(255,255,255,0.8)" logoSize={120} text="Requesting camera permission..." />
         )
     }
 
@@ -349,44 +344,7 @@ export default function FoodScannerScreen({ navigation }) {
 
     if (isAnalyzing) {
         return (
-            <SafeAreaView style={styles.safeArea}>
-                <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-
-                <LinearGradient colors={["#4F46E5","#6366F1","#818CF8"]} style={styles.header}>
-                    <TouchableOpacity onPress={retakePhoto} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Analyzing Food</Text>
-                    <View style={styles.closeButton} />
-                </LinearGradient>
-
-                <View style={styles.analyzingContainer}>
-                    <Image source={{ uri: capturedImage }} style={styles.analyzingImage} />
-
-                    <View style={styles.analyzingOverlay}>
-                        <ActivityIndicator size="large" color="#4F46E5" />
-                        <Text style={styles.analyzingTitle}>Analyzing your food...</Text>
-                        <Text style={styles.analyzingText}>
-                            Our AI is identifying ingredients and calculating nutrition information
-                        </Text>
-
-                        <View style={styles.progressSteps}>
-                            <View style={styles.progressStep}>
-                                <View style={[styles.progressDot,styles.progressDotActive]} />
-                                <Text style={styles.progressStepText}>Detecting food</Text>
-                            </View>
-                            <View style={styles.progressStep}>
-                                <View style={[styles.progressDot,styles.progressDotActive]} />
-                                <Text style={styles.progressStepText}>Identifying ingredients</Text>
-                            </View>
-                            <View style={styles.progressStep}>
-                                <View style={styles.progressDot} />
-                                <Text style={styles.progressStepText}>Calculating nutrition</Text>
-                            </View>
-                        </View>
-                    </View>
-                </View>
-            </SafeAreaView>
+            <Loading backgroundColor="rgba(255,255,255,0.8)" logoSize={120} text={"Analyzing your food...\nOur AI is identifying ingredients and calculating nutrition information"} />
         )
     }
 

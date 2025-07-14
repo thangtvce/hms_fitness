@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Modal, Dimensions, StatusBar } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Dimensions, StatusBar } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useNavigation, useRoute } from "@react-navigation/native"
@@ -255,9 +257,8 @@ export default function WorkoutSessionActiveScreen() {
                   })
                 } catch {}
               })()
-              Alert.alert("Workout Complete!", "You have completed your workout session.", [
-                { text: "OK", onPress: () => navigation.goBack() },
-              ])
+              showSuccessMessage("You have completed your workout session.")
+              navigation.goBack()
             }
             return 0
           }
@@ -304,14 +305,13 @@ export default function WorkoutSessionActiveScreen() {
             })
           } catch {}
         })()
-        Alert.alert("Workout Complete!", "You have completed your workout session.", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ])
+        showSuccessMessage("You have completed your workout session.")
+        navigation.goBack()
       }
     }
     if (isRunning) {
       if (secondsLeft === 10 && !hasSpokenRef.current[10]) {
-        Alert.alert("Almost done!", "10 seconds remaining for this set.")
+        showSuccessMessage("10 seconds remaining for this set.")
         Speech.speak("Ten seconds remaining!", {
           language: "en-US",
           pitch: 1.0,
@@ -479,11 +479,10 @@ export default function WorkoutSessionActiveScreen() {
       try {
         await AsyncStorage.removeItem("workoutSessionStartTime")
       } catch {}
-      Alert.alert("Workout Saved!", "Your workout session has been saved successfully.", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ])
+      showSuccessMessage("Your workout session has been saved successfully.")
+      navigation.goBack()
     } catch (e) {
-      Alert.alert("Error", "Could not save workout session. Please try again.\n" + (e?.message || ""))
+      showErrorFetchAPI("Could not save workout session. Please try again. " + (e?.message || ""))
       navigation.goBack()
     }
   }

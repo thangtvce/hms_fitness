@@ -5,12 +5,12 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   Platform,
   ScrollView,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 import { Ionicons } from '@expo/vector-icons';
 import { weightHistoryService } from 'services/apiWeightHistoryService';
 import { useAuth } from 'context/AuthContext';
@@ -46,10 +46,10 @@ export default function AddWeightHistoryScreen({ navigation }) {
   const fetchRecentWeights = async () => {
     try {
       setLoading(true);
-      const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1,pageSize: 7 });
+      const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1, pageSize: 7 });
       if (response.statusCode === 200 && response.data && response.data.records) {
         const sortedWeights = response.data.records
-          .sort((a,b) => new Date(a.recordedAt) - new Date(b.recordedAt))
+          .sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
           .slice(-7);
 
         setRecentWeights(sortedWeights);
@@ -67,6 +67,7 @@ export default function AddWeightHistoryScreen({ navigation }) {
         }
       }
     } catch (error) {
+      // Không thông báo lỗi khi loading dữ liệu biểu đồ
     } finally {
       setLoading(false);
     }
@@ -82,31 +83,31 @@ export default function AddWeightHistoryScreen({ navigation }) {
   const handleSubmit = async () => {
     // UserId validation
     if (!user || !user.userId) {
-      Alert.alert('Error', 'You are not authenticated. Please log in.');
+      showErrorFetchAPI('You are not logged in. Please log in again.');
       navigation.replace('Login');
       return;
     }
     const userId = parseInt(user.userId, 10);
     if (isNaN(userId) || userId <= 0) {
-      Alert.alert('Error', 'UserId must be a positive integer.');
+      showErrorFetchAPI('UserId must be a positive integer.');
       return;
     }
 
     // Weight validation: required, 0.1-500
     if (!formData.weight || isNaN(parseFloat(formData.weight))) {
-      Alert.alert('Error', 'Weight is required and must be a valid number.');
+      showErrorFetchAPI('Weight is required and must be a valid number.');
       return;
     }
     const weight = parseFloat(formData.weight);
     if (weight < 0.1 || weight > 500) {
-      Alert.alert('Error', 'Weight must be between 0.1 and 500 kg.');
+      showErrorFetchAPI('Weight must be between 0.1 and 500 kg.');
       return;
     }
 
     // RecordedAt validation: not in the future
     const now = new Date();
     if (formData.recordedAt && formData.recordedAt > now) {
-      Alert.alert('Error', 'RecordedAt cannot be in the future.');
+      showErrorFetchAPI('Recorded date cannot be in the future.');
       return;
     }
 
@@ -120,9 +121,8 @@ export default function AddWeightHistoryScreen({ navigation }) {
       });
 
       if (response.statusCode === 201) {
-        Alert.alert('Success', 'Weight recorded successfully.', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
+        showSuccessMessage('Weight recorded successfully.');
+        navigation.goBack();
       } else {
         let errorMessage = response.message || 'An error occurred.';
         if (response.data && response.data.errors && typeof response.data.errors === 'object') {
@@ -134,22 +134,10 @@ export default function AddWeightHistoryScreen({ navigation }) {
           errorMessage = validationErrors || errorMessage;
         }
 
-        switch (response.statusCode) {
-          case 400:
-            Alert.alert('Error', errorMessage || 'Invalid request data.');
-            break;
-          case 401:
-            Alert.alert('Error', errorMessage || 'You are not authorized to perform this action.');
-            break;
-          case 404:
-            Alert.alert('Error', errorMessage || 'Resource not found.');
-            break;
-          default:
-            Alert.alert('Error', errorMessage || 'Failed to add weight history.');
-        }
+        showErrorFetchAPI(errorMessage);
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'An unexpected error occurred.');
+      showErrorFetchAPI(error.message || 'An unknown error occurred.');
     } finally {
       setLoading(false);
     }
@@ -243,6 +231,10 @@ export default function AddWeightHistoryScreen({ navigation }) {
     );
   };
 
+  if (loading) {
+    return <Loading />;
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={colors.headerBackground || "#FFFFFF"} />
@@ -253,8 +245,6 @@ export default function AddWeightHistoryScreen({ navigation }) {
         textColor={colors.headerText || colors.primary || "#0056d2"}
       />
       <View style={[styles.container, { paddingTop: 80 }]}> 
-
-
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -316,26 +306,16 @@ export default function AddWeightHistoryScreen({ navigation }) {
               style={[styles.submitButton, { backgroundColor: colors.primary || '#0056d2' }]}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="save-outline" size={20} color="#FFFFFF" style={styles.submitIcon} />
-                  <Text style={styles.submitButtonText}>Save Weight</Text>
-                </>
-              )}
+              <>
+                <Ionicons name="save-outline" size={20} color="#FFFFFF" style={styles.submitIcon} />
+                <Text style={styles.submitButtonText}>Save Weight</Text>
+              </>
             </TouchableOpacity>
           </View>
 
           <View style={styles.trendCard}>
             <Text style={styles.sectionTitle}>Recent Weight Trend</Text>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary || "#0056d2"} />
-              </View>
-            ) : (
-              renderWeightChart()
-            )}
+            {renderWeightChart()}
           </View>
 
           <View style={styles.tipsCard}>

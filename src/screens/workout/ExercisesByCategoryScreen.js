@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Image, StyleSheet, TextInput, Modal, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, TextInput, Modal, ScrollView } from 'react-native';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import workoutService from 'services/apiWorkoutService';
@@ -39,6 +41,7 @@ const ExercisesByCategoryScreen = ({ route, navigation }) => {
         setExercises(data.exercises || []);
       } catch (err) {
         setError(err.message || 'Failed to fetch exercises');
+        showErrorFetchAPI(err.message || 'Failed to fetch exercises');
       } finally {
         setLoading(false);
       }
@@ -74,133 +77,136 @@ const ExercisesByCategoryScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header
-        title={categoryName || `Category ${categoryId}`}
-        onBack={() => navigation.goBack()}
-        rightActions={[
-          {
-            icon: 'options-outline',
-            onPress: () => setShowFilter(true),
-            color: '#1E293B',
-            iconSet: 'MaterialIcons',
-          },
-        ]}
-      />
-      <View style={{ marginTop: 55 }}>
-        {/* Modal bộ lọc */}
-        <Modal
-        visible={showFilter}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowFilter(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ width: '90%', maxHeight: '80%', backgroundColor: '#fff', borderRadius: 16, padding: 16 }}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' }}>Bộ lọc bài tập</Text>
-              <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <TextInput
-                    placeholder="Search..."
-                    value={filterDraft.SearchTerm}
-                    onChangeText={text => setFilterDraft(f => ({ ...f, SearchTerm: text }))}
-                    style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
-                  />
-                </View>
-                <View style={{ width: 100 }}>
-                  <TextInput
-                    placeholder="Status"
-                    value={filterDraft.Status}
-                    onChangeText={text => setFilterDraft(f => ({ ...f, Status: text }))}
-                    style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
-                  />
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <TextInput
-                    placeholder="Start Date (yyyy-mm-dd)"
-                    value={filterDraft.StartDate}
-                    onChangeText={text => setFilterDraft(f => ({ ...f, StartDate: text }))}
-                    style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <TextInput
-                    placeholder="End Date (yyyy-mm-dd)"
-                    value={filterDraft.EndDate}
-                    onChangeText={text => setFilterDraft(f => ({ ...f, EndDate: text }))}
-                    style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
-                  />
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row' }}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <TextInput
-                    placeholder="Page Number"
-                    value={filterDraft.PageNumber.toString()}
-                    keyboardType="numeric"
-                    onChangeText={text => setFilterDraft(f => ({ ...f, PageNumber: parseInt(text) || 1 }))}
-                    style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
-                  />
-                </View>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <TextInput
-                    placeholder="Page Size"
-                    value={filterDraft.PageSize.toString()}
-                    keyboardType="numeric"
-                    onChangeText={text => setFilterDraft(f => ({ ...f, PageSize: parseInt(text) || 20 }))}
-                    style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <TextInput
-                    placeholder="Valid Page Size"
-                    value={filterDraft.ValidPageSize.toString()}
-                    keyboardType="numeric"
-                    onChangeText={text => setFilterDraft(f => ({ ...f, ValidPageSize: parseInt(text) || 20 }))}
-                    style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
-                  />
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-                <TouchableOpacity
-                  style={{ backgroundColor: '#4CAF50', padding: 10, borderRadius: 8, flex: 1, marginRight: 8, alignItems: 'center' }}
-                  onPress={() => { setFilters(filterDraft); setShowFilter(false); }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Lọc</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ backgroundColor: '#eee', padding: 10, borderRadius: 8, flex: 1, marginLeft: 8, alignItems: 'center' }}
-                  onPress={() => setShowFilter(false)}
-                >
-                  <Text style={{ color: '#333', fontWeight: 'bold' }}>Đóng</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
+      {loading ? (
+        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
+          <Loading />
         </View>
-      </Modal>
-        {/* Danh sách bài tập */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4CAF50" />
-            <Text style={styles.loadingText}>Loading exercises...</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.loadingContainer}>
-            <Text style={{ color: 'red' }}>{error}</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={exercises}
-            keyExtractor={item => item.exerciseId?.toString()}
-            renderItem={renderExerciseItem}
-            contentContainerStyle={{ padding: 16 }}
-            ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No exercises found.</Text>}
+      ) : (
+        <>
+          <Header
+            title={categoryName || `Category ${categoryId}`}
+            onBack={() => navigation.goBack()}
+            rightActions={[
+              {
+                icon: 'options-outline',
+                onPress: () => setShowFilter(true),
+                color: '#1E293B',
+                iconSet: 'MaterialIcons',
+              },
+            ]}
           />
-        )}
-      </View>
+          <View style={{ marginTop: 55 }}>
+            {/* Modal bộ lọc */}
+            <Modal
+              visible={showFilter}
+              animationType="slide"
+              transparent={true}
+              onRequestClose={() => setShowFilter(false)}
+            >
+              <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ width: '90%', maxHeight: '80%', backgroundColor: '#fff', borderRadius: 16, padding: 16 }}>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' }}>Bộ lọc bài tập</Text>
+                    <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <TextInput
+                          placeholder="Search..."
+                          value={filterDraft.SearchTerm}
+                          onChangeText={text => setFilterDraft(f => ({ ...f, SearchTerm: text }))}
+                          style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
+                        />
+                      </View>
+                      <View style={{ width: 100 }}>
+                        <TextInput
+                          placeholder="Status"
+                          value={filterDraft.Status}
+                          onChangeText={text => setFilterDraft(f => ({ ...f, Status: text }))}
+                          style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <TextInput
+                          placeholder="Start Date (yyyy-mm-dd)"
+                          value={filterDraft.StartDate}
+                          onChangeText={text => setFilterDraft(f => ({ ...f, StartDate: text }))}
+                          style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <TextInput
+                          placeholder="End Date (yyyy-mm-dd)"
+                          value={filterDraft.EndDate}
+                          onChangeText={text => setFilterDraft(f => ({ ...f, EndDate: text }))}
+                          style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row' }}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <TextInput
+                          placeholder="Page Number"
+                          value={filterDraft.PageNumber.toString()}
+                          keyboardType="numeric"
+                          onChangeText={text => setFilterDraft(f => ({ ...f, PageNumber: parseInt(text) || 1 }))}
+                          style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
+                        />
+                      </View>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <TextInput
+                          placeholder="Page Size"
+                          value={filterDraft.PageSize.toString()}
+                          keyboardType="numeric"
+                          onChangeText={text => setFilterDraft(f => ({ ...f, PageSize: parseInt(text) || 20 }))}
+                          style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <TextInput
+                          placeholder="Valid Page Size"
+                          value={filterDraft.ValidPageSize.toString()}
+                          keyboardType="numeric"
+                          onChangeText={text => setFilterDraft(f => ({ ...f, ValidPageSize: parseInt(text) || 20 }))}
+                          style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+                      <TouchableOpacity
+                        style={{ backgroundColor: '#4CAF50', padding: 10, borderRadius: 8, flex: 1, marginRight: 8, alignItems: 'center' }}
+                        onPress={() => { setFilters(filterDraft); setShowFilter(false); }}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Lọc</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{ backgroundColor: '#eee', padding: 10, borderRadius: 8, flex: 1, marginLeft: 8, alignItems: 'center' }}
+                        onPress={() => setShowFilter(false)}
+                      >
+                        <Text style={{ color: '#333', fontWeight: 'bold' }}>Đóng</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
+            {/* Danh sách bài tập */}
+            {error ? (
+              <View style={styles.loadingContainer}>
+                <Text style={{ color: 'red' }}>{error}</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={exercises}
+                keyExtractor={item => item.exerciseId?.toString()}
+                renderItem={renderExerciseItem}
+                contentContainerStyle={{ padding: 16 }}
+                ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No exercises found.</Text>}
+              />
+            )}
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 };

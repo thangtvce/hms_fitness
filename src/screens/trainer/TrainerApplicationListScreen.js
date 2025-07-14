@@ -17,7 +17,6 @@ import { useAuth } from "context/AuthContext";
 import trainerService from "services/apiTrainerService";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import Header from '../../components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -252,21 +251,34 @@ const TrainerApplicationListScreen = ({ navigation }) => {
   };
 
   const renderHeader = () => (
-    <>
-      <Header
-        title="My Applications"
-        subtitle={`${applications.length} application${applications.length !== 1 ? 's' : ''}`}
-        onBack={() => navigation.goBack()}
-        rightActions={applications.length > 0 ? [
-          <TouchableOpacity key="add" style={styles.newApplicationButton} onPress={handleAddPress}>
+    <View style={styles.headerContainer}>
+      <View style={styles.headerGradient}>
+        <View style={styles.headerContent}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>My Applications</Text>
+            <Text style={styles.headerSubtitle}>
+              {applications.length} application{applications.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+          <View style={styles.headerRight} />
+        </View>
+      </View>
+      
+      {applications.length > 0 && (
+        <View style={styles.actionContainer}>
+          <TouchableOpacity style={styles.newApplicationButton} onPress={handleAddPress}>
             <Ionicons name="add-circle-outline" size={20} color="#1F2937" />
             <Text style={styles.newApplicationText}>New Application</Text>
           </TouchableOpacity>
-        ] : []}
-        absolute
-      />
-      <View style={{ height: 90 }} />
-    </>
+        </View>
+      )}
+    </View>
   );
 
   if (loading) {

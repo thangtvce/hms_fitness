@@ -1,4 +1,4 @@
-import { useState, useContext } from "react"
+import { useState, useContext } from "react";
 import {
   Keyboard,
   TouchableWithoutFeedback,
@@ -7,20 +7,16 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
-  Alert,
   ScrollView,
-  Modal,
-  FlatList,
-} from "react-native"
-import { useNavigation } from "@react-navigation/native"
-
-import { LinearGradient } from "expo-linear-gradient"
-import ticketService from "services/apiTicketService"
-import { AuthContext } from "context/AuthContext"
-import { SafeAreaView } from "react-native-safe-area-context"
-import Header from '../../components/Header';
-import SelectModal from '../../components/SelectModal';
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import ticketService from "services/apiTicketService";
+import { AuthContext } from "context/AuthContext";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Header from "../../components/Header";
+import SelectModal from "../../components/SelectModal";
+import Loading from "components/Loading";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 
 const categoryOptions = [
   { value: "Technical", label: "Technical Issue" },
@@ -109,10 +105,10 @@ const CreateTicketScreen = () => {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       await ticketService.createTicket({
@@ -121,15 +117,15 @@ const CreateTicketScreen = () => {
         priority: priority.toLowerCase(),
         status: "Open",
         category,
-      })
-
-      Alert.alert("Success", "Ticket created successfully!", [{ text: "OK", onPress: () => navigation.goBack() }])
+      });
+      showSuccessMessage("Ticket created successfully!");
+      navigation.goBack();
     } catch (err) {
-      Alert.alert("Error", err.message || "Failed to create ticket")
+      showErrorFetchAPI(err?.message || "Failed to create ticket");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const renderError = (field) => {
     if (errors[field]) {
@@ -152,108 +148,106 @@ const CreateTicketScreen = () => {
       />
       <View style={{ height: 90 }} />
 
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.form}>
-            {/* Title Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Title *</Text>
-              <TextInput
-                style={[styles.input, errors.title && styles.inputError]}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Brief description of your issue"
-                placeholderTextColor="#9CA3AF"
-                maxLength={255}
-              />
-              <Text style={styles.charCount}>{title.length}/255</Text>
-              {renderError("title")}
-            </View>
+      {loading && <Loading />}
 
-            {/* Description Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description *</Text>
-              <TextInput
-                style={[styles.textArea, errors.description && styles.inputError]}
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Please provide detailed information about your issue..."
-                placeholderTextColor="#9CA3AF"
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                maxLength={1000}
-              />
-              <Text style={styles.charCount}>{description.length}/1000</Text>
-              {renderError("description")}
-            </View>
+      {!loading && (
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            <View style={styles.form}>
+              {/* Title Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Title *</Text>
+                <TextInput
+                  style={[styles.input, errors.title && styles.inputError]}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Brief description of your issue"
+                  placeholderTextColor="#9CA3AF"
+                  maxLength={255}
+                />
+                <Text style={styles.charCount}>{title.length}/255</Text>
+                {renderError("title")}
+              </View>
 
-            {/* Priority Selection */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Priority *</Text>
+              {/* Description Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Description *</Text>
+                <TextInput
+                  style={[styles.textArea, errors.description && styles.inputError]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Please provide detailed information about your issue..."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  maxLength={1000}
+                />
+                <Text style={styles.charCount}>{description.length}/1000</Text>
+                {renderError("description")}
+              </View>
+
+              {/* Priority Selection */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Priority *</Text>
+                <TouchableOpacity
+                  style={[styles.selectButton, errors.priority && styles.inputError]}
+                  onPress={() => setShowPriorityModal(true)}
+                >
+                  <Text style={styles.selectButtonText}>{getPriorityLabel()}</Text>
+                  <Text style={styles.selectArrow}>▼</Text>
+                </TouchableOpacity>
+                <SelectModal
+                  visible={showPriorityModal}
+                  title="Select Priority"
+                  options={priorityOptions.map(opt => ({ label: opt.label, value: opt.value }))}
+                  selectedValue={priority}
+                  onSelect={val => setPriority(val)}
+                  onClose={() => setShowPriorityModal(false)}
+                />
+                {renderError("priority")}
+              </View>
+
+              {/* Category Selection */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Category</Text>
+                <TouchableOpacity
+                  style={[styles.selectButton, errors.category && styles.inputError]}
+                  onPress={() => setShowCategoryModal(true)}
+                >
+                  <Text style={styles.selectButtonText}>{getCategoryLabel()}</Text>
+                  <Text style={styles.selectArrow}>▼</Text>
+                </TouchableOpacity>
+                <SelectModal
+                  visible={showCategoryModal}
+                  title="Select Category"
+                  options={categoryOptions.map(opt => ({ label: opt.label, value: opt.value }))}
+                  selectedValue={category}
+                  onSelect={val => setCategory(val)}
+                  onClose={() => setShowCategoryModal(false)}
+                />
+                {renderError("category")}
+              </View>
+
+              {/* Submit Button */}
               <TouchableOpacity
-                style={[styles.selectButton, errors.priority && styles.inputError]}
-                onPress={() => setShowPriorityModal(true)}
+                style={[
+                  styles.submitButton,
+                  { backgroundColor: '#fff', borderWidth: 1, borderColor: '#111', shadowColor: 'transparent', elevation: 0 },
+                  loading && styles.submitButtonDisabled
+                ]}
+                onPress={handleSubmit}
+                disabled={loading}
+                activeOpacity={0.85}
               >
-                <Text style={styles.selectButtonText}>{getPriorityLabel()}</Text>
-                <Text style={styles.selectArrow}>▼</Text>
-              </TouchableOpacity>
-              <SelectModal
-                visible={showPriorityModal}
-                title="Select Priority"
-                options={priorityOptions.map(opt => ({ label: opt.label, value: opt.value }))}
-                selectedValue={priority}
-                onSelect={val => setPriority(val)}
-                onClose={() => setShowPriorityModal(false)}
-              />
-              {renderError("priority")}
-            </View>
-
-            {/* Category Selection */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Category</Text>
-              <TouchableOpacity
-                style={[styles.selectButton, errors.category && styles.inputError]}
-                onPress={() => setShowCategoryModal(true)}
-              >
-                <Text style={styles.selectButtonText}>{getCategoryLabel()}</Text>
-                <Text style={styles.selectArrow}>▼</Text>
-              </TouchableOpacity>
-              <SelectModal
-                visible={showCategoryModal}
-                title="Select Category"
-                options={categoryOptions.map(opt => ({ label: opt.label, value: opt.value }))}
-                selectedValue={category}
-                onSelect={val => setCategory(val)}
-                onClose={() => setShowCategoryModal(false)}
-              />
-              {renderError("category")}
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                { backgroundColor: '#fff', borderWidth: 1, borderColor: '#111', shadowColor: 'transparent', elevation: 0 },
-                loading && styles.submitButtonDisabled
-              ]}
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color="#111" size="small" />
-              ) : (
                 <Text style={[styles.submitButtonText, { color: '#111' }]}>Submit Ticket</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-
-      {/* Priority Modal & Category Modal now handled by SelectModal */}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      )}
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({

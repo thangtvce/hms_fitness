@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React,{ useState,useEffect,useRef,useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,548 +6,178 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  Alert,
   ActivityIndicator,
   Animated,
   Platform,
   Dimensions,
   Modal,
   ScrollView,
-  StatusBar as RNStatusBar,
+  Image,
+  RefreshControl,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons,MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from 'context/AuthContext';
-import { theme } from 'theme/color';
-import { StatusBar } from 'expo-status-bar';
-import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { trainerService } from 'services/apiTrainerService';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
+import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// Ultra Modern Color Palette
-const COLORS = {
-  primary: '#6366F1',
-  primaryLight: '#818CF8',
-  primaryDark: '#4F46E5',
-  secondary: '#F1F5F9',
-  accent: '#10B981',
-  warning: '#F59E0B',
-  danger: '#EF4444',
-  success: '#22C55E',
-  purple: '#8B5CF6',
-  pink: '#EC4899',
-  orange: '#F97316',
-  text: {
-    primary: '#0F172A',
-    secondary: '#475569',
-    tertiary: '#94A3B8',
-    white: '#FFFFFF',
-    muted: '#64748B',
-  },
-  background: {
-    primary: '#FFFFFF',
-    secondary: '#F8FAFC',
-    tertiary: '#F1F5F9',
-    card: '#FFFFFF',
-    overlay: 'rgba(15, 23, 42, 0.6)',
-  },
-  border: '#E2E8F0',
-  shadow: 'rgba(15, 23, 42, 0.08)',
-  glassmorphism: 'rgba(255, 255, 255, 0.25)',
-};
-
-// Enhanced Exercise Icons with Modern Styling
-const EXERCISE_ICONS = {
-  yoga: { 
-    component: MaterialCommunityIcons, 
-    name: 'yoga', 
-    color: COLORS.accent,
-    gradient: ['#10B981', '#059669'],
-    background: 'rgba(16, 185, 129, 0.1)'
-  },
-  cardio: { 
-    component: Ionicons, 
-    name: 'heart', 
-    color: COLORS.danger,
-    gradient: ['#EF4444', '#DC2626'],
-    background: 'rgba(239, 68, 68, 0.1)'
-  },
-  dumbbell: { 
-    component: MaterialCommunityIcons, 
-    name: 'dumbbell', 
-    color: COLORS.primary,
-    gradient: ['#6366F1', '#4F46E5'],
-    background: 'rgba(99, 102, 241, 0.1)'
-  },
-  fitness: { 
-    component: MaterialCommunityIcons, 
-    name: 'weight-lifter', 
-    color: COLORS.purple,
-    gradient: ['#8B5CF6', '#7C3AED'],
-    background: 'rgba(139, 92, 246, 0.1)'
-  },
-};
-
-// Modern Exercise Icon Component
-const ExerciseIcon = React.memo(({ type, size = 28 }) => {
-  const iconConfig = EXERCISE_ICONS[type] || EXERCISE_ICONS.fitness;
-  const IconComponent = iconConfig.component;
-  
-  return (
-    <View style={[styles.modernIconContainer, { backgroundColor: iconConfig.background }]}>
-      <LinearGradient
-        colors={iconConfig.gradient}
-        style={styles.iconGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <IconComponent name={iconConfig.name} size={size} color={COLORS.text.white} />
-      </LinearGradient>
-    </View>
-  );
-});
-
-// Modern Search Bar Component
-const ModernSearchBar = React.memo(({ searchTerm, onSearch, onFilter, resultsCount, currentPage, totalPages }) => {
-  const [isFocused, setIsFocused] = useState(false);
-  const focusAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(focusAnim, {
-      toValue: isFocused ? 1 : 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [isFocused]);
-
-  const borderColor = focusAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [COLORS.border, COLORS.primary],
-  });
-
-  return (
-    <View style={styles.modernSearchContainer}>
-      <Animated.View style={[styles.searchInputWrapper, { borderColor }]}>
-        <View style={styles.searchIconContainer}>
-          <Feather name="search" size={20} color={isFocused ? COLORS.primary : COLORS.text.tertiary} />
-        </View>
-        <TextInput
-          style={styles.modernSearchInput}
-          placeholder="Search your amazing exercises..."
-          value={searchTerm}
-          onChangeText={onSearch}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          autoCapitalize="none"
-          placeholderTextColor={COLORS.text.tertiary}
-        />
-        {searchTerm ? (
-          <TouchableOpacity onPress={() => onSearch('')} style={styles.clearSearchButton}>
-            <Ionicons name="close-circle" size={20} color={COLORS.text.tertiary} />
-          </TouchableOpacity>
-        ) : null}
-      </Animated.View>
-      
-      <View style={styles.searchActionsRow}>
-        <TouchableOpacity style={styles.modernFilterButton} onPress={onFilter}>
-          <LinearGradient
-            colors={[COLORS.primary, COLORS.primaryLight]}
-            style={styles.filterButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Feather name="sliders" size={18} color={COLORS.text.white} />
-            <Text style={styles.filterButtonText}>Filter</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        
-        <View style={styles.resultsInfoCard}>
-          <Text style={styles.resultsCount}>{resultsCount}</Text>
-          <Text style={styles.resultsLabel}>exercises</Text>
-          <View style={styles.pageDot} />
-          <Text style={styles.pageInfo}>{currentPage}/{totalPages}</Text>
-        </View>
-      </View>
-    </View>
-  );
-});
-
-// Ultra Modern Exercise Card Component
-const ExerciseCard = React.memo(({ item, onPress, onEdit, onDelete, index, categories }) => {
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
-
-  useEffect(() => {
-    const delay = index * 100;
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 600,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
-  const getExerciseType = (exerciseName) => {
-    if (!exerciseName) return 'fitness';
-    const name = exerciseName.toLowerCase();
-    if (name.includes('yoga') || name.includes('stretch')) return 'yoga';
-    if (name.includes('cardio') || name.includes('run')) return 'cardio';
-    if (name.includes('strength') || name.includes('weight')) return 'dumbbell';
-    return 'fitness';
-  };
-
-  const getCategoryName = (categoryId) => {
-    const category = categories.find(cat => cat.categoryId === categoryId);
-    return category ? category.categoryName : 'Uncategorized';
-  };
-
-  const getStatusBadge = () => {
-    const status = item.isPrivate ? 'Private' : 'Public';
-    const badgeStyle = item.isPrivate
-      ? { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: COLORS.danger }
-      : { backgroundColor: 'rgba(34, 197, 94, 0.1)', color: COLORS.success };
-    
-    return (
-      <View style={[styles.statusBadge, badgeStyle]}>
-        <Feather name={item.isPrivate ? 'lock' : 'globe'} size={12} color={badgeStyle.color} />
-        <Text style={[styles.statusText, { color: badgeStyle.color }]}>{status}</Text>
-      </View>
-    );
-  };
-
-  const exerciseType = getExerciseType(item.exerciseName);
-
-  return (
-    <Animated.View
-      style={[
-        styles.exerciseCardContainer,
-        {
-          opacity: fadeAnim,
-          transform: [
-            { translateY: slideAnim },
-            { scale: scaleAnim }
-          ],
-        },
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.modernExerciseCard}
-        onPress={onPress}
-        activeOpacity={0.95}
-      >
-        <LinearGradient
-          colors={[COLORS.background.card, COLORS.background.secondary]}
-          style={styles.cardGradientBackground}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          {/* Card Header */}
-          <View style={styles.cardHeader}>
-            <ExerciseIcon type={exerciseType} size={32} />
-            <View style={styles.cardTitleSection}>
-              <Text style={styles.modernExerciseName} numberOfLines={1}>
-                {item.exerciseName || 'Exercise'}
-              </Text>
-              <View style={styles.badgeRow}>
-                <View style={styles.categoryBadge}>
-                  <Feather name="grid" size={12} color={COLORS.primary} />
-                  <Text style={styles.badgeText}>{getCategoryName(item.categoryId)}</Text>
-                </View>
-                {getStatusBadge()}
-              </View>
-            </View>
-            <View style={styles.cardActions}>
-              <TouchableOpacity style={styles.actionIconButton} onPress={onEdit}>
-                <LinearGradient
-                  colors={[COLORS.primary, COLORS.primaryLight]}
-                  style={styles.actionIconGradient}
-                >
-                  <Feather name="edit-2" size={16} color={COLORS.text.white} />
-                </LinearGradient>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionIconButton} onPress={onDelete}>
-                <LinearGradient
-                  colors={[COLORS.danger, '#DC2626']}
-                  style={styles.actionIconGradient}
-                >
-                  <Feather name="trash-2" size={16} color={COLORS.text.white} />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Card Content */}
-          <View style={styles.cardContent}>
-            <Text style={styles.exerciseDescription} numberOfLines={2}>
-              {item.description ? item.description.replace(/<[^>]+>/g, '') : 'No description available for this exercise.'}
-            </Text>
-            <View style={styles.exerciseDetails}>
-              <View style={styles.detailItem}>
-                <Feather name="users" size={14} color={COLORS.text.tertiary} />
-                <Text style={styles.detailText}>{item.genderSpecific || 'Unisex'}</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Feather name="flame" size={14} color={COLORS.text.tertiary} />
-                <Text style={styles.detailText}>
-                  {item.caloriesBurnedPerMin ? `${item.caloriesBurnedPerMin} cal/min` : 'N/A'}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Card Footer */}
-          <View style={styles.cardFooter}>
-            <View style={styles.exerciseStats}>
-              <View style={styles.statItem}>
-                <Feather name="clock" size={14} color={COLORS.text.tertiary} />
-                <Text style={styles.statText}>Recently updated</Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.viewDetailsButton}>
-              <Text style={styles.viewDetailsText}>View Details</Text>
-              <Feather name="arrow-right" size={14} color={COLORS.primary} />
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-});
-
-// Modern Loading Component
-const ModernLoader = React.memo(({ text = "Loading your exercises..." }) => {
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const rotateAnimation = Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 2000,
-        useNativeDriver: true,
-      })
-    );
-
-    const pulseAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    rotateAnimation.start();
-    pulseAnimation.start();
-
-    return () => {
-      rotateAnimation.stop();
-      pulseAnimation.stop();
-    };
-  }, []);
-
-  const rotate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  return (
-    <View style={styles.modernLoaderContainer}>
-      <Animated.View style={[styles.loaderIconContainer, { transform: [{ rotate }, { scale: pulseAnim }] }]}>
-        <LinearGradient
-          colors={[COLORS.primary, COLORS.primaryLight, COLORS.purple]}
-          style={styles.loaderGradient}
-        >
-          <MaterialCommunityIcons name="dumbbell" size={40} color={COLORS.text.white} />
-        </LinearGradient>
-      </Animated.View>
-      <Text style={styles.modernLoaderText}>{text}</Text>
-      <Text style={styles.loaderSubtext}>Preparing your fitness journey</Text>
-    </View>
-  );
-});
-
-// Enhanced Empty State Component
-const EmptyState = React.memo(({ onCreateExercise, onClearFilters }) => {
-  const bounceAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const bounceAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceAnim, {
-          toValue: -10,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bounceAnim, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    bounceAnimation.start();
-    return () => bounceAnimation.stop();
-  }, []);
-
-  return (
-    <View style={styles.modernEmptyContainer}>
-      <Animated.View style={[styles.emptyIconContainer, { transform: [{ translateY: bounceAnim }] }]}>
-        <LinearGradient
-          colors={[COLORS.primary, COLORS.primaryLight]}
-          style={styles.emptyIconGradient}
-        >
-          <MaterialCommunityIcons name="dumbbell" size={60} color={COLORS.text.white} />
-        </LinearGradient>
-      </Animated.View>
-      <Text style={styles.modernEmptyTitle}>No Exercises Found</Text>
-      <Text style={styles.modernEmptyText}>
-        Ready to create your first amazing exercise? Let's build something incredible together!
-      </Text>
-      <View style={styles.emptyActions}>
-        <TouchableOpacity style={styles.primaryActionButton} onPress={onCreateExercise}>
-          <LinearGradient
-            colors={[COLORS.primary, COLORS.primaryLight]}
-            style={styles.primaryButtonGradient}
-          >
-            <Feather name="plus" size={20} color={COLORS.text.white} />
-            <Text style={styles.primaryButtonText}>Create Exercise</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryActionButton} onPress={onClearFilters}>
-          <Text style={styles.secondaryButtonText}>Clear Filters</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-});
-
-// Main Component
 const TrainerExerciseManagement = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user,loading: authLoading } = useAuth();
   const navigation = useNavigation();
-  const [exercises, setExercises] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [hasMore, setHasMore] = useState(true);
+  const [allExercises,setAllExercises] = useState([]);
+  const [displayedExercises,setDisplayedExercises] = useState([]);
+  const [categories,setCategories] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [refreshing,setRefreshing] = useState(false);
+  const [showFilterModal,setShowFilterModal] = useState(false);
+  const [pageNumber,setPageNumber] = useState(1);
+  const [pageSize,setPageSize] = useState(10);
+  const [totalPages,setTotalPages] = useState(1);
+  const [totalItems,setTotalItems] = useState(0);
+  const [searchTerm,setSearchTerm] = useState('');
+  const [hasMore,setHasMore] = useState(true);
+  const [activeTab,setActiveTab] = useState('all');
+  const [selectedExercises,setSelectedExercises] = useState([]);
+  const [showStartDatePicker,setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker,setShowEndDatePicker] = useState(false);
+  const [showConfirmModal,setShowConfirmModal] = useState(false);
+  const [confirmMessage,setConfirmMessage] = useState('');
+  const [confirmAction,setConfirmAction] = useState(null);
 
-  const [filters, setFilters] = useState({
-    sortBy: 'exerciseId',
-    sortDescending: true,
+  const [filters,setFilters] = useState({
+    minCalories: '',
+    maxCalories: '',
+    isPrivate: 'all',
+    category: 'all',
+    startDate: null,
+    endDate: null,
   });
 
-  const [tempFilters, setTempFilters] = useState(filters);
+  const [tempFilters,setTempFilters] = useState(filters);
+  const [filterErrors,setFilterErrors] = useState({});
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]).start();
-    return () => {
-      fadeAnim.setValue(0);
-      slideAnim.setValue(30);
-    };
-  }, []);
+  const memoizedFilters = useMemo(() => filters,[
+    filters.minCalories,
+    filters.maxCalories,
+    filters.isPrivate,
+    filters.category,
+    filters.startDate,
+    filters.endDate,
+  ]);
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user?.roles?.includes('Trainer') && user?.roles?.includes('User')) {
-      Alert.alert('Access Denied', 'This page is only accessible to trainers.');
-      navigation.goBack();
-      return;
-    }
     fetchCategories();
-  }, [authLoading, user, navigation]);
+    fetchAllExercises();
+  },[authLoading,user,pageNumber,pageSize,searchTerm,memoizedFilters,activeTab]);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchExercises(pageNumber);
-    }, [pageNumber, searchTerm, filters, pageSize])
-  );
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim,{
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim,{
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim,{
+        toValue: 1,
+        tension: 120,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  },[]);
+
+  const validateFilters = (filtersToValidate) => {
+    const errors = {};
+    if (filtersToValidate.minCalories && isNaN(parseFloat(filtersToValidate.minCalories))) {
+      errors.minCalories = 'Minimum calories must be a valid number';
+    }
+    if (filtersToValidate.maxCalories && isNaN(parseFloat(filtersToValidate.maxCalories))) {
+      errors.maxCalories = 'Maximum calories must be a valid number';
+    }
+    if (
+      filtersToValidate.minCalories &&
+      filtersToValidate.maxCalories &&
+      parseFloat(filtersToValidate.minCalories) > parseFloat(filtersToValidate.maxCalories)
+    ) {
+      errors.caloriesRange = 'Minimum calories cannot exceed maximum calories';
+    }
+    if (
+      filtersToValidate.startDate &&
+      filtersToValidate.endDate &&
+      filtersToValidate.startDate > filtersToValidate.endDate
+    ) {
+      errors.dateRange = 'Start date must be earlier than or equal to end date';
+    }
+    return errors;
+  };
 
   const fetchCategories = async () => {
     try {
-      const response = await trainerService.getAllExerciseCategories();
-      if (response.statusCode === 200 && response.data?.categories) {
+      const response = await trainerService.getExerciseCategory();
+      if (response.statusCode === 200 && Array.isArray(response.data?.categories)) {
         setCategories(response.data.categories);
       } else {
-        console.error('Failed to load categories:', response.message);
+        setCategories([]);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      showErrorFetchAPI(error);
+      setCategories([]);
     }
   };
 
-  const fetchExercises = async (page = 1, refresh = false) => {
+  const fetchAllExercises = async () => {
     try {
       setLoading(true);
-      if (refresh) setRefreshing(true);
-
-      const response = await trainerService.getFitnessExercisesByTrainer({
-        PageNumber: page,
+      const params = {
+        PageNumber: pageNumber,
         PageSize: pageSize,
+        ValidPageSize: [5,10,20,50],
         SearchTerm: searchTerm || undefined,
-        TrainerId: user.userId,
-        SortBy: filters.sortBy,
-        SortDescending: filters.sortDescending,
-      });
-
+        IsPrivate: activeTab === 'all' ? undefined : activeTab === 'public' ? 0 : 1,
+        Category: filters.category === 'all' ? undefined : filters.category,
+        StartDate: filters.startDate ? filters.startDate.toISOString() : undefined,
+        EndDate: filters.endDate ? filters.endDate.toISOString() : undefined,
+        MinCaloriesBurnedPerMin: filters.minCalories ? parseFloat(filters.minCalories) : undefined,
+        MaxCaloriesBurnedPerMin: filters.maxCalories ? parseFloat(filters.maxCalories) : undefined,
+      };
+      const response = await trainerService.getExerciseByTrainerId(params);
+      let exercises = [];
       if (response.statusCode === 200 && Array.isArray(response.data?.exercises)) {
-        const trainerExercises = response.data.exercises.filter(ex => ex.trainerId === user.userId);
-        setExercises(trainerExercises);
-        setTotalPages(response.data.totalPages || 1);
-        setTotalItems(response.data.totalCount || 0);
-        setHasMore(page < (response.data.totalPages || 1));
+        exercises = response.data.exercises.filter((ex) => ex.trainerId === user.userId || ex.trainerId === null);
+        setAllExercises((prev) => (pageNumber === 1 ? exercises : [...prev,...exercises]));
+        setDisplayedExercises((prev) => (pageNumber === 1 ? exercises : [...prev,...exercises]));
+        setTotalItems(response.data.totalCount || exercises.length);
+        setTotalPages(response.data.totalPages || Math.ceil(exercises.length / pageSize));
+        setHasMore(pageNumber < (response.data.totalPages || Math.ceil(exercises.length / pageSize)));
       } else {
-        Alert.alert('Notice', response.message || 'Unable to load exercises.');
-        setExercises([]);
+        setAllExercises([]);
+        setDisplayedExercises([]);
+        setTotalItems(0);
+        setTotalPages(1);
+        setHasMore(false);
       }
     } catch (error) {
-      console.error('Fetch Error:', error);
-      Alert.alert('Error', error.message || 'An error occurred while loading exercises.');
-      setExercises([]);
+      showErrorFetchAPI(error);
+      setAllExercises([]);
+      setDisplayedExercises([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setHasMore(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -555,8 +185,9 @@ const TrainerExerciseManagement = () => {
   };
 
   const onRefresh = () => {
+    setRefreshing(true);
     setPageNumber(1);
-    fetchExercises(1, true);
+    fetchAllExercises();
   };
 
   const handleSearch = (text) => {
@@ -564,277 +195,601 @@ const TrainerExerciseManagement = () => {
     setPageNumber(1);
   };
 
-  const handleNextPage = () => {
-    if (hasMore && !loading) {
-      setPageNumber(prev => prev + 1);
-    }
-  };
-
-  const handlePreviousPage = () => {
-    if (pageNumber > 1 && !loading) {
-      setPageNumber(prev => prev - 1);
+  const loadMoreExercises = () => {
+    if (!loading && hasMore) {
+      setPageNumber((prev) => prev + 1);
     }
   };
 
   const applyTempFilters = () => {
+    const errors = validateFilters(tempFilters);
+    if (Object.keys(errors).length > 0) {
+      setFilterErrors(errors);
+      showErrorFetchAPI(new Error('Please correct the filter inputs.'));
+      return;
+    }
     setFilters(tempFilters);
+    setFilterErrors({});
     setPageNumber(1);
     setShowFilterModal(false);
-    fetchExercises(1);
   };
 
   const resetTempFilters = () => {
     const defaultFilters = {
-      sortBy: 'exerciseId',
-      sortDescending: true,
+      minCalories: '',
+      maxCalories: '',
+      isPrivate: 'all',
+      category: 'all',
+      startDate: null,
+      endDate: null,
     };
     setTempFilters(defaultFilters);
+    setFilterErrors({});
   };
 
   const clearFilters = () => {
     const defaultFilters = {
-      sortBy: 'exerciseId',
-      sortDescending: true,
+      minCalories: '',
+      maxCalories: '',
+      isPrivate: 'all',
+      category: 'all',
+      startDate: null,
+      endDate: null,
     };
     setFilters(defaultFilters);
     setTempFilters(defaultFilters);
     setSearchTerm('');
     setPageNumber(1);
-    fetchExercises(1);
+    setFilterErrors({});
   };
 
-  const sortOptions = [
-    { label: 'Exercise ID', value: 'exerciseId', icon: 'key' },
-    { label: 'Name', value: 'name', icon: 'type' },
-    { label: 'Created Date', value: 'created', icon: 'clock' },
-  ];
+  const handleToggleStatus = (exerciseId,currentIsPrivate) => {
+    setConfirmMessage(`Are you sure you want to make this exercise ${currentIsPrivate === 0 ? 'private' : 'public'}?`);
+    setConfirmAction(() => async () => {
+      try {
+        const newIsPrivate = currentIsPrivate === 0 ? 1 : 0;
+        const response = await trainerService.toggleExerciseStatus(exerciseId,newIsPrivate);
+        if (response.statusCode === 200) {
+          showSuccessMessage(`Exercise made ${newIsPrivate === 0 ? 'public' : 'private'} successfully.`);
+          setPageNumber(1);
+          fetchAllExercises();
+        } else {
+          showErrorFetchAPI(new Error(response.message || 'Failed to toggle exercise privacy.'));
+        }
+      } catch (error) {
+        showErrorFetchAPI(error);
+      }
+    });
+    setShowConfirmModal(true);
+  };
 
-  const pageSizeOptions = [
-    { label: '5', value: 5 },
-    { label: '10', value: 10 },
-    { label: '20', value: 20 },
-    { label: '50', value: 50 },
-  ];
+  const handleToggleStatusMultiple = () => {
+    if (selectedExercises.length === 0) {
+      showErrorFetchAPI(new Error('Please select at least one exercise to toggle privacy.'));
+      return;
+    }
+    setConfirmMessage(`Are you sure you want to make ${selectedExercises.length} exercise${selectedExercises.length > 1 ? 's' : ''} public?`);
+    setConfirmAction(() => async () => {
+      try {
+        setLoading(true);
+        const response = await Promise.all(
+          selectedExercises.map((id) => trainerService.toggleExerciseStatus(id,0))
+        );
+        const failed = response.filter((r) => r.statusCode !== 200);
+        if (failed.length === 0) {
+          showSuccessMessage(`${selectedExercises.length} exercises made public successfully.`);
+          setSelectedExercises([]);
+          setPageNumber(1);
+          fetchAllExercises();
+        } else {
+          showErrorFetchAPI(new Error('Some exercises failed to update.'));
+        }
+      } catch (error) {
+        showErrorFetchAPI(error);
+      } finally {
+        setLoading(false);
+      }
+    });
+    setShowConfirmModal(true);
+  };
 
-  const renderFilterModal = () => {
-    return (
-      <Modal
-        visible={showFilterModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => {
-          setShowFilterModal(false);
-          setTempFilters(filters);
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modernFilterModal}>
-            <View style={styles.modalHandle} />
-            
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter & Sort</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowFilterModal(false);
-                  setTempFilters(filters);
-                }}
-                style={styles.modalCloseButton}
-              >
-                <Feather name="x" size={24} color={COLORS.text.secondary} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-              {/* Sort Options */}
-              <View style={styles.filterSection}>
-                <Text style={styles.sectionTitle}>Sort By</Text>
-                <View style={styles.optionsGrid}>
-                  {sortOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[
-                        styles.optionCard,
-                        tempFilters.sortBy === option.value && styles.selectedOptionCard,
-                      ]}
-                      onPress={() => setTempFilters({ ...tempFilters, sortBy: option.value })}
-                    >
-                      <View style={[
-                        styles.optionIconContainer,
-                        tempFilters.sortBy === option.value && styles.selectedOptionIcon
-                      ]}>
-                        <Feather
-                          name={option.icon}
-                          size={20}
-                          color={tempFilters.sortBy === option.value ? COLORS.text.white : COLORS.text.tertiary}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.optionText,
-                          tempFilters.sortBy === option.value && styles.selectedOptionText,
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Sort Direction */}
-              <View style={styles.filterSection}>
-                <Text style={styles.sectionTitle}>Sort Order</Text>
-                <View style={styles.directionButtons}>
-                  <TouchableOpacity
-                    style={[
-                      styles.directionButton,
-                      !tempFilters.sortDescending && styles.selectedDirectionButton,
-                    ]}
-                    onPress={() => setTempFilters({ ...tempFilters, sortDescending: false })}
-                  >
-                    <Feather
-                      name="arrow-up"
-                      size={18}
-                      color={!tempFilters.sortDescending ? COLORS.text.white : COLORS.text.tertiary}
-                    />
-                    <Text
-                      style={[
-                        styles.directionText,
-                        !tempFilters.sortDescending && styles.selectedDirectionText,
-                      ]}
-                    >
-                      Ascending
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.directionButton,
-                      tempFilters.sortDescending && styles.selectedDirectionButton,
-                    ]}
-                    onPress={() => setTempFilters({ ...tempFilters, sortDescending: true })}
-                  >
-                    <Feather
-                      name="arrow-down"
-                      size={18}
-                      color={tempFilters.sortDescending ? COLORS.text.white : COLORS.text.tertiary}
-                    />
-                    <Text
-                      style={[
-                        styles.directionText,
-                        tempFilters.sortDescending && styles.selectedDirectionText,
-                      ]}
-                    >
-                      Descending
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Items per Page */}
-              <View style={styles.filterSection}>
-                <Text style={styles.sectionTitle}>Items per Page</Text>
-                <View style={styles.pageSizeGrid}>
-                  {pageSizeOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[
-                        styles.pageSizeOption,
-                        pageSize === option.value && styles.selectedPageSize,
-                      ]}
-                      onPress={() => setPageSize(option.value)}
-                    >
-                      <Text
-                        style={[
-                          styles.pageSizeNumber,
-                          pageSize === option.value && styles.selectedPageSizeNumber,
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.pageSizeLabel,
-                          pageSize === option.value && styles.selectedPageSizeLabel,
-                        ]}
-                      >
-                        items
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </ScrollView>
-
-            {/* Modal Actions */}
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.resetButton} onPress={resetTempFilters}>
-                <Text style={styles.resetButtonText}>Reset</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.applyButton} onPress={applyTempFilters}>
-                <LinearGradient
-                  colors={[COLORS.primary, COLORS.primaryLight]}
-                  style={styles.applyButtonGradient}
-                >
-                  <Text style={styles.applyButtonText}>Apply Filters</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+  const toggleExerciseSelection = (exerciseId) => {
+    setSelectedExercises((prev) =>
+      prev.includes(exerciseId) ? prev.filter((id) => id !== exerciseId) : [...prev,exerciseId]
     );
   };
 
-  const renderExercise = ({ item, index }) => (
-    <ExerciseCard
-      item={item}
-      index={index}
-      categories={categories}
-      onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: item.exerciseId })}
-      onEdit={() => navigation.navigate('EditExercise', { exerciseId: item.exerciseId })}
-      onDelete={() => navigation.navigate('DeleteExercise', { exerciseId: item.exerciseId })}
-    />
+  const getCategoryName = (categoryId) => {
+    const category = categories.find((cat) => cat.categoryId === categoryId);
+    return category ? category.categoryName : 'Unknown';
+  };
+
+  const getExerciseIcon = (exerciseName) => {
+    if (!exerciseName) return 'fitness';
+    const name = exerciseName.toLowerCase();
+    if (name.includes('yoga') || name.includes('meditation')) return 'yoga';
+    if (name.includes('diet') || name.includes('nutrition')) return 'nutrition';
+    if (name.includes('cardio') || name.includes('running')) return 'cardio';
+    return 'fitness';
+  };
+
+  const renderExerciseIcon = (type) => {
+    switch (type) {
+      case 'yoga':
+        return <MaterialCommunityIcons name="yoga" size={24} color="#22C55E" />;
+      case 'nutrition':
+        return <Ionicons name="nutrition" size={24} color="#F59E0B" />;
+      case 'cardio':
+        return <Ionicons name="heart" size={24} color="#EF4444" />;
+      default:
+        return <MaterialCommunityIcons name="weight-lifter" size={24} color="#0056D2" />;
+    }
+  };
+
+  const ExerciseItem = ({ item }) => {
+    const exerciseType = getExerciseIcon(item.exerciseName);
+    const privacyInfo = item.isPrivate === 0 ? { color: '#22C55E',bgColor: '#DCFCE7',text: 'Public' } : { color: '#EF4444',bgColor: '#FEE2E2',text: 'Private' };
+
+    return (
+      <Animated.View
+        style={[
+          styles.groupCard,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim },{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('ExerciseDetailScreen',{ exerciseId: item.exerciseId })}
+        >
+          <View style={styles.cardContainer}>
+            <View style={styles.cardHeader}>
+              <View style={styles.headerLeft}>
+                <View style={styles.avatarContainer}>
+                  {item.imageUrl ? (
+                    <Image source={{ uri: item.imageUrl }} style={styles.groupAvatar} />
+                  ) : (
+                    <View style={styles.iconContainer}>{renderExerciseIcon(exerciseType)}</View>
+                  )}
+                </View>
+                <View style={styles.groupDetails}>
+                  <Text style={styles.groupName} numberOfLines={1}>
+                    {item.exerciseName || 'Exercise'}
+                  </Text>
+                  <View style={styles.statsRow}>
+                    <View style={styles.memberStat}>
+                      <Ionicons name="flame" size={14} color="#22C55E" />
+                      <Text style={styles.memberCount}>
+                        {item.caloriesBurnedPerMin ? `${item.caloriesBurnedPerMin} cal/min` : 'N/A'}
+                      </Text>
+                    </View>
+                    <View style={styles.statusIndicator}>
+                      <View style={[styles.statusDot,{ backgroundColor: privacyInfo.color }]} />
+                      <Text style={[styles.statusText,{ color: privacyInfo.color }]}>
+                        {privacyInfo.text}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+              <View style={styles.headerRight}>
+                <TouchableOpacity
+                  style={[styles.joinBtn,{ backgroundColor: item.isPrivate === 0 ? '#EF4444' : '#22C55E' }]}
+                  onPress={() => handleToggleStatus(item.exerciseId,item.isPrivate)}
+                >
+                  <Ionicons
+                    name={item.isPrivate === 0 ? 'lock-closed-outline' : 'globe-outline'}
+                    size={16}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.joinBtnText}>
+                    {item.isPrivate === 0 ? 'Make Private' : 'Make Public'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.descriptionSection}>
+              <Text style={styles.descriptionText} numberOfLines={2}>
+                {item.description ? item.description.replace(/<[^>]+>/g,'') : 'No description available'}
+              </Text>
+            </View>
+            <View style={styles.cardFooter}>
+              <View style={styles.categoryBadge}>
+                <Ionicons name="list-outline" size={12} color="#FFFFFF" />
+                <Text style={styles.categoryText}>{getCategoryName(item.categoryId)}</Text>
+              </View>
+              <View style={styles.ownerActions}>
+                <TouchableOpacity
+                  style={styles.editBtn}
+                  onPress={() => navigation.navigate('EditExerciseScreen',{ exerciseId: item.exerciseId })}
+                >
+                  <Ionicons name="pencil" size={16} color="#0056D2" />
+                  <Text style={styles.editBtnText}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const renderCreateExerciseHeader = () => (
+    <Animated.View
+      style={[
+        styles.createGroupSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.createGroupCard}>
+        <View style={styles.createGroupContent}>
+          <View style={styles.createGroupLeft}>
+            <View style={styles.createGroupIcon}>
+              <Ionicons name="add-circle" size={32} color="#0056D2" />
+            </View>
+            <View style={styles.createGroupText}>
+              <Text style={styles.createGroupTitle}>Create Exercise</Text>
+              <Text style={styles.createGroupSubtitle}>Add a new fitness exercise</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.createGroupButton}
+            onPress={() => navigation.navigate('CreateExerciseScreen')}
+            activeOpacity={0.8}
+            accessibilityLabel="Create New Exercise"
+          >
+            <Text style={styles.createGroupButtonText}>Create</Text>
+            <Ionicons name="arrow-forward" size={16} color="#0056D2" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Animated.View>
+  );
+
+  const renderEmpty = () => (
+    <Animated.View
+      style={[
+        styles.emptyContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
+    >
+      <View style={styles.emptyIconContainer}>
+        <MaterialCommunityIcons name="weight-lifter" size={80} color="#CBD5E1" />
+      </View>
+      <Text style={styles.emptyTitle}>No Exercises Found</Text>
+      <Text style={styles.emptyText}>
+        {searchTerm || filters.isPrivate !== 'all' || filters.category !== 'all' || filters.startDate || filters.endDate
+          ? 'No exercises match your current filters. Try adjusting your search criteria.'
+          : 'Create a new exercise to start offering your fitness content!'}
+      </Text>
+      <TouchableOpacity
+        style={styles.emptyActionButton}
+        onPress={() => {
+          if (searchTerm || filters.isPrivate !== 'all' || filters.category !== 'all' || filters.startDate || filters.endDate) {
+            clearFilters();
+          } else {
+            navigation.navigate('CreateExerciseScreen');
+          }
+        }}
+        accessibilityLabel={searchTerm || filters.isPrivate !== 'all' || filters.category !== 'all' || filters.startDate || filters.endDate ? 'Clear Filters' : 'Create Exercise'}
+      >
+        <Ionicons
+          name={searchTerm || filters.isPrivate !== 'all' || filters.category !== 'all' || filters.startDate || filters.endDate ? 'refresh' : 'add-circle'}
+          size={20}
+          color="#FFFFFF"
+        />
+        <Text style={styles.emptyActionText}>
+          {searchTerm || filters.isPrivate !== 'all' || filters.category !== 'all' || filters.startDate || filters.endDate ? 'Clear Filters' : 'Create Exercise'}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  const formatDisplayDate = (date) => {
+    if (!date) return 'Select Date';
+    return date.toLocaleDateString('en-US',{
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const renderFilterModal = () => (
+    <Modal
+      visible={showFilterModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => {
+        setShowFilterModal(false);
+        setTempFilters(filters);
+        setFilterErrors({});
+      }}
+    >
+      <View style={styles.modalOverlay}>
+        <Animated.View style={[styles.filterModalContent,{ transform: [{ scale: scaleAnim }] }]}>
+          <View style={styles.modalHandle} />
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter Exercises</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setShowFilterModal(false);
+                setTempFilters(filters);
+                setFilterErrors({});
+              }}
+              style={styles.modalCloseBtn}
+              accessibilityLabel="Close Filter Modal"
+            >
+              <Ionicons name="close" size={24} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Date Range</Text>
+              <View style={styles.dateRangeContainer}>
+                <TouchableOpacity style={styles.dateButton} onPress={() => setShowStartDatePicker(true)}>
+                  <Ionicons name="calendar-outline" size={16} color="#0056D2" />
+                  <Text style={styles.dateButtonText}>{formatDisplayDate(tempFilters.startDate)}</Text>
+                </TouchableOpacity>
+                <Text style={styles.dateRangeSeparator}>to</Text>
+                <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndDatePicker(true)}>
+                  <Ionicons name="calendar-outline" size={16} color="#0056D2" />
+                  <Text style={styles.dateButtonText}>{formatDisplayDate(tempFilters.endDate)}</Text>
+                </TouchableOpacity>
+              </View>
+              {filterErrors.dateRange && <Text style={styles.errorText}>{filterErrors.dateRange}</Text>}
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Calories Burned (per min)</Text>
+              <View style={styles.dateRangeContainer}>
+                <TextInput
+                  style={[styles.dateButton,filterErrors.minCalories && styles.inputError]}
+                  placeholder="Min Calories"
+                  value={tempFilters.minCalories}
+                  onChangeText={(text) => setTempFilters({ ...tempFilters,minCalories: text })}
+                  keyboardType="numeric"
+                  placeholderTextColor="#94A3B8"
+                />
+                <Text style={styles.dateRangeSeparator}>to</Text>
+                <TextInput
+                  style={[styles.dateButton,filterErrors.maxCalories && styles.inputError]}
+                  placeholder="Max Calories"
+                  value={tempFilters.maxCalories}
+                  onChangeText={(text) => setTempFilters({ ...tempFilters,maxCalories: text })}
+                  keyboardType="numeric"
+                  placeholderTextColor="#94A3B8"
+                />
+              </View>
+              {filterErrors.caloriesRange && <Text style={styles.errorText}>{filterErrors.caloriesRange}</Text>}
+              {filterErrors.minCalories && <Text style={styles.errorText}>{filterErrors.minCalories}</Text>}
+              {filterErrors.maxCalories && <Text style={styles.errorText}>{filterErrors.maxCalories}</Text>}
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Privacy</Text>
+              <View style={styles.statusOptions}>
+                {[
+                  { key: 'all',label: 'All',icon: 'filter',color: '#0056D2' },
+                  { key: 'public',label: 'Public',icon: 'globe-outline',color: '#22C55E' },
+                  { key: 'private',label: 'Private',icon: 'lock-closed-outline',color: '#EF4444' },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.key}
+                    style={[
+                      styles.statusOption,
+                      tempFilters.isPrivate === option.key && styles.selectedStatusOption,
+                    ]}
+                    onPress={() => setTempFilters({ ...tempFilters,isPrivate: option.key })}
+                  >
+                    <Ionicons
+                      name={option.icon}
+                      size={18}
+                      color={tempFilters.isPrivate === option.key ? '#FFFFFF' : option.color}
+                    />
+                    <Text
+                      style={[
+                        styles.statusOptionText,
+                        tempFilters.isPrivate === option.key && styles.selectedStatusOptionText,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Category</Text>
+              <View style={styles.statusOptions}>
+                {[{ categoryId: 'all',categoryName: 'All' },...categories].map((category) => (
+                  <TouchableOpacity
+                    key={category.categoryId}
+                    style={[
+                      styles.statusOption,
+                      tempFilters.category === category.categoryId && styles.selectedStatusOption,
+                    ]}
+                    onPress={() => setTempFilters({ ...tempFilters,category: category.categoryId })}
+                  >
+                    <Ionicons
+                      name="list-outline"
+                      size={18}
+                      color={tempFilters.category === category.categoryId ? '#FFFFFF' : '#0056D2'}
+                    />
+                    <Text
+                      style={[
+                        styles.statusOptionText,
+                        tempFilters.category === category.categoryId && styles.selectedStatusOptionText,
+                      ]}
+                    >
+                      {category.categoryName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Items per Page</Text>
+              <View style={styles.pageSizeOptions}>
+                {[5,10,20,50].map((size) => (
+                  <TouchableOpacity
+                    key={size}
+                    style={[styles.pageSizeOption,pageSize === size && styles.selectedPageSizeOption]}
+                    onPress={() => {
+                      setPageSize(size);
+                      setPageNumber(1);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.pageSizeOptionText,
+                        pageSize === size && styles.selectedPageSizeOptionText,
+                      ]}
+                    >
+                      {size}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.resetButton} onPress={resetTempFilters} accessibilityLabel="Reset Filters">
+              <Ionicons name="refresh" size={16} color="#64748B" />
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.applyButton} onPress={applyTempFilters} accessibilityLabel="Apply Filters">
+              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              <Text style={styles.applyButtonText}>Apply Filters</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </View>
+      {showStartDatePicker && (
+        <Modal visible={showStartDatePicker} transparent={true} animationType="fade">
+          <View style={styles.datePickerOverlay}>
+            <View style={styles.datePickerContainer}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select Start Date</Text>
+                <TouchableOpacity onPress={() => setShowStartDatePicker(false)} accessibilityLabel="Close Date Picker">
+                  <Ionicons name="close" size={24} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={tempFilters.startDate || new Date()}
+                mode="date"
+                display="spinner"
+                onChange={(event,selectedDate) => {
+                  if (selectedDate) {
+                    setTempFilters({ ...tempFilters,startDate: selectedDate });
+                  }
+                  if (Platform.OS === 'android') setShowStartDatePicker(false);
+                }}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity style={styles.datePickerConfirm} onPress={() => setShowStartDatePicker(false)} accessibilityLabel="Confirm Date">
+                  <Text style={styles.datePickerConfirmText}>Confirm</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
+      {showEndDatePicker && (
+        <Modal visible={showEndDatePicker} transparent={true} animationType="fade">
+          <View style={styles.datePickerOverlay}>
+            <View style={styles.datePickerContainer}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select End Date</Text>
+                <TouchableOpacity onPress={() => setShowEndDatePicker(false)} accessibilityLabel="Close Date Picker">
+                  <Ionicons name="close" size={24} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={tempFilters.endDate || new Date()}
+                mode="date"
+                display="spinner"
+                onChange={(event,selectedDate) => {
+                  if (selectedDate) {
+                    setTempFilters({ ...tempFilters,endDate: selectedDate });
+                  }
+                  if (Platform.OS === 'android') setShowEndDatePicker(false);
+                }}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity style={styles.datePickerConfirm} onPress={() => setShowEndDatePicker(false)} accessibilityLabel="Confirm Date">
+                  <Text style={styles.datePickerConfirmText}>Confirm</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
+    </Modal>
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <DynamicStatusBar backgroundColor={COLORS.primary} />
-      
-      {/* Ultra Modern Header */}
-      <View style={styles.headerContainer}>
-        <LinearGradient 
-          colors={[COLORS.primary, COLORS.primaryLight, COLORS.purple]} 
-          style={styles.headerGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.headerContent}>
-            <TouchableOpacity style={styles.modernBackButton} onPress={() => navigation.goBack()}>
-              <Feather name="arrow-left" size={24} color={COLORS.text.white} />
-            </TouchableOpacity>
-            
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.modernHeaderTitle}>Exercise Hub</Text>
-              <Text style={styles.modernHeaderSubtitle}>Manage your fitness empire</Text>
-            </View>
-            
-            <TouchableOpacity
-              style={styles.modernAddButton}
-              onPress={() => navigation.navigate('CreateExercise')}
-            >
-              <LinearGradient
-                colors={[COLORS.glassmorphism, 'rgba(255, 255, 255, 0.1)']}
-                style={styles.addButtonGradient}
-              >
-                <Feather name="plus" size={24} color={COLORS.text.white} />
-              </LinearGradient>
-            </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      <DynamicStatusBar backgroundColor="#F8FAFC" />
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} accessibilityLabel="Go Back">
+            <Ionicons name="arrow-back" size={24} color="#0056D2" />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Fitness Exercises</Text>
           </View>
-        </LinearGradient>
+          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)} accessibilityLabel="Open Filters">
+            <Ionicons name="options-outline" size={24} color="#0056D2" />
+            {(searchTerm || filters.isPrivate !== 'all' || filters.category !== 'all' || filters.startDate || filters.endDate) && (
+              <View style={styles.filterBadge} />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
-
-      {/* Modern Search Section */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabItem,activeTab === 'all' && styles.tabItemActive]}
+          onPress={() => {
+            setActiveTab('all');
+            setPageNumber(1);
+            setSelectedExercises([]);
+          }}
+          activeOpacity={0.8}
+          accessibilityLabel="Show All Exercises"
+        >
+          <Text style={[styles.tabText,activeTab === 'all' && styles.tabTextActive]}>All</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem,activeTab === 'public' && styles.tabItemActive]}
+          onPress={() => {
+            setActiveTab('public');
+            setPageNumber(1);
+            setSelectedExercises([]);
+          }}
+          activeOpacity={0.8}
+          accessibilityLabel="Show Public Exercises"
+        >
+          <Text style={[styles.tabText,activeTab === 'public' && styles.tabTextActive]}>Public</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem,activeTab === 'private' && styles.tabItemActive]}
+          onPress={() => {
+            setActiveTab('private');
+            setPageNumber(1);
+            setSelectedExercises([]);
+          }}
+          activeOpacity={0.8}
+          accessibilityLabel="Show Private Exercises"
+        >
+          <Text style={[styles.tabText,activeTab === 'private' && styles.tabTextActive]}>Private</Text>
+        </TouchableOpacity>
+      </View>
       <Animated.View
         style={[
           styles.searchSection,
@@ -844,742 +799,743 @@ const TrainerExerciseManagement = () => {
           },
         ]}
       >
-        <ModernSearchBar
-          searchTerm={searchTerm}
-          onSearch={handleSearch}
-          onFilter={() => setShowFilterModal(true)}
-          resultsCount={totalItems}
-          currentPage={pageNumber}
-          totalPages={totalPages}
-        />
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#64748B" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search exercises..."
+            value={searchTerm}
+            onChangeText={handleSearch}
+            placeholderTextColor="#94A3B8"
+            accessibilityLabel="Search Exercises"
+          />
+          {searchTerm ? (
+            <TouchableOpacity onPress={() => handleSearch('')} style={styles.clearSearch} accessibilityLabel="Clear Search">
+              <Ionicons name="close-circle" size={20} color="#94A3B8" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </Animated.View>
-
-      {/* Content Area */}
       {loading && pageNumber === 1 ? (
-        <ModernLoader />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0056D2" />
+          <Text style={styles.loadingText}>Loading exercises...</Text>
+        </View>
       ) : (
         <FlatList
-          data={exercises}
+          data={displayedExercises}
+          onEndReached={loadMoreExercises}
+          onEndReachedThreshold={0.2}
           keyExtractor={(item) => item.exerciseId.toString()}
-          renderItem={renderExercise}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <EmptyState
-              onCreateExercise={() => navigation.navigate('CreateExercise')}
-              onClearFilters={clearFilters}
-            />
+          renderItem={ExerciseItem}
+          ListHeaderComponent={renderCreateExerciseHeader}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0056D2']} tintColor="#0056D2" />
           }
-          refreshing={refreshing}
-          onRefresh={onRefresh}
           showsVerticalScrollIndicator={false}
           ListFooterComponent={
             loading && pageNumber > 1 ? (
-              <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.footerLoaderText}>Loading more exercises...</Text>
+              <View style={{ padding: 20,alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#0056D2" />
               </View>
             ) : null
           }
         />
       )}
-
-      {/* Modern Pagination */}
-      {totalItems > 0 && (
-        <Animated.View style={[styles.paginationContainer, { opacity: fadeAnim }]}>
-          <LinearGradient
-            colors={[COLORS.background.card, COLORS.background.secondary]}
-            style={styles.paginationGradient}
-          >
-            <TouchableOpacity
-              style={[styles.paginationButton, pageNumber <= 1 && styles.disabledPaginationButton]}
-              onPress={handlePreviousPage}
-              disabled={pageNumber <= 1 || loading}
-            >
-              <Feather name="chevron-left" size={20} color={pageNumber <= 1 ? COLORS.text.tertiary : COLORS.primary} />
-            </TouchableOpacity>
-            
-            <View style={styles.paginationInfo}>
-              <Text style={styles.paginationText}>Page {pageNumber} of {totalPages}</Text>
-            </View>
-            
-            <TouchableOpacity
-              style={[styles.paginationButton, pageNumber >= totalPages && styles.disabledPaginationButton]}
-              onPress={handleNextPage}
-              disabled={pageNumber >= totalPages || loading}
-            >
-              <Feather name="chevron-right" size={20} color={pageNumber >= totalPages ? COLORS.text.tertiary : COLORS.primary} />
-            </TouchableOpacity>
-          </LinearGradient>
-        </Animated.View>
-      )}
-
       {renderFilterModal()}
+      <Modal
+        visible={showConfirmModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowConfirmModal(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmModalContent}>
+            <Text style={styles.confirmModalTitle}>Confirm Action</Text>
+            <Text style={styles.confirmModalText}>{confirmMessage}</Text>
+            <View style={styles.confirmModalActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowConfirmModal(false)}
+                accessibilityLabel="Cancel Action"
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={async () => {
+                  await confirmAction();
+                  setShowConfirmModal(false);
+                }}
+                accessibilityLabel="Confirm Action"
+              >
+                <Text style={styles.confirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: '#F8FAFC',
   },
-  headerContainer: {
-    overflow: 'hidden',
-  },
-  headerGradient: {
-    paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight + 10 : 10,
-    paddingBottom: 25,
+  header: {
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 10,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 15,
   },
-  modernBackButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.glassmorphism,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backdropFilter: 'blur(20px)',
+  backButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
   },
-  headerTitleContainer: {
+  headerCenter: {
     flex: 1,
     alignItems: 'center',
+    marginHorizontal: 20,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  filterButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#F59E0B',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    marginBottom: 2,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: {
+    borderBottomColor: '#0056D2',
+    backgroundColor: '#F1F5F9',
+  },
+  tabText: {
+    fontSize: 16,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#0056D2',
+    fontWeight: '700',
+  },
+  actionBar: {
+    padding: 15,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  actionBarButton: {
+    backgroundColor: '#22C55E',
+    paddingVertical: 10,
     paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  modernHeaderTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: COLORS.text.white,
-    textAlign: 'center',
-    letterSpacing: 0.5,
+  disabledActionBarButton: {
+    backgroundColor: '#CBD5E1',
   },
-  modernHeaderSubtitle: {
+  actionBarButtonText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  modernAddButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  addButtonGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   searchSection: {
-    backgroundColor: COLORS.background.secondary,
-    paddingTop: 20,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  modernSearchContainer: {
-    gap: 15,
-  },
-  searchInputWrapper: {
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background.card,
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    borderWidth: 2,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  searchIconContainer: {
-    marginRight: 15,
+  searchIcon: {
+    marginRight: 10,
   },
-  modernSearchInput: {
+  searchInput: {
     flex: 1,
     fontSize: 16,
-    color: COLORS.text.primary,
-    paddingVertical: 18,
-    fontWeight: '500',
+    color: '#1E293B',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  clearSearchButton: {
+  clearSearch: {
     padding: 5,
   },
-  searchActionsRow: {
+  createGroupSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  createGroupCard: {
+    borderRadius: 16,
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  createGroupContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  modernFilterButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  filterButtonGradient: {
+  createGroupLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    gap: 8,
+    flex: 1,
   },
-  filterButtonText: {
-    fontSize: 16,
-    color: COLORS.text.white,
-    fontWeight: '600',
+  createGroupIcon: {
+    marginRight: 15,
   },
-  resultsInfoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background.card,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    gap: 8,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 4,
+  createGroupText: {
+    flex: 1,
   },
-  resultsCount: {
+  createGroupTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: '#1E293B',
+    marginBottom: 2,
   },
-  resultsLabel: {
+  createGroupSubtitle: {
     fontSize: 14,
-    color: COLORS.text.secondary,
-    fontWeight: '500',
+    color: '#64748B',
   },
-  pageDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.text.tertiary,
+  createGroupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 8,
   },
-  pageInfo: {
+  createGroupButtonText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#0056D2',
   },
-  listContent: {
+  listContainer: {
+    paddingBottom: 50,
+  },
+  groupCard: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardContainer: {
     padding: 20,
-    paddingBottom: 120,
-  },
-  exerciseCardContainer: {
-    marginBottom: 20,
-  },
-  modernExerciseCard: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  cardGradientBackground: {
-    padding: 24,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: 15,
   },
-  modernIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginRight: 16,
-  },
-  iconGradient: {
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 15,
+  },
+  groupAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F1F5F9',
+  },
+  iconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardTitleSection: {
+  groupDetails: {
     flex: 1,
   },
-  modernExerciseName: {
-    fontSize: 20,
+  groupName: {
+    fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: '#1E293B',
     marginBottom: 6,
-    letterSpacing: 0.3,
   },
-  badgeRow: {
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 15,
   },
-  categoryBadge: {
+  memberStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-    gap: 6,
+    gap: 5,
   },
-  statusBadge: {
+  memberCount: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  statusIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-    gap: 6,
+    gap: 5,
   },
-  badgeText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '600',
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusText: {
     fontSize: 12,
+    fontWeight: '500',
+  },
+  headerRight: {
+    marginLeft: 15,
+  },
+  joinBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  joinBtnText: {
+    fontSize: 12,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
-  cardActions: {
-    flexDirection: 'row',
-    gap: 8,
+  descriptionSection: {
+    marginBottom: 15,
   },
-  actionIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  actionIconGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardContent: {
-    marginBottom: 16,
-  },
-  exerciseDescription: {
-    fontSize: 15,
-    color: COLORS.text.secondary,
-    lineHeight: 22,
-    fontWeight: '400',
-    marginBottom: 12,
-  },
-  exerciseDetails: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailText: {
-    fontSize: 13,
-    color: COLORS.text.tertiary,
-    fontWeight: '500',
+  descriptionText: {
+    fontSize: 14,
+    color: '#64748B',
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  exerciseStats: {
+  categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#0056D2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 5,
   },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  statText: {
-    fontSize: 13,
-    color: COLORS.text.tertiary,
-    fontWeight: '500',
-  },
-  viewDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  viewDetailsText: {
-    fontSize: 14,
-    color: COLORS.primary,
+  categoryText: {
+    fontSize: 12,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
-  modernLoaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  loaderIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    overflow: 'hidden',
-    marginBottom: 24,
-  },
-  loaderGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modernLoaderText: {
-    fontSize: 20,
-    color: COLORS.text.primary,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  loaderSubtext: {
-    fontSize: 16,
-    color: COLORS.text.tertiary,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  footerLoader: {
+  ownerActions: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-    gap: 12,
+    gap: 10,
   },
-  footerLoaderText: {
-    fontSize: 16,
-    color: COLORS.primary,
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  editBtnText: {
+    fontSize: 12,
+    color: '#0056D2',
     fontWeight: '600',
   },
-  modernEmptyContainer: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
-    paddingVertical: 60,
+    padding: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#0056D2',
+    marginTop: 15,
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
   },
   emptyIconContainer: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    overflow: 'hidden',
-    marginBottom: 32,
-  },
-  emptyIconGradient: {
-    flex: 1,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 25,
   },
-  modernEmptyTitle: {
+  emptyTitle: {
     fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.text.primary,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 10,
     textAlign: 'center',
-    marginBottom: 12,
-    letterSpacing: 0.5,
   },
-  modernEmptyText: {
+  emptyText: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: '#64748B',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 32,
-    fontWeight: '500',
+    marginBottom: 30,
   },
-  emptyActions: {
-    width: '100%',
-    gap: 16,
-  },
-  primaryActionButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  primaryButtonGradient: {
+  emptyActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    gap: 12,
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 25,
+    paddingVertical: 15,
+    borderRadius: 25,
+    gap: 10,
   },
-  primaryButtonText: {
-    fontSize: 18,
-    color: COLORS.text.white,
-    fontWeight: '700',
-  },
-  secondaryActionButton: {
-    backgroundColor: COLORS.background.card,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.border,
-  },
-  secondaryButtonText: {
+  emptyActionText: {
     fontSize: 16,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  paginationContainer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  paginationGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-  },
-  paginationButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.background.tertiary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  disabledPaginationButton: {
-    backgroundColor: COLORS.background.tertiary,
-    opacity: 0.5,
-  },
-  paginationInfo: {
-    alignItems: 'center',
-  },
-  paginationText: {
-    fontSize: 16,
-    color: COLORS.text.primary,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.background.overlay,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
-  modernFilterModal: {
-    backgroundColor: COLORS.background.card,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    maxHeight: '85%',
-    minHeight: '60%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  filterModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    height: '60%',
   },
   modalHandle: {
-    width: 48,
+    width: 40,
     height: 4,
-    backgroundColor: COLORS.text.tertiary,
+    backgroundColor: '#CBD5E1',
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 10,
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#E2E8F0',
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.text.primary,
-    letterSpacing: 0.5,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
   },
-  modalCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.background.tertiary,
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   filterSection: {
-    marginVertical: 20,
+    marginVertical: 15,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-    marginBottom: 16,
-    letterSpacing: 0.3,
-  },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  optionCard: {
-    flex: 1,
-    minWidth: '30%',
-    backgroundColor: COLORS.background.tertiary,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selectedOptionCard: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primaryLight,
-  },
-  optionIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.background.card,
-    justifyContent: 'center',
-    alignItems: 'center',
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
     marginBottom: 12,
   },
-  selectedOptionIcon: {
-    backgroundColor: COLORS.primaryLight,
-  },
-  optionText: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  selectedOptionText: {
-    color: COLORS.text.white,
-    fontWeight: '700',
-  },
-  directionButtons: {
+  dateRangeContainer: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    gap: 10,
   },
-  directionButton: {
+  dateButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.background.tertiary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+  },
+  dateButtonText: {
+    fontSize: 14,
+    color: '#1E293B',
+    flex: 1,
+  },
+  dateRangeSeparator: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  statusOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
-  selectedDirectionButton: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primaryLight,
+  statusOption: {
+    flex: 1,
+    minWidth: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 10,
   },
-  directionText: {
-    fontSize: 16,
-    color: COLORS.text.secondary,
+  selectedStatusOption: {
+    backgroundColor: '#0056D2',
+    borderColor: '#0056D2',
+  },
+  statusOptionText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  selectedStatusOptionText: {
+    color: '#FFFFFF',
     fontWeight: '600',
   },
-  selectedDirectionText: {
-    color: COLORS.text.white,
-    fontWeight: '700',
-  },
-  pageSizeGrid: {
+  pageSizeOptions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   pageSizeOption: {
     flex: 1,
-    backgroundColor: COLORS.background.tertiary,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 15,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    minHeight: 50,
+    justifyContent: 'center',
   },
-  selectedPageSize: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primaryLight,
+  selectedPageSizeOption: {
+    backgroundColor: '#0056D2',
+    borderColor: '#0056D2',
   },
-  pageSizeNumber: {
-    fontSize: 20,
-    color: COLORS.text.primary,
-    fontWeight: '800',
-    marginBottom: 4,
+  pageSizeOptionText: {
+    fontSize: 16,
+    color: '#1E293B',
+    fontWeight: '700',
   },
-  selectedPageSizeNumber: {
-    color: COLORS.text.white,
-  },
-  pageSizeLabel: {
-    fontSize: 12,
-    color: COLORS.text.tertiary,
-    fontWeight: '600',
-  },
-  selectedPageSizeLabel: {
-    color: 'rgba(255, 255, 255, 0.8)',
+  selectedPageSizeOptionText: {
+    color: '#FFFFFF',
   },
   modalActions: {
     flexDirection: 'row',
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    gap: 12,
   },
   resetButton: {
     flex: 1,
-    backgroundColor: COLORS.background.tertiary,
-    paddingVertical: 18,
-    borderRadius: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
   },
   resetButtonText: {
     fontSize: 16,
-    color: COLORS.text.secondary,
-    fontWeight: '700',
+    color: '#64748B',
+    fontWeight: '600',
   },
   applyButton: {
     flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  applyButtonGradient: {
-    paddingVertical: 18,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0056D2',
+    paddingVertical: 15,
+    borderRadius: 12,
+    gap: 8,
   },
   applyButtonText: {
     fontSize: 16,
-    color: COLORS.text.white,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  datePickerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 350,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  datePickerTitle: {
+    fontSize: 18,
     fontWeight: '700',
+    color: '#1E293B',
+  },
+  datePickerConfirm: {
+    backgroundColor: '#0056D2',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  datePickerConfirmText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 350,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  confirmModalText: {
+    fontSize: 16,
+    color: '#64748B',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  confirmModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: '#0056D2',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 

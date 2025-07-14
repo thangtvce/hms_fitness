@@ -1,29 +1,16 @@
 import WorkoutInProgressScreen from 'screens/workout/WorkoutInProgressScreen';
 import ExercisesByCategoryScreen from 'screens/workout/ExercisesByCategoryScreen';
 // Trainer Workout Screens
-import TrainerWorkoutPlanManagement from 'screens/trainer/trainner_workout/TrainerWorkoutPlanManagement';
-import TrainerWorkoutPlanExercisesScreen from 'screens/trainer/trainner_workout/TrainerWorkoutPlanExercisesScreen';
-import TrainerWorkoutPlanExerciseSessionScreen from 'screens/trainer/trainner_workout/TrainerWorkoutPlanExerciseSessionScreen';
-import EditWorkoutPlanScreen from 'screens/trainer/trainner_workout/EditWorkoutPlanScreen';
-import EditWorkoutPlan from 'screens/trainer/trainner_workout/EditWorkoutPlan';
-import EditPlanExercise from 'screens/trainer/trainner_workout/EditPlanExercise';
-import CreateWorkoutPlanScreen from 'screens/trainer/trainner_workout/CreateWorkoutPlanScreen';
-import CreateWorkoutPlan from 'screens/trainer/trainner_workout/CreateWorkoutPlan';
-import CreatePlanExercise from 'screens/trainer/trainner_workout/CreatePlanExercise';
-// Trainer Exercise Screens
 import TrainerExerciseManagement from 'screens/trainer/exercise/TrainerExerciseManagement';
 import ExerciseDetailScreen from 'screens/trainer/exercise/ExerciseDetailScreen';
-import EditServicePackageScreen from 'screens/trainer/exercise/EditServicePackageScreen';
 import EditExerciseScreen from 'screens/trainer/exercise/EditExerciseScreen';
 import DeleteExerciseScreen from 'screens/trainer/exercise/DeleteExerciseScreen';
 import CreateExerciseScreen from 'screens/trainer/exercise/CreateExerciseScreen';
 
 // Trainer Service Screens
-import TrainerServicePackageScreen from 'screens/trainer/service/TrainerServicePackageScreen';
 import TrainerServiceManagement from 'screens/trainer/service/TrainerServiceManagement';
 import TrainerPackageDetailScreen from 'screens/trainer/service/TrainerPackageDetailScreen';
-import ServicePackageDetailScreen from 'screens/trainer/service/ServicePackageDetailScreen';
-import DeleteServicePackageScreen from 'screens/trainer/service/DeleteServicePackageScreen';
+import EditServicePackageScreen from 'screens/trainer/service/EditServicePackageScreen';
 import CreateServicePackageScreen from 'screens/trainer/service/CreateServicePackageScreen';
 import React, { useEffect, useRef } from 'react';
 import AppIntroScreen from 'screens/AppIntroScreen';
@@ -123,19 +110,28 @@ import TrainerDashboard from 'screens/trainer/TrainerDashboard';
 import TrainerDetailScreen from 'screens/trainer/TrainerDetailScreen';
 import TrainerApplicationScreen from 'screens/trainer/TrainerApplicationScreen';
 import TrainerApplicationListScreen from 'screens/trainer/TrainerApplicationListScreen';
-import TrainerPaymentHistory from 'screens/trainer/TrainerPaymentHistory';
-import WorkoutPlanDetailByTrainer from 'screens/trainer/WorkoutPlanDetailByTrainer';
-import PaymentDetailsScreen from 'screens/trainer/PaymentDetailsScreen';
-import CreatePackageScreen from 'screens/trainer/CreatePackageScreen';
-import ProgressPhotoScreen from 'screens/trainer/ProgressPhotoScreen';
-import SubscriptionScreen from 'screens/trainer/SubscriptionScreen';
+import TrainerPayoutManagement from 'screens/trainer/payout/TrainerPayoutManagement';
+import TrainerPayoutDetailScreen from 'screens/trainer/payout/TrainerPayoutDetailScreen';
+import TrainerPayoutStatisticsScreen from 'screens/trainer/payout/TrainerPayoutStatisticsScreen';
+import TrainerRatingDetailScreen from 'screens/trainer/rating/TrainerRatingDetailScreen';
+import TrainerRatingStatisticsScreen from 'screens/trainer/rating/TrainerRatingStatisticsScreen';
+import TrainerSubscriptionManagement from 'screens/trainer/subscription/TrainerSubscriptionManagement';
+import TrainerSubscriptionStatisticsScreen from 'screens/trainer/subscription/TrainerSubscriptionStatisticsScreen';
+import TrainerSubscriptionDetailScreen from 'screens/trainer/subscription/TrainerSubscriptionDetailScreen';
+import TrainerWorkoutPlanManagement from 'screens/trainer/workoutPlan/TrainerWorkoutPlanManagement';
 import UserList from 'screens/trainer/user/UserList';
-
+import TrainerUserManagementScreen from 'screens/trainer/user/TrainerUserManagementScreen';
+import TraineeDetailScreen from 'screens/trainer/user/TraineeDetailScreen';
+import AddWorkoutPlanScreen from 'screens/trainer/workoutPlan/AddWorkoutPlanScreen';
+import EditWorkoutPlanScreen from 'screens/trainer/workoutPlan/EditWorkoutPlanScreen';
+import TrainerWorkoutPlanStatisticsScreen from 'screens/trainer/workoutPlan/TrainerWorkoutPlanStatisticsScreen';
 import AIRecommendedScreen from 'screens/workout/AIRecommendedScreen';
 import UserGoalPlansScreen from 'screens/profile/UserGoalPlansScreen';
 import WeeklyProgressScreen from 'screens/home/WeeklyProgressScreen';
 import BanMembersScreen from 'screens/community/BanMembersScreen';
-
+import AddExerciseToPlanScreen from 'screens/trainer/exercisePlan/AddExerciseToPlanScreen';
+import EditExerciseToPlanScreen from 'screens/trainer/exercisePlan/EditExerciseToPlanScreen';
+import ProgressComparisonScreen from 'screens/setting/ProgressComparisonScreen';
 
 
 Notifications.setNotificationHandler({
@@ -219,6 +215,7 @@ const notificationListener = useRef();
       <Stack.Screen name="WorkoutListScreen" component={WorkoutListScreen} options={{ title: 'Workout List' }} />
       <Stack.Screen name="CategoryDetails" component={CategoryDetailsScreen} />
       <Stack.Screen name="ExerciseDetails" component={ExerciseDetailsScreen} />
+      <Stack.Screen name="ExerciseDetailsScreen" component={ExerciseDetailsScreen} options={{ title: 'Exercise Details' }} />
       <Stack.Screen name="ExercisesByCategoryScreen" component={ExercisesByCategoryScreen} options={{ title: 'Exercises By Category' }} />
 
     {/* Ticket System Screens */}
@@ -301,47 +298,47 @@ const notificationListener = useRef();
       <Stack.Screen name="TrainerApplicationScreen" component={TrainerApplicationScreen} options={{ title: 'Trainer Application' }} />
       <Stack.Screen name="TrainerApplicationListScreen" component={TrainerApplicationListScreen} options={{ title: 'My Trainer Applications' }} />
 
-    {/* Trainer Feature Screens */}
-    <Stack.Screen name="TrainerDashboard" component={TrainerDashboard} options={{ title: 'Trainer Dashboard' }} />
-    <Stack.Screen name="TrainerPaymentHistory" component={TrainerPaymentHistory} options={{ title: 'Payment History' }} />
-    <Stack.Screen name="WorkoutPlanDetailByTrainer" component={WorkoutPlanDetailByTrainer} options={{ title: 'Workout Plan Detail' }} />
-    <Stack.Screen name="PaymentDetailsScreen" component={PaymentDetailsScreen} options={{ title: 'Payment Details' }} />
-    <Stack.Screen name="CreatePackageScreen" component={CreatePackageScreen} options={{ title: 'Create/Edit Package' }} />
-    <Stack.Screen name="ProgressPhotoScreen" component={ProgressPhotoScreen} options={{ title: 'Progress Photos' }} />
-    <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} options={{ title: 'Subscriptions' }} />
+    <Stack.Screen name="TrainerMain" component={BottomTabNavigator} />
 
-    {/* Trainer Exercise Screens */}
-    <Stack.Screen name="TrainerExerciseManagement" component={TrainerExerciseManagement} options={{ title: 'Exercise Management' }} />
-    <Stack.Screen name="ExerciseDetailScreen" component={ExerciseDetailScreen} options={{ title: 'Exercise Detail' }} />
-    <Stack.Screen name="EditServicePackageScreen" component={EditServicePackageScreen} options={{ title: 'Edit Service Package' }} />
-    <Stack.Screen name="EditExerciseScreen" component={EditExerciseScreen} options={{ title: 'Edit Exercise' }} />
-    <Stack.Screen name="DeleteExerciseScreen" component={DeleteExerciseScreen} options={{ title: 'Delete Exercise' }} />
-    <Stack.Screen name="CreateExerciseScreen" component={CreateExerciseScreen} options={{ title: 'Create Exercise' }} />
-
-    {/* Trainer Service Screens */}
-    <Stack.Screen name="TrainerServicePackageScreen" component={TrainerServicePackageScreen} options={{ title: 'Service Packages' }} />
-    <Stack.Screen name="TrainerServiceManagement" component={TrainerServiceManagement} options={{ title: 'Service Management' }} />
-    <Stack.Screen name="TrainerPackageDetailScreen" component={TrainerPackageDetailScreen} options={{ title: 'Package Detail' }} />
-    <Stack.Screen name="ServicePackageDetailScreen" component={ServicePackageDetailScreen} options={{ title: 'Service Package Detail' }} />
-    <Stack.Screen name="DeleteServicePackageScreen" component={DeleteServicePackageScreen} options={{ title: 'Delete Service Package' }} />
-    <Stack.Screen name="CreateServicePackageScreen" component={CreateServicePackageScreen} options={{ title: 'Create Service Package' }} />
-
-    {/* Trainer Workout Screens */}
-    <Stack.Screen name="TrainerWorkoutPlanManagement" component={TrainerWorkoutPlanManagement} options={{ title: 'Workout Plan Management' }} />
-    <Stack.Screen name="TrainerWorkoutPlanExercisesScreen" component={TrainerWorkoutPlanExercisesScreen} options={{ title: 'Workout Plan Exercises' }} />
-    <Stack.Screen name="TrainerWorkoutPlanExerciseSessionScreen" component={TrainerWorkoutPlanExerciseSessionScreen} options={{ title: 'Workout Plan Exercise Session' }} />
-    <Stack.Screen name="EditWorkoutPlanScreen" component={EditWorkoutPlanScreen} options={{ title: 'Edit Workout Plan' }} />
-    <Stack.Screen name="EditWorkoutPlan" component={EditWorkoutPlan} options={{ title: 'Edit Workout Plan' }} />
-    <Stack.Screen name="EditPlanExercise" component={EditPlanExercise} options={{ title: 'Edit Plan Exercise' }} />
-    <Stack.Screen name="CreateWorkoutPlanScreen" component={CreateWorkoutPlanScreen} options={{ title: 'Create Workout Plan' }} />
-    <Stack.Screen name="CreateWorkoutPlan" component={CreateWorkoutPlan} options={{ title: 'Create Workout Plan' }} />
-    <Stack.Screen name="CreatePlanExercise" component={CreatePlanExercise} options={{ title: 'Create Plan Exercise' }} />
-    <Stack.Screen name="UserList" component={UserList} options={{ title: 'User List' }} />
+          {/* Trainer Feature Screens */}
+          <Stack.Screen name="TrainerDashboard" component={TrainerDashboard} options={{ title: 'Trainer Dashboard' }} />
+          <Stack.Screen name="TrainerPayoutManagement" component={TrainerPayoutManagement} options={{ title: 'Payment History' }} />
+          <Stack.Screen name="TrainerPayoutDetail" component={TrainerPayoutDetailScreen} options={{ title: 'Payment Detail History' }} />
+          <Stack.Screen name="TrainerPayoutStatistics" component={TrainerPayoutStatisticsScreen} options={{ title: 'Payment statistics' }} />
+          { /* Trainer Rating Screens */}
+          <Stack.Screen name="TrainerRatingDetailScreen" component={TrainerRatingDetailScreen} options={{ title: 'Trainer rating Management' }} />
+          <Stack.Screen name="TrainerRatingStatisticsScreen" component={TrainerRatingStatisticsScreen} options={{ title: 'Trainer Rating statistics' }} />
+          { /* Trainer User Screens */}
+          <Stack.Screen name="TrainerUserManagementScreen" component={TrainerUserManagementScreen} options={{ title: 'Trainer user Management' }} />
+          <Stack.Screen name="TraineeDetailScreen" component={TraineeDetailScreen} options={{ title: 'Trainee detail screen' }} />
+          { /* Trainer Subscription Screens */}
+          <Stack.Screen name="TrainerSubscriptionManagement" component={TrainerSubscriptionManagement} options={{ title: 'Trainer Subscription Management' }} />
+          <Stack.Screen name="TrainerSubscriptionStatisticsScreen" component={TrainerSubscriptionStatisticsScreen} options={{ title: 'Trainer Subscription statistics' }} />
+          <Stack.Screen name="TrainerSubscriptionDetailScreen" component={TrainerSubscriptionDetailScreen} options={{ title: 'Trainer Subscription detail' }} />
+          {/* Trainer Exercise Screens */}
+          <Stack.Screen name="TrainerExerciseManagement" component={TrainerExerciseManagement} options={{ title: 'Exercise Management' }} />
+          <Stack.Screen name="ExerciseDetailScreen" component={ExerciseDetailScreen} options={{ title: 'Exercise Detail' }} />
+          <Stack.Screen name="EditExerciseScreen" component={EditExerciseScreen} options={{ title: 'Edit Exercise' }} />
+          <Stack.Screen name="DeleteExerciseScreen" component={DeleteExerciseScreen} options={{ title: 'Delete Exercise' }} />
+          <Stack.Screen name="CreateExerciseScreen" component={CreateExerciseScreen} options={{ title: 'Create Exercise' }} />
+          { /* Trainer Workout plan */}
+          <Stack.Screen name="AddWorkoutPlanScreen" component={AddWorkoutPlanScreen} options={{ title: 'Create Workout Plan' }} />
+          <Stack.Screen name="EditWorkoutPlanScreen" component={EditWorkoutPlanScreen} options={{ title: 'Edit Workout Plan' }} />
+          <Stack.Screen name="TrainerWorkoutPlanManagement" component={TrainerWorkoutPlanManagement} options={{ title: 'Trainer workout management' }} />
+          <Stack.Screen name="AddExerciseToPlanScreen" component={AddExerciseToPlanScreen} options={{ title: 'Trainer workout plan add exercise management' }} />
+          <Stack.Screen name="EditExerciseToPlanScreen" component={EditExerciseToPlanScreen} options={{ title: 'Trainer workout plan edit exercise management' }} />
+          <Stack.Screen name="TrainerWorkoutPlanStatisticsScreen" component={TrainerWorkoutPlanStatisticsScreen} options={{ title: 'Trainer workout statistic management' }} />
+          {/* Trainer Service Screens */}
+          <Stack.Screen name="TrainerServiceManagement" component={TrainerServiceManagement} options={{ title: 'Service Management' }} />
+          <Stack.Screen name="TrainerPackageDetailScreen" component={TrainerPackageDetailScreen} options={{ title: 'Package Detail' }} />
+          <Stack.Screen name="CreateServicePackage" component={CreateServicePackageScreen} options={{ title: 'Create Service Package' }} />
+          <Stack.Screen name="EditServicePackage" component={EditServicePackageScreen} options={{ title: 'Edit Service Package' }} />
 
     <Stack.Screen name="AIRecommendedScreen" component={AIRecommendedScreen} options={{ headerShown: false }} />
     <Stack.Screen name="UserGoalPlansScreen" component={UserGoalPlansScreen} options={{ title: 'User Goal Plans' }} />
     <Stack.Screen name="WeeklyProgressScreen" component={WeeklyProgressScreen} options={{ title: 'Weekly Progress' }} />
       <Stack.Screen name="BanMembersScreen" component={BanMembersScreen} options={{ title: 'Ban Members' }} />
+      <Stack.Screen name="ProgressComparisonScreen" component={ProgressComparisonScreen} options={{ title: 'Progress Comparison' }} />
 
 
     </Stack.Navigator>

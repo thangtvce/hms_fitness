@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react"
 import {
   View,
@@ -34,6 +33,8 @@ import { StatusBar } from "expo-status-bar"
 import { addFoodToLog } from "utils/foodLogStorage"
 import dayjs from "dayjs"
 import Header from "components/Header";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import Loading from "components/Loading"
 
 const { width, height } = Dimensions.get("window")
 const SPACING = 16
@@ -178,15 +179,15 @@ const FoodDetailsScreen = () => {
         favoriteList = favoriteList.filter((item) => item.foodName !== food.foodName)
         await AsyncStorage.setItem("favoriteFoods", JSON.stringify(favoriteList))
         setIsFavorite(false)
-        Alert.alert("Success", "Removed from favorites successfully")
+        showSuccessMessage("Removed from favorites successfully")
       } else {
         favoriteList.push(food)
         await AsyncStorage.setItem("favoriteFoods", JSON.stringify(favoriteList))
         setIsFavorite(true)
-        Alert.alert("Success", "Added to favorites successfully")
+        showSuccessMessage("Added to favorites successfully")
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to update favorites. Please try again.")
+      showErrorFetchAPI(error)
     }
   }
 
@@ -254,11 +255,11 @@ const FoodDetailsScreen = () => {
         image: food.image || food.foodImage || food.imageUrl || '',
       }
       await addFoodToLog(today, mealType, logData)
-      Alert.alert("Success", `Added ${food.foodName} to ${mealType} log with ${parsedServingSize} serving(s)!`)
+      showSuccessMessage(`Added ${food.foodName} to ${mealType} log with ${parsedServingSize} serving(s)!`)
       setInputModalVisible(false)
       setPendingAddFood(null)
     } catch (error) {
-      Alert.alert("Error", `Failed to add to log: ${error.message}`)
+      showErrorFetchAPI(error)
     }
   }
 
@@ -325,11 +326,11 @@ const FoodDetailsScreen = () => {
         // Update existing review
         const updatedReviews = foodReviews.map((review) => (review.userId === "current_user_id" ? newReview : review))
         setFoodReviews(updatedReviews)
-        Alert.alert("Success", "Review updated successfully!")
+        showSuccessMessage("Review updated successfully!")
       } else {
         // Add new review
         setFoodReviews([newReview, ...foodReviews])
-        Alert.alert("Success", "Review submitted successfully!")
+        showSuccessMessage("Review submitted successfully!")
       }
 
       setRatingModalVisible(false)
@@ -337,7 +338,7 @@ const FoodDetailsScreen = () => {
       setRatingNote("")
       setExistingReview(null)
     } catch (error) {
-      Alert.alert("Error", "Failed to submit review")
+      showErrorFetchAPI(error)
     } finally {
       setRatingLoading(false)
     }

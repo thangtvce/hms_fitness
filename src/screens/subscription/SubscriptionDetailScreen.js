@@ -5,12 +5,14 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
-    Alert,
     Animated,
     Platform,
     Dimensions,
-    Share,
+    Share
+
 } from "react-native";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import Loading from "components/Loading";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Header from "components/Header";
@@ -162,67 +164,32 @@ const SubscriptionDetailScreen = ({ route, navigation }) => {
 
     const handleShare = async () => {
         try {
-            const result = await Share.share({
+            await Share.share({
                 message: `Check out my ${subscription.packageName} subscription with ${subscription.trainerFullName}!`,
                 title: "My Fitness Subscription",
             });
         } catch (error) {
-            Alert.alert("Error","Unable to share subscription details");
+            showErrorFetchAPI("Unable to share subscription details");
         }
     };
 
     const handleContactTrainer = () => {
-        Alert.alert("Contact Trainer",`Would you like to contact ${subscription.trainerFullName}?`,[
-            { text: "Cancel",style: "cancel" },
-            {
-                text: "Message",
-                onPress: () => {
-                    Alert.alert("Feature Coming Soon","Messaging feature will be available soon!");
-                },
-            },
-            {
-                text: "Call",
-                onPress: () => {
-                    Alert.alert("Feature Coming Soon","Calling feature will be available soon!");
-                },
-            },
-        ]);
+        showSuccessMessage("Messaging and calling features will be available soon!");
     };
 
     const handleRenewSubscription = () => {
-        Alert.alert("Renew Subscription","Would you like to renew this subscription?",[
-            { text: "Cancel",style: "cancel" },
-            {
-                text: "Renew",
-                onPress: () => {
-                    navigation.navigate("Payment",{
-                        packageId: subscription.packageId,
-                        packageName: subscription.packageName,
-                        price: subscription.packagePrice,
-                        trainerId: subscription.trainerId,
-                        trainerFullName: subscription.trainerFullName,
-                        isRenewal: true,
-                    });
-                },
-            },
-        ]);
+        navigation.navigate("Payment",{
+            packageId: subscription.packageId,
+            packageName: subscription.packageName,
+            price: subscription.packagePrice,
+            trainerId: subscription.trainerId,
+            trainerFullName: subscription.trainerFullName,
+            isRenewal: true,
+        });
     };
 
     const handleCancelSubscription = () => {
-        Alert.alert(
-            "Cancel Subscription",
-            "Are you sure you want to cancel this subscription? This action cannot be undone.",
-            [
-                { text: "Keep Subscription",style: "cancel" },
-                {
-                    text: "Cancel Subscription",
-                    style: "destructive",
-                    onPress: () => {
-                        Alert.alert("Feature Coming Soon","Cancellation feature will be available soon!");
-                    },
-                },
-            ],
-        );
+        showSuccessMessage("Cancellation feature will be available soon!");
     };
 
     const statusInfo = getStatusInfo(subscription.status);

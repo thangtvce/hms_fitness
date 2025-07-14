@@ -2,24 +2,23 @@ import React, { useEffect, useState, useContext, useCallback } from 'react';
 import {
   View,
   Text,
-  ActivityIndicator,
   StyleSheet,
   FlatList,
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ScrollView
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from "expo-linear-gradient"
 import Icon from 'react-native-vector-icons/Ionicons';
 import Header from '../../components/Header';
 import ticketService from 'services/apiTicketService';
 import apiUserService from 'services/apiUserService';
 import { AuthContext } from 'context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 
 const TicketDetailScreen = ({ route }) => {
   const { ticketId } = route.params;
@@ -86,9 +85,10 @@ const TicketDetailScreen = ({ route }) => {
       await ticketService.addTicketResponse(ticketId, { responseText: responseText });
       setResponseText('');
       await fetchTicket();
+      showSuccessMessage('Response sent successfully!');
     } catch (err) {
       setError(err.message || 'Failed to send response');
-      Alert.alert('Error', err.message || 'Failed to send response');
+      showErrorFetchAPI(err?.message || 'Failed to send response');
     } finally {
       setPosting(false);
     }
@@ -231,10 +231,7 @@ const TicketDetailScreen = ({ route }) => {
           absolute
         />
         <View style={{ height: 90 }} />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingText}>Loading ticket details...</Text>
-        </View>
+        <Loading />
       </SafeAreaView>
     );
   }
@@ -388,11 +385,7 @@ const TicketDetailScreen = ({ route }) => {
                 onPress={handleSendResponse}
                 disabled={posting || !responseText.trim()}
               >
-                {posting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Icon name="send" size={20} color="#FFFFFF" />
-                )}
+                <Icon name="send" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
             <Text style={styles.characterCount}>

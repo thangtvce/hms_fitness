@@ -4,14 +4,15 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Modal,
   ScrollView,
   Animated,
   Dimensions,
 } from "react-native"
-import Header from "../../components/Header"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import Loading from "components/Loading"
+import Header from "components/Header"
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 import { healthyLogService } from "services/apiHealthyLogService"
 import { useNavigation, useFocusEffect } from "@react-navigation/native"
@@ -119,9 +120,9 @@ export default function HealthLogOverviewScreen() {
       setSelectedLog(null)
       fetchLogs()
       fetchStats()
-      Alert.alert("Success", "Health log deleted successfully.")
+      showSuccessMessage("Health log deleted successfully.")
     } catch (e) {
-      Alert.alert("Error", e.message || "Unable to delete health log.")
+      showErrorFetchAPI(e.message || "Unable to delete health log.")
     }
   }
 
@@ -760,8 +761,13 @@ export default function HealthLogOverviewScreen() {
     </Animated.View>
   )
 
+  // Nếu loading true, chỉ render Loading overlay toàn màn hình
+  if (loading) {
+    return <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading health overview..." />
+  }
+
   return (
-    <View style={[styles.container, { backgroundColor: '#fff' }]}>
+    <View style={[styles.container, { backgroundColor: '#fff' }]}> 
       <SafeAreaView style={styles.safeArea}>
         <Header
           title="Health Overview"
@@ -778,10 +784,7 @@ export default function HealthLogOverviewScreen() {
 
           {/* 3D Human Body */}
           {loadingStats ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text style={styles.loadingText}>Loading 3D body analytics...</Text>
-            </View>
+            <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading 3D body analytics..." />
           ) : stats ? (
             renderEnhancedHumanBody()
           ) : (
@@ -798,7 +801,7 @@ export default function HealthLogOverviewScreen() {
 
         <Modal visible={showDeleteModal} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <Animated.View style={[styles.modalContainer, { transform: [{ scale: scaleAnim }] }]}>
+            <Animated.View style={[styles.modalContainer, { transform: [{ scale: scaleAnim }] }]}> 
               <View style={styles.modalHeader}>
                 <Ionicons name="trash" size={32} color="#EF4444" />
                 <Text style={styles.modalTitle}>Delete Health Log</Text>

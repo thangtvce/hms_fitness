@@ -1,15 +1,15 @@
-import React,{ useState,useEffect,useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     View,
     Text,
     StyleSheet,
     FlatList,
     TouchableOpacity,
-    ActivityIndicator,
-    Alert,
     Image,
     Platform,
 } from "react-native";
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import Loading from "components/Loading";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { LinearGradient } from "expo-linear-gradient";
@@ -87,11 +87,11 @@ const SavedPackagesScreen = ({ navigation }) => {
             const packages = savedPackages ? JSON.parse(savedPackages) : [];
             setSavedPackages(packages);
         } catch (error) {
-            Alert.alert("Error","Unable to load saved packages: " + error.message);
+            showErrorFetchAPI("Unable to load saved packages: " + error.message);
         } finally {
             setLoading(false);
         }
-    },[]);
+    }, []);
 
     useEffect(() => {
         fetchSavedPackages();
@@ -104,11 +104,11 @@ const SavedPackagesScreen = ({ navigation }) => {
             const savedPackages = await AsyncStorage.getItem("@SavedPackages");
             let packages = savedPackages ? JSON.parse(savedPackages) : [];
             packages = packages.filter((pkg) => pkg.packageId !== packageId);
-            await AsyncStorage.setItem("@SavedPackages",JSON.stringify(packages));
+            await AsyncStorage.setItem("@SavedPackages", JSON.stringify(packages));
             setSavedPackages(packages);
-            Alert.alert("Success","Package removed from saved list.");
+            showSuccessMessage("Package removed from saved list.");
         } catch (error) {
-            Alert.alert("Error","Unable to remove package: " + error.message);
+            showErrorFetchAPI("Unable to remove package: " + error.message);
         }
     };
 
@@ -169,14 +169,7 @@ const SavedPackagesScreen = ({ navigation }) => {
     );
 
     if (loading) {
-        return (
-            <SafeAreaView style={styles.safeArea}>
-                <LinearGradient colors={["#4F46E5","#6366F1"]} style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#FFFFFF" />
-                    <Text style={styles.loadingText}>Loading saved packages...</Text>
-                </LinearGradient>
-            </SafeAreaView>
-        );
+        return <Loading />;
     }
 
     return (

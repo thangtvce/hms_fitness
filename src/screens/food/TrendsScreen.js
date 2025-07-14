@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { 
   View, 
   Text, 
@@ -13,7 +14,7 @@ import { BarChart, PieChart } from "react-native-chart-kit"
 import { Ionicons } from "@expo/vector-icons"
 import dayjs from 'dayjs'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
-import Header from "../../components/Header"
+import Header from "components/Header"
 
 dayjs.extend(weekOfYear)
 
@@ -329,7 +330,13 @@ const TrendsScreen = ({ route, logs, navigation }) => {
     <View style={styles.container}>
       <Header
         title="Nutrition Trends"
-        onBack={() => navigation.goBack()}
+        onBack={() => {
+          try {
+            navigation.goBack();
+          } catch (err) {
+            showErrorFetchAPI("An error occurred when going back to the previous screen");
+          }
+        }}
         rightActions={[]}
       />
       

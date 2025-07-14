@@ -5,14 +5,15 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   TextInput,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  ActivityIndicator,
 } from "react-native"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
 import Header from "components/Header"
@@ -46,6 +47,7 @@ const HealthConsultationScreen = () => {
       setError(null)
     } catch (err) {
       setError("Failed to load consultations")
+      showErrorFetchAPI("Failed to load consultations")
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -56,7 +58,7 @@ const HealthConsultationScreen = () => {
     try {
       await AsyncStorage.setItem("healthConsultations", JSON.stringify(newConsultations))
     } catch (err) {
-      Alert.alert("Error", "Failed to save consultation")
+      showErrorFetchAPI("Failed to save consultation")
     }
   }
 
@@ -67,7 +69,7 @@ const HealthConsultationScreen = () => {
 
   const handleAskQuestion = async () => {
     if (!query.trim()) {
-      Alert.alert("Error", "Please enter a health-related question")
+      showErrorFetchAPI("Please enter a health-related question")
       return
     }
 
@@ -182,7 +184,7 @@ const HealthConsultationScreen = () => {
           errorMessage = "Error 429: Rate limit exceeded. Please try again later."
         }
       }
-      Alert.alert("Error", errorMessage)
+      showErrorFetchAPI(errorMessage)
 
       // Update the consultation to indicate an error
       const updatedConsultationsWithError = updatedConsultations.map((c) =>
@@ -230,14 +232,7 @@ const HealthConsultationScreen = () => {
   }
 
   if (loading && !refreshing) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingText}>Loading consultations...</Text>
-        </View>
-      </SafeAreaView>
-    )
+    return <Loading backgroundColor="rgba(255,255,255,0.8)" logoSize={120} text="Loading consultations..." />
   }
 
   return (

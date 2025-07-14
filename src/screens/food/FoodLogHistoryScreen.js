@@ -12,6 +12,7 @@ import {
   Dimensions,
   Alert,
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 
 import { LinearGradient } from "expo-linear-gradient"
 import { LineChart, BarChart, PieChart } from "react-native-chart-kit"
@@ -20,6 +21,7 @@ import dayjs from "dayjs"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import Header from "components/Header";
+import Loading from "components/Loading"
 
 import Icon from "react-native-vector-icons/MaterialIcons"
 import IconCommunity from "react-native-vector-icons/MaterialCommunityIcons"
@@ -170,14 +172,14 @@ const FoodLogHistoryScreen = ({ navigation }) => {
               )
 
               if (allSuccess) {
-                Alert.alert("Success", `All food logs for ${dayjs(date).format("MMM DD, YYYY")} have been deleted!`)
+                showSuccessMessage(`All food logs for ${dayjs(date).format("MMM DD, YYYY")} have been deleted!`)
               } else {
-                Alert.alert("Warning", `Some logs may not have been deleted. Check console for details.`)
+                showErrorFetchAPI(`Some logs may not have been deleted. Check console for details.`)
               }
 
               fetchLogs()
             } catch (error) {
-              Alert.alert("Error", `Failed to delete day logs: ${error?.message || error}`)
+              showErrorFetchAPI(`Failed to delete day logs: ${error?.message || error}`)
             }
           },
         },
@@ -1192,14 +1194,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color="#111827" />
-          <Text style={[styles.loadingText, { color: '#111827' }]}>Loading your nutrition data...</Text>
-          <Text style={[styles.loadingSubText, { color: '#374151' }]}>Please wait a moment</Text>
-        </View>
-      </SafeAreaView>
+      <Loading backgroundColor="rgba(255,255,255,0.8)" logoSize={120} text={"Loading your nutrition data...\nPlease wait a moment"} />
     )
   }
 

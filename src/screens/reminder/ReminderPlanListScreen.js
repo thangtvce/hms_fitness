@@ -6,14 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   FlatList,
   Switch,
   Platform,
   Dimensions,
   Modal,
   TextInput,
-  Alert,
   RefreshControl,
 } from 'react-native';
 
@@ -22,6 +20,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiReminderService } from 'services/apiReminderService';
 import { AuthContext } from 'context/AuthContext';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
@@ -106,15 +106,9 @@ export default function ReminderPlanListScreen() {
           p.planId === plan.planId ? { ...p, isActive: updatedPlan.isActive } : p
         )
       );
-      
-      // Show feedback
-      Alert.alert(
-        'Success',
-        `Reminder ${updatedPlan.isActive ? 'enabled' : 'disabled'} successfully!`,
-        [{ text: 'OK' }]
-      );
+      showSuccessMessage(`Reminder ${updatedPlan.isActive ? 'enabled' : 'disabled'} successfully!`);
     } catch (err) {
-      Alert.alert('Error', 'Failed to update reminder. Please try again.');
+      showErrorFetchAPI('Failed to update reminder. Please try again.');
     }
   };
 
@@ -125,7 +119,6 @@ export default function ReminderPlanListScreen() {
       setLoading(true);
     }
     setError('');
-    
     try {
       const params = {
         PageNumber: filters.pageNumber,
@@ -137,11 +130,11 @@ export default function ReminderPlanListScreen() {
         EndDate: filters.endDate,
         Type: selectedType,
       };
-      
       const res = await apiReminderService.getReminderPlansByUserId(userId, params);
       setPlans(res?.data?.plans || []);
     } catch (err) {
       setError(err.message || 'Failed to load reminder plans');
+      showErrorFetchAPI('Failed to load reminder plans.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -436,10 +429,7 @@ export default function ReminderPlanListScreen() {
     return (
       <View style={styles.container}>
         {renderHeader()}
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingText}>Loading your reminders...</Text>
-        </View>
+        <Loading />
       </View>
     );
   }

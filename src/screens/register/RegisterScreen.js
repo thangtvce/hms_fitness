@@ -1,5 +1,6 @@
 import PrivacyPolicyScreen from "./PrivacyPolicyScreen"
-import { useState,useEffect,useRef } from "react"
+import { useState, useEffect, useRef } from "react"
+import Loading from "components/Loading"
 import {
   View,
   Text,
@@ -11,41 +12,40 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
-  ActivityIndicator,
   KeyboardAvoidingView,
-  Image,
   Modal,
+  Vibration,
+  Easing,
 } from "react-native"
+import { RulerPicker } from 'react-native-ruler-picker';
 import { Ionicons } from "@expo/vector-icons"
 import TermsOfServiceScreen from "./TermsOfServiceScreen"
-import { useFonts,Inter_400Regular,Inter_600SemiBold,Inter_700Bold } from "@expo-google-fonts/inter"
+import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter"
 import { useNavigation } from "@react-navigation/native"
-import { LinearGradient } from "expo-linear-gradient"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import apiAuthService from "services/apiAuthService"
 import apiProfileService from "services/apiProfileService"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { FlashList } from "@shopify/flash-list"
 
-const { width,height } = Dimensions.get("window")
-
-
-const GENDER_OPTIONS = ["Male","Female","Other"]
+const { width, height } = Dimensions.get("window")
+const GENDER_OPTIONS = ["Male", "Female", "Other"]
 
 export default function RegisterScreen() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const [showTermsModal, setShowTermsModal] = useState(false)
-  const [currentStep,setCurrentStep] = useState(0)
-  const [isLoading,setIsLoading] = useState(false)
-  const [formData,setFormData] = useState({
+  const [currentStep, setCurrentStep] = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
     firstName: "",
     goals: [],
     bodyFatPercentage: "",
     activityLevel: "",
     dietaryPreference: "",
     fitnessGoal: "",
-    birthDate: new Date(2000,0,1),
+    birthDate: new Date(2000, 0, 1),
     gender: "",
     height: "",
     heightUnit: "cm",
@@ -56,8 +56,7 @@ export default function RegisterScreen() {
     confirmPassword: "",
     phone: "",
   })
-
-  const [errors,setErrors] = useState({
+  const [errors, setErrors] = useState({
     firstName: "",
     goals: "",
     bodyFatPercentage: "",
@@ -73,21 +72,17 @@ export default function RegisterScreen() {
     confirmPassword: "",
     phone: "",
   })
-
-  const [showPassword,setShowPassword] = useState(false)
-  const [showConfirmPassword,setShowConfirmPassword] = useState(false)
-  const [stepHistory,setStepHistory] = useState([0])
-  const [showDatePicker,setShowDatePicker] = useState(false)
-  const [showGenderOptions,setShowGenderOptions] = useState(false)
-
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [stepHistory, setStepHistory] = useState([0])
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [showGenderOptions, setShowGenderOptions] = useState(false)
   const fadeAnim = useRef(new Animated.Value(1)).current
   const slideAnim = useRef(new Animated.Value(0)).current
   const datePickerAnimation = useRef(new Animated.Value(0)).current
   const genderModalAnimation = useRef(new Animated.Value(0)).current
-
   const navigation = useNavigation()
   const scrollViewRef = useRef(null)
-
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_600SemiBold,
@@ -99,7 +94,6 @@ export default function RegisterScreen() {
       try {
         const savedData = await AsyncStorage.getItem("registrationFormData")
         const savedStep = await AsyncStorage.getItem("registrationCurrentStep")
-
         if (savedData) {
           const parsedData = JSON.parse(savedData)
           if (parsedData.birthDate) {
@@ -107,148 +101,135 @@ export default function RegisterScreen() {
           }
           setFormData(parsedData)
         }
-
         if (savedStep) {
           const step = Number.parseInt(savedStep)
           setCurrentStep(step)
-          setStepHistory([...Array(step).keys(),step])
+          setStepHistory([...Array(step).keys(), step])
         }
-      } catch (error) {
-      }
+      } catch (error) {}
     }
-
     loadSavedData()
-  },[])
+  }, [])
 
   useEffect(() => {
     const saveData = async () => {
       try {
-        await AsyncStorage.setItem("registrationFormData",JSON.stringify(formData))
-        await AsyncStorage.setItem("registrationCurrentStep",currentStep.toString())
-      } catch (error) {
-      }
+        await AsyncStorage.setItem("registrationFormData", JSON.stringify(formData))
+        await AsyncStorage.setItem("registrationCurrentStep", currentStep.toString())
+      } catch (error) {}
     }
-
     saveData()
-  },[formData,currentStep])
+  }, [formData, currentStep])
 
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(fadeAnim,{
+      Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 150,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim,{
+      Animated.timing(slideAnim, {
         toValue: -50,
         duration: 0,
         useNativeDriver: true,
       }),
       Animated.parallel([
-        Animated.timing(fadeAnim,{
+        Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
         }),
-        Animated.timing(slideAnim,{
+        Animated.timing(slideAnim, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
         }),
       ]),
     ]).start()
-  },[currentStep])
+  }, [currentStep])
 
   useEffect(() => {
     if (showDatePicker) {
-      Animated.timing(datePickerAnimation,{
+      Animated.timing(datePickerAnimation, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start()
     } else {
-      Animated.timing(datePickerAnimation,{
+      Animated.timing(datePickerAnimation, {
         toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }).start()
     }
-  },[showDatePicker])
+  }, [showDatePicker])
 
   useEffect(() => {
     if (showGenderOptions) {
-      Animated.timing(genderModalAnimation,{
+      Animated.timing(genderModalAnimation, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start()
     } else {
-      Animated.timing(genderModalAnimation,{
+      Animated.timing(genderModalAnimation, {
         toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }).start()
     }
-  },[showGenderOptions])
+  }, [showGenderOptions])
 
   if (!fontsLoaded) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-      </View>
-    )
+    return <Loading />
   }
 
-  const handleChange = (field,value) => {
-    setFormData((prev) => ({ ...prev,[field]: value }))
-
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev,[field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }))
     }
   }
 
-  const handleToggle = (field,item) => {
+  const handleToggle = (field, item) => {
     setFormData((prev) => {
       const currentItems = prev[field]
-      const newItems = currentItems.includes(item) ? currentItems.filter((i) => i !== item) : [...currentItems,item]
-
-      return { ...prev,[field]: newItems }
+      const newItems = currentItems.includes(item) ? currentItems.filter((i) => i !== item) : [...currentItems, item]
+      return { ...prev, [field]: newItems }
     })
-
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev,[field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }))
     }
   }
 
-  const handleSelect = (field,value) => {
-    setFormData((prev) => ({ ...prev,[field]: value }))
-
+  const handleSelect = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev,[field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }))
     }
   }
 
-  const handleDateChange = (event,selectedDate) => {
+  const handleDateChange = (event, selectedDate) => {
     if (selectedDate) {
-      setFormData((prev) => ({ ...prev,birthDate: selectedDate }))
+      setFormData((prev) => ({ ...prev, birthDate: selectedDate }))
       if (errors.birthDate) {
-        setErrors((prev) => ({ ...prev,birthDate: "" }))
+        setErrors((prev) => ({ ...prev, birthDate: "" }))
       }
     }
   }
 
   const handleGenderSelect = (gender) => {
-    setFormData((prev) => ({ ...prev,gender }))
+    setFormData((prev) => ({ ...prev, gender }))
     setShowGenderOptions(false)
     if (errors.gender) {
-      setErrors((prev) => ({ ...prev,gender: "" }))
+      setErrors((prev) => ({ ...prev, gender: "" }))
     }
   }
 
   const formatDate = (date) => {
     if (!date) return ""
-    const day = date.getDate().toString().padStart(2,"0")
-    const month = (date.getMonth() + 1).toString().padStart(2,"0")
+    const day = date.getDate().toString().padStart(2, "0")
+    const month = (date.getMonth() + 1).toString().padStart(2, "0")
     const year = date.getFullYear()
     return `${day}/${month}/${year}`
   }
@@ -257,18 +238,15 @@ export default function RegisterScreen() {
     const today = new Date()
     let age = today.getFullYear() - birthDate.getFullYear()
     const monthDiff = today.getMonth() - birthDate.getMonth()
-
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--
     }
-
     return age
   }
 
   const validateCurrentStep = () => {
     let isValid = true
     const newErrors = { ...errors }
-
     switch (currentStep) {
       case 0:
         if (!formData.firstName.trim()) {
@@ -279,7 +257,6 @@ export default function RegisterScreen() {
           isValid = false
         }
         break
-
       case 1:
         if (formData.goals.length === 0) {
           newErrors.goals = "Please select at least one goal"
@@ -289,7 +266,6 @@ export default function RegisterScreen() {
           isValid = false
         }
         break
-
       case 2:
         if (!formData.bodyFatPercentage) {
           newErrors.bodyFatPercentage = "Please enter your body fat percentage"
@@ -305,36 +281,31 @@ export default function RegisterScreen() {
           isValid = false
         }
         break
-
       case 3: // Activity Level step
         if (!formData.activityLevel) {
           newErrors.activityLevel = "Please select your activity level"
           isValid = false
         }
         break
-
       case 4: // Dietary Preference step
         if (!formData.dietaryPreference) {
           newErrors.dietaryPreference = "Please select your dietary preference"
           isValid = false
         }
         break
-
       case 5: // Fitness Goal step
         if (!formData.fitnessGoal) {
           newErrors.fitnessGoal = "Please select your fitness goal"
           isValid = false
         }
         break
-
-      case 9: // Personal information step
+      case 9: // Personal information step (Birth Date & Gender)
         if (!formData.birthDate) {
           newErrors.birthDate = "Please select your birth date"
           isValid = false
         } else {
           const today = new Date()
           const age = calculateAge(formData.birthDate)
-
           if (formData.birthDate > today) {
             newErrors.birthDate = "Birth date cannot be in the future"
             isValid = false
@@ -346,12 +317,12 @@ export default function RegisterScreen() {
             isValid = false
           }
         }
-
         if (!formData.gender) {
           newErrors.gender = "Please select your gender"
           isValid = false
         }
-
+        break
+      case 10: // Height step
         if (!formData.height) {
           newErrors.height = "Please enter your height"
           isValid = false
@@ -365,7 +336,8 @@ export default function RegisterScreen() {
           newErrors.height = "Please enter a valid height between 50cm and 300cm"
           isValid = false
         }
-
+        break
+      case 11: // Weight step
         if (!formData.weight) {
           newErrors.weight = "Please enter your weight"
           isValid = false
@@ -380,71 +352,64 @@ export default function RegisterScreen() {
           isValid = false
         }
         break
-
-      case 10: // Account setup step
+      case 12: // Account setup step
         // Username (email used as username)
         if (!formData.email) {
           newErrors.email = "Email is required."
-          isValid = false;
+          isValid = false
         } else if (formData.email.length < 3 || formData.email.length > 50) {
           newErrors.email = "Username must be between 3 and 50 characters."
-          isValid = false;
+          isValid = false
         }
-
         // Password
         if (!formData.password) {
           newErrors.password = "Password is required."
-          isValid = false;
+          isValid = false
         } else if (formData.password.length < 6) {
           newErrors.password = "Password must be at least 6 characters."
-          isValid = false;
+          isValid = false
         } else if (formData.password.length > 100) {
           newErrors.password = "Password cannot exceed 100 characters."
-          isValid = false;
+          isValid = false
         }
-
         // Full name
         if (!formData.firstName) {
           newErrors.firstName = "Full name is required."
-          isValid = false;
+          isValid = false
         } else if (formData.firstName.length > 100) {
           newErrors.firstName = "Full name cannot exceed 100 characters."
-          isValid = false;
+          isValid = false
         }
-
         // Email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         if (formData.email && !emailRegex.test(formData.email)) {
           newErrors.email = "Invalid email format."
-          isValid = false;
+          isValid = false
         } else if (formData.email && formData.email.length > 255) {
           newErrors.email = "Email cannot exceed 255 characters."
-          isValid = false;
+          isValid = false
         }
-
         // Confirm password
         if (!formData.confirmPassword) {
           newErrors.confirmPassword = "Please confirm your password."
-          isValid = false;
+          isValid = false
         } else if (formData.password !== formData.confirmPassword) {
           newErrors.confirmPassword = "Passwords do not match."
-          isValid = false;
+          isValid = false
         }
-
         // Phone
         if (!formData.phone) {
           newErrors.phone = "Phone number is required."
-          isValid = false;
+          isValid = false
         } else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ""))) {
           newErrors.phone = "Phone number must be 10 digits."
-          isValid = false;
+          isValid = false
         } else if (formData.phone.length > 15) {
           newErrors.phone = "Phone number cannot exceed 15 digits."
-          isValid = false;
+          isValid = false
         }
         break
     }
-
     setErrors(newErrors)
     return isValid
   }
@@ -454,11 +419,10 @@ export default function RegisterScreen() {
     if (validateCurrentStep()) {
       const nextStep = currentStep + 1
       setCurrentStep(nextStep)
-      setStepHistory([...stepHistory,nextStep])
-
+      setStepHistory([...stepHistory, nextStep])
       // Scroll to top when changing steps
       if (scrollViewRef.current) {
-        scrollViewRef.current.scrollTo({ x: 0,y: 0,animated: true })
+        scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: true })
       }
     }
   }
@@ -469,12 +433,10 @@ export default function RegisterScreen() {
       const newHistory = [...stepHistory]
       newHistory.pop()
       const prevStep = newHistory[newHistory.length - 1]
-
       setCurrentStep(prevStep)
       setStepHistory(newHistory)
-
       if (scrollViewRef.current) {
-        scrollViewRef.current.scrollTo({ x: 0,y: 0,animated: true })
+        scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: true })
       }
     } else {
       navigation.navigate("Login")
@@ -485,9 +447,7 @@ export default function RegisterScreen() {
     if (!validateCurrentStep()) {
       return
     }
-
     setIsLoading(true)
-
     try {
       const register = {
         username: formData.email,
@@ -499,18 +459,16 @@ export default function RegisterScreen() {
         gender: formData.gender,
         birthDate: formData.birthDate.toISOString().split("T")[0],
       }
-
       const dataRegister = await apiAuthService.register(register)
       if (!dataRegister || dataRegister.statusCode !== 200) {
         if (dataRegister?.statusCode === 400 && dataRegister.errors) {
           const errorMessages = Object.entries(dataRegister.errors)
-            .map(([field,messages]) => `${field}: ${messages.join(", ")}`)
+            .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
             .join("\n")
           throw new Error(`Registration failed:\n${errorMessages}`)
         }
         throw new Error("Registration failed: Invalid user data returned.")
       }
-
       const heightInMeters = formData.height / 100
       const weightInKg = formData.weight
       const bmi = weightInKg / (heightInMeters * heightInMeters)
@@ -525,25 +483,22 @@ export default function RegisterScreen() {
         dietaryPreference: formData.dietaryPreference || "Balanced",
         fitnessGoal: formData.fitnessGoal || "Maintain",
       }
-
       const responseAddProfile = await apiProfileService.registerProfile(profile)
       if (!responseAddProfile || responseAddProfile.statusCode !== 201) {
         if (responseAddProfile?.statusCode === 400 && responseAddProfile.errors) {
           const errorMessages = Object.entries(responseAddProfile.errors)
-            .map(([field,messages]) => `${field}: ${messages.join(", ")}`)
+            .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
             .join("\n")
           throw new Error(`Profile creation failed:\n${errorMessages}`)
         }
         throw new Error("Profile creation failed: Invalid response.")
       }
-
       await Promise.all([
         AsyncStorage.removeItem("registrationFormData"),
         AsyncStorage.removeItem("registrationCurrentStep"),
       ])
-
       const successMessage = `Your account has been created successfully!. Please check your email to verify your account.`
-      Alert.alert("Registration Successful",successMessage,[
+      Alert.alert("Registration Successful", successMessage, [
         {
           text: "OK",
           onPress: () => navigation.replace("Login"),
@@ -554,31 +509,28 @@ export default function RegisterScreen() {
       if (error.response?.data?.errors) {
         const serverErrors = error.response.data.errors
         const newErrors = { ...errors }
-
         if (serverErrors.Email) newErrors.email = serverErrors.Email[0]
         if (serverErrors.Password) newErrors.password = serverErrors.Password[0]
         if (serverErrors.Phone) newErrors.phone = serverErrors.Phone[0]
         setErrors(newErrors)
         errorMessage = Object.entries(serverErrors)
-          .map(([field,messages]) => `${field}: ${messages.join(", ")}`)
+          .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
           .join("\n")
       } else if (error.message.includes("Registration failed") || error.message.includes("Profile creation failed")) {
         errorMessage = error.message
       }
-
-      Alert.alert("Registration Failed",errorMessage)
+      Alert.alert("Registration Failed", errorMessage)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const totalSteps = 11
-
+  const totalSteps = 13
   const renderStepIndicators = () => {
     return (
       <View style={styles.stepIndicatorsContainer}>
-        {Array.from({ length: totalSteps }).map((_,index) => (
-          <View key={index} style={[styles.stepIndicator,index <= currentStep ? styles.activeStepIndicator : {}]} />
+        {Array.from({ length: totalSteps }).map((_, index) => (
+          <View key={index} style={[styles.stepIndicator, index <= currentStep ? styles.activeStepIndicator : {}]} />
         ))}
       </View>
     )
@@ -590,7 +542,7 @@ export default function RegisterScreen() {
         return <NameStep formData={formData} handleChange={handleChange} error={errors.firstName} />
       case 1:
         return (
-          <GoalsStep formData={formData} handleToggle={(goal) => handleToggle("goals",goal)} error={errors.goals} />
+          <GoalsStep formData={formData} handleToggle={(goal) => handleToggle("goals", goal)} error={errors.goals} />
         )
       case 2:
         return <BodyFatStep formData={formData} handleChange={handleChange} error={errors.bodyFatPercentage} />
@@ -598,7 +550,7 @@ export default function RegisterScreen() {
         return (
           <ActivityLevelStep
             formData={formData}
-            handleSelect={(level) => handleSelect("activityLevel",level)}
+            handleSelect={(level) => handleSelect("activityLevel", level)}
             error={errors.activityLevel}
           />
         )
@@ -606,7 +558,7 @@ export default function RegisterScreen() {
         return (
           <DietaryPreferenceStep
             formData={formData}
-            handleSelect={(preference) => handleSelect("dietaryPreference",preference)}
+            handleSelect={(preference) => handleSelect("dietaryPreference", preference)}
             error={errors.dietaryPreference}
           />
         )
@@ -614,7 +566,7 @@ export default function RegisterScreen() {
         return (
           <FitnessGoalStep
             formData={formData}
-            handleSelect={(goal) => handleSelect("fitnessGoal",goal)}
+            handleSelect={(goal) => handleSelect("fitnessGoal", goal)}
             error={errors.fitnessGoal}
           />
         )
@@ -637,12 +589,28 @@ export default function RegisterScreen() {
             errors={{
               birthDate: errors.birthDate,
               gender: errors.gender,
-              height: errors.height,
-              weight: errors.weight,
             }}
           />
         )
       case 10:
+        return (
+          <HeightStep
+            formData={formData}
+            handleChange={handleChange}
+            handleSelect={handleSelect}
+            error={errors.height}
+          />
+        )
+      case 11:
+        return (
+          <WeightStep
+            formData={formData}
+            handleChange={handleChange}
+            handleSelect={handleSelect}
+            error={errors.weight}
+          />
+        )
+      case 12:
         return (
           <AccountSetupStep
             formData={formData}
@@ -679,9 +647,10 @@ export default function RegisterScreen() {
       "Habits",
       "Meal Plans",
       "Personal Information",
+      "Height",
+      "Weight",
       "Set Up Account",
     ]
-
     return titles[currentStep] || "Registration"
   }
 
@@ -690,23 +659,19 @@ export default function RegisterScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      <View style={[styles.header, { backgroundColor: "#FFFFFF" }]}> 
+      <View style={[styles.header, { backgroundColor: "#FFFFFF" }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.backButton} onPress={handlePreviousStep} accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={24} color="#1E293B" />
           </TouchableOpacity>
-
           <Text style={[styles.headerTitle, { color: "#1E293B" }]}>{getStepTitle()}</Text>
-
           <View style={styles.stepCounter}>
-            <Text style={[styles.stepCounterText, { color: "#1E293B" }]}> 
+            <Text style={[styles.stepCounterText, { color: "#1E293B" }]}>
               {currentStep + 1}/{totalSteps}
             </Text>
           </View>
         </View>
       </View>
-
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
         <ScrollView
           ref={scrollViewRef}
@@ -715,11 +680,10 @@ export default function RegisterScreen() {
         >
           <View style={styles.progressContainer}>
             <View style={styles.progressBarContainer}>
-              <View style={[styles.progressBar,{ width: `${((currentStep + 1) / totalSteps) * 100}%` }]} />
+              <View style={[styles.progressBar, { width: `${((currentStep + 1) / totalSteps) * 100}%` }]} />
             </View>
             {renderStepIndicators()}
           </View>
-
           <Animated.View
             style={[
               styles.stepContent,
@@ -731,12 +695,10 @@ export default function RegisterScreen() {
           >
             {renderStepContent()}
           </Animated.View>
-
           <View style={styles.navigationButtons}>
             <TouchableOpacity style={styles.prevButton} onPress={handlePreviousStep} accessibilityLabel="Previous step">
               <Ionicons name="arrow-back" size={24} color="#0056d2" />
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.nextButton}
               onPress={isFinalStep ? handleRegister : handleNextStep}
@@ -744,7 +706,7 @@ export default function RegisterScreen() {
               accessibilityLabel={isFinalStep ? "Register" : "Next step"}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <Loading />
               ) : (
                 <>
                   <Text style={styles.nextButtonText}>{isFinalStep ? "Register" : "Next"}</Text>
@@ -755,17 +717,10 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
       {/* Terms of Service Modal */}
-      <Modal
-        visible={showTermsModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowTermsModal(false)}
-      >
+      <Modal visible={showTermsModal} transparent animationType="slide" onRequestClose={() => setShowTermsModal(false)}>
         <TermsOfServiceScreen navigation={{ goBack: () => setShowTermsModal(false) }} />
       </Modal>
-
       {/* Date Picker Modal */}
       <Modal
         visible={showDatePicker}
@@ -791,8 +746,8 @@ export default function RegisterScreen() {
                 transform: [
                   {
                     scale: datePickerAnimation.interpolate({
-                      inputRange: [0,1],
-                      outputRange: [0.8,1],
+                      inputRange: [0, 1],
+                      outputRange: [0.8, 1],
                     }),
                   },
                 ],
@@ -805,7 +760,6 @@ export default function RegisterScreen() {
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
-
             <View style={styles.datePickerContainer}>
               <DateTimePicker
                 value={formData.birthDate || new Date()}
@@ -813,11 +767,10 @@ export default function RegisterScreen() {
                 display={Platform.OS === "ios" ? "spinner" : "default"}
                 onChange={handleDateChange}
                 maximumDate={new Date()}
-                minimumDate={new Date(1900,0,1)}
+                minimumDate={new Date(1900, 0, 1)}
                 style={styles.datePicker}
               />
             </View>
-
             <View style={styles.datePickerActions}>
               <TouchableOpacity style={styles.datePickerCancelButton} onPress={() => setShowDatePicker(false)}>
                 <Text style={styles.datePickerCancelText}>Cancel</Text>
@@ -829,7 +782,6 @@ export default function RegisterScreen() {
           </Animated.View>
         </Animated.View>
       </Modal>
-
       {/* Gender Options Modal */}
       <Modal
         visible={showGenderOptions}
@@ -853,8 +805,8 @@ export default function RegisterScreen() {
                 transform: [
                   {
                     translateY: genderModalAnimation.interpolate({
-                      inputRange: [0,1],
-                      outputRange: [300,0],
+                      inputRange: [0, 1],
+                      outputRange: [300, 0],
                     }),
                   },
                 ],
@@ -867,13 +819,17 @@ export default function RegisterScreen() {
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
-
-            {GENDER_OPTIONS.map((gender) => (
-              <TouchableOpacity key={gender} style={styles.modalOption} onPress={() => handleGenderSelect(gender)}>
-                <Text style={styles.modalOptionText}>{gender}</Text>
-                {formData.gender === gender && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
-              </TouchableOpacity>
-            ))}
+            <FlashList
+              data={GENDER_OPTIONS}
+              renderItem={({ item: gender }) => (
+                <TouchableOpacity style={styles.modalOption} onPress={() => handleGenderSelect(gender)}>
+                  <Text style={styles.modalOptionText}>{gender}</Text>
+                  {formData.gender === gender && <Ionicons name="checkmark" size={20} color="#4F46E5" />}
+                </TouchableOpacity>
+              )}
+              keyExtractor={(item) => item}
+              estimatedItemSize={60}
+            />
           </Animated.View>
         </Animated.View>
       </Modal>
@@ -882,18 +838,17 @@ export default function RegisterScreen() {
 }
 
 // Step 1: Name Input
-const NameStep = ({ formData,handleChange,error }) => {
+const NameStep = ({ formData, handleChange, error }) => {
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Welcome to HMS</Text>
       <Text style={styles.stepDescription}>Let's start by getting to know you. What's your name?</Text>
-
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Your Name</Text>
         <TextInput
-          style={[styles.input,error ? styles.inputError : null]}
+          style={[styles.input, error ? styles.inputError : null]}
           value={formData.firstName}
-          onChangeText={(value) => handleChange("firstName",value)}
+          onChangeText={(value) => handleChange("firstName", value)}
           placeholder="Enter your name"
           placeholderTextColor="#94A3B8"
           maxLength={50}
@@ -905,14 +860,13 @@ const NameStep = ({ formData,handleChange,error }) => {
           </Text>
         ) : null}
       </View>
-
       <Text style={styles.tipText}>This helps us personalize your experience throughout the app.</Text>
     </View>
   )
 }
 
 // Step 2: Goals Selection
-const GoalsStep = ({ formData,handleToggle,error }) => {
+const GoalsStep = ({ formData, handleToggle, error }) => {
   const goalsOptions = [
     "Lose weight",
     "Maintain weight",
@@ -923,60 +877,63 @@ const GoalsStep = ({ formData,handleToggle,error }) => {
     "Manage stress",
     "Stay active",
   ]
-
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Your Health Goals</Text>
       <Text style={styles.stepDescription}>
         Hello {formData.firstName || "there"}! Select up to three goals that are most important to you.
       </Text>
-
       {error ? (
         <Text style={styles.errorText}>
           <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {error}
         </Text>
       ) : null}
-
-      <View style={styles.optionsContainer}>
-        {goalsOptions.map((goal) => (
+      <FlashList
+        data={goalsOptions}
+        renderItem={({ item: goal }) => (
           <TouchableOpacity
-            key={goal}
-            style={[styles.optionButton,formData.goals.includes(goal) ? styles.selectedOptionButton : {}]}
+            style={[styles.optionButton, formData.goals.includes(goal) ? styles.selectedOptionButton : {}]}
             onPress={() => handleToggle(goal)}
             accessibilityLabel={`${goal} option`}
             accessibilityState={{ selected: formData.goals.includes(goal) }}
           >
-            <Text style={[styles.optionText,formData.goals.includes(goal) ? styles.selectedOptionText : {}]}>
+            <Text style={[styles.optionText, formData.goals.includes(goal) ? styles.selectedOptionText : {}]}>
               {goal}
             </Text>
             <View style={formData.goals.includes(goal) ? styles.checkedBox : styles.uncheckedBox}>
               {formData.goals.includes(goal) && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
             </View>
           </TouchableOpacity>
-        ))}
-      </View>
-
+        )}
+        keyExtractor={(item) => item}
+        estimatedItemSize={60}
+      />
       <Text style={styles.selectionCountText}>{formData.goals.length}/3 goals selected</Text>
     </View>
   )
 }
 
 // Step 3: Body Fat Percentage
-const BodyFatStep = ({ formData,handleChange,error }) => {
+const BodyFatStep = ({ formData, handleChange, error }) => {
+  const bodyFatRanges = [
+    { label: "Essential fat:", value: "3-5% (men), 10-13% (women)" },
+    { label: "Athletes:", value: "6-13% (men), 14-20% (women)" },
+    { label: "Fitness:", value: "14-17% (men), 21-24% (women)" },
+    { label: "Average:", value: "18-24% (men), 25-31% (women)" },
+  ];
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Body Fat Percentage</Text>
       <Text style={styles.stepDescription}>
         Enter your body fat percentage to help us personalize your fitness recommendations.
       </Text>
-
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Body Fat Percentage</Text>
         <View style={styles.unitInputContainer}>
           <TextInput
-            style={[styles.unitInput,error ? styles.inputError : null]}
+            style={[styles.unitInput, error ? styles.inputError : null]}
             value={formData.bodyFatPercentage}
-            onChangeText={(value) => handleChange("bodyFatPercentage",value.replace(/[^0-9.]/g,""))}
+            onChangeText={(value) => handleChange("bodyFatPercentage", value.replace(/[^0-9.]/g, ""))}
             placeholder="Enter your body fat percentage"
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
@@ -984,8 +941,8 @@ const BodyFatStep = ({ formData,handleChange,error }) => {
             accessibilityLabel="Body fat percentage input"
           />
           <View style={styles.unitToggle}>
-            <View style={[styles.unitButton, { borderColor: '#0056d2' }, styles.unitButtonSelected]}>
-              <Text style={[styles.unitButtonText,styles.unitButtonTextSelected]}>%</Text>
+            <View style={[styles.unitButton, { borderColor: "#0056d2" }, styles.unitButtonSelected]}>
+              <Text style={[styles.unitButtonText, styles.unitButtonTextSelected]}>%</Text>
             </View>
           </View>
         </View>
@@ -995,7 +952,6 @@ const BodyFatStep = ({ formData,handleChange,error }) => {
           </Text>
         ) : null}
       </View>
-
       <View style={styles.infoCard}>
         <Ionicons name="information-circle-outline" size={20} color="#4F46E5" />
         <Text style={styles.infoCardText}>
@@ -1003,65 +959,56 @@ const BodyFatStep = ({ formData,handleChange,error }) => {
           average values.
         </Text>
       </View>
-
       <View style={styles.bodyFatRangeContainer}>
         <Text style={styles.bodyFatRangeTitle}>Typical Body Fat Percentage Ranges:</Text>
-        <View style={styles.bodyFatRangeItem}>
-          <Text style={styles.bodyFatRangeLabel}>Essential fat:</Text>
-          <Text style={styles.bodyFatRangeValue}>3-5% (men), 10-13% (women)</Text>
-        </View>
-        <View style={styles.bodyFatRangeItem}>
-          <Text style={styles.bodyFatRangeLabel}>Athletes:</Text>
-          <Text style={styles.bodyFatRangeValue}>6-13% (men), 14-20% (women)</Text>
-        </View>
-        <View style={styles.bodyFatRangeItem}>
-          <Text style={styles.bodyFatRangeLabel}>Fitness:</Text>
-          <Text style={styles.bodyFatRangeValue}>14-17% (men), 21-24% (women)</Text>
-        </View>
-        <View style={styles.bodyFatRangeItem}>
-          <Text style={styles.bodyFatRangeLabel}>Average:</Text>
-          <Text style={styles.bodyFatRangeValue}>18-24% (men), 25-31% (women)</Text>
-        </View>
+        <FlashList
+          data={bodyFatRanges}
+          renderItem={({ item }) => (
+            <View style={styles.bodyFatRangeItem}>
+              <Text style={styles.bodyFatRangeLabel}>{item.label}</Text>
+              <Text style={styles.bodyFatRangeValue}>{item.value}</Text>
+            </View>
+          )}
+          keyExtractor={(item, index) => index.toString()}
+          estimatedItemSize={30}
+        />
       </View>
     </View>
   )
 }
 
 // Step 4: Activity Level
-const ActivityLevelStep = ({ formData,handleSelect,error }) => {
+const ActivityLevelStep = ({ formData, handleSelect, error }) => {
   const activityLevels = [
-    { value: "Sedentary",description: "Little or no exercise, desk job" },
-    { value: "Lightly Active",description: "Light exercise 1-3 days/week" },
-    { value: "Moderately Active",description: "Moderate exercise 3-5 days/week" },
-    { value: "Very Active",description: "Hard exercise 6-7 days/week" },
-    { value: "Extremely Active",description: "Very hard exercise, physical job or training twice a day" },
+    { value: "Sedentary", description: "Little or no exercise, desk job" },
+    { value: "Lightly Active", description: "Light exercise 1-3 days/week" },
+    { value: "Moderately Active", description: "Moderate exercise 3-5 days/week" },
+    { value: "Very Active", description: "Hard exercise 6-7 days/week" },
+    { value: "Extremely Active", description: "Very hard exercise, physical job or training twice a day" },
   ]
-
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Activity Level</Text>
       <Text style={styles.stepDescription}>
         Select the option that best describes your typical weekly activity level.
       </Text>
-
       {error ? (
         <Text style={styles.errorText}>
           <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {error}
         </Text>
       ) : null}
-
-      <View style={styles.optionsContainer}>
-        {activityLevels.map((level) => (
+      <FlashList
+        data={activityLevels}
+        renderItem={({ item: level }) => (
           <TouchableOpacity
-            key={level.value}
-            style={[styles.optionButton,formData.activityLevel === level.value ? styles.selectedOptionButton : {}]}
+            style={[styles.optionButton, formData.activityLevel === level.value ? styles.selectedOptionButton : {}]}
             onPress={() => handleSelect(level.value)}
             accessibilityLabel={`${level.value} option`}
             accessibilityState={{ selected: formData.activityLevel === level.value }}
           >
             <View style={styles.activityLevelContent}>
               <Text
-                style={[styles.optionText,formData.activityLevel === level.value ? styles.selectedOptionText : {}]}
+                style={[styles.optionText, formData.activityLevel === level.value ? styles.selectedOptionText : {}]}
               >
                 {level.value}
               </Text>
@@ -1071,9 +1018,10 @@ const ActivityLevelStep = ({ formData,handleSelect,error }) => {
               {formData.activityLevel === level.value && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
             </View>
           </TouchableOpacity>
-        ))}
-      </View>
-
+        )}
+        keyExtractor={(item) => item.value}
+        estimatedItemSize={80}
+      />
       <View style={styles.infoCard}>
         <Ionicons name="fitness-outline" size={20} color="#4F46E5" />
         <Text style={styles.infoCardText}>
@@ -1086,7 +1034,7 @@ const ActivityLevelStep = ({ formData,handleSelect,error }) => {
 }
 
 // Step 5: Dietary Preference
-const DietaryPreferenceStep = ({ formData,handleSelect,error }) => {
+const DietaryPreferenceStep = ({ formData, handleSelect, error }) => {
   const dietaryPreferences = [
     "Standard",
     "Vegetarian",
@@ -1099,29 +1047,26 @@ const DietaryPreferenceStep = ({ formData,handleSelect,error }) => {
     "Gluten-free",
     "Dairy-free",
   ]
-
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Dietary Preference</Text>
       <Text style={styles.stepDescription}>
         Select the eating pattern that best describes your dietary preferences.
       </Text>
-
       {error ? (
         <Text style={styles.errorText}>
           <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {error}
         </Text>
       ) : null}
-
-      <View style={styles.dietaryPreferencesContainer}>
-        {dietaryPreferences.map((preference) => {
-          const selected = formData.dietaryPreference === preference;
+      <FlashList
+        data={dietaryPreferences}
+        renderItem={({ item: preference }) => {
+          const selected = formData.dietaryPreference === preference
           return (
             <TouchableOpacity
-              key={preference}
               style={[
                 styles.dietaryPreferenceButton,
-                selected ? { borderColor: '#0056d2', borderWidth: 1, backgroundColor: '#EEF2FF' } : {},
+                selected ? { borderColor: "#0056d2", borderWidth: 1, backgroundColor: "#EEF2FF" } : {},
               ]}
               onPress={() => handleSelect(preference)}
               accessibilityLabel={`${preference} option`}
@@ -1130,7 +1075,7 @@ const DietaryPreferenceStep = ({ formData,handleSelect,error }) => {
               <Text
                 style={[
                   styles.dietaryPreferenceText,
-                  selected ? { color: '#0056d2', fontFamily: 'Inter_600SemiBold' } : {},
+                  selected ? { color: "#0056d2", fontFamily: "Inter_600SemiBold" } : {},
                 ]}
               >
                 {preference}
@@ -1139,10 +1084,12 @@ const DietaryPreferenceStep = ({ formData,handleSelect,error }) => {
                 <Ionicons name="checkmark-circle" size={16} color="#0056d2" style={styles.dietaryPreferenceIcon} />
               )}
             </TouchableOpacity>
-          );
-        })}
-      </View>
-
+          )
+        }}
+        keyExtractor={(item) => item}
+        numColumns={2}
+        estimatedItemSize={50}
+      />
       <View style={styles.infoCard}>
         <Ionicons name="nutrition-outline" size={20} color="#4F46E5" />
         <Text style={styles.infoCardText}>
@@ -1154,37 +1101,31 @@ const DietaryPreferenceStep = ({ formData,handleSelect,error }) => {
 }
 
 // Step 6: Fitness Goal
-const FitnessGoalStep = ({ formData,handleSelect,error }) => {
+const FitnessGoalStep = ({ formData, handleSelect, error }) => {
   const fitnessGoals = [
-    { value: "Weight Loss",icon: "trending-down-outline" },
-    { value: "Maintain",icon: "swap-horizontal-outline" },
-    { value: "Muscle Gain",icon: "trending-up-outline" },
-    { value: "Improve Endurance",icon: "pulse-outline" },
-    { value: "Increase Strength",icon: "barbell-outline" },
-    { value: "Improve Flexibility",icon: "body-outline" },
+    { value: "Weight Loss", icon: "trending-down-outline" },
+    { value: "Maintain", icon: "swap-horizontal-outline" },
+    { value: "Muscle Gain", icon: "trending-up-outline" },
+    { value: "Improve Endurance", icon: "pulse-outline" },
+    { value: "Increase Strength", icon: "barbell-outline" },
+    { value: "Improve Flexibility", icon: "body-outline" },
   ]
-
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Fitness Goal</Text>
       <Text style={styles.stepDescription}>What is your primary fitness goal?</Text>
-
       {error ? (
         <Text style={styles.errorText}>
           <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {error}
         </Text>
       ) : null}
-
-      <View style={styles.fitnessGoalsGrid}>
-        {fitnessGoals.map((goal) => {
-          const selected = formData.fitnessGoal === goal.value;
+      <FlashList
+        data={fitnessGoals}
+        renderItem={({ item: goal }) => {
+          const selected = formData.fitnessGoal === goal.value
           return (
             <TouchableOpacity
-              key={goal.value}
-              style={[
-                styles.fitnessGoalCard,
-                selected ? { borderColor: '#0056d2', backgroundColor: '#0056d2' } : {},
-              ]}
+              style={[styles.fitnessGoalCard, selected ? { borderColor: "#0056d2", backgroundColor: "#0056d2" } : {}]}
               onPress={() => handleSelect(goal.value)}
               accessibilityLabel={`${goal.value} option`}
               accessibilityState={{ selected }}
@@ -1192,30 +1133,23 @@ const FitnessGoalStep = ({ formData,handleSelect,error }) => {
               <View
                 style={[
                   styles.fitnessGoalIconContainer,
-                  selected
-                    ? { backgroundColor: '#0056d2', borderColor: '#fff', borderWidth: 2 }
-                    : {},
+                  selected ? { backgroundColor: "#0056d2", borderColor: "#fff", borderWidth: 2 } : {},
                 ]}
               >
-                <Ionicons
-                  name={goal.icon}
-                  size={24}
-                  color={selected ? '#fff' : '#4F46E5'}
-                />
+                <Ionicons name={goal.icon} size={24} color={selected ? "#fff" : "#4F46E5"} />
               </View>
               <Text
-                style={[
-                  styles.fitnessGoalText,
-                  selected ? { color: '#fff', fontFamily: 'Inter_600SemiBold' } : {},
-                ]}
+                style={[styles.fitnessGoalText, selected ? { color: "#fff", fontFamily: "Inter_600SemiBold" } : {}]}
               >
                 {goal.value}
               </Text>
             </TouchableOpacity>
-          );
-        })}
-      </View>
-
+          )
+        }}
+        keyExtractor={(item) => item.value}
+        numColumns={2}
+        estimatedItemSize={120}
+      />
       <View style={styles.infoCard}>
         <Ionicons name="trophy-outline" size={20} color="#4F46E5" />
         <Text style={styles.infoCardText}>
@@ -1228,6 +1162,11 @@ const FitnessGoalStep = ({ formData,handleSelect,error }) => {
 
 // Step 7: Goals Info
 const GoalsInfoStep = ({ formData }) => {
+  const bulletPointsData = [
+    { text: "Personalized guidance" },
+    { text: "Realistic, achievable goals" },
+    { text: "Support when you need it" },
+  ];
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Your Goals Matter</Text>
@@ -1235,7 +1174,6 @@ const GoalsInfoStep = ({ formData }) => {
         We understand, {formData.firstName || "there"}. A busy lifestyle can get in the way of achieving your health
         goals.
       </Text>
-
       <View style={styles.infoCardLarge}>
         <Ionicons name="trophy" size={40} color="#0056d2" style={styles.infoCardIcon} />
         <Text style={styles.infoCardTitle}>We've helped millions overcome obstacles</Text>
@@ -1244,21 +1182,17 @@ const GoalsInfoStep = ({ formData }) => {
           and other challenges.
         </Text>
       </View>
-
-      <View style={styles.bulletPoints}>
-        <View style={styles.bulletPoint}>
-          <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-          <Text style={styles.bulletText}>Personalized guidance</Text>
-        </View>
-        <View style={styles.bulletPoint}>
-          <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-          <Text style={styles.bulletText}>Realistic, achievable goals</Text>
-        </View>
-        <View style={styles.bulletPoint}>
-          <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-          <Text style={styles.bulletText}>Support when you need it</Text>
-        </View>
-      </View>
+      <FlashList
+        data={bulletPointsData}
+        renderItem={({ item }) => (
+          <View style={styles.bulletPoint}>
+            <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+            <Text style={styles.bulletText}>{item.text}</Text>
+          </View>
+        )}
+        keyExtractor={(item, index) => index.toString()}
+        estimatedItemSize={40}
+      />
     </View>
   )
 }
@@ -1271,7 +1205,6 @@ const HabitsInfoStep = ({ formData }) => {
       <Text style={styles.stepDescription}>
         Great choices, {formData.firstName || "there"}! Your selections will help us create a personalized health plan.
       </Text>
-
       <View style={styles.infoCardLarge}>
         <Ionicons name="fitness" size={40} color="#0056d2" style={styles.infoCardIcon} />
         <Text style={styles.infoCardTitle}>Building Sustainable Habits</Text>
@@ -1280,14 +1213,13 @@ const HabitsInfoStep = ({ formData }) => {
           than perfection.
         </Text>
       </View>
-
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: '#0056d2' }]}>87%</Text>
+          <Text style={[styles.statNumber, { color: "#0056d2" }]}>87%</Text>
           <Text style={styles.statLabel}>of users report improved habits within 30 days</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: '#0056d2' }]}>92%</Text>
+          <Text style={[styles.statNumber, { color: "#0056d2" }]}>92%</Text>
           <Text style={styles.statLabel}>say our approach is easier to maintain long-term</Text>
         </View>
       </View>
@@ -1297,13 +1229,18 @@ const HabitsInfoStep = ({ formData }) => {
 
 // Step 9: Meal Plans Info
 const MealPlansInfoStep = ({ formData }) => {
+  const featuresData = [
+    { icon: "time-outline", text: "Save time planning" },
+    { icon: "cash-outline", text: "Reduce food waste" },
+    { icon: "nutrition-outline", text: "Balanced nutrition" },
+    { icon: "options-outline", text: "Flexible options" },
+  ];
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Your Kitchen, Your Rules</Text>
       <Text style={styles.stepDescription}>
         We can simplify your life with customized, flexible meal plans that fit your lifestyle.
       </Text>
-
       <View style={styles.infoCardLarge}>
         <Ionicons name="restaurant" size={40} color="#0056d2" style={styles.infoCardIcon} />
         <Text style={styles.infoCardTitle}>Personalized Meal Planning</Text>
@@ -1312,30 +1249,23 @@ const MealPlansInfoStep = ({ formData }) => {
           healthier.
         </Text>
       </View>
-
-      <View style={styles.featureGrid}>
-        <View style={styles.featureItem}>
-          <Ionicons name="time-outline" size={24} color="#0056d2" />
-          <Text style={styles.featureText}>Save time planning</Text>
-        </View>
-        <View style={styles.featureItem}>
-          <Ionicons name="cash-outline" size={24} color="#0056d2" />
-          <Text style={styles.featureText}>Reduce food waste</Text>
-        </View>
-        <View style={styles.featureItem}>
-          <Ionicons name="nutrition-outline" size={24} color="#0056d2" />
-          <Text style={styles.featureText}>Balanced nutrition</Text>
-        </View>
-        <View style={styles.featureItem}>
-          <Ionicons name="options-outline" size={24} color="#0056d2" />
-          <Text style={styles.featureText}>Flexible options</Text>
-        </View>
-      </View>
+      <FlashList
+        data={featuresData}
+        renderItem={({ item }) => (
+          <View style={styles.featureItem}>
+            <Ionicons name={item.icon} size={24} color="#0056d2" />
+            <Text style={styles.featureText}>{item.text}</Text>
+          </View>
+        )}
+        keyExtractor={(item) => item.text}
+        numColumns={2}
+        estimatedItemSize={50}
+      />
     </View>
   )
 }
 
-// Step 10: Personal Information (Updated)
+// Step 10: Personal Information (Birth Date & Gender only)
 const PersonalInfoStep = ({
   formData,
   handleChange,
@@ -1352,7 +1282,6 @@ const PersonalInfoStep = ({
       <Text style={styles.stepDescription}>
         This helps us personalize your experience and calculate your nutritional needs.
       </Text>
-
       {/* Birth Date Selection */}
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Birth Date</Text>
@@ -1366,7 +1295,7 @@ const PersonalInfoStep = ({
         >
           <View style={styles.selectContent}>
             <Ionicons name="calendar-outline" size={20} color="#64748B" style={styles.inputIcon} />
-            <Text style={[styles.selectText,!formData.birthDate && styles.placeholderText]}>
+            <Text style={[styles.selectText, !formData.birthDate && styles.placeholderText]}>
               {formData.birthDate
                 ? `${formatDate(formData.birthDate)} (Age: ${calculateAge(formData.birthDate)})`
                 : "Select birth date"}
@@ -1380,7 +1309,6 @@ const PersonalInfoStep = ({
           </Text>
         ) : null}
       </View>
-
       {/* Gender Selection */}
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Gender</Text>
@@ -1394,7 +1322,7 @@ const PersonalInfoStep = ({
         >
           <View style={styles.selectContent}>
             <Ionicons name="person-circle-outline" size={20} color="#64748B" style={styles.inputIcon} />
-            <Text style={[styles.selectText,!formData.gender && styles.placeholderText]}>
+            <Text style={[styles.selectText, !formData.gender && styles.placeholderText]}>
               {formData.gender || "Select gender"}
             </Text>
           </View>
@@ -1406,73 +1334,6 @@ const PersonalInfoStep = ({
           </Text>
         ) : null}
       </View>
-
-      <View style={styles.inputContainer}>
-        <Text style={styles.inputLabel}>Height</Text>
-        <View style={styles.unitInputContainer}>
-          <TextInput
-            style={[styles.unitInput,errors.height ? styles.inputError : null]}
-            value={formData.height}
-            onChangeText={(value) => handleChange("height",value.replace(/[^0-9.]/g,""))}
-            placeholder={`Enter your height in ${formData.heightUnit}`}
-            placeholderTextColor="#94A3B8"
-            keyboardType="numeric"
-            maxLength={6}
-            accessibilityLabel="Height input"
-          />
-          <View style={styles.unitToggle}>
-            <TouchableOpacity
-              style={[styles.unitButton,formData.heightUnit === "cm" ? styles.unitButtonSelected : {}]}
-              onPress={() => handleSelect("heightUnit","cm")}
-              accessibilityLabel="Centimeters"
-              accessibilityState={{ selected: formData.heightUnit === "cm" }}
-            >
-              <Text style={[styles.unitButtonText,formData.heightUnit === "cm" ? styles.unitButtonTextSelected : {}]}>
-                cm
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        {errors.height ? (
-          <Text style={styles.errorText}>
-            <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {errors.height}
-          </Text>
-        ) : null}
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Text style={styles.inputLabel}>Weight</Text>
-        <View style={styles.unitInputContainer}>
-          <TextInput
-            style={[styles.unitInput,errors.weight ? styles.inputError : null]}
-            value={formData.weight}
-            onChangeText={(value) => handleChange("weight",value.replace(/[^0-9.]/g,""))}
-            placeholder={`Enter your weight in ${formData.weightUnit}`}
-            placeholderTextColor="#94A3B8"
-            keyboardType="numeric"
-            maxLength={6}
-            accessibilityLabel="Weight input"
-          />
-          <View style={styles.unitToggle}>
-            <TouchableOpacity
-              style={[styles.unitButton,formData.weightUnit === "kg" ? styles.unitButtonSelected : {}]}
-              onPress={() => handleSelect("weightUnit","kg")}
-              accessibilityLabel="Kilograms"
-              accessibilityState={{ selected: formData.weightUnit === "kg" }}
-            >
-              <Text style={[styles.unitButtonText,formData.weightUnit === "kg" ? styles.unitButtonTextSelected : {}]}>
-                kg
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        {errors.weight ? (
-          <Text style={styles.errorText}>
-            <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {errors.weight}
-          </Text>
-        ) : null}
-      </View>
-
       <View style={styles.infoCard}>
         <Ionicons name="shield-checkmark-outline" size={20} color="#4F46E5" />
         <Text style={styles.infoCardText}>
@@ -1483,7 +1344,212 @@ const PersonalInfoStep = ({
   )
 }
 
-// Step 11: Account Setup
+// Step 11: Height Step with Interactive Slider
+const HeightStep = ({ formData, handleChange, handleSelect, error }) => {
+
+  const minHeight = 120;
+  const maxHeight = 220;
+  // Always use integer for heightValue, but store as string in formData
+  const initialHeight = (() => {
+    if (formData.height && !isNaN(Number(formData.height))) return Math.round(Number(formData.height));
+    return 170;
+  })();
+  const [heightValue, setHeightValue] = useState(initialHeight);
+
+  // Defensive: always set integer for heightValue
+  const setHeightValueSafe = (v) => {
+    let val = v;
+    if (typeof val === 'string') val = Number(val);
+    val = Math.round(val);
+    if (!isNaN(val)) setHeightValue(val);
+  };
+
+  // Sync formData.height if it changes externally (e.g. from saved state)
+  useEffect(() => {
+    if (formData.height && !isNaN(Number(formData.height))) {
+      const parsed = Math.round(Number(formData.height));
+      if (parsed !== heightValue) {
+        setHeightValue(parsed);
+      }
+    }
+  }, [formData.height]);
+
+  // Debug: log values to help trace bug
+  // console.log('formData.height:', formData.height, 'heightValue:', heightValue);
+
+  return (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Height</Text>
+      <Text style={styles.stepDescription}>
+        What's your height? This helps us calculate your BMI and personalize your fitness plan.
+      </Text>
+
+      {/* Unit Selector */}
+      <View style={styles.unitSelectorContainer}>
+        <TouchableOpacity
+          style={[styles.unitSelectorButton, styles.unitSelectorActive]}
+          onPress={() => handleSelect("heightUnit", "cm")}
+        >
+          <Text style={styles.unitSelectorTextActive}>cm</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Ruler Picker - chỉnh để label trên không bị mất */}
+      <View style={{ width: '100%', alignItems: 'center', marginVertical: 24 }}>
+        <RulerPicker
+          labelInterval={1}
+          min={minHeight}
+          max={maxHeight }
+          step={1}
+          fractionDigits={1}
+          value={heightValue}
+          onValueChangeEnd={(v) => {
+            let val = v;
+            if (typeof val === 'string') val = Number(val);
+            val = Math.round(val);
+            setHeightValueSafe(val);
+            handleChange("height", val.toString());
+          }}
+          onValueChange={(v) => {
+            let val = v;
+            if (typeof val === 'string') val = Number(val);
+            val = Math.round(val);
+            setHeightValueSafe(val);
+            Vibration.vibrate(10);
+          }}
+          renderLabel={(value) => {
+            let display = String(value);
+            if (display.endsWith('.0')) display = display.replace(/\.0$/, '');
+            return (
+              <Text style={{
+                fontSize: 10,
+                color: '#0056d2',
+                fontWeight: '600',
+                textAlign: 'center',
+                marginTop: 0,
+                minWidth: 32,
+                overflow: 'visible',
+              }} numberOfLines={1}>{display}</Text>
+            );
+          }}
+          indicatorColor="#10B981"
+          width={width - 40}
+          height={120}
+          textColor="#0056d2"
+          indicatorWidth={2}
+          indicatorHeight={80}
+          style={{ marginBottom: 8 }}
+        />
+        <Text style={{ fontSize: 32, fontWeight: "bold", color: "#0056d2", marginTop: 8 }}>{heightValue} cm</Text>
+      </View>
+
+      {error ? (
+        <Text style={styles.errorText}>
+          <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {error}
+        </Text>
+      ) : null}
+
+      <View style={styles.infoCard}>
+        <Ionicons name="information-circle-outline" size={20} color="#4F46E5" />
+        <Text style={styles.infoCardText}>
+          Your height is used to calculate your BMI and determine appropriate fitness recommendations.
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+// Step 12: Weight Step with Interactive Slider
+const WeightStep = ({ formData, handleChange, handleSelect, error }) => {
+
+  const minWeight = 40;
+  const maxWeight = 150;
+  const [weightValue, setWeightValue] = useState(formData.weight ? Number.parseFloat(formData.weight) : 70);
+
+  return (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Weight</Text>
+      <Text style={styles.stepDescription}>
+        What's your current weight? This helps us calculate your BMI and create personalized recommendations.
+      </Text>
+
+      {/* Unit Selector */}
+      <View style={styles.unitSelectorContainer}>
+        <TouchableOpacity style={[styles.unitSelectorButton, styles.unitSelectorInactive]}>
+          <Text style={styles.unitSelectorTextInactive}>lb</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.unitSelectorButton, styles.unitSelectorActive]}
+          onPress={() => handleSelect("weightUnit", "kg")}
+        >
+          <Text style={styles.unitSelectorTextActive}>kg</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Ruler Picker - chỉnh để label trên không bị mất */}
+      <View style={{ width: '100%', alignItems: 'center', marginVertical: 24 }}>
+        <RulerPicker
+          labelInterval={2}
+          min={minWeight}
+          max={maxWeight}
+          step={1}
+          fractionDigits={1}
+          value={weightValue}
+          onValueChangeEnd={(v) => {
+            let val = v;
+            if (typeof val === 'string') val = Math.round(val);
+            setWeightValue(val);
+            handleChange("weight", val.toString());
+          }}
+          onValueChange={(v) => {
+            let val = v;
+            if (typeof val === 'string') val = Math.round(val);
+            setWeightValue(val);
+            Vibration.vibrate(10);
+          }}
+          unit="kg"
+          renderLabel={(value) => {
+            let display = String(value);
+            if (display.endsWith('.0')) display = display.replace(/\.0$/, '');
+            return (
+              <Text style={{
+                fontSize: 10,
+                color: '#0056d2',
+                fontWeight: '600',
+                textAlign: 'center',
+                marginTop: 0,
+                minWidth: 20,
+              }}>{display}</Text>
+            );
+          }}
+          indicatorColor="#10B981"
+          width={width - 40}
+          height={120}
+          textColor="#0056d2"
+          indicatorWidth={2}
+          indicatorHeight={80}
+          style={{ marginBottom: 8 }}
+        />
+        <Text style={{ fontSize: 32, fontWeight: "bold", color: "#0056d2", marginTop: 8 }}>{weightValue} kg</Text>
+      </View>
+
+      {error ? (
+        <Text style={styles.errorText}>
+          <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {error}
+        </Text>
+      ) : null}
+
+      <View style={styles.infoCard}>
+        <Ionicons name="information-circle-outline" size={20} color="#4F46E5" />
+        <Text style={styles.infoCardText}>
+          Your weight helps us calculate your BMI and determine appropriate calorie and fitness recommendations.
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+// Step 13: Account Setup
 const AccountSetupStep = ({
   formData,
   handleChange,
@@ -1497,8 +1563,7 @@ const AccountSetupStep = ({
   setShowPrivacyModal,
 }) => {
   const getPasswordStrength = (password) => {
-    if (!password) return { strength: 0,label: "None",color: "#94A3B8" }
-
+    if (!password) return { strength: 0, label: "None", color: "#94A3B8" }
     let strength = 0
     if (password.length >= 8) strength += 1
     if (/[A-Z]/.test(password)) strength += 1
@@ -1506,13 +1571,12 @@ const AccountSetupStep = ({
     if (/[^A-Za-z0-9]/.test(password)) strength += 1
 
     const strengthMap = [
-      { label: "Weak",color: "#EF4444" },
-      { label: "Fair",color: "#F59E0B" },
-      { label: "Good",color: "#10B981" },
-      { label: "Strong",color: "#10B981" },
-      { label: "Very Strong",color: "#10B981" },
+      { label: "Weak", color: "#EF4444" },
+      { label: "Fair", color: "#F59E0B" },
+      { label: "Good", color: "#10B981" },
+      { label: "Strong", color: "#10B981" },
+      { label: "Very Strong", color: "#10B981" },
     ]
-
     return {
       strength: strength,
       label: strengthMap[strength].label,
@@ -1526,15 +1590,14 @@ const AccountSetupStep = ({
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Create Your Account</Text>
       <Text style={styles.stepDescription}>You're almost done! Set up your account to save your progress.</Text>
-
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Email</Text>
-        <View style={[styles.iconInputContainer,errors.email ? styles.inputError : null]}>
+        <View style={[styles.iconInputContainer, errors.email ? styles.inputError : null]}>
           <Ionicons name="mail-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput
             style={styles.iconInput}
             value={formData.email}
-            onChangeText={(value) => handleChange("email",value)}
+            onChangeText={(value) => handleChange("email", value)}
             placeholder="Enter your email"
             placeholderTextColor="#94A3B8"
             keyboardType="email-address"
@@ -1548,16 +1611,15 @@ const AccountSetupStep = ({
           </Text>
         ) : null}
       </View>
-
       {/* Phone number field moved above password fields */}
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Phone Number</Text>
-        <View style={[styles.iconInputContainer,errors.phone ? styles.inputError : null]}>
+        <View style={[styles.iconInputContainer, errors.phone ? styles.inputError : null]}>
           <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput
             style={styles.iconInput}
             value={formData.phone}
-            onChangeText={(value) => handleChange("phone",value.replace(/[^0-9]/g,""))}
+            onChangeText={(value) => handleChange("phone", value.replace(/[^0-9]/g, ""))}
             placeholder="Enter your phone number"
             placeholderTextColor="#94A3B8"
             keyboardType="phone-pad"
@@ -1571,15 +1633,14 @@ const AccountSetupStep = ({
           </Text>
         ) : null}
       </View>
-
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Password</Text>
-        <View style={[styles.iconInputContainer,errors.password ? styles.inputError : null]}>
+        <View style={[styles.iconInputContainer, errors.password ? styles.inputError : null]}>
           <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput
             style={styles.iconInput}
             value={formData.password}
-            onChangeText={(value) => handleChange("password",value)}
+            onChangeText={(value) => handleChange("password", value)}
             placeholder="Create a password"
             placeholderTextColor="#94A3B8"
             secureTextEntry={!showPassword}
@@ -1598,13 +1659,12 @@ const AccountSetupStep = ({
             <Ionicons name="alert-circle-outline" size={14} color="#EF4444" /> {errors.password}
           </Text>
         ) : null}
-
         {/* Password strength indicator */}
         {formData.password.length > 0 && (
           <View style={styles.passwordStrengthContainer}>
             <Text style={styles.passwordStrengthLabel}>Password strength:</Text>
             <View style={styles.passwordStrengthBar}>
-              {[...Array(4)].map((_,index) => (
+              {[...Array(4)].map((_, index) => (
                 <View
                   key={index}
                   style={[
@@ -1616,21 +1676,20 @@ const AccountSetupStep = ({
                 />
               ))}
             </View>
-            <Text style={[styles.passwordStrengthText,{ color: passwordStrength.color }]}>
+            <Text style={[styles.passwordStrengthText, { color: passwordStrength.color }]}>
               {passwordStrength.label}
             </Text>
           </View>
         )}
       </View>
-
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Confirm Password</Text>
-        <View style={[styles.iconInputContainer,errors.confirmPassword ? styles.inputError : null]}>
+        <View style={[styles.iconInputContainer, errors.confirmPassword ? styles.inputError : null]}>
           <Ionicons name="shield-checkmark-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput
             style={styles.iconInput}
             value={formData.confirmPassword}
-            onChangeText={(value) => handleChange("confirmPassword",value)}
+            onChangeText={(value) => handleChange("confirmPassword", value)}
             placeholder="Confirm your password"
             placeholderTextColor="#94A3B8"
             secureTextEntry={!showConfirmPassword}
@@ -1650,16 +1709,19 @@ const AccountSetupStep = ({
           </Text>
         ) : null}
       </View>
-
       <View style={styles.termsContainer}>
         <Ionicons name="information-circle" size={16} color="#0056d2" />
         <Text style={styles.termsText}>
-          By registering, you agree to our{' '}
-          <Text style={styles.termsLink} onPress={onShowTerms}>Terms of Service</Text> and{' '}
-          <Text style={styles.termsLink} onPress={() => setShowPrivacyModal(true)}>Privacy Policy</Text>
+          By registering, you agree to our{" "}
+          <Text style={styles.termsLink} onPress={onShowTerms}>
+            Terms of Service
+          </Text>{" "}
+          and{" "}
+          <Text style={styles.termsLink} onPress={() => setShowPrivacyModal(true)}>
+            Privacy Policy
+          </Text>
         </Text>
       </View>
-      {/* Privacy Policy Modal */}
       <Modal
         visible={showPrivacyModal}
         transparent
@@ -2173,7 +2235,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 32,
     shadowColor: "#0056d2",
-    shadowOffset: { width: 0,height: 4 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
@@ -2328,8 +2390,109 @@ const styles = StyleSheet.create({
     color: "#334155",
     textAlign: "center",
   },
-  selectedFitnessGoalText: {
-    color: "#4F46E5",
+  // Custom Slider Styles
+  unitSelectorContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 40,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 25,
+    padding: 4,
+    width: 200,
+    alignSelf: "center",
+  },
+  unitSelectorButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignItems: "center",
+  },
+  unitSelectorActive: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  unitSelectorInactive: {
+    backgroundColor: "transparent",
+  },
+  unitSelectorText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 16,
+  },
+  unitSelectorTextActive: {
+    color: "#1E293B",
+  },
+  unitSelectorTextInactive: {
+    color: "#94A3B8",
+  },
+  sliderContainer: {
+    width: "100%",
+    alignItems: "center",
+    marginVertical: 40,
+  },
+  sliderTrack: {
+    width: width - 80,
+    height: 80,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    position: "relative",
+    justifyContent: "center",
+  },
+  rulerContainer: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+  },
+  rulerMark: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rulerLine: {
+    width: 2,
+    height: 20,
+    backgroundColor: "#CBD5E1",
+    marginBottom: 8,
+  },
+  rulerText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: "#64748B",
+  },
+  sliderThumb: {
+    position: "absolute",
+    width: 30,
+    height: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    top: 25,
+  },
+  sliderThumbInner: {
+    width: 24,
+    height: 24,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  currentValueContainer: {
+    marginTop: 20,
+    alignItems: "center",
+  },
+  currentValueText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 32,
+    color: "#10B981",
   },
   // Modal styles
   modalOverlay: {
@@ -2350,7 +2513,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0,height: -2 },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,

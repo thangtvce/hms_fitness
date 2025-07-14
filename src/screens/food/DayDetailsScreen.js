@@ -1,6 +1,6 @@
-"use client"
 
 import { useState, useRef } from "react"
+import Loading from "components/Loading"
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   Animated,
   Platform,
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import Header from 'components/Header'
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
@@ -71,10 +72,10 @@ const DayDetailsScreen = () => {
               return foodService.deleteNutritionLog(logId)
             })
             await Promise.all(deletePromises)
-            Alert.alert("Success", "All food logs deleted!")
+            showSuccessMessage("All food logs deleted!")
             navigation.goBack()
           } catch (error) {
-            Alert.alert("Error", "Failed to delete logs")
+            showErrorFetchAPI("Failed to delete logs")
           }
         },
       },
@@ -108,16 +109,16 @@ const DayDetailsScreen = () => {
 
       const res = await foodService.updateNutritionLog(editingFood.id, updatedLog)
       if (res.statusCode === 200) {
-        Alert.alert("Success", "Food updated successfully!")
+        showSuccessMessage("Food updated successfully!")
         setEditModalVisible(false)
         setEditingFood(null)
         if (typeof route.params.onRefresh === "function") route.params.onRefresh()
         navigation.goBack()
       } else {
-        Alert.alert("Error", res.message || "Update failed")
+        showErrorFetchAPI(res.message || "Update failed")
       }
     } catch (error) {
-      Alert.alert("Error", "Update failed")
+      showErrorFetchAPI("Update failed")
     }
   }
 
@@ -220,10 +221,10 @@ const DayDetailsScreen = () => {
         setRatingTarget(null)
       })
 
-      Alert.alert("Success", "Rating updated!")
+      showSuccessMessage("Rating updated!")
       if (typeof route.params.onRefresh === "function") route.params.onRefresh()
     } catch (e) {
-      Alert.alert("Error", e.message || "Failed to update rating")
+      showErrorFetchAPI(e.message || "Failed to update rating")
     } finally {
       setRatingLoading(false)
     }
@@ -419,179 +420,174 @@ const DayDetailsScreen = () => {
       transparent={true}
       onRequestClose={() => setRatingModalVisible(false)}
     >
-      <Animated.View style={[styles.ratingOverlay, { opacity: modalOpacity }]}>
-        <Animated.View style={[styles.ratingModal, { transform: [{ scale: modalScale }] }]}>
-          {/* Enhanced Header */}
-          <LinearGradient colors={["#0056d2","#0056d2","#0056d2"]} style={styles.ratingHeader}>
-            <View style={styles.ratingHeaderContent}>
-              <View style={styles.ratingIconContainer}>
-                <IconAntDesign name="star" size={26} color="#FFFFFF" />
+      {ratingLoading ? (
+        <Loading backgroundColor="rgba(0,0,0,0.7)" logoSize={120} />
+      ) : (
+        <Animated.View style={[styles.ratingOverlay, { opacity: modalOpacity }]}> 
+          <Animated.View style={[styles.ratingModal, { transform: [{ scale: modalScale }] }]}> 
+            {/* Enhanced Header */}
+            <LinearGradient colors={["#0056d2","#0056d2","#0056d2"]} style={styles.ratingHeader}>
+              <View style={styles.ratingHeaderContent}>
+                <View style={styles.ratingIconContainer}>
+                  <IconAntDesign name="star" size={26} color="#FFFFFF" />
+                </View>
+                <View style={styles.ratingHeaderText}>
+                  <Text style={styles.ratingTitle}>Rate Your Meal</Text>
+                  <Text style={styles.ratingSubtitle}>Share your experience</Text>
+                </View>
+                <TouchableOpacity style={styles.ratingCloseButton} onPress={() => setRatingModalVisible(false)}>
+                  <IconFeather name="x" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
               </View>
-              <View style={styles.ratingHeaderText}>
-                <Text style={styles.ratingTitle}>Rate Your Meal</Text>
-                <Text style={styles.ratingSubtitle}>Share your experience</Text>
+            </LinearGradient>
+
+            <ScrollView style={styles.ratingBody} showsVerticalScrollIndicator={false}>
+              {/* Enhanced Star Rating */}
+              <View style={styles.starSection}>
+                <Text style={styles.starLabel}>How would you rate this meal?</Text>
+                <View style={styles.starContainer}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      onPress={() => {
+                        setRatingValue(star)
+                        animateStar(star - 1)
+                      }}
+                      disabled={ratingLoading}
+                      style={styles.starButton}
+                    >
+                      <Animated.View style={{ transform: [{ scale: starAnimations[star - 1] }] }}>
+                        <View style={[styles.starWrapper, ratingValue >= star && styles.starWrapperActive]}>
+                          <IconAntDesign
+                            name={ratingValue >= star ? "star" : "staro"}
+                            size={28}
+                            color={ratingValue >= star ? "#FFD700" : "#E5E7EB"}
+                          />
+                        </View>
+                      </Animated.View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Enhanced Rating Description */}
+                <View style={styles.ratingDescription}>
+                  {ratingValue === 0 && (
+                    <View style={styles.descriptionContent}>
+                      <IconCommunity name="help-circle-outline" size={18} color="#64748B" />
+                      <Text style={styles.descText}>Select a rating above</Text>
+                    </View>
+                  )}
+                  {ratingValue === 1 && (
+                    <View style={styles.descriptionContent}>
+                      <IconCommunity name="emoticon-sad-outline" size={18} color="#EF4444" />
+                      <Text style={[styles.descText, { color: "#EF4444" }]}>Poor - Not satisfied</Text>
+                    </View>
+                  )}
+                  {ratingValue === 2 && (
+                    <View style={styles.descriptionContent}>
+                      <IconCommunity name="emoticon-neutral-outline" size={18} color="#F59E0B" />
+                      <Text style={[styles.descText, { color: "#F59E0B" }]}>Fair - Could be better</Text>
+                    </View>
+                  )}
+                  {ratingValue === 3 && (
+                    <View style={styles.descriptionContent}>
+                      <IconCommunity name="emoticon-outline" size={18} color="#FBBF24" />
+                      <Text style={[styles.descText, { color: "#FBBF24" }]}>Good - Satisfied</Text>
+                    </View>
+                  )}
+                  {ratingValue === 4 && (
+                    <View style={styles.descriptionContent}>
+                      <IconCommunity name="emoticon-happy-outline" size={18} color="#10B981" />
+                      <Text style={[styles.descText, { color: "#10B981" }]}>Very Good - Really enjoyed</Text>
+                    </View>
+                  )}
+                  {ratingValue === 5 && (
+                    <View style={styles.descriptionContent}>
+                      <IconCommunity name="emoticon-excited-outline" size={18} color="#8B5CF6" />
+                      <Text style={[styles.descText, { color: "#8B5CF6" }]}>Excellent - Amazing!</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-              <TouchableOpacity style={styles.ratingCloseButton} onPress={() => setRatingModalVisible(false)}>
-                <IconFeather name="x" size={20} color="#FFFFFF" />
+
+              {/* Enhanced Notes */}
+              <View style={styles.notesSection}>
+                <View style={styles.notesHeader}>
+                  <IconFeather name="message-circle" size={18} color="#667eea" />
+                  <Text style={styles.notesLabel}>Add Notes</Text>
+                  <View style={styles.optionalBadge}>
+                    <Text style={styles.optionalText}>Optional</Text>
+                  </View>
+                </View>
+                <View style={styles.notesInputContainer}>
+                  <TextInput
+                    style={styles.notesInput}
+                    placeholder="Share your thoughts about this meal..."
+                    value={ratingNote}
+                    onChangeText={setRatingNote}
+                    editable={!ratingLoading}
+                    multiline
+                    maxLength={200}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <View style={styles.inputFooter}>
+                    <IconFeather name="edit-3" size={12} color="#9CA3AF" />
+                    <Text style={styles.charCount}>{ratingNote.length}/200</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Enhanced Quick Notes */}
+              <View style={styles.quickNotesSection}>
+                <View style={styles.quickNotesHeader}>
+                  <IconCommunity name="lightning-bolt" size={16} color="#667eea" />
+                  <Text style={styles.quickNotesLabel}>Quick suggestions</Text>
+                </View>
+                <View style={styles.quickNotesGrid}>
+                  {[
+                    { text: "Delicious!", icon: "emoticon-excited" },
+                    { text: "Too salty", icon: "water-off" },
+                    { text: "Perfect portion", icon: "check-circle" },
+                    { text: "Too spicy", icon: "fire" },
+                    { text: "Will order again", icon: "repeat" },
+                    { text: "Could be better", icon: "arrow-up-circle" },
+                  ].map((note, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[styles.quickNote, ratingNote === note.text && styles.quickNoteActive]}
+                      onPress={() => setRatingNote(note.text)}
+                      disabled={ratingLoading}
+                    >
+                      <IconCommunity
+                        name={note.icon}
+                        size={12}
+                        color={ratingNote === note.text ? "#FFFFFF" : "#667eea"}
+                      />
+                      <Text style={[styles.quickNoteText, ratingNote === note.text && styles.quickNoteTextActive]}>
+                        {note.text}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Enhanced Submit Button */}
+            <View style={styles.ratingFooter}>
+              <TouchableOpacity
+                style={[styles.submitButton, { opacity: ratingLoading || ratingValue === 0 ? 0.6 : 1 }]}
+                onPress={handleSubmitRating}
+                disabled={ratingLoading || ratingValue === 0}
+              >
+                <LinearGradient colors={["#0056d2","#0056d2","#0056d2"]} style={styles.submitGradient}>
+                  <IconFeather name="check-circle" size={18} color="#FFFFFF" />
+                  <Text style={styles.submitText}>Submit Rating</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-          </LinearGradient>
-
-          <ScrollView style={styles.ratingBody} showsVerticalScrollIndicator={false}>
-            {/* Enhanced Star Rating */}
-            <View style={styles.starSection}>
-              <Text style={styles.starLabel}>How would you rate this meal?</Text>
-              <View style={styles.starContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity
-                    key={star}
-                    onPress={() => {
-                      setRatingValue(star)
-                      animateStar(star - 1)
-                    }}
-                    disabled={ratingLoading}
-                    style={styles.starButton}
-                  >
-                    <Animated.View style={{ transform: [{ scale: starAnimations[star - 1] }] }}>
-                      <View style={[styles.starWrapper, ratingValue >= star && styles.starWrapperActive]}>
-                        <IconAntDesign
-                          name={ratingValue >= star ? "star" : "staro"}
-                          size={28}
-                          color={ratingValue >= star ? "#FFD700" : "#E5E7EB"}
-                        />
-                      </View>
-                    </Animated.View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Enhanced Rating Description */}
-              <View style={styles.ratingDescription}>
-                {ratingValue === 0 && (
-                  <View style={styles.descriptionContent}>
-                    <IconCommunity name="help-circle-outline" size={18} color="#64748B" />
-                    <Text style={styles.descText}>Select a rating above</Text>
-                  </View>
-                )}
-                {ratingValue === 1 && (
-                  <View style={styles.descriptionContent}>
-                    <IconCommunity name="emoticon-sad-outline" size={18} color="#EF4444" />
-                    <Text style={[styles.descText, { color: "#EF4444" }]}>Poor - Not satisfied</Text>
-                  </View>
-                )}
-                {ratingValue === 2 && (
-                  <View style={styles.descriptionContent}>
-                    <IconCommunity name="emoticon-neutral-outline" size={18} color="#F59E0B" />
-                    <Text style={[styles.descText, { color: "#F59E0B" }]}>Fair - Could be better</Text>
-                  </View>
-                )}
-                {ratingValue === 3 && (
-                  <View style={styles.descriptionContent}>
-                    <IconCommunity name="emoticon-outline" size={18} color="#FBBF24" />
-                    <Text style={[styles.descText, { color: "#FBBF24" }]}>Good - Satisfied</Text>
-                  </View>
-                )}
-                {ratingValue === 4 && (
-                  <View style={styles.descriptionContent}>
-                    <IconCommunity name="emoticon-happy-outline" size={18} color="#10B981" />
-                    <Text style={[styles.descText, { color: "#10B981" }]}>Very Good - Really enjoyed</Text>
-                  </View>
-                )}
-                {ratingValue === 5 && (
-                  <View style={styles.descriptionContent}>
-                    <IconCommunity name="emoticon-excited-outline" size={18} color="#8B5CF6" />
-                    <Text style={[styles.descText, { color: "#8B5CF6" }]}>Excellent - Amazing!</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Enhanced Notes */}
-            <View style={styles.notesSection}>
-              <View style={styles.notesHeader}>
-                <IconFeather name="message-circle" size={18} color="#667eea" />
-                <Text style={styles.notesLabel}>Add Notes</Text>
-                <View style={styles.optionalBadge}>
-                  <Text style={styles.optionalText}>Optional</Text>
-                </View>
-              </View>
-              <View style={styles.notesInputContainer}>
-                <TextInput
-                  style={styles.notesInput}
-                  placeholder="Share your thoughts about this meal..."
-                  value={ratingNote}
-                  onChangeText={setRatingNote}
-                  editable={!ratingLoading}
-                  multiline
-                  maxLength={200}
-                  placeholderTextColor="#9CA3AF"
-                />
-                <View style={styles.inputFooter}>
-                  <IconFeather name="edit-3" size={12} color="#9CA3AF" />
-                  <Text style={styles.charCount}>{ratingNote.length}/200</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Enhanced Quick Notes */}
-            <View style={styles.quickNotesSection}>
-              <View style={styles.quickNotesHeader}>
-                <IconCommunity name="lightning-bolt" size={16} color="#667eea" />
-                <Text style={styles.quickNotesLabel}>Quick suggestions</Text>
-              </View>
-              <View style={styles.quickNotesGrid}>
-                {[
-                  { text: "Delicious!", icon: "emoticon-excited" },
-                  { text: "Too salty", icon: "water-off" },
-                  { text: "Perfect portion", icon: "check-circle" },
-                  { text: "Too spicy", icon: "fire" },
-                  { text: "Will order again", icon: "repeat" },
-                  { text: "Could be better", icon: "arrow-up-circle" },
-                ].map((note, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[styles.quickNote, ratingNote === note.text && styles.quickNoteActive]}
-                    onPress={() => setRatingNote(note.text)}
-                    disabled={ratingLoading}
-                  >
-                    <IconCommunity
-                      name={note.icon}
-                      size={12}
-                      color={ratingNote === note.text ? "#FFFFFF" : "#667eea"}
-                    />
-                    <Text style={[styles.quickNoteText, ratingNote === note.text && styles.quickNoteTextActive]}>
-                      {note.text}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </ScrollView>
-
-          {/* Enhanced Submit Button */}
-          <View style={styles.ratingFooter}>
-            <TouchableOpacity
-              style={[styles.submitButton, { opacity: ratingLoading || ratingValue === 0 ? 0.6 : 1 }]}
-              onPress={handleSubmitRating}
-              disabled={ratingLoading || ratingValue === 0}
-            >
-              <LinearGradient colors={["#0056d2","#0056d2","#0056d2"]} style={styles.submitGradient}>
-                {ratingLoading ? (
-                  <>
-                    <IconCommunity name="loading" size={18} color="#FFFFFF" />
-                    <Text style={styles.submitText}>Saving...</Text>
-                  </>
-                ) : (
-                  <>
-                    <IconFeather name="check-circle" size={18} color="#FFFFFF" />
-                    <Text style={styles.submitText}>Submit Rating</Text>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
+      )}
     </Modal>
   )
 

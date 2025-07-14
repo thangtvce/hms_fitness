@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import Loading from 'components/Loading';
+import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
 import { Ionicons } from '@expo/vector-icons';
 import { bodyMeasurementService } from 'services/apiBodyMeasurementService';
 import { useAuth } from 'context/AuthContext';
@@ -47,13 +47,13 @@ export default function AddBodyMeasurementScreen({ navigation }) {
 
       // UserId validation
       if (!user || !user.userId) {
-        Alert.alert('Error', 'You are not authenticated. Please log in.');
+        showErrorFetchAPI('You are not authenticated. Please log in.');
         navigation.replace('Login');
         return;
       }
       const userId = parseInt(user.userId, 10);
       if (isNaN(userId) || userId <= 0) {
-        Alert.alert('Error', 'UserId must be a positive integer.');
+        showErrorFetchAPI('UserId must be a positive integer.');
         return;
       }
 
@@ -62,85 +62,85 @@ export default function AddBodyMeasurementScreen({ navigation }) {
       const measurementDate = new Date().toISOString().split('T')[0];
       const dateObj = new Date(measurementDate);
       if (!measurementDate) {
-        Alert.alert('Error', 'MeasurementDate is required.');
+        showErrorFetchAPI('MeasurementDate is required.');
         return;
       }
       if (dateObj > now) {
-        Alert.alert('Error', 'MeasurementDate cannot be in the future.');
+        showErrorFetchAPI('MeasurementDate cannot be in the future.');
         return;
       }
       if (dateObj.getFullYear() < 1900) {
-        Alert.alert('Error', 'MeasurementDate cannot be before 1900.');
+        showErrorFetchAPI('MeasurementDate cannot be before 1900.');
         return;
       }
 
       // Weight: [Range(0.1, 200)]
       const weight = formData.weight ? parseFloat(formData.weight) : null;
       if (weight === null || isNaN(weight) || weight < 0.1 || weight > 200) {
-        Alert.alert('Error', 'Weight must be between 0.1 and 200 kg.');
+        showErrorFetchAPI('Weight must be between 0.1 and 200 kg.');
         return;
       }
 
       // Height: [Range(50, 250)]
       const height = formData.height ? parseFloat(formData.height) : null;
       if (height !== null && (isNaN(height) || height < 50 || height > 250)) {
-        Alert.alert('Error', 'Height must be between 50 and 250 cm.');
+        showErrorFetchAPI('Height must be between 50 and 250 cm.');
         return;
       }
 
       // Body Fat: [Range(0, 100)]
       const bodyFat = formData.bodyFatPercentage ? parseFloat(formData.bodyFatPercentage) : null;
       if (bodyFat !== null && (isNaN(bodyFat) || bodyFat < 0 || bodyFat > 100)) {
-        Alert.alert('Error', 'Body fat percentage must be between 0 and 100.');
+        showErrorFetchAPI('Body fat percentage must be between 0 and 100.');
         return;
       }
 
       // Chest: [Range(10, 300)]
       const chest = formData.chestCm ? parseFloat(formData.chestCm) : null;
       if (chest !== null && (isNaN(chest) || chest < 10 || chest > 300)) {
-        Alert.alert('Error', 'Chest measurement must be between 10 and 300 cm.');
+        showErrorFetchAPI('Chest measurement must be between 10 and 300 cm.');
         return;
       }
 
       // Waist: [Range(10, 300)]
       const waist = formData.waistCm ? parseFloat(formData.waistCm) : null;
       if (waist !== null && (isNaN(waist) || waist < 10 || waist > 300)) {
-        Alert.alert('Error', 'Waist measurement must be between 10 and 300 cm.');
+        showErrorFetchAPI('Waist measurement must be between 10 and 300 cm.');
         return;
       }
 
       // Hip: [Range(10, 300)]
       const hip = formData.hipCm ? parseFloat(formData.hipCm) : null;
       if (hip !== null && (isNaN(hip) || hip < 10 || hip > 300)) {
-        Alert.alert('Error', 'Hip measurement must be between 10 and 300 cm.');
+        showErrorFetchAPI('Hip measurement must be between 10 and 300 cm.');
         return;
       }
 
       // Bicep: [Range(10, 300)]
       const bicep = formData.bicepCm ? parseFloat(formData.bicepCm) : null;
       if (bicep !== null && (isNaN(bicep) || bicep < 10 || bicep > 300)) {
-        Alert.alert('Error', 'Bicep measurement must be between 10 and 300 cm.');
+        showErrorFetchAPI('Bicep measurement must be between 10 and 300 cm.');
         return;
       }
 
       // Thigh: [Range(10, 300)]
       const thigh = formData.thighCm ? parseFloat(formData.thighCm) : null;
       if (thigh !== null && (isNaN(thigh) || thigh < 10 || thigh > 300)) {
-        Alert.alert('Error', 'Thigh measurement must be between 10 and 300 cm.');
+        showErrorFetchAPI('Thigh measurement must be between 10 and 300 cm.');
         return;
       }
 
       // Neck: [Range(10, 300)]
       const neck = formData.neckCm ? parseFloat(formData.neckCm) : null;
       if (neck !== null && (isNaN(neck) || neck < 10 || neck > 300)) {
-        Alert.alert('Error', 'Neck measurement must be between 10 and 300 cm.');
+        showErrorFetchAPI('Neck measurement must be between 10 and 300 cm.');
         return;
       }
 
       // Notes: [StringLength(500)]
       const notes = formData.notes?.trim() || null;
       if (notes && notes.length > 500) {
-        Alert.alert('Error', 'Notes cannot exceed 500 characters.');
+        showErrorFetchAPI('Notes cannot exceed 500 characters.');
         return;
       }
 
@@ -163,14 +163,13 @@ export default function AddBodyMeasurementScreen({ navigation }) {
       const response = await bodyMeasurementService.addMeasurement(payload);
 
       if (response.statusCode === 201) {
-        Alert.alert('Success', 'Body measurement added successfully.', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
+        showSuccessMessage('Body measurement added successfully.');
+        navigation.goBack();
       } else {
-        Alert.alert('Error', response.message || 'Failed to add body measurement.');
+        showErrorFetchAPI(response.message || 'Failed to add body measurement.');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'An unexpected error occurred while adding body measurement.');
+      showErrorFetchAPI(error.message || 'An unexpected error occurred while adding body measurement.');
     } finally {
       setIsSubmitting(false);
     }
@@ -208,6 +207,11 @@ export default function AddBodyMeasurementScreen({ navigation }) {
       </View>
     );
   };
+
+  if (isSubmitting) {
+    // Only show loading overlay and logo, no other content
+    return <Loading />;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -284,14 +288,8 @@ export default function AddBodyMeasurementScreen({ navigation }) {
             style={[styles.submitButton, { backgroundColor: '#0056d2' }]}
             disabled={isSubmitting}
           >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="save-outline" size={20} color="#FFFFFF" style={styles.submitIcon} />
-                <Text style={styles.submitButtonText}>Save Measurement</Text>
-              </>
-            )}
+            <Ionicons name="save-outline" size={20} color="#FFFFFF" style={styles.submitIcon} />
+            <Text style={styles.submitButtonText}>Save Measurement</Text>
           </TouchableOpacity>
           <View style={styles.bottomPadding} />
         </ScrollView>

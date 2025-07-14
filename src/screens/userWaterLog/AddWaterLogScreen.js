@@ -5,11 +5,9 @@ import {
     StyleSheet,
     TextInput,
     TouchableOpacity,
-    Alert,
     ScrollView,
     KeyboardAvoidingView,
     Platform,
-    ActivityIndicator,
     Dimensions,
     Animated,
     Modal,
@@ -24,6 +22,8 @@ import FloatingMenuButton from "components/FloatingMenuButton"
 import { SafeAreaView } from "react-native-safe-area-context"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import Header from "components/Header"
+import Loading from "components/Loading"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 
 const { width,height } = Dimensions.get("window")
 
@@ -57,6 +57,7 @@ export default function AddWaterLogScreen({ navigation }) {
     })
     const [activeField,setActiveField] = useState(null)
     const [isSubmitting,setIsSubmitting] = useState(false)
+    const [loading, setLoading] = useState(false)
     const [showDatePicker,setShowDatePicker] = useState(false)
     const [selectedQuickAmount,setSelectedQuickAmount] = useState(null)
     const [fadeAnim] = useState(new Animated.Value(0))
@@ -99,35 +100,35 @@ export default function AddWaterLogScreen({ navigation }) {
 
     const handleSubmit = async () => {
         try {
-            setIsSubmitting(true)
+            setLoading(true);
 
             // UserId validation
             if (!user || !user.userId) {
-                Alert.alert("Authentication Error", "Please log in to continue.");
+                showErrorFetchAPI("Please log in to continue.");
                 navigation.replace("Login");
                 return;
             }
             const userId = Number.parseInt(user.userId, 10);
             if (isNaN(userId) || userId <= 0) {
-                Alert.alert("Error", "UserId must be a positive integer.");
+                showErrorFetchAPI("UserId must be a positive integer.");
                 return;
             }
 
             // AmountMl validation
             const amountMl = formData.amountMl ? Number.parseFloat(formData.amountMl) : null;
             if (amountMl === null || isNaN(amountMl)) {
-                Alert.alert("Invalid Amount", "AmountMl is required.");
+                showErrorFetchAPI("AmountMl is required.");
                 return;
             }
             if (amountMl < 1 || amountMl > 999999.99) {
-                Alert.alert("Invalid Amount", "Amount must be between 1 and 999,999.99 ml.");
+                showErrorFetchAPI("Amount must be between 1 and 999,999.99 ml.");
                 return;
             }
 
             // ConsumptionDate validation
             const consumptionDate = formData.consumptionDate;
             if (!(consumptionDate instanceof Date) || isNaN(consumptionDate.getTime())) {
-                Alert.alert("Error", "ConsumptionDate is required.");
+                showErrorFetchAPI("ConsumptionDate is required.");
                 return;
             }
             // Compare only date part (not time)
@@ -135,21 +136,21 @@ export default function AddWaterLogScreen({ navigation }) {
             const dateOnly = new Date(consumptionDate.getFullYear(), consumptionDate.getMonth(), consumptionDate.getDate());
             const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             if (dateOnly > todayOnly) {
-                Alert.alert("Invalid Date", "ConsumptionDate cannot be in the future.");
+                showErrorFetchAPI("ConsumptionDate cannot be in the future.");
                 return;
             }
 
             // Notes validation
             const notes = formData.notes?.trim() || null;
             if (notes && notes.length > 500) {
-                Alert.alert("Notes Too Long", "Notes cannot exceed 500 characters.");
+                showErrorFetchAPI("Notes cannot exceed 500 characters.");
                 return;
             }
 
             // Status validation
             const status = formData.status || "active";
             if (status && status.length > 20) {
-                Alert.alert("Status Too Long", "Status cannot exceed 20 characters.");
+                showErrorFetchAPI("Status cannot exceed 20 characters.");
                 return;
             }
 
@@ -176,29 +177,23 @@ export default function AddWaterLogScreen({ navigation }) {
                 } catch (e) {
                     // Silent fail for check-in, do not block log
                 }
-                Alert.alert("Success", "Water intake logged successfully!", [
-                    {
-                        text: "Add More",
-                        onPress: () => {
-                            setFormData({
-                                amountMl: "",
-                                consumptionDate: new Date(),
-                                notes: "",
-                                status: "active",
-                            });
-                            setSelectedQuickAmount(null);
-                        },
-                    },
-                    { text: "Done", onPress: () => navigation.goBack() },
-                ]);
+                showSuccessMessage("Water intake logged successfully!");
+                setFormData({
+                    amountMl: "",
+                    consumptionDate: new Date(),
+                    notes: "",
+                    status: "active",
+                });
+                setSelectedQuickAmount(null);
+                navigation.goBack();
             } else {
-                Alert.alert("Error", response.message || "Failed to save water log.");
+                showErrorFetchAPI(response.message || "Failed to save water log.");
             }
         } catch (error) {
             console.log("Error submitting water log:", error);
-            Alert.alert("Error", "Something went wrong. Please try again.");
+            showErrorFetchAPI("Something went wrong. Please try again.");
         } finally {
-            setIsSubmitting(false);
+            setLoading(false);
         }
     }
 
@@ -347,18 +342,12 @@ export default function AddWaterLogScreen({ navigation }) {
                         {/* Submit Button */}
                         <TouchableOpacity
                             onPress={handleSubmit}
-                            style={[styles.submitButton, { backgroundColor: '#0056d2' }, isSubmitting && styles.submitButtonDisabled]}
-                            disabled={isSubmitting}
+                            style={[styles.submitButton, { backgroundColor: '#0056d2' }, loading && styles.submitButtonDisabled]}
+                            disabled={loading}
                             activeOpacity={0.8}
                         >
-                            {isSubmitting ? (
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                                <>
-                                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                                    <Text style={[styles.submitButtonText, { color: '#FFFFFF' }]}>Save Entry</Text>
-                                </>
-                            )}
+                            <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                            <Text style={[styles.submitButtonText, { color: '#FFFFFF' }]}>Save Entry</Text>
                         </TouchableOpacity>
 
                         <View style={styles.bottomSpacer} />
@@ -438,6 +427,7 @@ export default function AddWaterLogScreen({ navigation }) {
                     </View>
                 </View>
             </Modal>
+        {loading && <Loading />}
         </SafeAreaView>
     )
 }

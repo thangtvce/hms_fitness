@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 
-const Loading = ({ backgroundColor = '#FFFFFF', logoSize = 250 }) => {
+const Loading = ({ backgroundColor = '#FFFFFF', logoSize = 300 }) => {
   return (
     <View style={[styles.loadingContainer, { backgroundColor }]}> 
       <View style={styles.loadingGradient}>

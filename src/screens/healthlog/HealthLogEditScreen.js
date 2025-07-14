@@ -1,4 +1,3 @@
-"use client"
 
 import { useEffect, useState } from "react"
 import {
@@ -7,19 +6,19 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Modal,
   FlatList,
 } from "react-native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import Loading from "components/Loading"
 import { Ionicons } from "@expo/vector-icons"
 import { healthyLogService } from "services/apiHealthyLogService"
 import { useNavigation, useRoute } from "@react-navigation/native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import Header from "../../components/Header"
+import Header from "components/Header"
 
 const MOOD_OPTIONS = [
   { label: "Select your mood", value: "" },
@@ -84,7 +83,7 @@ export default function HealthLogEditScreen() {
         mood: log.mood || "",
       })
     } catch (e) {
-      Alert.alert("Error", e.message || "Unable to load health log.")
+      showErrorFetchAPI(e.message || "Unable to load health log.")
       navigation.goBack()
     } finally {
       setLoading(false)
@@ -112,7 +111,7 @@ export default function HealthLogEditScreen() {
     // Check if at least one field is filled
     const hasData = Object.values(form).some((value) => value !== "")
     if (!hasData) {
-      Alert.alert("Validation Error", "Please enter at least one health metric!")
+      showErrorFetchAPI("Please enter at least one health metric!")
       return false
     }
 
@@ -200,20 +199,16 @@ export default function HealthLogEditScreen() {
 
       await healthyLogService.updateHealthLog(logId, logDto)
 
-      Alert.alert("Success", "Health log updated successfully!", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ])
+      showSuccessMessage("Health log updated successfully!")
+      navigation.goBack()
     } catch (e) {
       if (e.errors) {
         const messages = Object.entries(e.errors)
           .map(([k, v]) => `• ${v.join(", ")}`)
           .join("\n")
-        Alert.alert("Validation Error", messages)
+        showErrorFetchAPI(messages)
       } else {
-        Alert.alert("Error", e.message || "Unable to update health log.")
+        showErrorFetchAPI(e.message || "Unable to update health log.")
       }
     } finally {
       setSaving(false)
@@ -370,12 +365,7 @@ export default function HealthLogEditScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingScreen}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingText}>Loading health log...</Text>
-        </View>
-      </SafeAreaView>
+      <Loading backgroundColor="rgba(255,255,255,0.8)"  text="Loading health log..." />
     )
   }
 
@@ -437,18 +427,12 @@ export default function HealthLogEditScreen() {
             onPress={handleSubmit}
             disabled={saving}
           >
-            {saving ? (
-              <View style={styles.loadingContainer}>
-                <Ionicons name="sync" size={20} color="#fff" />
-                <Text style={styles.submitText}>Updating...</Text>
-              </View>
-            ) : (
-              <View style={styles.submitContent}>
-                <Ionicons name="save" size={20} color="#fff" />
-                <Text style={styles.submitText}>Update Health Log</Text>
-              </View>
-            )}
+            <View style={styles.submitContent}>
+              <Ionicons name="save" size={20} color="#fff" />
+              <Text style={styles.submitText}>Update Health Log</Text>
+            </View>
           </TouchableOpacity>
+          {saving && <Loading backgroundColor="rgba(255,255,255,0.7)" logoSize={80} text="Updating..." />}
         </View>
 
         {renderPickerModal()}

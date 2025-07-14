@@ -18,6 +18,7 @@ import {
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { LinearGradient } from "expo-linear-gradient"
 import Header from "components/Header"
@@ -25,6 +26,7 @@ import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { theme } from "theme/color"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Loading from "components/Loading"
 
 const { width,height } = Dimensions.get("window")
 
@@ -297,8 +299,9 @@ const FavoriteFoodsScreen = () => {
       const updatedFavorites = favoriteFoods.filter((f) => f.foodId !== foodId)
       setFavoriteFoods(updatedFavorites)
       await AsyncStorage.setItem("favoriteFoods", JSON.stringify(updatedFavorites))
-      Alert.alert("Success", "Removed from favorites.")
+      showSuccessMessage("Removed from favorites.")
     } catch (error) {
+      showErrorFetchAPI("Unable to remove favorite: " + (error?.message || ""))
     }
   }
 
@@ -825,7 +828,7 @@ const FavoriteFoodsScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
+          <Loading backgroundColor="#fff" logoSize={120} />
           <Text style={styles.loadingText}>Loading favorite foods...</Text>
         </View>
       </SafeAreaView>
@@ -838,7 +841,7 @@ const FavoriteFoodsScreen = () => {
 
       {/* Header */}
       <Header
-        title="🍎 Favorite Foods"
+        title="Favorite Foods"
         onBack={() => navigation.goBack()}
         rightActions={[
           {
