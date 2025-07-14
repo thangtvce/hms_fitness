@@ -1,3 +1,4 @@
+import WorkoutInProgressScreen from 'screens/workout/WorkoutInProgressScreen';
 import ExercisesByCategoryScreen from 'screens/workout/ExercisesByCategoryScreen';
 // Trainer Workout Screens
 import TrainerWorkoutPlanManagement from 'screens/trainer/trainner_workout/TrainerWorkoutPlanManagement';
@@ -48,7 +49,6 @@ import EditUserScreen from 'screens/profile/EditUserScreen';
 import EditWeightScreen from 'screens/profile/weight/EditWeightScreen';
 import FoodListScreen from 'screens/food/FoodListScreen';
 import FoodDetailsScreen from 'screens/food/FoodDetailsScreen';
-import WorkoutScreen from 'screens/workout/WorkoutScreen';
 import WorkoutListScreen from 'screens/workout/WorkoutListScreen';
 import CategoryDetailsScreen from 'screens/workout/CategoryDetailsScreen';
 import ExerciseDetailsScreen from 'screens/workout/ExerciseDetailsScreen';
@@ -216,7 +216,6 @@ const notificationListener = useRef();
       <Stack.Screen name="EditWeight" component={EditWeightScreen} />
       <Stack.Screen name="Food" component={FoodListScreen} />
       <Stack.Screen name="FoodDetails" component={FoodDetailsScreen} />
-      <Stack.Screen name="Workouts" component={WorkoutScreen} />
       <Stack.Screen name="WorkoutListScreen" component={WorkoutListScreen} options={{ title: 'Workout List' }} />
       <Stack.Screen name="CategoryDetails" component={CategoryDetailsScreen} />
       <Stack.Screen name="ExerciseDetails" component={ExerciseDetailsScreen} />
@@ -272,6 +271,7 @@ const notificationListener = useRef();
       <Stack.Screen name="Trends" component={TrendsScreen} />
       <Stack.Screen name="WorkoutHistoryScreen" component={WorkoutHistoryScreen} />
       <Stack.Screen name="WorkoutSessionScreen" component={WorkoutSessionScreen} />
+      <Stack.Screen name="WorkoutInProgressScreen" component={WorkoutInProgressScreen} />
       <Stack.Screen name="UserActivityScreen" component={UserActivityScreen} />
       <Stack.Screen name="HealthConsultationScreen" component={HealthConsultationScreen} />
       <Stack.Screen name="CalendarScreen" component={CalendarScreen} />

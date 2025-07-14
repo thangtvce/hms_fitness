@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import Loading from '../../components/Loading';
 import {
   View,
   Text,
@@ -27,6 +28,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { addFoodToLog } from "utils/foodLogStorage"
 import dayjs from "dayjs"
+import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
 
 const { width, height } = Dimensions.get("window")
 
@@ -182,6 +184,7 @@ const FoodListScreen = () => {
         return []
       }
     } catch (err) {
+      showErrorFetchAPI(err);
       return []
     }
   }
@@ -246,6 +249,7 @@ const FoodListScreen = () => {
     } catch (err) {
       setError(err.message || "Failed to load foods")
       setFoods([])
+      showErrorFetchAPI(err);
     } finally {
       setLoading(false)
       if (isRefresh) setRefreshing(false)
@@ -419,11 +423,11 @@ const FoodListScreen = () => {
 
       try {
         await addFoodToLog(today, mealType, logData)
-        Alert.alert("Success", `Added ${food.foodName} to ${mealType} log!`)
+        showSuccessMessage(`Added ${food.foodName} to ${mealType} log!`);
         // Remove the food from selectedFoods after successful log
         setSelectedFoods((prev) => prev.filter((f) => f.foodId !== food.foodId))
       } catch (error) {
-        Alert.alert("Error", `Failed to add to log: ${error.message}`)
+        showErrorFetchAPI(error);
       }
     } else {
       setPendingAddFood({ food, mealType })
@@ -493,13 +497,13 @@ const FoodListScreen = () => {
       }
 
       await addFoodToLog(today, mealType, logData)
-      Alert.alert("Success", `Added ${food.foodName} to ${mealType} log with ${parsedServingSize} serving(s)!`)
+      showSuccessMessage(`Added ${food.foodName} to ${mealType} log with ${parsedServingSize} serving(s)!`);
       // Remove the food from selectedFoods after successful log
       setSelectedFoods((prev) => prev.filter((f) => f.foodId !== food.foodId))
       setInputModalVisible(false)
       setPendingAddFood(null)
     } catch (error) {
-      Alert.alert("Error", `Failed to add to log: ${error.message}`)
+      showErrorFetchAPI(error);
     }
   }
 
@@ -1285,14 +1289,7 @@ const FoodListScreen = () => {
   }
 
   if (loading && !refreshing) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingText}>Loading food content...</Text>
-        </View>
-      </SafeAreaView>
-    )
+    return <Loading backgroundColor="#F9FAFB" logoSize={220} />;
   }
 
   return (

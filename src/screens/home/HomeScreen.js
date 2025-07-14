@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState, useEffect, useContext } from 'react';
+import Loading from '../../components/Loading';
 import { LineChart } from 'react-native-chart-kit';
 import { weightHistoryService } from 'services/apiWeightHistoryService';
 import { ThemeContext } from 'components/theme/ThemeContext';
@@ -554,15 +555,9 @@ export default function HomeScreen({ navigation }) {
         gradient: ['#4F46E5', '#6366F1'],
         badge: null,
       },
+     
       {
-        title: 'Workouts',
-        icon: 'activity',
-        route: 'Workouts',
-        gradient: ['#F59E0B', '#FBBF24'],
-        badge: null,
-      },
-      {
-        title: 'Workout List',
+        title: 'Workout ',
         icon: 'list',
         route: 'WorkoutListScreen',
         gradient: ['#0056d2', '#50a2ff'],
@@ -1279,19 +1274,7 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   if (loading && !refreshing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <LinearGradient colors={['#0056d2', '#0056d2']} style={styles.loadingGradient}>
-          <Image
-            source={require('../../../assets/favicon.png')}
-            style={styles.loadingImage}
-            resizeMode="contain"
-          />
-          <ActivityIndicator size="large" color="#FFFFFF" style={styles.loadingIndicator} />
-          <Text style={styles.loadingText}>Loading your health data...</Text>
-        </LinearGradient>
-      </View>
-    );
+    return <Loading backgroundColor="#FFFFFF" logoSize={250} />;
   }
 
   if (error && !refreshing) {
@@ -1605,8 +1588,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   loadingImage: {
-    width: 100,
-    height: 100,
+    width: 250,
+    height: 250,
     marginBottom: 20,
   },
   loadingIndicator: {

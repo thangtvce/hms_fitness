@@ -74,16 +74,21 @@ const ExercisesByCategoryScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title={categoryName || `Category ${categoryId}`} onBack={() => navigation.goBack()} />
-      {/* Nút menu filter */}
-      <View style={{ marginTop: 50, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' }}>
-        <TouchableOpacity onPress={() => setShowFilter(true)} style={{ padding: 8 }}>
-          <Icon name="menu" size={32} color="#4CAF50" />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginLeft: 8 }}>Bộ lọc</Text>
-      </View>
-      {/* Modal bộ lọc */}
-      <Modal
+      <Header
+        title={categoryName || `Category ${categoryId}`}
+        onBack={() => navigation.goBack()}
+        rightActions={[
+          {
+            icon: 'options-outline',
+            onPress: () => setShowFilter(true),
+            color: '#1E293B',
+            iconSet: 'MaterialIcons',
+          },
+        ]}
+      />
+      <View style={{ marginTop: 55 }}>
+        {/* Modal bộ lọc */}
+        <Modal
         visible={showFilter}
         animationType="slide"
         transparent={true}
@@ -176,25 +181,26 @@ const ExercisesByCategoryScreen = ({ route, navigation }) => {
           </View>
         </View>
       </Modal>
-      {/* Danh sách bài tập */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>Loading exercises...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.loadingContainer}>
-          <Text style={{ color: 'red' }}>{error}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={exercises}
-          keyExtractor={item => item.exerciseId?.toString()}
-          renderItem={renderExerciseItem}
-          contentContainerStyle={{ padding: 16 }}
-          ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No exercises found.</Text>}
-        />
-      )}
+        {/* Danh sách bài tập */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.loadingText}>Loading exercises...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.loadingContainer}>
+            <Text style={{ color: 'red' }}>{error}</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={exercises}
+            keyExtractor={item => item.exerciseId?.toString()}
+            renderItem={renderExerciseItem}
+            contentContainerStyle={{ padding: 16 }}
+            ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No exercises found.</Text>}
+          />
+        )}
+      </View>
     </SafeAreaView>
   );
 };

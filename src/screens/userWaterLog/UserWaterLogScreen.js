@@ -1,3 +1,35 @@
+// Helper: Get today string in Vietnam timezone (yyyy-MM-dd) using UTC base
+function getVietnamTodayString() {
+  // Get current UTC time
+  const now = new Date();
+  const utcYear = now.getUTCFullYear();
+  const utcMonth = now.getUTCMonth();
+  const utcDate = now.getUTCDate();
+  const utcHour = now.getUTCHours();
+  // Add 7 hours for Vietnam
+  let vietnamDate = utcDate;
+  let vietnamMonth = utcMonth;
+  let vietnamYear = utcYear;
+  let vietnamHour = utcHour + 7;
+  if (vietnamHour >= 24) {
+    vietnamHour -= 24;
+    vietnamDate += 1;
+    // Handle month/year overflow
+    const daysInMonth = new Date(utcYear, utcMonth + 1, 0).getDate();
+    if (vietnamDate > daysInMonth) {
+      vietnamDate = 1;
+      vietnamMonth += 1;
+      if (vietnamMonth > 11) {
+        vietnamMonth = 0;
+        vietnamYear += 1;
+      }
+    }
+  }
+  // Format yyyy-MM-dd
+  const mm = (vietnamMonth + 1).toString().padStart(2, '0');
+  const dd = vietnamDate.toString().padStart(2, '0');
+  return `${vietnamYear}-${mm}-${dd}`;
+}
 import { useState, useEffect, useCallback } from "react"
 import {
   View,
@@ -341,6 +373,20 @@ export default function UserWaterLogScreen({ navigation }) {
     }
   }
 
+  // Helper: Parse date string as Vietnam time (yyyy-MM-dd or ISO)
+  function parseVietnamDate(dateStr) {
+    if (!dateStr) return null;
+    // If only yyyy-MM-dd, treat as local Vietnam time
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(Date.UTC(y, m - 1, d, 0, 0, 0))
+    }
+    // Else, parse as ISO and shift to Vietnam time
+    const date = new Date(dateStr);
+    const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+    return new Date(utc + 7 * 60 * 60000);
+  }
+
   const updateChartData = (logs) => {
     if (!Array.isArray(logs)) {
       setChartData({ labels: [], datasets: [] })
@@ -348,31 +394,34 @@ export default function UserWaterLogScreen({ navigation }) {
     }
     const dataPoints = []
     let labels = []
-    const today = new Date()
+    // Get today in Vietnam timezone
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const vietnamToday = new Date(utc + 7 * 60 * 60000);
+    vietnamToday.setHours(0, 0, 0, 0);
     try {
       if (timePeriod === "week") {
         labels = Array.from({ length: 7 }, (_, i) => {
-          const date = new Date(today)
-          date.setDate(today.getDate() - (6 - i))
-          return date.toLocaleDateString("en-US", { weekday: "short" })
-        })
+          const date = new Date(vietnamToday);
+          date.setDate(vietnamToday.getDate() - (6 - i));
+          return date.toLocaleDateString("en-US", { weekday: "short" });
+        });
         dataPoints.push(
           ...Array.from({ length: 7 }, (_, i) => {
-            const date = new Date(today)
-            date.setDate(today.getDate() - (6 - i))
-            date.setHours(0, 0, 0, 0)
-            const nextDay = new Date(date)
-            nextDay.setDate(date.getDate() + 1)
+            const date = new Date(vietnamToday);
+            date.setDate(vietnamToday.getDate() - (6 - i));
+            const nextDay = new Date(date);
+            nextDay.setDate(date.getDate() + 1);
             return logs
               .filter(
-                (log) =>
-                  log.consumptionDate &&
-                  new Date(log.consumptionDate) >= date &&
-                  new Date(log.consumptionDate) < nextDay,
+                (log) => {
+                  const logDate = parseVietnamDate(log.consumptionDate);
+                  return logDate && logDate >= date && logDate < nextDay;
+                }
               )
-              .reduce((sum, log) => sum + (log.amountMl || 0), 0)
-          }),
-        )
+              .reduce((sum, log) => sum + (log.amountMl || 0), 0);
+          })
+        );
       }
       setChartData({
         labels,
@@ -384,64 +433,71 @@ export default function UserWaterLogScreen({ navigation }) {
             fill: true,
           },
         ],
-      })
+      });
     } catch (error) {
-      setChartData({ labels: [], datasets: [] })
+      setChartData({ labels: [], datasets: [] });
     }
   }
 
   const calculateHealthMetrics = (logs) => {
     if (!Array.isArray(logs) || logs.length === 0) {
-      setAverageIntake(0)
-      setHydrationStatus("No data")
-      setTodayIntake(0)
-      setWeeklyAverage(0)
-      return
+      setAverageIntake(0);
+      setHydrationStatus("No data");
+      setTodayIntake(0);
+      setWeeklyAverage(0);
+      return;
     }
     try {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const tomorrow = new Date(today)
-      tomorrow.setDate(today.getDate() + 1)
-      const todayLogs = logs.filter((log) => {
-        const logDate = new Date(log.consumptionDate)
-        return logDate >= today && logDate < tomorrow
-      })
-      const todayTotal = todayLogs.reduce((sum, log) => sum + (log.amountMl || 0), 0)
-      setTodayIntake(todayTotal)
+      // Get today in Vietnam timezone
+      const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const vietnamToday = new Date(utc + 7 * 60 * 60000);
+      vietnamToday.setHours(0, 0, 0, 0);
+      const vietnamTomorrow = new Date(vietnamToday);
+      vietnamTomorrow.setDate(vietnamToday.getDate() + 1);
 
-      const weekAgo = new Date(today)
-      weekAgo.setDate(today.getDate() - 7)
+      const todayLogs = logs.filter((log) => {
+        const logDate = parseVietnamDate(log.consumptionDate);
+        return logDate && logDate >= vietnamToday && logDate < vietnamTomorrow;
+      });
+      const todayTotal = todayLogs.reduce((sum, log) => sum + (log.amountMl || 0), 0);
+      setTodayIntake(todayTotal);
+
+      const weekAgo = new Date(vietnamToday);
+      weekAgo.setDate(vietnamToday.getDate() - 7);
       const weekLogs = logs.filter((log) => {
-        const logDate = new Date(log.consumptionDate)
-        return logDate >= weekAgo && logDate < tomorrow
-      })
-      const weeklyTotal = weekLogs.reduce((sum, log) => sum + (log.amountMl || 0), 0)
-      const weeklyAvg = weeklyTotal / 7
-      setWeeklyAverage(weeklyAvg)
+        const logDate = parseVietnamDate(log.consumptionDate);
+        return logDate && logDate >= weekAgo && logDate < vietnamTomorrow;
+      });
+      const weeklyTotal = weekLogs.reduce((sum, log) => sum + (log.amountMl || 0), 0);
+      const weeklyAvg = weeklyTotal / 7;
+      setWeeklyAverage(weeklyAvg);
 
       // Ensure amountMl is always a number and not NaN/null/undefined
-      const totalIntake = logs.reduce((sum, log) => sum + (Number(log.amountMl) || 0), 0)
+      const totalIntake = logs.reduce((sum, log) => sum + (Number(log.amountMl) || 0), 0);
       const uniqueDays = new Set(
-        logs.filter((log) => log.consumptionDate).map((log) => new Date(log.consumptionDate).toDateString()),
-      ).size
-      const avgIntake = uniqueDays > 0 ? totalIntake / uniqueDays : 0
-      setAverageIntake(avgIntake)
+        logs.filter((log) => log.consumptionDate).map((log) => {
+          const d = parseVietnamDate(log.consumptionDate);
+          return d ? d.toDateString() : null;
+        })
+      ).size;
+      const avgIntake = uniqueDays > 0 ? totalIntake / uniqueDays : 0;
+      setAverageIntake(avgIntake);
 
       if (weeklyAvg < MINIMUM_DAILY_INTAKE) {
-        setHydrationStatus("Severely Dehydrated")
+        setHydrationStatus("Severely Dehydrated");
       } else if (weeklyAvg < RECOMMENDED_DAILY_INTAKE * 0.7) {
-        setHydrationStatus("Underhydrated")
+        setHydrationStatus("Underhydrated");
       } else if (weeklyAvg >= RECOMMENDED_DAILY_INTAKE * 0.7 && weeklyAvg <= MAXIMUM_SAFE_INTAKE) {
-        setHydrationStatus("Well-hydrated")
+        setHydrationStatus("Well-hydrated");
       } else {
-        setHydrationStatus("Overhydrated")
+        setHydrationStatus("Overhydrated");
       }
     } catch (error) {
-      setAverageIntake(0)
-      setHydrationStatus("No data")
-      setTodayIntake(0)
-      setWeeklyAverage(0)
+      setAverageIntake(0);
+      setHydrationStatus("No data");
+      setTodayIntake(0);
+      setWeeklyAverage(0);
     }
   }
 
@@ -595,30 +651,28 @@ const handleQuickLog = async () => {
   }
 }
 
-  // Get today's logs for limited display (compare by yyyy-mm-dd string to avoid timezone issues)
+  // Get today's logs for limited display (compare by yyyy-mm-dd string in Vietnam timezone)
   const getTodayLogs = () => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getVietnamTodayString();
+    // Debug: log all waterLogs and todayStr
+  
     const todayLogs = waterLogs.filter((log) => {
       if (!log.consumptionDate) return false;
-      const logDateStr = log.consumptionDate.length >= 10 ? log.consumptionDate.slice(0, 10) : "";
-      return logDateStr === todayStr;
+      const isToday = log.consumptionDate === todayStr;
+      if (isToday) 
+      return isToday;
     });
     return showAllLogs ? todayLogs : todayLogs.slice(0, 3);
   }
 
 
-  // Calculate today's total water intake (sum of all logs for today, robust to timezones)
+  // Calculate today's total water intake (sum of all logs for today, using Vietnam timezone)
   const getTodayTotalIntake = () => {
-    const now = new Date();
-    const localDateStr = now.toISOString().split("T")[0];
-    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-    const vietnamDateObj = new Date(utc + 7 * 60 * 60000);
-    const vietnamDateStr = vietnamDateObj.toISOString().split("T")[0];
+    const todayStr = getVietnamTodayString();
     const total = waterLogs
       .filter((log) => {
         if (!log.consumptionDate) return false;
-        const logDateStr = log.consumptionDate.length >= 10 ? log.consumptionDate.slice(0, 10) : "";
-        return logDateStr === localDateStr || logDateStr === vietnamDateStr;
+        return log.consumptionDate === todayStr;
       })
       .reduce((sum, log) => sum + (Number(log.amountMl) || 0), 0);
     return total;
@@ -630,11 +684,10 @@ const handleQuickLog = async () => {
   }, [waterLogs]);
 
   const getTodayLogsCount = () => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getVietnamTodayString();
     return waterLogs.filter((log) => {
       if (!log.consumptionDate) return false;
-      const logDateStr = log.consumptionDate.length >= 10 ? log.consumptionDate.slice(0, 10) : "";
-      return logDateStr === todayStr;
+      return log.consumptionDate === todayStr;
     }).length;
   }
 

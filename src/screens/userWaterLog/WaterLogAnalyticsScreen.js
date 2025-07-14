@@ -99,23 +99,28 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
     setChartLoading(true);
     try {
       const filterObj = CHART_FILTERS.find(f => f.id === chartFilter) || CHART_FILTERS[0];
-      const endDate = new Date();
-      endDate.setHours(23, 59, 59, 999);
-      let startDate = new Date();
-
-      // Calculate start date based on filter type
-      if (filterObj.type === 'day') {
-        startDate.setDate(endDate.getDate() - (filterObj.days - 1));
-      } else if (filterObj.type === 'month') {
-        startDate.setMonth(endDate.getMonth() - (filterObj.months - 1));
-        startDate.setDate(1);
-      } else if (filterObj.type === 'year') {
-        startDate.setFullYear(endDate.getFullYear() - (filterObj.years - 1));
-        startDate.setMonth(0);
-        startDate.setDate(1);
+      let startDate, endDate;
+      if (filterObj.id === '1d') {
+        // Always use today in Vietnam timezone (real local time, regardless of device timezone)
+        const todayVN = dayjs.utc().tz('Asia/Ho_Chi_Minh', true);
+        startDate = todayVN.startOf('day').toDate();
+        endDate = todayVN.endOf('day').toDate();
+      } else {
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        startDate = new Date();
+        if (filterObj.type === 'day') {
+          startDate.setDate(endDate.getDate() - (filterObj.days - 1));
+        } else if (filterObj.type === 'month') {
+          startDate.setMonth(endDate.getMonth() - (filterObj.months - 1));
+          startDate.setDate(1);
+        } else if (filterObj.type === 'year') {
+          startDate.setFullYear(endDate.getFullYear() - (filterObj.years - 1));
+          startDate.setMonth(0);
+          startDate.setDate(1);
+        }
+        startDate.setHours(0, 0, 0, 0);
       }
-      startDate.setHours(0, 0, 0, 0);
-
       const queryParams = {
         pageNumber: 1,
         pageSize: 5000,
@@ -123,9 +128,7 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         endDate: endDate.toISOString().split("T")[0],
         status: "active",
       };
-
       const response = await apiUserWaterLogService.getMyWaterLogs(queryParams);
-      
       if (response?.statusCode === 200 && response?.data) {
         const records = response.data.records || [];
         generateChartData(records, filterObj, startDate, endDate);
@@ -146,15 +149,21 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
 
     // Special case for 1D: only show today (Asia/Ho_Chi_Minh)
     if (filterObj.id === '1d') {
-      const todayVN = dayjs().tz('Asia/Ho_Chi_Minh');
-      const yyyy = todayVN.year();
-      const mm = todayVN.month();
-      const dd = todayVN.date();
+      // Always use today in Vietnam timezone (real local time, regardless of device timezone)
+      const todayVN = dayjs.utc().tz('Asia/Ho_Chi_Minh', true);
+      const todayStr = todayVN.format('YYYY-MM-DD');
       let total = 0;
       records.forEach(log => {
-        let d = log.consumptionDate;
-        const dVN = dayjs.tz(typeof d === 'string' ? d + ' 00:00:00' : d, 'Asia/Ho_Chi_Minh');
-        if (dVN.year() === yyyy && dVN.month() === mm && dVN.date() === dd) {
+        let dVN;
+        if (typeof log.consumptionDate === 'string') {
+          dVN = dayjs.tz(log.consumptionDate, 'Asia/Ho_Chi_Minh');
+          if (!dVN.isValid()) {
+            dVN = dayjs.tz(log.consumptionDate + ' 00:00:00', 'Asia/Ho_Chi_Minh');
+          }
+        } else {
+          dVN = dayjs(log.consumptionDate).tz('Asia/Ho_Chi_Minh');
+        }
+        if (dVN.isValid() && dVN.format('YYYY-MM-DD') === todayStr) {
           total += log.amountMl || 0;
         }
       });
@@ -327,11 +336,10 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         endDate = new Date(customEndDate);
         endDate.setHours(23, 59, 59, 999);
       } else if (logFilter === '1d') {
-        // Only today
-        startDate = new Date();
-        startDate.setHours(0, 0, 0, 0);
-        endDate = new Date();
-        endDate.setHours(23, 59, 59, 999);
+        // Always use today in Vietnam timezone for both query and filtering
+        const todayVN = dayjs().tz('Asia/Ho_Chi_Minh');
+        startDate = todayVN.startOf('day').toDate();
+        endDate = todayVN.endOf('day').toDate();
       } else {
         const filterObj = LOG_FILTERS.find(f => f.id === logFilter) || LOG_FILTERS[0];
         endDate = new Date();
@@ -354,26 +362,25 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         let records = response.data.records || [];
         // For 1D, filter logs to only those with consumptionDate === today (Asia/Ho_Chi_Minh)
         if (logFilter === '1d') {
-          // Get today in Asia/Ho_Chi_Minh using dayjs
-          const todayVN = dayjs().tz('Asia/Ho_Chi_Minh');
-          const yyyy = todayVN.year();
-          const mm = todayVN.month(); // 0-based
-          const dd = todayVN.date();
-          records.forEach(log => {
-            let d = log.consumptionDate;
-            // Parse as local time in Asia/Ho_Chi_Minh
-            const dVN = dayjs.tz(typeof d === 'string' ? d + ' 00:00:00' : d, 'Asia/Ho_Chi_Minh');
-          });
+        // Always get current time in Vietnam timezone (real local time, regardless of device timezone)
+          const todayVN = dayjs().tz('Asia/Ho_Chi_Minh', true);
+          const todayStr = todayVN.format('YYYY-MM-DD');
+          console.log('[WaterLogAnalyticsScreen] todayVN:', todayVN.format(), 'todayStr:', todayStr);
+          console.log('[WaterLogAnalyticsScreen] all records:', records.map(l => l.consumptionDate));
           records = records.filter(log => {
-            let d = log.consumptionDate;
-            // Parse as local time in Asia/Ho_Chi_Minh
-            const dVN = dayjs.tz(typeof d === 'string' ? d + ' 00:00:00' : d, 'Asia/Ho_Chi_Minh');
-            const match = dVN.year() === yyyy && dVN.month() === mm && dVN.date() === dd;
-            if (!match) {
+            // Try to robustly parse the log date in Vietnam time
+            let dVN;
+            if (typeof log.consumptionDate === 'string') {
+              dVN = dayjs.tz(log.consumptionDate, 'Asia/Ho_Chi_Minh');
+              if (!dVN.isValid()) {
+                dVN = dayjs.tz(log.consumptionDate + ' 00:00:00', 'Asia/Ho_Chi_Minh');
+              }
             } else {
+              dVN = dayjs(log.consumptionDate).tz('Asia/Ho_Chi_Minh');
             }
-            return match;
+            return dVN.isValid() && dVN.format('YYYY-MM-DD') === todayStr;
           });
+          console.log('[WaterLogAnalyticsScreen] filtered records:', records.map(l => l.consumptionDate));
         }
         setLogs(records);
         // Calculate statistics
@@ -688,33 +695,45 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
             </View>
           ) : (
             logs.map((item) => {
-              const date = new Date(item.consumptionDate);
-              const formattedDate = date.toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-                timeZone: "Asia/Ho_Chi_Minh"
-              });
-              const formattedTime = date.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-                timeZone: "Asia/Ho_Chi_Minh"
-              });
+              // Ngày lấy từ consumptionDate, giờ chỉ lấy từ recordedAt (nếu không có thì để trống)
+              let dateVN = null;
+              let timeVN = null;
+              // Lấy ngày từ consumptionDate
+              if (item.consumptionDate) {
+                if (typeof item.consumptionDate === 'string') {
+                  dateVN = dayjs.tz(item.consumptionDate, 'Asia/Ho_Chi_Minh');
+                  if (!dateVN.isValid()) {
+                    dateVN = dayjs.tz(item.consumptionDate + ' 00:00:00', 'Asia/Ho_Chi_Minh');
+                  }
+                } else {
+                  dateVN = dayjs(item.consumptionDate).tz('Asia/Ho_Chi_Minh');
+                }
+              }
+
+              // Chỉ lấy giờ từ recordedAt, đảm bảo parse đúng UTC nếu thiếu 'Z'
+              if (item.recordedAt) {
+                let recordedAtStr = item.recordedAt;
+                // Nếu không có Z hoặc offset, thêm Z để dayjs hiểu là UTC
+                if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(recordedAtStr)) {
+                  recordedAtStr += 'Z';
+                }
+                timeVN = dayjs(recordedAtStr).tz('Asia/Ho_Chi_Minh');
+              }
+              const formattedDate = dateVN && dateVN.isValid() ? dateVN.format('MMM D, YYYY') : '';
+              const formattedTime = timeVN && timeVN.isValid() ? timeVN.format('hh:mm A') : '';
 
               return (
                 <View key={item.logId} style={styles.logCard}>
                   <View style={styles.logCardHeader}>
                     <View style={styles.dateTimeContainer}>
                       <Text style={styles.logDate}>{formattedDate}</Text>
-                      <Text style={styles.logTime}>{formattedTime}</Text>
+                      <Text style={styles.logTime}>{formattedTime ? `Time Update: ${formattedTime}` : ''}</Text>
                     </View>
                     <View style={styles.amountDisplay}>
                       <Ionicons name="water" size={24} color="#2563EB" />
                       <Text style={styles.amountValue}>{item.amountMl || 0} ml</Text>
                     </View>
                   </View>
-                  
                   {item.notes && (
                     <View style={styles.notesSection}>
                       <Ionicons name="document-text" size={16} color="#64748B" />

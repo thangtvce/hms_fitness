@@ -1,355 +1,436 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  Image,
-  TouchableOpacity,
-  Alert 
-} from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+"use client"
+
+import { useEffect, useState } from "react"
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert } from "react-native"
+import { Video } from "expo-av"
+import { Ionicons } from "@expo/vector-icons" // Using Ionicons for consistency
+import { LinearGradient } from "expo-linear-gradient"
+import { SafeAreaView } from "react-native-safe-area-context"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import Header from "components/Header"
+import workoutService from "services/apiWorkoutService" // Assuming this service is correctly imported
 
 const ExerciseDetailsScreen = ({ route, navigation }) => {
-  const { exercise } = route.params;
-  const [categoryName, setCategoryName] = useState('');
+  const { exercise } = route.params
+
+  // Helper: check if mediaUrl is video
+  const isVideo = (url) => {
+    if (!url) return false
+    return url.match(/\.(mp4|mov|webm|avi|mkv)$/i)
+  }
+
+  const [categoryName, setCategoryName] = useState("")
+  const [mediaType, setMediaType] = useState(() => {
+    if (exercise && exercise.mediaUrl && isVideo(exercise.mediaUrl)) return "video"
+    return "image"
+  })
+  const [isFavorite, setIsFavorite] = useState(false)
+
+  useEffect(() => {
+    const checkFavorite = async () => {
+      try {
+        const storedFavorites = await AsyncStorage.getItem("favoriteExercises")
+        const favoriteList = storedFavorites ? JSON.parse(storedFavorites) : []
+        setIsFavorite(favoriteList.some((ex) => ex.exerciseId === exercise.exerciseId))
+      } catch (error) {
+        setIsFavorite(false)
+      }
+    }
+    checkFavorite()
+  }, [exercise.exerciseId])
+
+  const toggleFavorite = async () => {
+    try {
+      const storedFavorites = await AsyncStorage.getItem("favoriteExercises")
+      const favoriteList = storedFavorites ? JSON.parse(storedFavorites) : []
+      const exists = favoriteList.some((ex) => ex.exerciseId === exercise.exerciseId)
+      let updatedList
+      if (exists) {
+        updatedList = favoriteList.filter((ex) => ex.exerciseId !== exercise.exerciseId)
+      } else {
+        updatedList = [...favoriteList, exercise]
+      }
+      await AsyncStorage.setItem("favoriteExercises", JSON.stringify(updatedList))
+      setIsFavorite(!exists)
+      Alert.alert("Success", exists ? "Removed from favorites" : "Added to favorites")
+    } catch (error) {
+      Alert.alert("Error", "Failed to update favorites.")
+    }
+  }
 
   useEffect(() => {
     const fetchCategoryName = async () => {
-      if (typeof exercise.categoryId === 'number') {
+      if (typeof exercise.categoryId === "number") {
         try {
-          // Giả sử workoutService.getCategoryById đã có
-          const workoutService = require('services/apiWorkoutService').default;
-          const data = await workoutService.getCategoryById(exercise.categoryId);
-          setCategoryName(data?.categoryName || exercise.categoryId);
+          const data = await workoutService.getCategoryById(exercise.categoryId)
+          setCategoryName(data?.categoryName || exercise.categoryId)
         } catch (error) {
-          setCategoryName('N/A');
+          setCategoryName("N/A")
         }
       } else {
-        setCategoryName(exercise.categoryId ?? 'N/A');
+        setCategoryName(exercise.categoryId ?? "N/A")
       }
-    };
-    fetchCategoryName();
-  }, [exercise.categoryId]);
+    }
+    fetchCategoryName()
+  }, [exercise.categoryId])
 
   const getExerciseImage = (exerciseName) => {
-    return `https://source.unsplash.com/600x400/?fitness,${exerciseName.replace(/\s/g, '')}`;
-  };
+    return `https://source.unsplash.com/600x400/?fitness,${exerciseName.replace(/\s/g, "")}`
+  }
 
   const handleAddToWorkout = async () => {
     try {
-      const storedExercises = await AsyncStorage.getItem('scheduledExercises');
-      let scheduledExercises = storedExercises ? JSON.parse(storedExercises) : [];
+      const storedExercises = await AsyncStorage.getItem("scheduledExercises")
+      const scheduledExercises = storedExercises ? JSON.parse(storedExercises) : []
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
-        Alert.alert('Info', `${exercise.exerciseName} is already in your workout schedule`);
-        return;
+        Alert.alert("Info", `${exercise.exerciseName} is already in your workout schedule`)
+        return
       }
       const exerciseToSave = {
         ...exercise,
-        mediaUrl: exercise.mediaUrl || '',
-      };
-      scheduledExercises.push(exerciseToSave);
-      await AsyncStorage.setItem('scheduledExercises', JSON.stringify(scheduledExercises));
-      Alert.alert('Success', `${exercise.exerciseName} added to your workout schedule`);
+        mediaUrl: exercise.mediaUrl || "",
+      }
+      scheduledExercises.push(exerciseToSave)
+      await AsyncStorage.setItem("scheduledExercises", JSON.stringify(scheduledExercises))
+      Alert.alert("Success", `${exercise.exerciseName} added to your workout schedule`)
     } catch (error) {
-      Alert.alert('Error', 'Failed to add exercise to schedule. Please try again.');
+      Alert.alert("Error", "Failed to add exercise to schedule. Please try again.")
     }
-  };
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: getExerciseImage(exercise.exerciseName) }}
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.imageGradient}
+      <Header
+        title={exercise.exerciseName || "Exercise Details"}
+        onBack={() => navigation.goBack()}
+        backgroundColor="#fff"
+        titleStyle={{ color: "#6C63FF", fontWeight: "bold" }}
+        rightActions={[
+          {
+            icon: isFavorite ? "heart" : "heart-outline",
+            onPress: toggleFavorite,
+            color: isFavorite ? "#EF4444" : "#6C63FF",
+          },
+          {
+            icon: "add-circle-outline",
+            onPress: handleAddToWorkout,
+            color: "#0056d2",
+          },
+        ]}
+      />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollViewContent, { marginTop: 55 }] }>
+        <View
+          style={[
+            styles.mediaContainer,
+            (mediaType === "image" || mediaType === "video") && { backgroundColor: "#FFFFFF" },
+          ]}
+        >
+          {mediaType === "video" && exercise.mediaUrl && isVideo(exercise.mediaUrl) ? (
+            <Video
+              source={{ uri: exercise.mediaUrl }}
+              style={styles.heroMedia}
+              useNativeControls
+              resizeMode="cover"
+              shouldPlay={true}
+              isLooping={true}
+              posterSource={{ uri: exercise.imageUrl || getExerciseImage(exercise.exerciseName) }}
+              posterStyle={{ width: "100%", height: "100%" }}
+            />
+          ) : (
+            <Image
+              source={{ uri: exercise.imageUrl || getExerciseImage(exercise.exerciseName) }}
+              style={styles.heroMedia}
+              resizeMode="cover"
+            />
+          )}
+          <LinearGradient colors={["transparent", "rgba(0,0,0,0.8)"]} style={styles.imageGradient} />
+        </View>
+        {/* Toggle buttons for media type */}
+        <View style={styles.mediaToggleContainer}>
+          <TouchableOpacity
+            style={[styles.mediaToggleButton, mediaType === "image" && styles.mediaToggleButtonActive]}
+            onPress={() => setMediaType("image")}
+            disabled={mediaType === "image"}
           >
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
+            <Text style={[styles.mediaToggleText, mediaType === "image" && styles.mediaToggleTextActive]}>Image</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.mediaToggleButton,
+              mediaType === "video" && styles.mediaToggleButtonActive,
+              !exercise.mediaUrl || !isVideo(exercise.mediaUrl) ? styles.mediaToggleButtonDisabled : null,
+            ]}
+            onPress={() => setMediaType("video")}
+            disabled={!exercise.mediaUrl || !isVideo(exercise.mediaUrl) || mediaType === "video"}
+          >
+            <Text
+              style={[
+                styles.mediaToggleText,
+                mediaType === "video" && styles.mediaToggleTextActive,
+                (!exercise.mediaUrl || !isVideo(exercise.mediaUrl)) && styles.mediaToggleTextDisabled,
+              ]}
             >
-              <Icon name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.title}>{exercise.exerciseName}</Text>
-          </LinearGradient>
+              Video
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Icon name="local-fire-department" size={24} color="#FF5252" />
-            <Text style={styles.statValue}>{exercise.caloriesBurnedPerMin}</Text>
-            <Text style={styles.statLabel}>kcal/min</Text>
-          </View>
-          
-          {exercise.genderSpecific && (
-            <View style={styles.statItem}>
-              <Icon name="person" size={24} color="#6C63FF" />
-              <Text style={styles.statValue}>{exercise.genderSpecific}</Text>
-              <Text style={styles.statLabel}>Gender</Text>
+        {/* New Key Metrics Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Key Metrics</Text>
+          <View style={styles.metricsGrid}>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricValue}>{exercise.caloriesBurnedPerMin ?? "N/A"}</Text>
+              <Text style={styles.metricLabel}>kcal/min</Text>
             </View>
-          )}
-          
-          <View style={styles.statItem}>
-            <Icon name="calendar-today" size={24} color="#4CAF50" />
-            <Text style={styles.statValue}>
-              {new Date(exercise.createdAt).toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric',
-                year: 'numeric'
-              })}
-            </Text>
-            <Text style={styles.statLabel}>Added</Text>
+            {exercise.genderSpecific && (
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>{exercise.genderSpecific}</Text>
+                <Text style={styles.metricLabel}>Gender</Text>
+              </View>
+            )}
+            <View style={styles.metricCard}>
+              <Text style={styles.metricValue}>
+                {new Date(exercise.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </Text>
+              <Text style={styles.metricLabel}>Added On</Text>
+            </View>
           </View>
+        </View>
+
+        {/* Category Card */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Category</Text>
+          <TouchableOpacity
+            style={styles.categoryCard}
+            onPress={() =>
+              navigation.navigate("ExercisesByCategoryScreen", {
+                categoryId: exercise.categoryId,
+                categoryName: categoryName,
+              })
+            }
+          >
+            <Text style={styles.categoryText}>{categoryName || "Loading..."}</Text>
+            <Ionicons name="chevron-forward-outline" size={20} color="#9E9E9E" />
+          </TouchableOpacity>
         </View>
 
         {/* Description Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Icon name="description" size={22} color="#6C63FF" />
-            <Text style={styles.cardTitle}>Description</Text>
-          </View>
-          <Text style={styles.description}>
-            {exercise.description || 'No description available for this exercise. Try checking the category details for more information about similar exercises.'}
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Icon name="category" size={22} color="#6C63FF" />
-            <Text style={styles.cardTitle}>Category</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.categoryButton}
-            onPress={() => navigation.navigate('ExercisesByCategoryScreen', { categoryId: exercise.categoryId, categoryName: categoryName })}
-          >
-            <LinearGradient
-              colors={['#6C63FF', '#4834DF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.categoryGradient}
-            >
-              <Text style={styles.categoryText}>{categoryName || 'Đang tải...'}</Text>
-              <Icon name="chevron-right" size={20} color="#FFFFFF" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tips Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Icon name="lightbulb" size={22} color="#6C63FF" />
-            <Text style={styles.cardTitle}>Tips</Text>
-          </View>
-          <View style={styles.tipItem}>
-            <Icon name="check-circle" size={18} color="#4CAF50" style={styles.tipIcon} />
-            <Text style={styles.tipText}>Maintain proper form to prevent injuries</Text>
-          </View>
-          <View style={styles.tipItem}>
-            <Icon name="check-circle" size={18} color="#4CAF50" style={styles.tipIcon} />
-            <Text style={styles.tipText}>Stay hydrated during your workout</Text>
-          </View>
-          <View style={styles.tipItem}>
-            <Icon name="check-circle" size={18} color="#4CAF50" style={styles.tipIcon} />
-            <Text style={styles.tipText}>Track your progress to stay motivated</Text>
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Description</Text>
+          <View style={styles.descriptionCard}>
+            <Text style={styles.descriptionText}>
+              {exercise.description ||
+                "No description available for this exercise. Try checking the category details for more information about similar exercises."}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.actionContainer}>
-          <TouchableOpacity style={styles.actionButton}>
-            <LinearGradient
-              colors={['#6C63FF', '#4834DF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.actionGradient}
-            >
-              <Icon name="favorite-border" size={20} color="#FFFFFF" />
-              <Text style={styles.actionText}>Save</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionButton} onPress={handleAddToWorkout}>
-            <LinearGradient
-              colors={['#FF5252', '#D32F2F']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.actionGradient}
-            >
-              <Icon name="add-circle-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.actionText}>Add to Workout</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+        {/* Optional: Instructions if available in exercise object */}
+        {exercise.instructions && exercise.instructions.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Instructions</Text>
+            <View style={styles.instructionsCard}>
+              {exercise.instructions.map((step, index) => (
+                <View key={index} style={styles.instructionItem}>
+                  <Text style={styles.instructionNumber}>{index + 1}.</Text>
+                  <Text style={styles.instructionText}>{step}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
+    backgroundColor: "#F5F5F7",
   },
-  imageContainer: {
+  scrollViewContent: {
+    paddingBottom: 24, // Adjusted padding to give more space at the bottom
+  },
+  mediaContainer: {
     height: 300,
-    position: 'relative',
+    position: "relative",
+    backgroundColor: "#000",
+    padding: 16,
   },
-  heroImage: {
-    width: '100%',
-    height: '100%',
+  heroMedia: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#000",
+    borderRadius: 16,
   },
   imageGradient: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: '100%',
-    justifyContent: 'space-between',
+    height: "100%",
+    justifyContent: "space-between",
     padding: 16,
     paddingTop: 40,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  mediaToggleContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 4,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    marginBottom: 16,
+  mediaToggleButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    backgroundColor: "#E0E0E0",
+    marginHorizontal: 8,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
+  mediaToggleButtonActive: {
+    backgroundColor: "#0056d2",
+  },
+  mediaToggleButtonDisabled: {
+    backgroundColor: "#E0E0E0",
+    opacity: 0.5,
+  },
+  mediaToggleText: {
+    color: "#424242",
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  mediaToggleTextActive: {
+    color: "#fff",
+  },
+  mediaToggleTextDisabled: {
+    color: "#BDBDBD",
+  },
+  // New styles for sections below media
+  sectionContainer: {
     marginHorizontal: 16,
-    marginTop: -30,
-    borderRadius: 16,
-    padding: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    marginTop: 20,
   },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
+  sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#424242',
-    marginTop: 4,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 12,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#757575',
+  metricsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+  },
+  metricCard: {
+    width: "31%", // Approx 3 items per row with spacing
+    backgroundColor: "#F8F8F8",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#EEE",
+  },
+  metricValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#424242",
+    marginTop: 8,
+  },
+  metricLabel: {
+    fontSize: 11,
+    color: "#757575",
     marginTop: 2,
+    textAlign: "center",
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginTop: 16,
+  cardIcon: {
+    marginRight: 12,
+  },
+  categoryCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 16,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#424242',
-    marginLeft: 8,
-  },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#424242',
-  },
-  categoryButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  categoryGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
   },
   categoryText: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#0056d2",
   },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  tipIcon: {
-    marginRight: 8,
-  },
-  tipText: {
-    fontSize: 14,
-    color: '#424242',
-    flex: 1,
-  },
-  actionContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 16,
-    marginTop: 24,
-  },
-  actionButton: {
-    flex: 1,
-    marginHorizontal: 6,
-    borderRadius: 12,
-    overflow: 'hidden',
+  descriptionCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  descriptionText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#424242",
+  },
+  instructionsCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
     shadowRadius: 4,
   },
-  actionGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
+  instructionItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 10,
   },
-  actionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginLeft: 8,
+  instructionNumber: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#6C63FF",
+    marginRight: 8,
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#424242",
+    lineHeight: 22,
   },
   bottomSpacing: {
     height: 24,
   },
-});
+})
 
-export default ExerciseDetailsScreen;
+export default ExerciseDetailsScreen

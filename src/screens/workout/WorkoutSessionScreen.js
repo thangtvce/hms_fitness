@@ -20,6 +20,7 @@ import { useNavigation } from "@react-navigation/native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Video } from "expo-av"
 import { LinearGradient } from "expo-linear-gradient"
+import Header from "components/Header"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { theme } from "theme/color"
 import { workoutService } from "services/apiWorkoutService"
@@ -76,7 +77,13 @@ const WorkoutSessionScreen = () => {
       }),
     ]).start()
 
-    loadScheduledExercises()
+    loadScheduledExercises();
+
+    // Khi màn hình được focus lại, reload danh sách bài tập
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadScheduledExercises();
+    });
+    return unsubscribe;
   }, [])
 
   useEffect(() => {
@@ -100,13 +107,17 @@ const WorkoutSessionScreen = () => {
       const storedExercises = await AsyncStorage.getItem("scheduledExercises")
       if (storedExercises) {
         const exercises = JSON.parse(storedExercises)
+        console.log("Loaded scheduledExercises:", exercises);
         setScheduledExercises(exercises)
         setFilteredExercises(exercises)
+      } else {
+        console.log("No scheduledExercises found in AsyncStorage.");
       }
       setLoading(false)
     } catch (err) {
       setError("Failed to load scheduled exercises")
       setLoading(false)
+      console.log("Error loading scheduledExercises:", err);
     }
   }
 
@@ -184,14 +195,14 @@ const WorkoutSessionScreen = () => {
       Alert.alert("Error", "No exercises scheduled")
       return
     }
-    setCurrentExerciseIndex(0)
-    setIsWorkoutStarted(true)
-    setIsPlaying(true)
-    setTimer(0)
+    // Prepare params to pass to the new screen
     const startTimeVN = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString();
     await AsyncStorage.setItem('workoutSessionStartTime', startTimeVN);
-    sessionStartTimeRef.current = startTimeVN;
     await AsyncStorage.setItem('userActivityStartTimes', JSON.stringify([{ exerciseId: scheduledExercises[0].exerciseId, startTime: startTimeVN }]));
+    navigation.navigate('WorkoutInProgressScreen', {
+      scheduledExercises,
+      startTime: startTimeVN,
+    });
   }
 
   const logCurrentActivity = async (exercise, sessionId, userId) => {
@@ -420,15 +431,15 @@ const WorkoutSessionScreen = () => {
       <View style={styles.modalOverlay}>
         <View style={styles.filterModalContent}>
           <View style={styles.filterModalHeader}>
-            <Text style={styles.filterModalTitle}>🔍 Filter Exercises</Text>
+            <Text style={styles.filterModalTitle}>Filter Exercises</Text>
             <TouchableOpacity style={styles.filterCloseButton} onPress={() => setFilterModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Text style={{fontSize: 20, color: '#64748B'}}>×</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.filterModalBody} showsVerticalScrollIndicator={false}>
             <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>🔍 Search Exercise</Text>
+              <Text style={styles.filterLabel}>Search Exercise</Text>
               <TextInput
                 style={styles.filterInput}
                 placeholder="Enter exercise name..."
@@ -439,7 +450,7 @@ const WorkoutSessionScreen = () => {
             </View>
 
             <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>🔥 Calorie Range (per minute)</Text>
+              <Text style={styles.filterLabel}>Calorie Range (per minute)</Text>
               <View style={styles.filterRow}>
                 <View style={styles.filterHalf}>
                   <Text style={styles.filterSubLabel}>Min Calories</Text>
@@ -467,15 +478,15 @@ const WorkoutSessionScreen = () => {
             </View>
 
             <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>👤 Gender Specific</Text>
+              <Text style={styles.filterLabel}>Gender Specific</Text>
               <View style={styles.genderButtons}>
                 {["", "Male", "Female", "Unisex"].map((gender) => (
                   <TouchableOpacity
                     key={gender}
-                    style={[styles.genderButton, filters.gender === gender && styles.activeGenderButton]}
+                    style={[styles.genderButton, filters.gender === gender && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
                     onPress={() => setFilters((prev) => ({ ...prev, gender }))}
                   >
-                    <Text style={[styles.genderButtonText, filters.gender === gender && styles.activeGenderButtonText]}>
+                    <Text style={[styles.genderButtonText, filters.gender === gender && { color: '#fff' }]}>
                       {gender || "All"}
                     </Text>
                   </TouchableOpacity>
@@ -484,7 +495,7 @@ const WorkoutSessionScreen = () => {
             </View>
 
             <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>📊 Sort Options</Text>
+              <Text style={styles.filterLabel}>Sort Options</Text>
               <View style={styles.filterRow}>
                 <View style={styles.filterHalf}>
                   <Text style={styles.filterSubLabel}>Sort By</Text>
@@ -496,11 +507,11 @@ const WorkoutSessionScreen = () => {
                     ].map((sort) => (
                       <TouchableOpacity
                         key={sort.key}
-                        style={[styles.sortButton, filters.sortBy === sort.key && styles.activeSortButton]}
+                    style={[styles.sortButton, filters.sortBy === sort.key && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
                         onPress={() => setFilters((prev) => ({ ...prev, sortBy: sort.key }))}
                       >
                         <Text
-                          style={[styles.sortButtonText, filters.sortBy === sort.key && styles.activeSortButtonText]}
+                          style={[styles.sortButtonText, filters.sortBy === sort.key && { color: '#fff' }]}
                         >
                           {sort.label}
                         </Text>
@@ -517,14 +528,11 @@ const WorkoutSessionScreen = () => {
                     ].map((order) => (
                       <TouchableOpacity
                         key={order.key}
-                        style={[styles.sortButton, filters.sortOrder === order.key && styles.activeSortButton]}
+                    style={[styles.sortButton, filters.sortOrder === order.key && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
                         onPress={() => setFilters((prev) => ({ ...prev, sortOrder: order.key }))}
                       >
                         <Text
-                          style={[
-                            styles.sortButtonText,
-                            filters.sortOrder === order.key && styles.activeSortButtonText,
-                          ]}
+                          style={[styles.sortButtonText, filters.sortOrder === order.key && { color: '#fff' }]}
                         >
                           {order.label}
                         </Text>
@@ -733,29 +741,27 @@ const WorkoutSessionScreen = () => {
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
 
       {/* Header */}
-      <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Workout Session</Text>
-            <Text style={styles.headerSubtitle}>
-              {isWorkoutStarted ? "Workout in progress" : "Ready to start your workout"}
-            </Text>
-          </View>
-          {!isWorkoutStarted && (
-            <TouchableOpacity style={styles.filterButton} onPress={() => setFilterModalVisible(true)}>
-              <Ionicons name="options" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </LinearGradient>
+      <Header
+        title="Workout Session"
+        onBack={() => navigation.goBack()}
+        rightActions={
+          !isWorkoutStarted
+            ? [
+                {
+                  icon: 'options-outline',
+                  onPress: () => setFilterModalVisible(true),
+                  color: '#3B82F6',
+                },
+              ]
+            : []
+        }
+      />
 
       <Animated.View
         style={[
           styles.container,
           {
+            marginTop: 55,
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
           },
@@ -794,7 +800,7 @@ const WorkoutSessionScreen = () => {
 
                 {scheduledExercises.length > 0 && (
                   <TouchableOpacity style={styles.startWorkoutButton} onPress={startWorkout}>
-                    <LinearGradient colors={["#10B981", "#059669"]} style={styles.startWorkoutGradient}>
+                    <LinearGradient colors={["#0056d2", "#0056d2"]} style={styles.startWorkoutGradient}>
                       <Ionicons name="play" size={24} color="#FFFFFF" />
                       <Text style={styles.startWorkoutText}>Start Workout</Text>
                     </LinearGradient>
@@ -807,10 +813,10 @@ const WorkoutSessionScreen = () => {
               <View style={styles.exercisesTab}>
                 <View style={styles.exercisesHeader}>
                   <Text style={styles.sectionTitle}>
-                    💪 Scheduled Exercises ({filteredExercises.length}/{scheduledExercises.length})
+                    Scheduled Exercises ({filteredExercises.length}/{scheduledExercises.length})
                   </Text>
-                  <TouchableOpacity style={styles.addExerciseButton} onPress={() => navigation.navigate("Workout")}>
-                    <Ionicons name="add" size={20} color="#4F46E5" />
+                  <TouchableOpacity style={styles.addExerciseButton} onPress={() => navigation.navigate("WorkoutListScreen")}> 
+                    <Ionicons name="add" size={20} color="#0056d2" />
                     <Text style={styles.addExerciseText}>Add More</Text>
                   </TouchableOpacity>
                 </View>
@@ -832,7 +838,7 @@ const WorkoutSessionScreen = () => {
                       <TouchableOpacity
                         style={styles.emptyButton}
                         onPress={() =>
-                          scheduledExercises.length === 0 ? navigation.navigate("Workouts") : resetFilters()
+                          scheduledExercises.length === 0 ? navigation.navigate("WorkoutListScreen") : resetFilters()
                         }
                       >
                         <Text style={styles.emptyButtonText}>
@@ -846,16 +852,15 @@ const WorkoutSessionScreen = () => {
 
                 {scheduledExercises.length > 0 && (
                   <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
-                    <Text style={styles.startButtonText}>🚀 Start Workout</Text>
+                    <Text style={styles.startButtonText}> Start Workout</Text>
                   </TouchableOpacity>
                 )}
               </View>
             )}
-          </>
-        ) : (
-          renderWorkoutSession()
-        )}
 
+          </>
+        ) : null
+}
         {error && (
           <View style={styles.errorContainer}>
             <Ionicons name="warning" size={24} color="#EF4444" />
@@ -881,7 +886,7 @@ const WorkoutSessionScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#FFFFFF",
   },
   header: {
     paddingVertical: 20,
@@ -966,7 +971,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   activeTab: {
-    borderBottomColor: "#4F46E5",
+    borderBottomColor: "#0056d2",
   },
   tabText: {
     fontSize: 12,
@@ -974,7 +979,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   activeTabText: {
-    color: "#4F46E5",
+    color: "#0056d2",
     fontWeight: "600",
   },
   statsContainer: {
@@ -1041,7 +1046,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   summaryHighlight: {
-    color: "#4F46E5",
+    color: "#0056d2",
     fontWeight: "600",
   },
   startWorkoutButton: {
@@ -1082,7 +1087,7 @@ const styles = StyleSheet.create({
   },
   addExerciseText: {
     fontSize: 12,
-    color: "#4F46E5",
+    color: "#0056d2",
     fontWeight: "600",
   },
   exerciseCard: {
@@ -1104,7 +1109,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -1146,7 +1151,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   startButton: {
-    backgroundColor: "#10B981",
+    backgroundColor: "#0056d2",
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: "center",
@@ -1176,7 +1181,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   emptyButton: {
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -1498,7 +1503,7 @@ const styles = StyleSheet.create({
     flex: 2,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     alignItems: "center",
   },
   filterApplyText: {
