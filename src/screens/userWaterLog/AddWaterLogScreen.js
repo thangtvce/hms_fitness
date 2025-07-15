@@ -171,7 +171,8 @@ export default function AddWaterLogScreen({ navigation }) {
                     const checkinKey = `@Checkin_${formatDateLocal(todayOnly)}`;
                     const alreadyCheckedIn = await AsyncStorage.getItem(checkinKey);
                     if (!alreadyCheckedIn) {
-                        await apiUserService.checkInUser('checkin');
+                        const checkinResponse = await apiUserService.checkInUser('checkin');
+                        console.log('Check-in response:', checkinResponse);
                         await AsyncStorage.setItem(checkinKey, '1');
                     }
                 } catch (e) {

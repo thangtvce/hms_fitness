@@ -24,6 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from 'theme/color';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import Header from 'components/Header'; // Import the Header component
 
 const { width, height } = Dimensions.get('window');
 
@@ -54,11 +55,13 @@ const AIRecommendedScreen = () => {
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
   const [showSortModal, setShowSortModal] = useState(false);
   const [sortBy, setSortBy] = useState("name");
-  const [layoutMode, setLayoutMode] = useState(1);
+  const [layoutMode, setLayoutMode] = useState(1); // Default to 1 column when entering the screen
   const [showLayoutModal, setShowLayoutModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
   const [userId, setUserId] = useState(null);
 
   // Load userId from AsyncStorage
@@ -70,14 +73,18 @@ const AIRecommendedScreen = () => {
           const userObj = JSON.parse(userStr);
           setUserId(userObj?.userId || userObj?.id || null);
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     loadUserId();
   }, []);
 
   // Fetch AI recommended exercises
   const fetchAIRecommended = async () => {
-    if (!userId) return;
+    if (!userId) {
+      setAILoading(false);
+      setAIError('User not logged in.');
+      return;
+    }
     setAILoading(true);
     setAIError(null);
     try {
@@ -119,7 +126,7 @@ const AIRecommendedScreen = () => {
         const storedFavorites = await AsyncStorage.getItem('favoriteExercises');
         const favoriteList = storedFavorites ? JSON.parse(storedFavorites) : [];
         setFavorites(favoriteList.map(item => item.exerciseId));
-      } catch (error) {}
+      } catch (error) { }
     };
     loadFavorites();
   }, []);
@@ -175,6 +182,7 @@ const AIRecommendedScreen = () => {
       const storedFavorites = await AsyncStorage.getItem('favoriteExercises');
       let favoriteList = storedFavorites ? JSON.parse(storedFavorites) : [];
       const isFavorited = favorites.includes(exercise.exerciseId);
+
       if (isFavorited) {
         favoriteList = favoriteList.filter((item) => item.exerciseId !== exercise.exerciseId);
         setFavorites(favorites.filter((id) => id !== exercise.exerciseId));
@@ -248,15 +256,32 @@ const AIRecommendedScreen = () => {
       (item.description && item.description.toLowerCase().includes(search))
     );
   });
-
   const sortedItems = sortExercises(filteredItems, sortBy);
 
   // Render exercise item
   const renderExerciseItem = ({ item, index }) => {
+    // Debug log for exerciseId and item
+    console.log('Render Exercise Item:', { exerciseId: item.exerciseId, item });
     const itemWidth = layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : "23%";
     const imageHeight = layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : 100;
     const isFavorited = favorites.includes(item.exerciseId);
     const packageType = getPackageIcon(item.exerciseName);
+
+    // Lấy thông tin ưu tiên từ exerciseDetails nếu có
+    const details = item.exerciseDetails || {};
+    const exerciseName = details.exerciseName || item.exerciseName || 'Unknown Exercise';
+    const description = details.description || item.description || 'No description available';
+    // Ưu tiên details.imageUrl, sau đó đến item.imageUrl, cuối cùng là ảnh mặc định
+    let imageUrl = details.imageUrl;
+    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
+      imageUrl = item.imageUrl;
+    }
+    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
+      imageUrl = getExerciseImage(exerciseName);
+    }
+    const mediaUrl = details.mediaUrl || item.mediaUrl;
+    const type = details.type || item.type || 'Fitness';
+    const difficultyLevel = details.difficultyLevel || item.difficultyLevel || details.difficulty || item.difficulty;
 
     return (
       <Animated.View
@@ -264,55 +289,41 @@ const AIRecommendedScreen = () => {
           styles.exerciseItem,
           {
             width: itemWidth,
-            marginRight: layoutMode > 1 ? "2%" : 0,
+            marginRight: (index + 1) % layoutMode !== 0 ? "4%" : 0,
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
           },
         ]}
       >
         <TouchableOpacity
-          onPress={() => navigation.navigate('ExerciseDetails', { exercise: item })}
+          onPress={() => navigation.navigate('ExerciseDetails', { exercise: { ...item, ...details } })}
           activeOpacity={0.8}
           style={styles.exerciseCard}
         >
           <View style={styles.exerciseImageContainer}>
             <Image
-              source={{ uri: item.mediaUrl || getExerciseImage(item.exerciseName || 'fitness') }}
+              source={{ uri: imageUrl }}
               style={[styles.exerciseImage, { height: imageHeight }]}
               resizeMode="cover"
+              onError={e => {
+                console.log('Image load error:', { imageUrl, exerciseId: item.exerciseId, error: e.nativeEvent });
+                // Optionally, you can set a fallback image here if needed
+              }}
             />
-            
             {/* AI Recommend Badge */}
             <LinearGradient
-              colors={["#6366F1", "#8B5CF6"]}
+              colors={["#0056d2", "#296fd1ff"]}
               style={styles.aiBadge}
             >
               <Ionicons name="sparkles" size={12} color="#FFFFFF" />
               <Text style={styles.aiBadgeText}>AI RECOMMEND</Text>
             </LinearGradient>
 
-            {/* Exercise Type Badge */}
-            <View style={styles.typeBadge}>
-              {renderPackageIcon(packageType)}
-              <Text style={styles.typeBadgeText}>{packageType.toUpperCase()}</Text>
-            </View>
-
-            <LinearGradient
-              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"]}
-              style={styles.exerciseGradient}
-            >
-              <Text
-                style={[styles.exerciseName, { fontSize: layoutMode > 2 ? 16 : 20 }]}
-                numberOfLines={layoutMode > 2 ? 2 : 1}
-              >
-                {item.exerciseName || 'Unknown Exercise'}
-              </Text>
-            </LinearGradient>
-
+            {/* Favorite Button */}
             <TouchableOpacity
-              style={[styles.favoriteButton, { 
-                width: layoutMode > 2 ? 28 : 36, 
-                height: layoutMode > 2 ? 28 : 36 
+              style={[styles.favoriteButton, {
+                width: layoutMode > 2 ? 28 : 36,
+                height: layoutMode > 2 ? 28 : 36
               }]}
               onPress={() => toggleFavorite(item)}
             >
@@ -322,39 +333,43 @@ const AIRecommendedScreen = () => {
                 color="#FFFFFF"
               />
             </TouchableOpacity>
-
+            {/* Add Button */}
             <TouchableOpacity
-              style={[styles.addButton, { 
-                width: layoutMode > 2 ? 28 : 36, 
-                height: layoutMode > 2 ? 28 : 36 
+              style={[styles.addButton, {
+                width: layoutMode > 2 ? 28 : 36,
+                height: layoutMode > 2 ? 28 : 36
               }]}
               onPress={() => addToSchedule(item)}
             >
               <Ionicons name="add-circle" size={layoutMode > 2 ? 16 : 20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-
-          <View style={[styles.exerciseContent, { padding: layoutMode > 2 ? 12 : 20 }]}>
+          <View style={[styles.exerciseContent, { padding: layoutMode > 2 ? 12 : 16 }]}> 
+            <Text
+              style={[styles.exerciseName, { fontSize: layoutMode > 2 ? 16 : 18 }]}
+              numberOfLines={layoutMode > 2 ? 2 : 1}
+            >
+              {exerciseName}
+            </Text>
             <Text
               style={[styles.exerciseDescription, { fontSize: layoutMode > 2 ? 12 : 14 }]}
-              numberOfLines={layoutMode > 2 ? 1 : 2}
+              numberOfLines={layoutMode > 2 ? 2 : 2}
             >
-              {item.description || 'No description available'}
+              {description}
             </Text>
-            
-            <View style={[styles.exerciseDetailsContainer, { gap: layoutMode > 2 ? 8 : 12 }]}>
+
+            <View style={[styles.exerciseDetailsContainer, { gap: layoutMode > 2 ? 8 : 12 }]}> 
               <View style={styles.exerciseDetailItem}>
-                <View style={[styles.detailIconContainer, { backgroundColor: '#EEF2FF' }]}>
+                <View style={[styles.detailIconContainer, { backgroundColor: '#EEF2FF' }]}> 
                   <Ionicons name="grid-outline" size={layoutMode > 2 ? 12 : 14} color="#6366F1" />
                 </View>
                 <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]} numberOfLines={1}>
-                  {item.type || 'Fitness'}
+                  {type}
                 </Text>
               </View>
-
               {item.durationMinutes && (
                 <View style={styles.exerciseDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#FEF2F2' }]}>
+                  <View style={[styles.detailIconContainer, { backgroundColor: '#FEF2F2' }]}> 
                     <Ionicons name="time-outline" size={layoutMode > 2 ? 12 : 14} color="#EF4444" />
                   </View>
                   <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]}>
@@ -362,10 +377,9 @@ const AIRecommendedScreen = () => {
                   </Text>
                 </View>
               )}
-
               {item.sets && (
                 <View style={styles.exerciseDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#FFFBEB' }]}>
+                  <View style={[styles.detailIconContainer, { backgroundColor: '#FFFBEB' }]}> 
                     <Ionicons name="repeat-outline" size={layoutMode > 2 ? 12 : 14} color="#F59E0B" />
                   </View>
                   <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]}>
@@ -373,10 +387,9 @@ const AIRecommendedScreen = () => {
                   </Text>
                 </View>
               )}
-
               {item.reps && (
                 <View style={styles.exerciseDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#F0FDF4' }]}>
+                  <View style={[styles.detailIconContainer, { backgroundColor: '#F0FDF4' }]}> 
                     <Ionicons name="barbell-outline" size={layoutMode > 2 ? 12 : 14} color="#10B981" />
                   </View>
                   <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]}>
@@ -384,14 +397,13 @@ const AIRecommendedScreen = () => {
                   </Text>
                 </View>
               )}
-
-              {layoutMode <= 2 && (item.difficultyLevel || item.difficulty) && (
+              {difficultyLevel && (
                 <View style={styles.exerciseDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#FFFBEB' }]}>
-                    <Ionicons name="trending-up-outline" size={14} color="#F59E0B" />
+                  <View style={[styles.detailIconContainer, { backgroundColor: '#E0E7FF' }]}> 
+                    <Ionicons name="trending-up-outline" size={layoutMode > 2 ? 12 : 14} color="#6366F1" />
                   </View>
-                  <Text style={styles.exerciseDetailText}>
-                    {item.difficultyLevel || item.difficulty}
+                  <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]}>
+                    {difficultyLevel}
                   </Text>
                 </View>
               )}
@@ -522,8 +534,8 @@ const AIRecommendedScreen = () => {
       <Text style={styles.emptyText}>
         We're still learning about your preferences. Try completing more workouts to get personalized recommendations.
       </Text>
-      <TouchableOpacity 
-        style={styles.emptyButton} 
+      <TouchableOpacity
+        style={styles.emptyButton}
         onPress={() => navigation.navigate('WorkoutListScreen')}
       >
         <LinearGradient
@@ -540,41 +552,49 @@ const AIRecommendedScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      
-      {/* Header */}
-      <LinearGradient colors={["#6366F1", "#8B5CF6", "#A855F7"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>AI Recommendations</Text>
-            <Text style={styles.headerSubtitle}>Personalized for you</Text>
-          </View>
-          <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowSortModal(true)}>
-            <Ionicons name="swap-vertical-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowLayoutModal(true)}>
-            <Ionicons name="grid-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => navigation.navigate('WorkoutFavoriteScreen')}
-          >
-            <Ionicons name="heart-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => navigation.navigate('WorkoutSessionScreen')}
-          >
-            <Ionicons name="play-circle-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
 
+      {/* Header */}
+     <Header
+        title="AI Recommendations"
+        onBack={() => navigation.goBack()}
+        titleStyle={{
+          fontSize: 22,
+          fontWeight: "bold",
+          color: "#FFFFFF",
+          textAlign: "center",
+          letterSpacing: 0.5,
+        }}
+        containerStyle={{
+          borderBottomWidth: 1,
+          borderBottomColor: "#E5E7EB",
+          elevation: 2,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
+        }}
+        rightActions={[
+         
+          {
+            icon: LAYOUT_OPTIONS.find((opt) => opt.columns === layoutMode)?.icon || "grid-outline",
+            onPress: () => setShowLayoutModal(true),
+            color: "#000000ff",
+          },
+          {
+            icon: "heart-outline",
+            onPress: () => navigation.navigate('WorkoutFavoriteScreen'),
+            color: "#000000ff",
+          },
+          {
+            icon: "play-circle-outline",
+            onPress: () => navigation.navigate('WorkoutSessionScreen'),
+            color: "#000000ff",
+          },
+        ]}
+      />
       {/* Search Bar */}
       <Animated.View
-        style={[styles.searchContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        style={[styles.searchContainer, { marginTop: 50, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
       >
         <View style={styles.searchInputContainer}>
           <Ionicons name="search-outline" size={20} color="#6B7280" style={styles.searchIcon} />
@@ -598,52 +618,40 @@ const AIRecommendedScreen = () => {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Stats Bar */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Ionicons name="sparkles" size={20} color="#6366F1" />
-          <Text style={styles.statText}>{sortedItems.length} Recommendations</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Ionicons name="grid-outline" size={20} color="#6366F1" />
-          <Text style={styles.statText}>{layoutMode} Column{layoutMode > 1 ? 's' : ''}</Text>
-        </View>
-      </View>
-
       {/* Content */}
       <View style={styles.contentContainer}>
-        <Loading visible={aiLoading} />
-        {!aiLoading && aiError ? (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-            <Text style={styles.errorTitle}>Something went wrong</Text>
-            <Text style={styles.errorText}>{aiError}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={fetchAIRecommended}>
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
-        ) : !aiLoading && sortedItems.length > 0 ? (
-          <FlatList
-            data={sortedItems}
-            renderItem={renderExerciseItem}
-            keyExtractor={(item, index) =>
-              item.exerciseId ? `ai-exercise-${item.exerciseId}` : `ai-item-${index}`
-            }
-            numColumns={layoutMode}
-            key={layoutMode}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={["#6366F1"]}
-                tintColor="#6366F1"
-              />
-            }
-          />
-        ) : !aiLoading && renderEmpty()}
+        {aiLoading ? null :
+          aiError ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+              <Text style={styles.errorTitle}>Something went wrong</Text>
+              <Text style={styles.errorText}>{aiError}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={fetchAIRecommended}>
+                <Text style={styles.retryButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : sortedItems.length > 0 ? (
+            <FlatList
+              data={sortedItems}
+              renderItem={renderExerciseItem}
+              keyExtractor={(item, index) =>
+                item.exerciseId ? `ai-exercise-${item.exerciseId}` : `ai-item-${index}`
+              }
+              numColumns={layoutMode}
+              key={layoutMode}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={["#6366F1"]}
+                  tintColor="#6366F1"
+                />
+              }
+            />
+          ) : renderEmpty()
+        }
       </View>
 
       {renderSortModal()}
@@ -657,47 +665,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
-  header: {
-    paddingTop: Platform.OS === "android" ? 40 : 20,
-    paddingBottom: 20,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  headerTextContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  headerActionButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginLeft: 8,
-  },
+  // Header styles removed as Header component is used
   searchContainer: {
     backgroundColor: "#F8FAFC",
-    marginTop: -10,
+    marginTop: 0, // Adjusted margin top
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 24,
@@ -735,41 +706,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: "#6366F1",
+    backgroundColor: "#0056d2",
     alignItems: "center",
     justifyContent: "center",
   },
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#E2E8F0',
-    marginHorizontal: 16,
-  },
-  statText: {
-    fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
-  },
+  // Stats container removed as per user request
   contentContainer: {
     flex: 1,
     backgroundColor: '#F9FAFB',
@@ -785,15 +726,15 @@ const styles = StyleSheet.create({
   },
   exerciseCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 16, // Slightly smaller border radius for consistency
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 }, // Reduced shadow for a lighter feel
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 2,
-    borderColor: '#E0E7FF',
+    shadowRadius: 4, // Reduced shadow radius
+    elevation: 3, // Reduced elevation
+    borderWidth: 1, // Thinner border
+    borderColor: '#E2E8F0', // Softer border color
   },
   exerciseImageContainer: {
     position: 'relative',
@@ -812,6 +753,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     gap: 4,
+    zIndex: 1, // Ensure it's above the image
   },
   aiBadgeText: {
     color: '#FFFFFF',
@@ -819,24 +761,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  typeBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  typeBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
-    letterSpacing: 0.5,
-  },
+  // Type badge removed, as AI badge is sufficient for primary identification
   exerciseGradient: {
     position: 'absolute',
     left: 0,
@@ -848,60 +773,66 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   exerciseName: {
-    fontSize: 20,
+    fontSize: 18, // Slightly smaller font size for better fit
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#1E293B', // Changed to a darker text color for content
   },
   favoriteButton: {
     position: 'absolute',
-    bottom: 16,
-    right: 60,
+    top: 12, // Positioned at top right
+    right: 56, // Space for add button
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Subtle background
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   addButton: {
     position: 'absolute',
-    bottom: 16,
-    right: 16,
+    top: 12, // Positioned at top right
+    right: 12,
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Subtle background
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   exerciseContent: {
-    padding: 20,
+    padding: 16, // Consistent padding
   },
   exerciseDescription: {
     fontSize: 14,
     color: '#64748B',
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 12, // Added margin bottom
   },
   exerciseDetailsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8, // Reduced gap for tighter layout
   },
   exerciseDetailItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F1F5F9', // Light background for detail chips
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   detailIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20, // Smaller icon container
+    height: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 6, // Reduced margin
   },
   exerciseDetailText: {
-    fontSize: 13,
+    fontSize: 12, // Smaller font size
     color: '#64748B',
     fontWeight: '500',
   },

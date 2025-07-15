@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useAuth } from "context/AuthContext";
 import { 
   ScrollView, 
   View, 
@@ -92,6 +93,7 @@ const FILTERS = [
 ];
 
 const NutritionTargetScreen = () => {
+  const { user } = useAuth();
   const navigation = useNavigation();
   const [target, setTarget] = useState({ calories: 0, carbs: 0, protein: 0, fats: 0 });
   const [selectedPreset, setSelectedPreset] = useState(null);
@@ -99,26 +101,45 @@ const NutritionTargetScreen = () => {
   const [lastSaved, setLastSaved] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper to get userId-based key
+  const getUserId = () => {
+    if (user && typeof user === 'object') {
+      return user.id || user._id || user.userId || '';
+    }
+    return '';
+  };
+  const getStorageKey = () => {
+    const userId = getUserId();
+    return userId ? `nutritionTarget_${userId}` : 'nutritionTarget';
+  };
+  const getTodayKey = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const userId = getUserId();
+    return userId ? `nutritionTarget_${userId}_${yyyy}-${mm}-${dd}` : `nutritionTarget_${yyyy}-${mm}-${dd}`;
+  };
+
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const saved = await AsyncStorage.getItem("nutritionTarget");
+        const saved = await AsyncStorage.getItem(getStorageKey());
         if (saved) {
           setTarget(JSON.parse(saved));
           setLastSaved(JSON.parse(saved));
         }
-        // showSuccessMessage("Nutrition target loaded successfully!");
       } catch (e) {
         showErrorFetchAPI(e.message || "Failed to load nutrition target");
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [user]);
 
   const handleReset = async () => {
-    const saved = await AsyncStorage.getItem("nutritionTarget");
+    const saved = await AsyncStorage.getItem(getStorageKey());
     if (saved) {
       setTarget(JSON.parse(saved));
       setSelectedPreset(null);
@@ -135,14 +156,6 @@ const NutritionTargetScreen = () => {
     setSelectedPreset(idx);
   };
 
-  // Helper to get YYYY-MM-DD string for today
-  const getTodayKey = () => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
 
   const handleSave = async () => {
     if (!target.calories || !target.carbs || !target.protein || !target.fats) {
@@ -152,11 +165,11 @@ const NutritionTargetScreen = () => {
 
     setLoading(true);
     try {
-      // Save as latest
-      await AsyncStorage.setItem("nutritionTarget", JSON.stringify(target));
-      // Save as per-day
+      // Save as latest for this user
+      await AsyncStorage.setItem(getStorageKey(), JSON.stringify(target));
+      // Save as per-day for this user
       const todayKey = getTodayKey();
-      await AsyncStorage.setItem(`nutritionTarget_${todayKey}`, JSON.stringify(target));
+      await AsyncStorage.setItem(todayKey, JSON.stringify(target));
 
       setLastSaved(target); // update UI immediately
       showSuccessMessage("Your nutrition targets have been saved successfully!");

@@ -17,12 +17,35 @@ const NutritionTargetHistoryScreen = () => {
     (async () => {
       setLoading(true);
       try {
+        const getUserId = () => {
+          if (typeof global !== 'undefined' && global.user) {
+            const user = global.user;
+            return user.id || user._id || user.userId || '';
+          }
+          return '';
+        };
+        let userId = '';
+        if (typeof window !== 'undefined' && window.user) {
+          userId = window.user.id || window.user._id || window.user.userId || '';
+        } else if (typeof global !== 'undefined' && global.user) {
+          userId = global.user.id || global.user._id || global.user.userId || '';
+        }
+        const getStorageKey = () => {
+          return userId ? `nutritionTarget_${userId}` : 'nutritionTarget';
+        };
+        const getTodayKey = () => {
+          const today = new Date();
+          const yyyy = today.getFullYear();
+          const mm = String(today.getMonth() + 1).padStart(2, '0');
+          const dd = String(today.getDate()).padStart(2, '0');
+          return userId ? `nutritionTarget_${userId}_${yyyy}-${mm}-${dd}` : `nutritionTarget_${yyyy}-${mm}-${dd}`;
+        };
         // Lấy history
         const raw = await AsyncStorage.getItem("nutritionTargetHistory");
         let historyArr = [];
         if (raw) historyArr = JSON.parse(raw);
         // Lấy target hiện tại từ AsyncStorage
-        const rawTarget = await AsyncStorage.getItem("nutritionTarget");
+        const rawTarget = await AsyncStorage.getItem(getStorageKey());
         let currentTarget = { carbs: 0, protein: 0, fats: 0, calories: 0 };
         if (rawTarget) currentTarget = JSON.parse(rawTarget);
         // Nếu entry nào thiếu targetCarbs/targetProtein/targetFats/targetCalories thì bổ sung từ target hiện tại

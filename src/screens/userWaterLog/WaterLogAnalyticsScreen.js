@@ -2,9 +2,13 @@ import React, { useState, useEffect } from "react";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 import {
   View,
   Text,
@@ -16,7 +20,6 @@ import {
   Dimensions,
   Platform,
 } from "react-native";
-import Loading from "components/Loading";
 import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons";
 import { BarChart } from "react-native-chart-kit";
@@ -52,6 +55,27 @@ const LOG_FILTERS = [
 
 export default function WaterLogAnalyticsScreen({ navigation }) {
   const { user, authToken } = useAuth();
+
+  // Log current Vietnam date and water target for current user
+  useEffect(() => {
+    // Get Vietnam today string in YYYY-MM-DD
+    let vietnamDate = '';
+    try {
+      vietnamDate = new Date().toLocaleDateString('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+    } catch (e) {}
+    let userId = null;
+    if (user && typeof user === 'object') {
+      userId = user.id || user._id || user.userId;
+    }
+    const key = userId ? `waterTarget_${userId}` : 'waterTarget';
+    const saved = typeof window !== 'undefined' && window.localStorage ? localStorage.getItem(key) : null;
+    console.log('DEBUG analytics Vietnam date:', vietnamDate, '| waterTarget localStorage:', key, saved);
+  }, [user]);
   
   // State management
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,9 +126,14 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
       const filterObj = CHART_FILTERS.find(f => f.id === chartFilter) || CHART_FILTERS[0];
       let startDate, endDate;
       if (filterObj.id === '1d') {
-        const todayVN = dayjs.utc().tz('Asia/Ho_Chi_Minh', true);
-        startDate = todayVN.startOf('day').toDate();
-        endDate = todayVN.endOf('day').toDate();
+        // Force add 7 hours to UTC then get Vietnam date
+        const nowUTC = dayjs.utc();
+        const nowVN = nowUTC.add(7, 'hour');
+        const todayVNStr = nowVN.format('YYYY-MM-DD');
+        const nowVNDetail = nowVN.format('YYYY-MM-DD HH:mm:ss');
+        console.log('DEBUG Water Consumption Chart 1D - Vietnam date string used for filter (+7h):', todayVNStr, '| Full Vietnam time now:', nowVNDetail);
+        startDate = nowVN.startOf('day').toDate();
+        endDate = nowVN.endOf('day').toDate();
       } else {
         endDate = new Date();
         endDate.setHours(23, 59, 59, 999);
@@ -134,11 +163,13 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         generateChartData(records, filterObj, startDate, endDate);
       } else {
         setChartData(null);
-        showErrorFetchAPI("Failed to fetch chart data.");
+        console.error('Chart fetch error:', response);
+        showErrorFetchAPI(response);
       }
     } catch (error) {
       setChartData(null);
-      showErrorFetchAPI("An error occurred while fetching chart data.");
+      console.error('Chart fetch exception:', error);
+      showErrorFetchAPI(error);
     } finally {
       setChartLoading(false);
     }
@@ -149,12 +180,43 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
     let labels = [];
     let data = [];
 
-    // Special case for 1D: only show today (Asia/Ho_Chi_Minh)
+    // Special case for 1D: only show today (Vietnam time, UTC+7)
     if (filterObj.id === '1d') {
-      // Always use today in Vietnam timezone (real local time, regardless of device timezone)
-      const todayVN = dayjs.utc().tz('Asia/Ho_Chi_Minh', true);
-      const todayStr = todayVN.format('YYYY-MM-DD');
+      // Use UTC+7 for today, matching fetchChartData logic
+      const nowUTC = dayjs.utc();
+      const nowVN = nowUTC.add(7, 'hour');
+      const todayVNStr = nowVN.format('YYYY-MM-DD');
       let total = 0;
+      records.forEach(log => {
+        let dVN;
+        if (typeof log.consumptionDate === 'string') {
+          // Parse as UTC then add 7h to get Vietnam time
+          dVN = dayjs.utc(log.consumptionDate).add(7, 'hour');
+        } else {
+          dVN = dayjs(log.consumptionDate).utc().add(7, 'hour');
+        }
+        if (dVN.isValid() && dVN.format('YYYY-MM-DD') === todayVNStr) {
+          total += log.amountMl || 0;
+        }
+      });
+      labels = [nowVN.format('DD/MM')];
+      data = [total];
+    }
+    // Special case for 1W: group by week, each column is a week
+    else if (filterObj.id === '1w') {
+      // Group by each day in the last 7 days (Vietnam time, Asia/Ho_Chi_Minh)
+      let days = [];
+      let dayStart = dayjs(startDate).tz('Asia/Ho_Chi_Minh').startOf('day');
+      let dayEnd = dayjs(endDate).tz('Asia/Ho_Chi_Minh').endOf('day');
+      while (dayStart.isBefore(dayEnd) || dayStart.isSame(dayEnd, 'day')) {
+        days.push({
+          date: dayStart.format('YYYY-MM-DD'),
+          label: dayStart.format('DD/MM'),
+          total: 0
+        });
+        dayStart = dayStart.add(1, 'day');
+      }
+      // Group logs by day (Vietnam time)
       records.forEach(log => {
         let dVN;
         if (typeof log.consumptionDate === 'string') {
@@ -165,38 +227,15 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         } else {
           dVN = dayjs(log.consumptionDate).tz('Asia/Ho_Chi_Minh');
         }
-        if (dVN.isValid() && dVN.format('YYYY-MM-DD') === todayStr) {
-          total += log.amountMl || 0;
+        if (dVN.isValid()) {
+          const idx = days.findIndex(day => dVN.format('YYYY-MM-DD') === day.date);
+          if (idx !== -1) {
+            days[idx].total += log.amountMl || 0;
+          }
         }
       });
-      labels = [todayVN.format('DD/MM')];
-      data = [total];
-    }
-    // Special case for 1W: group by week, each column is a week
-    else if (filterObj.id === '1w') {
-      // Tìm các tuần trong khoảng startDate - endDate
-      let weeks = [];
-      let weekStart = dayjs(startDate).tz('Asia/Ho_Chi_Minh').startOf('week');
-      let weekEnd = dayjs(endDate).tz('Asia/Ho_Chi_Minh').endOf('week');
-      while (weekStart.isBefore(weekEnd)) {
-        weeks.push({
-          start: weekStart.clone(),
-          end: weekStart.clone().endOf('week'),
-          total: 0
-        });
-        weekStart = weekStart.add(1, 'week');
-      }
-      // Group logs by week
-      records.forEach(log => {
-        let d = log.consumptionDate;
-        const dVN = dayjs.tz(typeof d === 'string' ? d + ' 00:00:00' : d, 'Asia/Ho_Chi_Minh');
-        const weekIdx = weeks.findIndex(w => dVN.isSameOrAfter(w.start, 'day') && dVN.isSameOrBefore(w.end, 'day'));
-        if (weekIdx !== -1) {
-          weeks[weekIdx].total += log.amountMl || 0;
-        }
-      });
-      labels = weeks.map(w => w.start.format('DD/MM'));
-      data = weeks.map(w => w.total);
+      labels = days.map(d => d.label);
+      data = days.map(d => d.total);
     }
     else if (filterObj.id === '1m') {
       // 1M: mỗi cột là tổng lượng nước của từng tháng
@@ -338,9 +377,14 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         endDate = new Date(customEndDate);
         endDate.setHours(23, 59, 59, 999);
       } else if (logFilter === '1d') {
-        const todayVN = dayjs().tz('Asia/Ho_Chi_Minh');
-        startDate = todayVN.startOf('day').toDate();
-        endDate = todayVN.endOf('day').toDate();
+        // Force add 7 hours to UTC then get Vietnam date
+        const nowUTC = dayjs.utc();
+        const nowVN = nowUTC.add(7, 'hour');
+        const todayVNStr = nowVN.format('YYYY-MM-DD');
+        const nowVNDetail = nowVN.format('YYYY-MM-DD HH:mm:ss');
+        console.log('DEBUG Water Logs List 1D - Vietnam date string used for filter (+7h):', todayVNStr, '| Full Vietnam time now:', nowVNDetail);
+        startDate = nowVN.startOf('day').toDate();
+        endDate = nowVN.endOf('day').toDate();
       } else {
         const filterObj = LOG_FILTERS.find(f => f.id === logFilter) || LOG_FILTERS[0];
         endDate = new Date();
@@ -387,14 +431,16 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         setTotalAmount(0);
         setTotalLogs(0);
         setAverageAmount(0);
-        showErrorFetchAPI("Failed to fetch water logs.");
+        console.error('Logs fetch error:', response);
+        showErrorFetchAPI(response);
       }
     } catch (error) {
       setLogs([]);
       setTotalAmount(0);
       setTotalLogs(0);
       setAverageAmount(0);
-      showErrorFetchAPI("An error occurred while fetching water logs.");
+      console.error('Logs fetch exception:', error);
+      showErrorFetchAPI(error);
     } finally {
       setLoading(false);
     }
@@ -433,7 +479,7 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
     </View>
   );
 
-  const renderStatistics = () => (
+const renderStatistics = () => (
     <View style={styles.statisticsContainer}>
       <View style={styles.statCard}>
         <Text style={styles.statValue}>{totalLogs}</Text>
@@ -464,25 +510,17 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         {CHART_FILTERS.map(filter => (
           <TouchableOpacity
             key={filter.id}
-            style={[
-              styles.filterTab, 
-              chartFilter === filter.id && styles.filterTabActive
-            ]}
+            style={[styles.filterTab, chartFilter === filter.id && styles.filterTabActive]}
             onPress={() => setChartFilter(filter.id)}
           >
-            <Text style={[
-              styles.filterTabText, 
-              chartFilter === filter.id && styles.filterTabTextActive
-            ]}>
+            <Text style={[styles.filterTabText, chartFilter === filter.id && styles.filterTabTextActive]}>
               {filter.label}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
       <View style={styles.chartContainer}>
-        {chartLoading ? (
-          <Loading visible={true} />
-        ) : chartData && chartData.datasets[0].data.some(val => val > 0) ? (
+        {chartData && chartData.datasets[0].data.some(val => val > 0) ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <BarChart
               data={chartData}
@@ -658,8 +696,6 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
 
       {renderSearchBar()}
 
-      {/* Loading overlay for logs (full screen, white, logo only) */}
-      <Loading visible={loading} />
 
       <ScrollView 
         style={styles.scrollContainer}

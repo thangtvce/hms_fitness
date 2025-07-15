@@ -14,7 +14,7 @@ import EditServicePackageScreen from 'screens/trainer/service/EditServicePackage
 import CreateServicePackageScreen from 'screens/trainer/service/CreateServicePackageScreen';
 import React, { useEffect, useRef } from 'react';
 import AppIntroScreen from 'screens/AppIntroScreen';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native'
 import { createStackNavigator } from '@react-navigation/stack';
 import { View,ActivityIndicator } from 'react-native';
 import { AuthProvider,useAuth } from 'context/AuthContext';
@@ -61,6 +61,7 @@ import SavedPackagesScreen from 'screens/servicePackage/SavedPackagesScreen';
 import FavoriteFoodsScreen from 'screens/food/FavoriteFoodsScreen';
 import WorkoutFavoriteScreen from 'screens/workout/WorkoutFavoriteScreen';
 import UserWaterLogScreen from 'screens/userWaterLog/UserWaterLogScreen';
+import SetWaterTargetScreen from 'screens/userWaterLog/SetWaterTargetScreen';
 import WaterComparisonScreen from 'screens/userWaterLog/WaterComparisonScreen';
 import AddWaterLogScreen from 'screens/userWaterLog/AddWaterLogScreen';
 import EditWaterLogScreen from 'screens/userWaterLog/EditWaterLogScreen';
@@ -126,6 +127,7 @@ import AddWorkoutPlanScreen from 'screens/trainer/workoutPlan/AddWorkoutPlanScre
 import EditWorkoutPlanScreen from 'screens/trainer/workoutPlan/EditWorkoutPlanScreen';
 import TrainerWorkoutPlanStatisticsScreen from 'screens/trainer/workoutPlan/TrainerWorkoutPlanStatisticsScreen';
 import AIRecommendedScreen from 'screens/workout/AIRecommendedScreen';
+import AIRecommendedFoodScreen from 'screens/food/AIRecommendedFoodScreen';
 import UserGoalPlansScreen from 'screens/profile/UserGoalPlansScreen';
 import WeeklyProgressScreen from 'screens/home/WeeklyProgressScreen';
 import BanMembersScreen from 'screens/community/BanMembersScreen';
@@ -255,6 +257,7 @@ const notificationListener = useRef();
       <Stack.Screen name="FavoriteFoodScreen" component={FavoriteFoodsScreen} />
       <Stack.Screen name="WorkoutFavoriteScreen" component={WorkoutFavoriteScreen} />
       <Stack.Screen name="UserWaterLog" component={UserWaterLogScreen} />
+      <Stack.Screen name="SetWaterTarget" component={SetWaterTargetScreen} options={{ title: 'Set Water Target' }} />
       <Stack.Screen name="WaterComparison" component={WaterComparisonScreen} />
       <Stack.Screen name="AddWaterLogScreen" component={AddWaterLogScreen} />
       <Stack.Screen name="EditWaterLogScreen" component={EditWaterLogScreen} />
@@ -335,6 +338,7 @@ const notificationListener = useRef();
           <Stack.Screen name="EditServicePackage" component={EditServicePackageScreen} options={{ title: 'Edit Service Package' }} />
 
     <Stack.Screen name="AIRecommendedScreen" component={AIRecommendedScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="AIRecommendedFoodScreen" component={AIRecommendedFoodScreen} options={{ title: 'AI Recommended Food' }} />
     <Stack.Screen name="UserGoalPlansScreen" component={UserGoalPlansScreen} options={{ title: 'User Goal Plans' }} />
     <Stack.Screen name="WeeklyProgressScreen" component={WeeklyProgressScreen} options={{ title: 'Weekly Progress' }} />
       <Stack.Screen name="BanMembersScreen" component={BanMembersScreen} options={{ title: 'Ban Members' }} />

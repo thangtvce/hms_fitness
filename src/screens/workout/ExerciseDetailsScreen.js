@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react"
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "react-native"
 import { Video } from "expo-av"
+import { WebView } from 'react-native-webview'
 import { Ionicons } from "@expo/vector-icons" 
 import { LinearGradient } from "expo-linear-gradient"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -13,15 +14,31 @@ import workoutService from "services/apiWorkoutService"
 const ExerciseDetailsScreen = ({ route, navigation }) => {
   const { exercise } = route.params
 
-  // Helper: check if mediaUrl is video
+
+  // Helper: check if mediaUrl là video file
   const isVideo = (url) => {
     if (!url) return false
     return url.match(/\.(mp4|mov|webm|avi|mkv)$/i)
   }
+  // Helper: check nếu là link YouTube
+  const isYouTube = (url) => {
+    if (!url) return false
+    return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//.test(url)
+  }
+  // Helper: lấy videoId từ link YouTube
+  const getYouTubeId = (url) => {
+    if (!url) return null
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
+    const match = url.match(regExp)
+    return match && match[2].length === 11 ? match[2] : null
+  }
 
   const [categoryName, setCategoryName] = useState("")
   const [mediaType, setMediaType] = useState(() => {
-    if (exercise && exercise.mediaUrl && isVideo(exercise.mediaUrl)) return "video"
+    if (exercise && exercise.mediaUrl) {
+      if (isVideo(exercise.mediaUrl)) return "video"
+      if (isYouTube(exercise.mediaUrl)) return "youtube"
+    }
     return "image"
   })
   const [isFavorite, setIsFavorite] = useState(false)
@@ -155,6 +172,16 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
                   posterSource={{ uri: exercise.imageUrl || getExerciseImage(exercise.exerciseName) }}
                   posterStyle={{ width: "100%", height: "100%" }}
                 />
+              ) : mediaType === "youtube" && exercise.mediaUrl && isYouTube(exercise.mediaUrl) ? (
+                <WebView
+                  style={styles.heroMedia}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  source={{
+                    uri: `https://www.youtube.com/embed/${getYouTubeId(exercise.mediaUrl)}?autoplay=0&modestbranding=1&controls=1`,
+                  }}
+                  allowsFullscreenVideo
+                />
               ) : (
                 <Image
                   source={{ uri: exercise.imageUrl || getExerciseImage(exercise.exerciseName) }}
@@ -177,7 +204,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
                 style={[
                   styles.mediaToggleButton,
                   mediaType === "video" && styles.mediaToggleButtonActive,
-                  !exercise.mediaUrl || !isVideo(exercise.mediaUrl) ? styles.mediaToggleButtonDisabled : null,
+                  !exercise.mediaUrl || (!isVideo(exercise.mediaUrl)) ? styles.mediaToggleButtonDisabled : null,
                 ]}
                 onPress={() => setMediaType("video")}
                 disabled={!exercise.mediaUrl || !isVideo(exercise.mediaUrl) || mediaType === "video"}
@@ -190,6 +217,25 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
                   ]}
                 >
                   Video
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.mediaToggleButton,
+                  mediaType === "youtube" && styles.mediaToggleButtonActive,
+                  !exercise.mediaUrl || !isYouTube(exercise.mediaUrl) ? styles.mediaToggleButtonDisabled : null,
+                ]}
+                onPress={() => setMediaType("youtube")}
+                disabled={!exercise.mediaUrl || !isYouTube(exercise.mediaUrl) || mediaType === "youtube"}
+              >
+                <Text
+                  style={[
+                    styles.mediaToggleText,
+                    mediaType === "youtube" && styles.mediaToggleTextActive,
+                    (!exercise.mediaUrl || !isYouTube(exercise.mediaUrl)) && styles.mediaToggleTextDisabled,
+                  ]}
+                >
+                  YouTube
                 </Text>
               </TouchableOpacity>
             </View>

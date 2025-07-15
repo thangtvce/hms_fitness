@@ -93,7 +93,7 @@ const TrainerDetailScreen = ({ route, navigation }) => {
         .catch(() => setAverageRating(0))
       // Lấy tổng số client
       trainerService
-        .getAllActiveServicePackage({ trainerId })
+        .getAllActivePackages({ trainerId })
         .then((res) => {
           const pkgs = res.data?.packages || []
           const total = pkgs.reduce((sum, pkg) => sum + (pkg.currentSubscribers || 0), 0)

@@ -31,7 +31,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hms3do.app",
       "infoPlist": {
-        "NSMotionUsageDescription": "This app uses the pedometer to count your steps."
+        "NSMotionUsageDescription": "This app uses the pedometer to count your steps.",
+        "NSHealthShareUsageDescription": "Ứng dụng cần truy cập Health để lấy dữ liệu bước chân",
+        "NSHealthUpdateUsageDescription": "Ứng dụng cần ghi dữ liệu vào Health",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

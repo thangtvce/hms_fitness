@@ -1,4 +1,5 @@
 
+
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '@env';
@@ -63,6 +64,15 @@ export const trainerService = {
   async getMyTrainerApplications(queryParams = {}) {
     try {
       const response = await apiClient.get('/TrainerApplication/me',{ params: queryParams });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+    // Get all active service packages (public)
+  async getAllActivePackages(queryParams = {}) {
+    try {
+      const response = await apiClient.get('/ServicePackage/all-active-package', { params: queryParams });
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

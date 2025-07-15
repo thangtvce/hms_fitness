@@ -113,11 +113,20 @@ export default function AddWeightHistoryScreen({ navigation }) {
 
     try {
       setLoading(true);
+      // Format local datetime as 'YYYY-MM-DDTHH:mm:ss' (no Z, no UTC)
+      const d = formData.recordedAt;
+      const localDateTime =
+        d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0') + 'T' +
+        String(d.getHours()).padStart(2, '0') + ':' +
+        String(d.getMinutes()).padStart(2, '0') + ':' +
+        String(d.getSeconds()).padStart(2, '0');
       const response = await weightHistoryService.addWeightHistory({
         historyId: "0",
         userId: userId,
         weight: weight,
-        recordedAt: formData.recordedAt.toISOString(),
+        recordedAt: localDateTime,
       });
 
       if (response.statusCode === 201) {

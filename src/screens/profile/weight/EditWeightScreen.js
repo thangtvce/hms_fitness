@@ -108,11 +108,20 @@ export default function EditWeightScreen({ navigation,route }) {
 
         setIsLoading(true);
         try {
+            // Format local datetime as 'YYYY-MM-DDTHH:mm:ss' (no Z, no UTC)
+            const d = formData.recordedAt;
+            const localDateTime =
+                d.getFullYear() + '-' +
+                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getDate()).padStart(2, '0') + 'T' +
+                String(d.getHours()).padStart(2, '0') + ':' +
+                String(d.getMinutes()).padStart(2, '0') + ':' +
+                String(d.getSeconds()).padStart(2, '0');
             const payload = {
                 historyId,
                 userId,
                 weight: weightValue,
-                recordedAt: formData.recordedAt.toISOString(),
+                recordedAt: localDateTime,
             };
 
             const response = await weightHistoryService.updateWeightHistory(historyId, payload);

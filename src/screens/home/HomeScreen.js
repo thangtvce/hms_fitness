@@ -1,9 +1,9 @@
-import React, { useCallback, useMemo, useState, useEffect, useContext } from 'react';
-import Loading from '../../components/Loading';
-import { LineChart } from 'react-native-chart-kit';
-import { weightHistoryService } from 'services/apiWeightHistoryService';
-import { ThemeContext } from 'components/theme/ThemeContext';
-import { AuthContext } from 'context/AuthContext';
+import React, { useCallback, useMemo, useState, useEffect, useContext } from "react"
+import Loading from "components/Loading"
+import { LineChart } from "react-native-chart-kit"
+import { weightHistoryService } from "services/apiWeightHistoryService"
+import { ThemeContext } from "components/theme/ThemeContext"
+import { AuthContext } from "context/AuthContext"
 import {
   View,
   Text,
@@ -14,152 +14,171 @@ import {
   Dimensions,
   Image,
   Animated,
-  ActivityIndicator,
   RefreshControl,
-} from "react-native";
-import { Ionicons, Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import apiUserService from "services/apiUserService";
-import { foodService } from "services/apiFoodService";
-import { workoutService } from "services/apiWorkoutService";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import dayjs from "dayjs";
-import * as Notifications from "expo-notifications";
-import { useFocusEffect } from "@react-navigation/native";
-import { apiUserWaterLogService } from "services/apiUserWaterLogService";
-import Header from "components/Header";
-import { AnimatedCircularProgress } from "react-native-circular-progress";
-import { useStepTracker } from "context/StepTrackerContext";
+  
+} from "react-native"
+import { Feather } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import apiUserService from "services/apiUserService"
+import { foodService } from "services/apiFoodService"
+import { workoutService } from "services/apiWorkoutService"
+import dayjs from "dayjs"
+import * as Notifications from "expo-notifications"
+import { useFocusEffect } from "@react-navigation/native"
+import { apiUserWaterLogService } from "services/apiUserWaterLogService"
+import Header from "components/Header"
+import { AnimatedCircularProgress } from "react-native-circular-progress"
+import { useStepTracker } from "context/StepTrackerContext"
 
-const { width } = Dimensions.get('window');
-const SPACING = 20;
-const screenWidth = Dimensions.get('window').width;
+import WaterCupTracker from "components/WaterCupTracker"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+
+const { width } = Dimensions.get("window")
+const SPACING = 20
+const screenWidth = Dimensions.get("window").width
 
 export default function HomeScreen({ navigation }) {
-  const { user } = useContext(AuthContext);
-  const { colors, theme } = useContext(ThemeContext);
-  const { steps, duration, isReady } = useStepTracker();
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const translateY = React.useRef(new Animated.Value(30)).current;
-  const [currentDate] = useState(new Date());
-  const [activeIcon, setActiveIcon] = useState('Profile');
-  const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+  // Debug: log waterTarget whenever it changes
+  useEffect(() => {
+  }, [waterTarget]);
+  const [waterTarget, setWaterTarget] = useState(null);
+  // Load water target from AsyncStorage
+  useEffect(() => {
+    const loadTarget = async () => {
+      if (!user?.userId) return;
+      try {
+        const key = `user_water_target_${user.userId}`;
+        const data = await AsyncStorage.getItem(key);
+        if (data) {
+          setWaterTarget(JSON.parse(data));
+        } else {
+          setWaterTarget(null);
+        }
+      } catch (e) {
+        setWaterTarget(null);
+      }
+    };
+    loadTarget();
+  }, [user?.userId]);
+  const { user } = useContext(AuthContext)
+  const { colors, theme } = useContext(ThemeContext)
+  const { steps, duration, isReady } = useStepTracker()
+  const fadeAnim = React.useRef(new Animated.Value(0)).current
+  const translateY = React.useRef(new Animated.Value(30)).current
+  const [currentDate] = useState(new Date())
+  const [activeIcon, setActiveIcon] = useState("Profile")
+  const [dashboardData, setDashboardData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [nutritionTarget, setNutritionTarget] = useState({
     calories: null,
     carbs: null,
     protein: null,
     fats: null,
-  });
-  const [waterData, setWaterData] = useState({ todayIntake: 0, weeklyAverage: 0 });
-  const [weightHistory, setWeightHistory] = useState([]);
-  const [weightStats, setWeightStats] = useState({ current: 0, lowest: 0, highest: 0, average: 0, change: 0 });
-  const [weightTimeFrame, setWeightTimeFrame] = useState('3m');
-
+  })
+  const [waterData, setWaterData] = useState({ todayIntake: 0, weeklyAverage: 0 })
+  const [weightHistory, setWeightHistory] = useState([])
+  const [weightStats, setWeightStats] = useState({ current: 0, lowest: 0, highest: 0, average: 0, change: 0 })
+  const [weightTimeFrame, setWeightTimeFrame] = useState("3m")
   // StepCounter AsyncStorage values
-  const [stepCounterData, setStepCounterData] = useState({ steps: 0, calories: 0, distance: 0, target: 10000 });
+  const [stepCounterData, setStepCounterData] = useState({ steps: 0, calories: 0, distance: 0, target: 10000 })
 
   // Helper to get today's key (same as StepCounterScreen)
   const getTodayStr = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-  };
+    const d = new Date()
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`
+  }
 
   // Load step/calo/distance from AsyncStorage (StepCounterScreen logic)
   useEffect(() => {
     const loadStepCounterData = async () => {
       try {
-        const userId = user?.userId || 'unknown';
-        const todayKey = `stepcounter_${userId}_${getTodayStr()}`;
-        const data = await AsyncStorage.getItem(todayKey);
+        const userId = user?.userId || "unknown"
+        const todayKey = `stepcounter_${userId}_${getTodayStr()}`
+        const data = await AsyncStorage.getItem(todayKey)
         if (data) {
-          const parsed = JSON.parse(data);
-          const steps = Number(parsed.steps) || 0;
-          const duration = Number(parsed.duration) || 0;
-          const target = Number(parsed.target) || 10000;
+          const parsed = JSON.parse(data)
+          const steps = Number(parsed.steps) || 0
+          const duration = Number(parsed.duration) || 0
+          const target = Number(parsed.target) || 10000
           // Calculate distance and calories as in StepCounterScreen
-          const distance = (steps * 0.762) / 1000;
-          let calPerStep = 0.04;
+          const distance = (steps * 0.762) / 1000
+          let calPerStep = 0.04
           if (user && user.gender) {
-            if (user.gender.toLowerCase() === 'female' || user.gender.toLowerCase() === 'nữ') calPerStep = 0.03;
+            if (user.gender.toLowerCase() === "female" || user.gender.toLowerCase() === "nữ") calPerStep = 0.03
           }
-          const calories = Math.round(steps * calPerStep);
-          setStepCounterData({ steps, calories, distance, target });
+          const calories = Math.round(steps * calPerStep)
+          setStepCounterData({ steps, calories, distance, target })
         } else {
-          setStepCounterData({ steps: 0, calories: 0, distance: 0, target: 10000 });
+          setStepCounterData({ steps: 0, calories: 0, distance: 0, target: 10000 })
         }
       } catch {
-        setStepCounterData({ steps: 0, calories: 0, distance: 0, target: 10000 });
+        setStepCounterData({ steps: 0, calories: 0, distance: 0, target: 10000 })
       }
-    };
-    loadStepCounterData();
-  }, [user]);
+    }
+    loadStepCounterData()
+  }, [user])
 
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const currentDayIndex = currentDate.getDay();
+  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  const currentDayIndex = currentDate.getDay()
 
   // Format duration in hh:mm:ss
   const formatDuration = (seconds) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return [h, m, s]
-      .map((v) => v.toString().padStart(2, '0'))
-      .join(':');
-  };
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    return [h, m, s].map((v) => v.toString().padStart(2, "0")).join(":")
+  }
 
   // Step Preview Section
-
-
   useEffect(() => {
     navigation.setOptions({
-      tabBarStyle: { display: loading && !refreshing ? 'none' : 'flex' },
-    });
-  }, [loading, refreshing, navigation]);
+      tabBarStyle: { display: loading && !refreshing ? "none" : "flex" },
+    })
+  }, [loading, refreshing, navigation])
 
   const trainerAds = [
     {
       id: 1,
-      name: 'Sarah Johnson',
-      specialty: 'Weight Loss & Nutrition',
+      name: "Sarah Johnson",
+      specialty: "Weight Loss & Nutrition",
       rating: 4.9,
       clients: 250,
-      image: 'https://images.unsplash.com/photo-1594824804732-ca8db4394b12?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-      badge: 'Top Rated',
-      experience: '5+ years',
+      image:
+        "https://images.unsplash.com/photo-1594824804732-ca8db4394b12?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+      badge: "Top Rated",
+      experience: "5+ years",
     },
     {
       id: 2,
-      name: 'Mike Chen',
-      specialty: 'Strength Training',
+      name: "Mike Chen",
+      specialty: "Strength Training",
       rating: 4.8,
       clients: 180,
-      image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-      badge: 'Certified',
-      experience: '7+ years',
+      image:
+        "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+      badge: "Certified",
+      experience: "7+ years",
     },
     {
       id: 3,
-      name: 'Emma Davis',
-      specialty: 'Yoga & Mindfulness',
+      name: "Emma Davis",
+      specialty: "Yoga & Mindfulness",
       rating: 4.9,
       clients: 320,
-      image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-      badge: 'Expert',
-      experience: '6+ years',
+      image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+      badge: "Expert",
+      experience: "6+ years",
     },
-  ];
-
-  const [currentTrainerIndex, setCurrentTrainerIndex] = useState(0);
-
+  ]
+  const [currentTrainerIndex, setCurrentTrainerIndex] = useState(0)
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTrainerIndex((prev) => (prev + 1) % trainerAds.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+      setCurrentTrainerIndex((prev) => (prev + 1) % trainerAds.length)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   const defaultSummary = {
     nutritionSummary: {
@@ -167,61 +186,63 @@ export default function HomeScreen({ navigation }) {
       remainingCalories: 2200,
       totalCalories: 2200,
       macros: {
-        carbs: { value: 0, target: nutritionTarget.carbs, unit: 'g', color: '#4F46E5' },
-        protein: { value: 0, target: nutritionTarget.protein, unit: 'g', color: '#10B981' },
-        fats: { value: 0, target: nutritionTarget.fats, unit: 'g', color: '#F59E0B' },
+        carbs: { value: 0, target: nutritionTarget.carbs, unit: "g", color: "#4F46E5" },
+        protein: { value: 0, target: nutritionTarget.protein, unit: "g", color: "#10B981" },
+        fats: { value: 0, target: nutritionTarget.fats, unit: "g", color: "#F59E0B" },
       },
     },
     activitySummary: { burnedCalories: 0, steps: 0, target: 10000 },
     mealPlans: [
       {
-        plan_name: 'Balanced Diet',
+        plan_name: "Balanced Diet",
         daily_calories: 2200,
         meal_frequency: 3,
-        image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
+        image:
+          "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80",
       },
       {
-        plan_name: 'High Protein',
+        plan_name: "High Protein",
         daily_calories: 2400,
         meal_frequency: 4,
-        image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
+        image:
+          "https://images.unsplash.com/photo-1565958011703-44f9829ba187?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80",
       },
     ],
     mealCalories: { Breakfast: 0, Lunch: 0, Dinner: 0, Other: 0 },
-  };
+  }
 
   const calculateAge = (birthDate) => {
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
+    const today = new Date()
+    const birth = new Date(birthDate)
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+      age--
     }
-    return age;
-  };
+    return age
+  }
 
   const formatLastLogin = (lastLogin) => {
-    const date = new Date(lastLogin);
-    const now = new Date();
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    return date.toLocaleDateString();
-  };
+    const date = new Date(lastLogin)
+    const now = new Date()
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
+    if (diffInHours < 1) return "Just now"
+    if (diffInHours < 24) return `${diffInHours}h ago`
+    return date.toLocaleDateString()
+  }
 
   const fetchUserData = async (isRefresh = false) => {
     if (!user || !user.userId) {
       setDashboardData({
         ...defaultSummary,
-        user: { fullName: 'Unknown User', gender: 'N/A', birthDate: null, lastLogin: new Date() },
-      });
-      setWaterData({ todayIntake: 0, weeklyAverage: 0 });
-      setWeightHistory([]);
-      setWeightStats({ current: 0, lowest: 0, highest: 0, average: 0, change: 0 });
-      setLoading(false);
-      setRefreshing(false);
-      const todayKey = dayjs(currentDate).format('YYYY-MM-DD');
+        user: { fullName: "Unknown User", gender: "N/A", birthDate: null, lastLogin: new Date() },
+      })
+      setWaterData({ todayIntake: 0, weeklyAverage: 0 })
+      setWeightHistory([])
+      setWeightStats({ current: 0, lowest: 0, highest: 0, average: 0, change: 0 })
+      setLoading(false)
+      setRefreshing(false)
+      const todayKey = dayjs(currentDate).format("YYYY-MM-DD")
       await AsyncStorage.setItem(
         `dailyStats_${todayKey}`,
         JSON.stringify({
@@ -230,142 +251,126 @@ export default function HomeScreen({ navigation }) {
           macros: { carbs: 0, protein: 0, fats: 0 },
           weight: 0,
           steps: 0,
-        })
-      );
-      return;
+        }),
+      )
+      return
     }
-
-    if (!isRefresh) setLoading(true);
-    setError(null);
-
+    if (!isRefresh) setLoading(true)
+    setError(null)
     try {
-      const userData = await apiUserService.getUserById(user.userId);
-      const avatar = userData.data.avatar;
-      if (avatar) await AsyncStorage.setItem('userAvatar', avatar);
+      const userData = await apiUserService.getUserById(user.userId)
+      const avatar = userData.data.avatar
+      if (avatar) await AsyncStorage.setItem("userAvatar", avatar)
 
-      const startDate = dayjs(currentDate).format('YYYY-MM-DD');
-      const endDate = dayjs(currentDate).format('YYYY-MM-DD');
-      const startOfMonth = dayjs(currentDate).startOf('month').format('YYYY-MM-DD');
-      const endOfMonth = dayjs(currentDate).endOf('month').format('YYYY-MM-DD');
+      const startDate = dayjs(currentDate).format("YYYY-MM-DD")
+      const endDate = dayjs(currentDate).format("YYYY-MM-DD")
+      const startOfMonth = dayjs(currentDate).startOf("month").format("YYYY-MM-DD")
+      const endOfMonth = dayjs(currentDate).endOf("month").format("YYYY-MM-DD")
 
       const nutritionResponse = await foodService.getMyNutritionLogs({
         pageNumber: 1,
         pageSize: 200,
         startDate: startOfMonth,
         endDate: endOfMonth,
-      });
-
-      const grouped = {};
+      })
+      const grouped = {}
       if (nutritionResponse.statusCode === 200 && Array.isArray(nutritionResponse.data.nutritionLogs)) {
         nutritionResponse.data.nutritionLogs.forEach((log) => {
-          const date = dayjs(log.consumptionDate).format('YYYY-MM-DD');
-          if (!grouped[date]) grouped[date] = [];
-          grouped[date].push(log);
-        });
+          const date = dayjs(log.consumptionDate).format("YYYY-MM-DD")
+          if (!grouped[date]) grouped[date] = []
+          grouped[date].push(log)
+        })
       }
-
-      const todayKey = dayjs(currentDate).format('YYYY-MM-DD');
-      const todayLogs = grouped[todayKey] || [];
-
-      let consumedCalories = 0;
-      let carbs = 0;
-      let protein = 0;
-      let fats = 0;
-      const mealCalories = { Breakfast: 0, Lunch: 0, Dinner: 0, Other: 0 };
-
+      const todayKey = dayjs(currentDate).format("YYYY-MM-DD")
+      const todayLogs = grouped[todayKey] || []
+      let consumedCalories = 0
+      let carbs = 0
+      let protein = 0
+      let fats = 0
+      const mealCalories = { Breakfast: 0, Lunch: 0, Dinner: 0, Other: 0 }
       todayLogs.forEach((log) => {
-        consumedCalories += log.calories || 0;
-        carbs += log.carbs || 0;
-        protein += log.protein || 0;
-        fats += log.fats || 0;
-        const mealType = ['Breakfast', 'Lunch', 'Dinner'].includes(log.mealType) ? log.mealType : 'Other';
-        mealCalories[mealType] += log.calories || 0;
-      });
+        consumedCalories += log.calories || 0
+        carbs += log.carbs || 0
+        protein += log.protein || 0
+        fats += log.fats || 0
+        const mealType = ["Breakfast", "Lunch", "Dinner"].includes(log.mealType) ? log.mealType : "Other"
+        mealCalories[mealType] += log.calories || 0
+      })
 
       const activitiesResponse = await workoutService.getMyActivities({
         pageNumber: 1,
         pageSize: 50,
-      });
-
-      let burnedCalories = 0;
-      let activitySteps = 0;
-
+      })
+      let burnedCalories = 0
+      let activitySteps = 0
       if (Array.isArray(activitiesResponse)) {
         const todayActivities = activitiesResponse.filter((activity) =>
-          dayjs(activity.recordedAt).isSame(currentDate, 'day'),
-        );
-        burnedCalories = todayActivities.reduce((sum, activity) => sum + (activity.caloriesBurned || 0), 0);
-        activitySteps = todayActivities.reduce((sum, activity) => sum + (activity.steps || 0), 0);
+          dayjs(activity.recordedAt).isSame(currentDate, "day"),
+        )
+        burnedCalories = todayActivities.reduce((sum, activity) => sum + (activity.caloriesBurned || 0), 0)
+        activitySteps = todayActivities.reduce((sum, activity) => sum + (activity.steps || 0), 0)
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-      const weekAgo = new Date(today);
-      weekAgo.setDate(today.getDate() - 6);
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const tomorrow = new Date(today)
+      tomorrow.setDate(today.getDate() + 1)
+      const weekAgo = new Date(today)
+      weekAgo.setDate(today.getDate() - 6)
 
       const waterResponse = await apiUserWaterLogService.getMyWaterLogs({
-        startDate: weekAgo.toISOString().split('T')[0],
-        endDate: tomorrow.toISOString().split('T')[0],
+        startDate: weekAgo.toISOString().split("T")[0],
+        endDate: tomorrow.toISOString().split("T")[0],
         pageSize: 100,
-      });
-
-      const waterLogs = waterResponse?.data?.records || waterResponse?.data || [];
-
+      })
+      const waterLogs = waterResponse?.data?.records || waterResponse?.data || []
       const todayTotal = waterLogs
         .filter((log) => {
-          const d = new Date(log.consumptionDate);
-          return d >= today && d < tomorrow;
+          const d = new Date(log.consumptionDate)
+          return d >= today && d < tomorrow
         })
-        .reduce((sum, log) => sum + (log.amountMl || 0), 0);
-
-      const dailyTotals = Array(7).fill(0);
+        .reduce((sum, log) => sum + (log.amountMl || 0), 0)
+      const dailyTotals = Array(7).fill(0)
       for (let i = 0; i < 7; i++) {
-        const day = new Date(weekAgo);
-        day.setDate(weekAgo.getDate() + i);
-        const nextDay = new Date(day);
-        nextDay.setDate(day.getDate() + 1);
-
+        const day = new Date(weekAgo)
+        day.setDate(weekAgo.getDate() + i)
+        const nextDay = new Date(day)
+        nextDay.setDate(day.getDate() + 1)
         dailyTotals[i] = waterLogs
           .filter((log) => {
-            const d = new Date(log.consumptionDate);
-            return d >= day && d < nextDay;
+            const d = new Date(log.consumptionDate)
+            return d >= day && d < nextDay
           })
-          .reduce((sum, log) => sum + (log.amountMl || 0), 0);
+          .reduce((sum, log) => sum + (log.amountMl || 0), 0)
       }
+      const weeklyAverage = dailyTotals.reduce((a, b) => a + b, 0) / 7
+      setWaterData({ todayIntake: todayTotal, weeklyAverage })
 
-      const weeklyAverage = dailyTotals.reduce((a, b) => a + b, 0) / 7;
-      setWaterData({ todayIntake: todayTotal, weeklyAverage });
-
-      const weightResponse = await weightHistoryService.getMyWeightHistory({ pageNumber: 1, pageSize: 100 });
-      let weightRecords = [];
-
+      const weightResponse = await weightHistoryService.getMyWeightHistory({ pageNumber: 1, pageSize: 100 })
+      let weightRecords = []
       if (weightResponse.statusCode === 200 && weightResponse.data) {
         weightRecords = (weightResponse.data.records || []).sort(
           (a, b) => new Date(b.recordedAt) - new Date(a.recordedAt),
-        );
-        setWeightHistory(weightRecords);
-
-        const weights = weightRecords.map((item) => item.weight);
-        const current = weights[0] || 0;
-        const lowest = weights.length > 0 ? Math.min(...weights) : 0;
-        const highest = weights.length > 0 ? Math.max(...weights) : 0;
-        const average = weights.length > 0 ? weights.reduce((sum, weight) => sum + weight, 0) / weights.length : 0;
-        const change = weights.length > 1 ? current - weights[weights.length - 1] : 0;
-
+        )
+        setWeightHistory(weightRecords)
+        const weights = weightRecords.map((item) => item.weight)
+        const current = weights[0] || 0
+        const lowest = weights.length > 0 ? Math.min(...weights) : 0
+        const highest = weights.length > 0 ? Math.max(...weights) : 0
+        const average = weights.length > 0 ? weights.reduce((sum, weight) => sum + weight, 0) / weights.length : 0
+        const change = weights.length > 1 ? current - weights[weights.length - 1] : 0
         setWeightStats({
           current: Number.parseFloat(current.toFixed(1)),
           lowest: Number.parseFloat(lowest.toFixed(1)),
           highest: Number.parseFloat(highest.toFixed(1)),
           average: Number.parseFloat(average.toFixed(1)),
           change: Number.parseFloat(change.toFixed(1)),
-        });
+        })
       }
 
-      const totalCalories = userData.data.dailyCalorieGoal || defaultSummary.nutritionSummary.totalCalories;
-      const netCalories = consumedCalories - burnedCalories;
-      const remainingCalories = Math.max(totalCalories - netCalories, 0);
+      const totalCalories = userData.data.dailyCalorieGoal || defaultSummary.nutritionSummary.totalCalories
+      const netCalories = consumedCalories - burnedCalories
+      const remainingCalories = Math.max(totalCalories - netCalories, 0)
 
       setDashboardData({
         user: userData.data,
@@ -386,19 +391,21 @@ export default function HomeScreen({ navigation }) {
         },
         mealPlans: defaultSummary.mealPlans,
         mealCalories,
-      });
+      })
 
-      const todayWeight = weightRecords && weightRecords.length > 0 ? weightRecords[0].weight : 0;
+      const todayWeight = weightRecords && weightRecords.length > 0 ? weightRecords[0].weight : 0
       const caloriesSummary = {
         remaining: Math.round(remainingCalories),
         consumed: Math.round(consumedCalories),
         burned: Math.round(burnedCalories),
         net: Math.round(consumedCalories - burnedCalories),
         target: Math.round(totalCalories),
-        progressPercentage: totalCalories > 0 ? Math.min(((totalCalories - remainingCalories) / totalCalories) * 100, 100) : 0,
+        progressPercentage:
+          totalCalories > 0 ? Math.min(((totalCalories - remainingCalories) / totalCalories) * 100, 100) : 0,
         consumedPercentage: totalCalories > 0 ? Math.min((consumedCalories / totalCalories) * 100, 100) : 0,
         burnedPercentage: totalCalories > 0 ? Math.min((burnedCalories / totalCalories) * 100, 100) : 0,
-      };
+      }
+
       await AsyncStorage.setItem(
         `dailyStats_${todayKey}`,
         JSON.stringify({
@@ -407,40 +414,39 @@ export default function HomeScreen({ navigation }) {
           macros: { carbs: Math.round(carbs), protein: Math.round(protein), fats: Math.round(fats) },
           weight: todayWeight,
           steps: steps,
-        })
-      );
+        }),
+      )
     } catch (err) {
-      setError('Failed to load data. Please try again later.');
+      setError("Failed to load data. Please try again later.")
       setDashboardData({
         ...defaultSummary,
-        user: user || { fullName: 'Unknown User', gender: 'N/A', birthDate: null, lastLogin: new Date() },
-      });
-      setWaterData({ todayIntake: 0, weeklyAverage: 0 });
-      setWeightHistory([]);
-      setWeightStats({ current: 0, lowest: 0, highest: 0, average: 0, change: 0 });
+        user: user || { fullName: "Unknown User", gender: "N/A", birthDate: null, lastLogin: new Date() },
+      })
+      setWaterData({ todayIntake: 0, weeklyAverage: 0 })
+      setWeightHistory([])
+      setWeightStats({ current: 0, lowest: 0, highest: 0, average: 0, change: 0 })
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoading(false)
+      setRefreshing(false)
     }
-  };
+  }
 
   const checkAndSaveNutritionTarget = async (macros, calories, burnedCalories) => {
     try {
-      const raw = await AsyncStorage.getItem('nutritionTarget');
-      if (!raw) return;
-
-      const target = JSON.parse(raw);
-      const netCalories = Number(calories) - Number(burnedCalories);
+      const raw = await AsyncStorage.getItem("nutritionTarget")
+      if (!raw) return
+      const target = JSON.parse(raw)
+      const netCalories = Number(calories) - Number(burnedCalories)
       const completed =
         Number(macros.carbs) >= Number(target.carbs) &&
         Number(macros.protein) >= Number(target.protein) &&
         Number(macros.fats) >= Number(target.fats) &&
-        netCalories >= Number(target.calories);
+        netCalories >= Number(target.calories)
 
-      const today = dayjs(currentDate).format('YYYY-MM-DD');
-      let history = [];
-      const rawHistory = await AsyncStorage.getItem('nutritionTargetHistory');
-      if (rawHistory) history = JSON.parse(rawHistory);
+      const today = dayjs(currentDate).format("YYYY-MM-DD")
+      let history = []
+      const rawHistory = await AsyncStorage.getItem("nutritionTargetHistory")
+      if (rawHistory) history = JSON.parse(rawHistory)
 
       if (!history.find((h) => h.date === today)) {
         history.push({
@@ -456,26 +462,26 @@ export default function HomeScreen({ navigation }) {
           targetProtein: target.protein,
           targetFats: target.fats,
           targetCalories: target.calories,
-        });
-        await AsyncStorage.setItem('nutritionTargetHistory', JSON.stringify(history));
+        })
+        await AsyncStorage.setItem("nutritionTargetHistory", JSON.stringify(history))
       }
 
       if (completed) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: '🎉 Nutrition Target Achieved!',
+            title: "🎉 Nutrition Target Achieved!",
             body: `You have met your daily nutrition target! Great job!`,
           },
           trigger: null,
-        });
+        })
       }
     } catch (e) {
       // Handle error silently
     }
-  };
+  }
 
   useEffect(() => {
-    fetchUserData();
+    fetchUserData()
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -487,31 +493,51 @@ export default function HomeScreen({ navigation }) {
         duration: 1000,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [user?.userId]);
+    ]).start()
+  }, [user?.userId])
+
+  // Helper to get userId-based key (same as NutritionTargetScreen)
+  const getUserId = () => {
+    if (user && typeof user === 'object') {
+      return user.id || user._id || user.userId || '';
+    }
+    return '';
+  };
+  const getStorageKey = () => {
+    const userId = getUserId();
+    return userId ? `nutritionTarget_${userId}` : 'nutritionTarget';
+  };
+  const getTodayKey = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const userId = getUserId();
+    return userId ? `nutritionTarget_${userId}_${yyyy}-${mm}-${dd}` : `nutritionTarget_${yyyy}-${mm}-${dd}`;
+  };
 
   useFocusEffect(
     useCallback(() => {
-      (async () => {
+      ;(async () => {
         try {
-          const raw = await AsyncStorage.getItem('nutritionTarget');
+          const raw = await AsyncStorage.getItem(getStorageKey())
           if (raw) {
-            const target = JSON.parse(raw);
+            const target = JSON.parse(raw)
             setNutritionTarget({
               calories: isNaN(Number(target.calories)) ? null : Number(target.calories),
               carbs: isNaN(Number(target.carbs)) ? null : Number(target.carbs),
               protein: isNaN(Number(target.protein)) ? null : Number(target.protein),
               fats: isNaN(Number(target.fats)) ? null : Number(target.fats),
-            });
+            })
           } else {
-            setNutritionTarget({ calories: null, carbs: null, protein: null, fats: null });
+            setNutritionTarget({ calories: null, carbs: null, protein: null, fats: null })
           }
         } catch (e) {
-          setNutritionTarget({ calories: null, carbs: null, protein: null, fats: null });
+          setNutritionTarget({ calories: null, carbs: null, protein: null, fats: null })
         }
-      })();
-    }, []),
-  );
+      })()
+    }, [user?.userId]),
+  )
 
   useEffect(() => {
     if (dashboardData) {
@@ -523,73 +549,72 @@ export default function HomeScreen({ navigation }) {
         },
         dashboardData.nutritionSummary.consumedCalories,
         dashboardData.activitySummary.burnedCalories,
-      );
+      )
     }
-  }, [dashboardData]);
+  }, [dashboardData])
 
   const getGreeting = useCallback(() => {
-    const hour = currentDate.getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  }, [currentDate]);
+    const hour = currentDate.getHours()
+    if (hour < 12) return "Good Morning"
+    if (hour < 17) return "Good Afternoon"
+    return "Good Evening"
+  }, [currentDate])
 
   const handleNavigation = useCallback(
     (route, params) => {
       if (route) {
-        setActiveIcon(route);
-        navigation.navigate(route, params);
+        setActiveIcon(route)
+        navigation.navigate(route, params)
       } else {
-        Alert.alert('Coming Soon', 'This feature will be available soon!');
+        Alert.alert("Coming Soon", "This feature will be available soon!")
       }
     },
     [navigation],
-  );
+  )
 
   const discoverItems = useMemo(
     () => [
       {
-        title: 'Profile',
-        icon: 'user',
-        route: 'Profile',
-        gradient: ['#4F46E5', '#6366F1'],
-        badge: null,
-      },
-     
-      {
-        title: 'Workout ',
-        icon: 'list',
-        route: 'WorkoutListScreen',
-        gradient: ['#0056d2', '#50a2ff'],
+        title: "Profile",
+        icon: "user",
+        route: "Profile",
+        gradient: ["#4F46E5", "#6366F1"],
         badge: null,
       },
       {
-        title: 'Community',
-        icon: 'users',
-        route: 'Community',
-        gradient: ['#10B981', '#34D399'],
+        title: "Workout ",
+        icon: "list",
+        route: "WorkoutListScreen",
+        gradient: ["#0056d2", "#50a2ff"],
+        badge: null,
+      },
+      {
+        title: "Community",
+        icon: "users",
+        route: "Community",
+        gradient: ["#10B981", "#34D399"],
         badge: 5,
       },
       {
-        title: 'Food',
-        icon: 'coffee',
-        route: 'Food',
-        gradient: ['#dd5bcd', '#818CF8'],
+        title: "Food",
+        icon: "coffee",
+        route: "Food",
+        gradient: ["#dd5bcd", "#818CF8"],
         badge: null,
       },
       {
-        title: 'Health Consultation',
-        icon: 'activity',
-        route: 'HealthConsultationScreen',
-        gradient: ['#0056d2', '#50a2ff'],
+        title: "Health Consultation",
+        icon: "activity",
+        route: "HealthConsultationScreen",
+        gradient: ["#0056d2", "#50a2ff"],
         badge: null,
       },
     ],
     [],
-  );
+  )
 
   const renderDiscoverItem = (item, index) => {
-    const isActive = activeIcon === item.title;
+    const isActive = activeIcon === item.title
     return (
       <TouchableOpacity
         key={index}
@@ -613,53 +638,60 @@ export default function HomeScreen({ navigation }) {
         <Text
           style={[
             styles.discoverTitle,
-            { color: isActive ? colors.activeDiscoverTitle || '#4F46E5' : colors.discoverTitle || '#64748B' },
+            { color: isActive ? colors.activeDiscoverTitle || "#4F46E5" : colors.discoverTitle || "#64748B" },
             isActive && styles.activeDiscoverTitle,
           ]}
         >
           {item.title}
         </Text>
         {isActive && (
-          <View style={[styles.activeIndicator, { backgroundColor: colors.activeDiscoverTitle || '#4F46E5' }]} />
+          <View style={[styles.activeIndicator, { backgroundColor: colors.activeDiscoverTitle || "#4F46E5" }]} />
         )}
       </TouchableOpacity>
-    );
-  };
+    )
+  }
 
   const MacroProgress = ({ name, color, value, target, unit, textColor }) => {
-    const percentage = target > 0 ? Math.min((value / target) * 100, 100) : 0;
+    const percentage = target > 0 ? Math.min((value / target) * 100, 100) : 0
     return (
       <View style={styles.macroItem}>
-        <View style={styles.macroHeader}>
-          <Text style={[styles.macroName, { color: textColor }]}>{name}</Text>
-          <Text style={styles.macroValue}>
-            <Text style={{ color, fontWeight: '700' }}>{value}</Text>
+        {/* Đưa tên macro lên trên thanh, giá trị xuống dưới */}
+        <Text style={[styles.macroName, { color: textColor, textAlign: "center", marginBottom: 2 }]}>{name}</Text>
+        <View
+          style={[
+            styles.progressBarContainer,
+            { backgroundColor: theme === "dark" ? "#374151" : "#E2E8F0", alignSelf: "center", width: "80%" },
+          ]}
+        >
+          <LinearGradient
+            colors={[color, color]}
+            style={[styles.progressBar, { width: `${percentage}%`, minWidth: 8, maxWidth: "100%" }]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          />
+        </View>
+        {/* Center macro value below the progress bar */}
+        <View style={{ width: "80%", alignSelf: "center", alignItems: "center", marginTop: 2 }}>
+          <Text style={[styles.macroValue, { textAlign: "center" }]}>
+            <Text style={{ color, fontWeight: "700" }}>{value}</Text>
             <Text style={{ color: textColor, opacity: 0.7 }}>
               /{target} {unit}
             </Text>
           </Text>
         </View>
-        <View style={[styles.progressBarContainer, { backgroundColor: theme === 'dark' ? '#374151' : '#E2E8F0' }]}>
-          <LinearGradient
-            colors={[color, color]}
-            style={[styles.progressBar, { width: `${percentage}%` }]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          />
-        </View>
       </View>
-    );
-  };
+    )
+  }
 
   const AIGoalPlanBanner = () => {
     return (
       <TouchableOpacity
         style={styles.aiGoalPlanBanner}
-        onPress={() => handleNavigation('UserGoalPlansScreen')}
+        onPress={() => handleNavigation("UserGoalPlansScreen")}
         activeOpacity={0.9}
       >
         <LinearGradient
-          colors={['#0056d2', '#6366F1']}
+          colors={["#0056d2", "#6366F1"]}
           style={styles.aiGoalPlanBannerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -683,348 +715,175 @@ export default function HomeScreen({ navigation }) {
           </View>
         </LinearGradient>
       </TouchableOpacity>
-    );
-  };
+    )
+  }
 
-  const CaloriesSummaryCard = () => {
-    const targetCalories = nutritionTarget.calories ? Number(nutritionTarget.calories) : null;
-    const consumed = dashboardData?.nutritionSummary?.consumedCalories || 0;
-    const burned = dashboardData?.activitySummary?.burnedCalories || 0;
-    const netCalories = consumed - burned;
+  // Combined Calories and Macros Card
+  const NutritionSummaryCard = () => {
+    const targetCalories = nutritionTarget.calories ? Number(nutritionTarget.calories) : null
+    const consumed = dashboardData?.nutritionSummary?.consumedCalories || 0
+    const burned = dashboardData?.activitySummary?.burnedCalories || 0
+    const netCalories = consumed - burned
     const remaining = targetCalories
       ? Math.max(targetCalories - netCalories, 0)
-      : dashboardData?.nutritionSummary?.remainingCalories || 0;
-    const total = targetCalories || dashboardData?.nutritionSummary?.totalCalories || 2200;
-
-    const achievedCalories = total - remaining;
-    const progressPercentage = total > 0 ? Math.min((achievedCalories / total) * 100, 100) : 0;
-    const consumedPercentage = total > 0 ? Math.min((consumed / total) * 100, 100) : 0;
-    const burnedPercentage = total > 0 ? Math.min((burned / total) * 100, 100) : 0;
+      : dashboardData?.nutritionSummary?.remainingCalories || 0
+    const total = targetCalories || dashboardData?.nutritionSummary?.totalCalories || 2200
+    const achievedCalories = total - remaining
+    const progressPercentage = total > 0 ? Math.min((achievedCalories / total) * 100, 100) : 0
 
     return (
-      <View style={[styles.caloriesSummaryCard, { backgroundColor: colors.calorieCardBackground || '#FFFFFF' }]}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.sectionTitle || '#1E293B' }]}>Calories</Text>
+      <View style={[styles.nutritionSummaryCard, { backgroundColor: colors.calorieCardBackground || "#FFFFFF" }]}>
+        {/* Calories Section */}
+        <View style={styles.caloriesSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.sectionTitle || "#1E293B" }]}>Nutrition Overview</Text>
+            <TouchableOpacity onPress={() => handleNavigation("WeeklyProgressScreen")}>
+              <Text style={[styles.sectionAction, { color: colors.sectionAction || "#6366F1" }]}>Details</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.calorieMainDisplay}>
+            <View style={styles.calorieMainInfo}>
+              <Text
+                style={[
+                  styles.calorieMainValue,
+                  { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B") },
+                ]}
+              >
+                {remaining}
+              </Text>
+              <Text
+                style={[
+                  styles.calorieMainLabel,
+                  { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B") },
+                ]}
+              >
+                Calories Remaining
+              </Text>
+              <Text
+                style={{
+                  color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B"),
+                  fontSize: 11,
+                  marginTop: 2,
+                  opacity: 0.6,
+                }}
+              >
+                Target - Food + Exercise
+              </Text>
+            </View>
+            <View style={styles.calorieProgressContainer}>
+              <AnimatedCircularProgress
+                size={90}
+                width={5}
+                fill={progressPercentage}
+                tintColor={colors.primary || "#6366F1"}
+                backgroundColor={theme === "dark" ? "#374151" : "#E2E8F0"}
+                rotation={0}
+                lineCap="round"
+                style={{ alignSelf: "center" }}
+              >
+                {() => (
+                  <View style={styles.calorieProgressContent}>
+                    <Text style={[styles.calorieProgressPercentage, { color: colors.primary || "#6366F1" }]}>
+                      {Math.round(progressPercentage)}%
+                    </Text>
+                    <Text
+                      style={[
+                        styles.calorieProgressLabel,
+                        { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B") },
+                      ]}
+                    >
+                      Goal
+                    </Text>
+                  </View>
+                )}
+              </AnimatedCircularProgress>
+            </View>
+          </View>
+          {/* Compact Calorie Stats */}
+          <View style={styles.compactStatsRow}>
+            <View style={styles.compactStatItem}>
+              <Text style={[styles.compactStatValue, { color: colors.primary || "#6366F1" }]}>{consumed}</Text>
+              <Text
+                style={[
+                  styles.compactStatLabel,
+                  { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B") },
+                ]}
+              >
+                Food
+              </Text>
+            </View>
+            <View style={styles.compactStatItem}>
+              <Text style={[styles.compactStatValue, { color: colors.warning || "#EF4444" }]}>{burned}</Text>
+              <Text
+                style={[
+                  styles.compactStatLabel,
+                  { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B") },
+                ]}
+              >
+                Exercise
+              </Text>
+            </View>
+            <View style={styles.compactStatItem}>
+              <Text style={[styles.compactStatValue, { color: colors.success || "#10B981" }]}>{netCalories}</Text>
+              <Text
+                style={[
+                  styles.compactStatLabel,
+                  { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B") },
+                ]}
+              >
+                Net
+              </Text>
+            </View>
+            <View style={styles.compactStatItem}>
+              <Text style={[styles.compactStatValue, { color: colors.info || "#F59E0B" }]}>
+                {targetCalories || total}
+              </Text>
+              <Text
+                style={[
+                  styles.compactStatLabel,
+                  { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B") },
+                ]}
+              >
+                Target
+              </Text>
+            </View>
+          </View>
         </View>
-        <View style={styles.calorieMainDisplay}>
-          <View style={styles.calorieMainInfo}>
-            <Text
-              style={[
-                styles.calorieMainValue,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') },
-              ]}
-            >
-              {remaining}
-            </Text>
-            <Text
-              style={[
-                styles.calorieMainLabel,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') },
-              ]}
-            >
-              Remaining
-            </Text>
-            <Text
-              style={{
-                color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B'),
-                fontSize: 12,
-                marginTop: 2,
-                opacity: 0.7,
-              }}
-            >
-              {`Remaining = Target - Food + Exercise`}
-            </Text>
-          </View>
-          <View style={styles.calorieProgressContainer}>
-            <AnimatedCircularProgress
-              size={100}
-              width={6}
-              fill={progressPercentage}
-              tintColor={colors.primary || '#6366F1'}
-              backgroundColor={theme === 'dark' ? '#374151' : '#E2E8F0'}
-              rotation={0}
-              lineCap="round"
-              style={{ alignSelf: 'center' }}
-            >
-              {() => (
-                <View style={styles.calorieProgressContent}>
-                  <Text style={[styles.calorieProgressPercentage, { color: colors.primary || '#6366F1' }]}>
-                    {Math.round(progressPercentage)}%
-                  </Text>
-                  <Text
-                    style={[
-                      styles.calorieProgressLabel,
-                      { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B') },
-                    ]}
-                  >
-                    Complete
-                  </Text>
-                </View>
-              )}
-            </AnimatedCircularProgress>
-          </View>
-        </View>
-        <View style={styles.calorieStatsGrid}>
-          <View
-            style={[
-              styles.calorieStatCard,
-              { backgroundColor: colors.statCardBackground || (theme === 'dark' ? '#18181B' : '#F3F4F6') },
-            ]}
-          >
-            <View
-              style={[
-                styles.calorieStatIcon,
-                {
-                  backgroundColor:
-                    theme === 'dark'
-                      ? colors.statIconBackgroundLight || '#FFFFFF'
-                      : colors.statIconBackground || '#EEF2FF',
-                },
-              ]}
-            >
-              <Feather
-                name="trending-up"
-                size={16}
-                color={theme === 'dark' ? colors.primaryLight || '#A5B4FC' : colors.primary || '#6366F1'}
+        {/* Divider */}
+        <View style={[styles.nutritionDivider, { backgroundColor: theme === "dark" ? "#374151" : "#E2E8F0" }]} />
+        {/* Macros Section */}
+        <View style={styles.macrosSection}>
+          <Text style={[styles.macrosSectionTitle, { color: colors.sectionTitle || "#1E293B" }]}>Macros Breakdown</Text>
+          <View style={styles.macrosGrid}>
+            {Object.entries(dashboardData?.nutritionSummary?.macros || {}).map(([key, macro], index) => (
+              <MacroProgress
+                key={key}
+                name={key.charAt(0).toUpperCase() + key.slice(1)}
+                color={macro.color}
+                value={macro.value}
+                target={nutritionTarget[key] ?? 0}
+                unit={macro.unit}
+                textColor={colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B")}
               />
-            </View>
-            <Text
-              style={[
-                styles.calorieStatValue,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') },
-              ]}
-            >
-              {consumed}
-            </Text>
-            <Text
-              style={[
-                styles.calorieStatLabel,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B'), opacity: 0.7 },
-              ]}
-            >
-              Food
-            </Text>
-            <View style={styles.calorieStatProgress}>
-              <View
-                style={[
-                  styles.calorieStatProgressFill,
-                  { width: `${consumedPercentage}%`, backgroundColor: colors.primary || '#6366F1' },
-                ]}
-              />
-            </View>
-          </View>
-          <View
-            style={[
-              styles.calorieStatCard,
-              { backgroundColor: colors.statCardBackground || (theme === 'dark' ? '#18181B' : '#F3F4F6') },
-            ]}
-          >
-            <View
-              style={[
-                styles.calorieStatIcon,
-                {
-                  backgroundColor:
-                    theme === 'dark'
-                      ? colors.statIconBackgroundLight || '#FFFFFF'
-                      : colors.statIconBackground || '#FEF2F2',
-                },
-              ]}
-            >
-              <Feather
-                name="zap"
-                size={16}
-                color={theme === 'dark' ? colors.warningLight || '#FCA5A5' : colors.warning || '#EF4444'}
-              />
-            </View>
-            <Text
-              style={[
-                styles.calorieStatValue,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') },
-              ]}
-            >
-              {burned}
-            </Text>
-            <Text
-              style={[
-                styles.calorieStatLabel,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B'), opacity: 0.7 },
-              ]}
-            >
-              Exercise
-            </Text>
-            <View style={styles.calorieStatProgress}>
-              <View
-                style={[
-                  styles.calorieStatProgressFill,
-                  { width: `${burnedPercentage}%`, backgroundColor: colors.warning || '#EF4444' },
-                ]}
-              />
-            </View>
-          </View>
-          <View
-            style={[
-              styles.calorieStatCard,
-              { backgroundColor: colors.statCardBackground || (theme === 'dark' ? '#18181B' : '#F3F4F6') },
-            ]}
-          >
-            <View
-              style={[
-                styles.calorieStatIcon,
-                {
-                  backgroundColor:
-                    theme === 'dark'
-                      ? colors.statIconBackgroundLight || '#FFFFFF'
-                      : colors.statIconBackground || '#F0FDF4',
-                },
-              ]}
-            >
-              <Feather
-                name="activity"
-                size={16}
-                color={theme === 'dark' ? colors.successLight || '#6EE7B7' : colors.success || '#10B981'}
-              />
-            </View>
-            <Text
-              style={[
-                styles.calorieStatValue,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') },
-              ]}
-            >
-              {netCalories}
-            </Text>
-            <Text
-              style={[
-                styles.calorieStatLabel,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B'), opacity: 0.7 },
-              ]}
-            >
-              Net
-            </Text>
-            <View style={styles.calorieStatProgress}>
-              <View
-                style={[
-                  styles.calorieStatProgressFill,
-                  {
-                    width: `${Math.min(Math.abs(netCalories / total) * 100, 100)}%`,
-                    backgroundColor: colors.success || '#10B981',
-                  },
-                ]}
-              />
-            </View>
-          </View>
-          <View
-            style={[
-              styles.calorieStatCard,
-              { backgroundColor: colors.statCardBackground || (theme === 'dark' ? '#18181B' : '#F3F4F6') },
-            ]}
-          >
-            <View
-              style={[
-                styles.calorieStatIcon,
-                {
-                  backgroundColor:
-                    theme === 'dark'
-                      ? colors.statIconBackgroundLight || '#FFFFFF'
-                      : colors.statIconBackground || '#FFFBEB',
-                },
-              ]}
-            >
-              <Feather
-                name="flag"
-                size={16}
-                color={theme === 'dark' ? colors.infoLight || '#FDE68A' : colors.info || '#F59E0B'}
-              />
-            </View>
-            <Text
-              style={[
-                styles.calorieStatValue,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') },
-              ]}
-            >
-              {targetCalories || total}
-            </Text>
-            <Text
-              style={[
-                styles.calorieStatLabel,
-                { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B'), opacity: 0.7 },
-              ]}
-            >
-              Target
-            </Text>
-            <View style={styles.calorieStatProgress}>
-              <View
-                style={[styles.calorieStatProgressFill, { width: '100%', backgroundColor: colors.info || '#F59E0B' }]}
-              />
-            </View>
+            ))}
           </View>
         </View>
       </View>
-    );
-  };
-
-  const WaterIntakePreview = () => {
-    const { colors, theme } = useContext(ThemeContext);
-    const RECOMMENDED_DAILY_INTAKE = 2000;
-    return (
-      <View style={[styles.healthCard, { marginBottom: 30 }]}>
-        <LinearGradient
-          colors={theme === 'dark' ? ['#18181B', '#18181B'] : ['#FFFFFF', '#FFFFFF']}
-          style={styles.healthCardGradient}
-        >
-          <View style={styles.healthCardHeader}>
-            <Feather name="droplet" size={22} color={theme === 'dark' ? '#FFFFFF' : '#1E293B'} />
-            <Text style={[styles.healthCardTitle, { color: theme === 'dark' ? '#FFFFFF' : '#1E293B' }]}>
-              Today's Hydration
-            </Text>
-          </View>
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBackground, { backgroundColor: theme === 'dark' ? '#374151' : '#E2E8F0' }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.min(waterData.todayIntake / RECOMMENDED_DAILY_INTAKE, 1) * 100}%`,
-                    backgroundColor: colors.primary || '#0056d2',
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.progressText, { color: theme === 'dark' ? '#FFFFFF' : '#1E293B' }]}>
-              {waterData.todayIntake} / {RECOMMENDED_DAILY_INTAKE} ml
-            </Text>
-          </View>
-          <View style={styles.healthStats}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme === 'dark' ? '#FFFFFF' : '#1E293B' }]}>
-                {Math.round((waterData.todayIntake / RECOMMENDED_DAILY_INTAKE) * 100)}%
-              </Text>
-              <Text style={[styles.statLabel, { color: theme === 'dark' ? '#D1D5DB' : '#64748B' }]}>Daily Goal</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: theme === 'dark' ? '#374151' : '#E2E8F0' }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme === 'dark' ? '#FFFFFF' : '#1E293B' }]}>
-                {Math.round(waterData.weeklyAverage)}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme === 'dark' ? '#D1D5DB' : '#64748B' }]}>Weekly Avg</Text>
-            </View>
-          </View>
-        </LinearGradient>
-      </View>
-    );
-  };
+    )
+  }
 
   const TrainerBanner = () => {
-    const currentTrainer = trainerAds[currentTrainerIndex];
+    const currentTrainer = trainerAds[currentTrainerIndex]
     return (
       <TouchableOpacity
         style={[
           styles.trainerBanner,
           {
-            backgroundColor: colors.trainerBannerBackground || colors.cardBackground || '#FFFFFF',
-            shadowColor: colors.trainerBannerShadow || colors.shadow || '#000',
+            backgroundColor: colors.trainerBannerBackground || colors.cardBackground || "#FFFFFF",
+            shadowColor: colors.trainerBannerShadow || colors.shadow || "#000",
           },
         ]}
-        onPress={() => Alert.alert('Trainer Profile', `Contact ${currentTrainer.name} for personalized training!`)}
+        onPress={() => Alert.alert("Trainer Profile", `Contact ${currentTrainer.name} for personalized training!`)}
         activeOpacity={0.9}
       >
         <View style={styles.trainerBannerGradient}>
@@ -1033,115 +892,115 @@ export default function HomeScreen({ navigation }) {
               <View
                 style={[
                   styles.trainerBadge,
-                  { backgroundColor: colors.trainerBadgeBackground || 'rgba(255,255,255,0.2)' },
+                  { backgroundColor: colors.trainerBadgeBackground || "rgba(255,255,255,0.2)" },
                 ]}
               >
-                <Text style={[styles.trainerBadgeText, { color: colors.trainerBadgeText || '#FFFFFF' }]}>
+                <Text style={[styles.trainerBadgeText, { color: colors.trainerBadgeText || "#FFFFFF" }]}>
                   {currentTrainer.badge}
                 </Text>
               </View>
-              <Text style={[styles.trainerName, { color: colors.trainerName || '#FFFFFF' }]}>
+              <Text style={[styles.trainerName, { color: colors.trainerName || "#FFFFFF" }]}>
                 {currentTrainer.name}
               </Text>
-              <Text style={[styles.trainerSpecialty, { color: colors.trainerSpecialty || 'rgba(255,255,255,0.9)' }]}>
+              <Text style={[styles.trainerSpecialty, { color: colors.trainerSpecialty || "rgba(255,255,255,0.9)" }]}>
                 {currentTrainer.specialty}
               </Text>
               <View style={styles.trainerStats}>
                 <View style={styles.trainerStat}>
                   <Feather name="star" size={14} color="#FCD34D" />
-                  <Text style={[styles.trainerStatText, { color: colors.trainerStatText || '#FFFFFF' }]}>
+                  <Text style={[styles.trainerStatText, { color: colors.trainerStatText || "#FFFFFF" }]}>
                     {currentTrainer.rating}
                   </Text>
                 </View>
                 <View style={styles.trainerStat}>
-                  <Feather name="users" size={14} color={colors.trainerIcon || '#FFFFFF'} />
-                  <Text style={[styles.trainerStatText, { color: colors.trainerStatText || '#FFFFFF' }]}>
+                  <Feather name="users" size={14} color={colors.trainerIcon || "#FFFFFF"} />
+                  <Text style={[styles.trainerStatText, { color: colors.trainerStatText || "#FFFFFF" }]}>
                     {currentTrainer.clients}+ clients
                   </Text>
                 </View>
                 <View style={styles.trainerStat}>
-                  <Feather name="award" size={14} color={colors.trainerIcon || '#FFFFFF'} />
-                  <Text style={[styles.trainerStatText, { color: colors.trainerStatText || '#FFFFFF' }]}>
+                  <Feather name="award" size={14} color={colors.trainerIcon || "#FFFFFF"} />
+                  <Text style={[styles.trainerStatText, { color: colors.trainerStatText || "#FFFFFF" }]}>
                     {currentTrainer.experience}
                   </Text>
                 </View>
               </View>
               <TouchableOpacity
-                style={[styles.contactButton, { backgroundColor: colors.trainerButtonBackground || '#FFFFFF' }]}
+                style={[styles.contactButton, { backgroundColor: colors.trainerButtonBackground || "#FFFFFF" }]}
               >
-                <Text style={[styles.contactButtonText, { color: colors.trainerButtonText || '#4F46E5' }]}>
+                <Text style={[styles.contactButtonText, { color: colors.trainerButtonText || "#4F46E5" }]}>
                   Get Training Plan
                 </Text>
-                <Feather name="arrow-right" size={16} color={colors.trainerButtonText || '#4F46E5'} />
+                <Feather name="arrow-right" size={16} color={colors.trainerButtonText || "#4F46E5"} />
               </TouchableOpacity>
             </View>
             <View style={styles.trainerImageContainer}>
               <Image source={{ uri: currentTrainer.image }} style={styles.trainerImage} />
               <View style={styles.trainerImageOverlay}>
-                <Feather name="play-circle" size={24} color={colors.trainerIcon || '#FFFFFF'} />
+                <Feather name="play-circle" size={24} color={colors.trainerIcon || "#FFFFFF"} />
               </View>
             </View>
           </View>
         </View>
       </TouchableOpacity>
-    );
-  };
+    )
+  }
 
   const WeightStatsAndChart = () => {
-    const { colors, theme } = useContext(ThemeContext);
+    const { colors, theme } = useContext(ThemeContext)
     const timeFrameOptions = [
-      { key: '7d', label: '7 Days' },
-      { key: '30d', label: '30 Days' },
-      { key: '3m', label: '3 Months' },
-      { key: '6m', label: '6 Months' },
-      { key: '12m', label: '12 Months' },
-    ];
+      { key: "7d", label: "7 Days" },
+      { key: "30d", label: "30 Days" },
+      { key: "3m", label: "3 Months" },
+      { key: "6m", label: "6 Months" },
+      { key: "12m", label: "12 Months" },
+    ]
 
     const filterHistoryByTimeFrame = (data) => {
-      const now = new Date();
+      const now = new Date()
       switch (weightTimeFrame) {
-        case '7d':
+        case "7d":
           return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt);
-            return now - itemDate <= 7 * 24 * 60 * 60 * 1000;
-          });
-        case '30d':
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 7 * 24 * 60 * 60 * 1000
+          })
+        case "30d":
           return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt);
-            return now - itemDate <= 30 * 24 * 60 * 60 * 1000;
-          });
-        case '3m':
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 30 * 24 * 60 * 60 * 1000
+          })
+        case "3m":
           return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt);
-            return now - itemDate <= 90 * 24 * 60 * 60 * 1000;
-          });
-        case '6m':
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 90 * 24 * 60 * 60 * 1000
+          })
+        case "6m":
           return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt);
-            return now - itemDate <= 180 * 24 * 60 * 60 * 1000;
-          });
-        case '12m':
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 180 * 24 * 60 * 60 * 1000
+          })
+        case "12m":
           return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt);
-            return now - itemDate <= 365 * 24 * 60 * 60 * 1000;
-          });
+            const itemDate = new Date(item.recordedAt)
+            return now - itemDate <= 365 * 24 * 60 * 60 * 1000
+          })
         default:
-          return data;
+          return data
       }
-    };
+    }
 
-    const filteredHistory = filterHistoryByTimeFrame(weightHistory);
+    const filteredHistory = filterHistoryByTimeFrame(weightHistory)
 
     const chartData = {
       labels: filteredHistory
         .slice(0, 10)
         .reverse()
         .map((item) => {
-          const date = new Date(item.recordedAt);
-          if (weightTimeFrame === '7d' || weightTimeFrame === '30d') {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const date = new Date(item.recordedAt)
+          if (weightTimeFrame === "7d" || weightTimeFrame === "30d") {
+            return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
           } else {
-            return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" })
           }
         }),
       datasets: [
@@ -1155,23 +1014,23 @@ export default function HomeScreen({ navigation }) {
               : [0],
         },
       ],
-    };
+    }
 
     return (
       <View
         style={[
           styles.weightContainer,
-          { backgroundColor: colors.cardBackground || (theme === 'dark' ? '#18181B' : '#FFFFFF') },
+          { backgroundColor: colors.cardBackground || (theme === "dark" ? "#18181B" : "#FFFFFF") },
         ]}
       >
-        <View style={[styles.weightStatsRow, { flexDirection: 'row', alignItems: 'center', marginBottom: 16 }]}>
+        <View style={[styles.weightStatsRow, { flexDirection: "row", alignItems: "center", marginBottom: 16 }]}>
           <Text
             style={[
               styles.sectionTitle,
               {
-                color: colors.sectionTitle || '#1E293B',
+                color: colors.sectionTitle || "#1E293B",
                 fontSize: 20,
-                fontWeight: '700',
+                fontWeight: "700",
                 letterSpacing: 0.2,
               },
             ]}
@@ -1179,14 +1038,14 @@ export default function HomeScreen({ navigation }) {
             Weight
           </Text>
           <TouchableOpacity
-            style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center' }}
-            onPress={() => handleNavigation('WeightHistory')}
+            style={{ marginLeft: "auto", flexDirection: "row", alignItems: "center" }}
+            onPress={() => handleNavigation("WeightHistory")}
             activeOpacity={0.8}
           >
-            <Feather name="plus-circle" size={32} color={colors.primary || '#0056d2'} />
+            <Feather name="plus-circle" size={32} color={colors.primary || "#0056d2"} />
           </TouchableOpacity>
         </View>
-        <View style={[styles.weightChartContainer, { backgroundColor: theme === 'dark' ? '#18181B' : '#FFFFFF' }]}>
+        <View style={[styles.weightChartContainer, { backgroundColor: theme === "dark" ? "#18181B" : "#FFFFFF" }]}>
           {filteredHistory.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <LineChart
@@ -1196,18 +1055,17 @@ export default function HomeScreen({ navigation }) {
                 yAxisLabel=""
                 yAxisSuffix=" kg"
                 chartConfig={{
-                  backgroundColor: theme === 'dark' ? '#18181B' : '#FFFFFF',
-                  backgroundGradientFrom: theme === 'dark' ? '#18181B' : '#FFFFFF',
-                  backgroundGradientTo: theme === 'dark' ? '#18181B' : '#FFFFFF',
+                  backgroundColor: theme === "dark" ? "#18181B" : "#FFFFFF",
+                  backgroundGradientFrom: theme === "dark" ? "#18181B" : "#FFFFFF",
+                  backgroundGradientTo: theme === "dark" ? "#18181B" : "#FFFFFF",
                   decimalPlaces: 1,
                   color: (opacity = 1) => `#0056d2`,
                   labelColor: (opacity = 1) =>
-                    theme === 'dark' ? `rgba(255, 255, 255, ${opacity})` : `rgba(31, 41, 55, ${opacity})`,
+                    theme === "dark" ? `rgba(255, 255, 255, ${opacity})` : `rgba(31, 41, 55, ${opacity})`,
                   style: { borderRadius: 12 },
-                  propsForDots: { r: '2.2', strokeWidth: '0.7', stroke: '#0056d2' },
+                  propsForDots: { r: "2.2", strokeWidth: "0.7", stroke: "#0056d2" },
                   propsForBackgroundLines: { strokeWidth: 0.5 },
-                  propsForLabels: { fontSize: 10, fill: theme === 'dark' ? '#FFFFFF' : '#1F293B' },
-                  strokeWidth: 1.5,
+                  propsForLabels: { fontSize: 10, fill: theme === "dark" ? "#FFFFFF" : "#1F293B" },
                 }}
                 bezier
                 style={styles.weightChart}
@@ -1218,7 +1076,7 @@ export default function HomeScreen({ navigation }) {
               <Text
                 style={[
                   styles.weightNoDataText,
-                  { color: colors.textSecondary || (theme === 'dark' ? '#D1D5DB' : '#6B7280') },
+                  { color: colors.textSecondary || (theme === "dark" ? "#D1D5DB" : "#6B7280") },
                 ]}
               >
                 No weight data for this period
@@ -1234,10 +1092,8 @@ export default function HomeScreen({ navigation }) {
                 style={[
                   styles.timeFrameButton,
                   {
-                    backgroundColor:
-                      colors.cardBackground || (theme === 'dark' ? '#18181B' : '#F3F4F6'),
-                    borderColor:
-                      weightTimeFrame === option.key ? '#0056d2' : colors.border || '#E5E7EB',
+                    backgroundColor: colors.cardBackground || (theme === "dark" ? "#18181B" : "#F3F4F6"),
+                    borderColor: weightTimeFrame === option.key ? "#0056d2" : colors.border || "#E5E7EB",
                     borderWidth: weightTimeFrame === option.key ? 1.2 : 0.7,
                   },
                 ]}
@@ -1249,8 +1105,8 @@ export default function HomeScreen({ navigation }) {
                     {
                       color:
                         weightTimeFrame === option.key
-                          ? colors.headerText || '#FFFFFF'
-                          : colors.text || (theme === 'dark' ? '#D1D5DB' : '#4B5563'),
+                          ? colors.headerText || "#FFFFFF"
+                          : colors.text || (theme === "dark" ? "#D1D5DB" : "#4B5563"),
                     },
                   ]}
                 >
@@ -1261,81 +1117,101 @@ export default function HomeScreen({ navigation }) {
           </View>
         </ScrollView>
       </View>
-    );
-  };
+    )
+  }
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Notifications.getPermissionsAsync();
-      if (status !== 'granted') {
-        await Notifications.requestPermissionsAsync();
+    ;(async () => {
+      const { status } = await Notifications.getPermissionsAsync()
+      if (status !== "granted") {
+        await Notifications.requestPermissionsAsync()
       }
-    })();
-  }, []);
+    })()
+  }, [])
 
   if (loading && !refreshing) {
-    return <Loading backgroundColor="#FFFFFF" logoSize={250} />;
+    return <Loading backgroundColor="#FFFFFF" logoSize={250} />
   }
 
   if (error && !refreshing) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background || '#F8FAFC' }]}>
-      <Header
-        title="HMS Fitness"
-        showAvatar={true}
-        avatarUrl={dashboardData?.user?.avatar || user?.avatar || null}
-        rightActions={[
-          {
-            icon: 'notifications-outline',
-            onPress: () => handleNavigation('Notifications'),
-            color: colors.primary || '#0056d2',
-            badge: 3,
-          },
-        ]}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background || "#F8FAFC" }]}>
+        <Header
+          title="HMS Fitness"
+          showAvatar={true}
+          avatarUrl={dashboardData?.user?.avatar || user?.avatar || null}
+          rightActions={[
+            {
+              icon: "notifications-outline",
+              onPress: () => handleNavigation("Notifications"),
+              color: colors.primary || "#0056d2",
+              badge: 3,
+            },
+          ]}
+        />
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.error || '#EF4444' }]}>{error}</Text>
+          <Text style={[styles.errorText, { color: colors.error || "#EF4444" }]}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={() => fetchUserData()}>
-            <LinearGradient colors={['#4F46E5', '#6366F1', '#818CF8']} style={styles.retryButtonGradient}>
+            <LinearGradient colors={["#4F46E5", "#6366F1", "#818CF8"]} style={styles.retryButtonGradient}>
               <Text style={styles.retryButtonText}>Retry</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>
-    );
+    )
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background || '#F8FAFC' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background || "#F8FAFC" }]}>
       <Header
         title={
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-start", flex: 1 }}>
+            {/* Avatar */}
             <TouchableOpacity
-              onPress={() => handleNavigation('Profile')}
+              onPress={() => handleNavigation("Profile")}
               activeOpacity={0.7}
               style={{ marginRight: 10 }}
             >
               {dashboardData?.user?.avatar ? (
                 <Image
                   source={{ uri: dashboardData.user.avatar }}
-                  style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#0056d2' }}
+                  style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: "#0056d2" }}
                   resizeMode="cover"
                 />
               ) : (
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#eaf1fb', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#0056d2' }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: "#eaf1fb",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 2,
+                    borderColor: "#0056d2",
+                  }}
+                >
                   <Feather name="user" size={20} color="#0056d2" />
                 </View>
               )}
             </TouchableOpacity>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.headerText || '#0056d2' }}>HMS Fitness</Text>
+            {/* Streak */}
+            {dashboardData?.user?.streak !== undefined && (
+              <View style={{ flexDirection: "row", alignItems: "center", marginRight: 12 }}>
+                <Feather name="fire" size={18} color="#F59E0B" style={{ marginRight: 3 }} />
+                <Text style={{ fontWeight: "bold", color: "#F59E0B", fontSize: 16 }}>{dashboardData.user.streak}</Text>
+              </View>
+            )}
+            {/* Title */}
+            <Text style={{ fontSize: 20, fontWeight: "bold", color: colors.headerText || "#0056d2" }}>HMS Fitness</Text>
           </View>
         }
         showAvatar={false}
         rightActions={[
           {
-            icon: 'notifications-outline',
-            onPress: () => handleNavigation('Notifications'),
-            color: colors.primary || '#0056d2',
+            icon: "notifications-outline",
+            onPress: () => handleNavigation("Notifications"),
+            color: colors.primary || "#0056d2",
             badge: 3,
           },
         ]}
@@ -1347,12 +1223,12 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => {
-              setRefreshing(true);
-              fetchUserData(true);
+              setRefreshing(true)
+              fetchUserData(true)
             }}
-            colors={[colors.accent || '#6366F1']}
-            tintColor={[colors.accent || '#6366F1']}
-            progressBackgroundColor={colors.cardBackground || '#FFFFFF'}
+            colors={[colors.accent || "#6366F1"]}
+            tintColor={[colors.accent || "#6366F1"]}
+            progressBackgroundColor={colors.cardBackground || "#FFFFFF"}
           />
         }
       >
@@ -1362,88 +1238,111 @@ export default function HomeScreen({ navigation }) {
               style={[
                 styles.welcomeStatsCard,
                 {
-                  backgroundColor: colors.calorieCardBackground || '#FFFFFF',
+                  backgroundColor: colors.calorieCardBackground || "#FFFFFF",
                   opacity: fadeAnim,
                   transform: [{ translateY: translateY }],
+                  marginTop: 50,
                 },
               ]}
             >
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || '#F3F4F6' }]}>
-                    <Feather name="activity" size={20} color={theme === 'dark' ? '#6366F1' : '#4F46E5'} />
+                  <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || "#F3F4F6" }]}>
+                    <Feather name="activity" size={20} color={theme === "dark" ? "#6366F1" : "#4F46E5"} />
                   </View>
                   <Text
-                    style={[styles.statValue, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') }]}
+                    style={[
+                      styles.statValue,
+                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B") },
+                    ]}
                   >
                     {stepCounterData.steps}
                   </Text>
                   <Text
-                    style={[styles.statLabel, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B'), opacity: 0.7 }]}
+                    style={[
+                      styles.statLabel,
+                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B"), opacity: 0.7 },
+                    ]}
                   >
                     Steps Today
                   </Text>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || '#E2E8F0' }]} />
+                <View
+                  style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || "#E2E8F0" }]}
+                />
                 <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || '#F3F4F6' }]}>
-                    <Feather name="zap" size={20} color={theme === 'dark' ? '#FBBF24' : '#F59E0B'} />
+                  <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || "#F3F4F6" }]}>
+                    <Feather name="zap" size={20} color={theme === "dark" ? "#FBBF24" : "#F59E0B"} />
                   </View>
                   <Text
-                    style={[styles.statValue, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') }]}
+                    style={[
+                      styles.statValue,
+                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B") },
+                    ]}
                   >
                     {stepCounterData.calories}
                   </Text>
                   <Text
-                    style={[styles.statLabel, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B'), opacity: 0.7 }]}
+                    style={[
+                      styles.statLabel,
+                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B"), opacity: 0.7 },
+                    ]}
                   >
                     Calories Burned
                   </Text>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || '#E2E8F0' }]} />
+                <View
+                  style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || "#E2E8F0" }]}
+                />
                 <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || '#F3F4F6' }]}>
-                    <Feather name="target" size={20} color={theme === 'dark' ? '#34D399' : '#10B981'} />
+                  <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || "#F3F4F6" }]}>
+                    <Feather name="target" size={20} color={theme === "dark" ? "#34D399" : "#10B981"} />
                   </View>
                   <Text
-                    style={[styles.statValue, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B') }]}
+                    style={[
+                      styles.statValue,
+                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B") },
+                    ]}
                   >
-                    {stepCounterData.distance < 1 ? `${Math.round(stepCounterData.distance * 1000)} m` : `${stepCounterData.distance.toFixed(2)} km`}
+                    {stepCounterData.distance < 1
+                      ? `${Math.round(stepCounterData.distance * 1000)} m`
+                      : `${stepCounterData.distance.toFixed(2)} km`}
                   </Text>
                   <Text
-                    style={[styles.statLabel, { color: colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#64748B'), opacity: 0.7 }]}
+                    style={[
+                      styles.statLabel,
+                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B"), opacity: 0.7 },
+                    ]}
                   >
                     Distance
                   </Text>
                 </View>
               </View>
             </Animated.View>
-
             <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
               <AIGoalPlanBanner />
             </Animated.View>
-
             <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.sectionTitle || '#1E293B' }]}>Weekly Progress</Text>
-                <TouchableOpacity onPress={() => handleNavigation('WeeklyProgressScreen')}>
-                  <Text style={[styles.sectionAction, { color: colors.sectionAction || '#6366F1' }]}>View All</Text>
+                <Text style={[styles.sectionTitle, { color: colors.sectionTitle || "#1E293B" }]}>Weekly Progress</Text>
+                <TouchableOpacity onPress={() => handleNavigation("WeeklyProgressScreen")}>
+                  <Text style={[styles.sectionAction, { color: colors.sectionAction || "#6366F1" }]}>View All</Text>
                 </TouchableOpacity>
               </View>
               <View
                 style={[
                   styles.calendarCard,
                   {
-                    backgroundColor: colors.calendarCardBackground || '#FFFFFF',
-                    borderColor: colors.calendarCardBorder || '#E2E8F0',
-                    shadowColor: colors.calendarCardShadow || '#000',
+                    backgroundColor: colors.calendarCardBackground || "#FFFFFF",
+                    borderColor: colors.calendarCardBorder || "#E2E8F0",
+                    shadowColor: colors.calendarCardShadow || "#000",
                   },
                 ]}
               >
                 {daysOfWeek.map((day, index) => {
-                  const isActive = index === currentDayIndex;
-                  const date = new Date();
-                  date.setDate(currentDate.getDate() - (currentDayIndex - index));
+                  const isActive = index === currentDayIndex
+                  const date = new Date()
+                  date.setDate(currentDate.getDate() - (currentDayIndex - index))
                   return (
                     <View key={index} style={styles.dayColumn}>
                       <Text
@@ -1451,9 +1350,9 @@ export default function HomeScreen({ navigation }) {
                           styles.dayText,
                           {
                             color: isActive
-                              ? colors.activeDayText || '#4F46E5'
-                              : colors.calendarDayText || colors.dayText || '#64748B',
-                            fontWeight: isActive ? '700' : '600',
+                              ? colors.activeDayText || "#4F46E5"
+                              : colors.calendarDayText || colors.dayText || "#64748B",
+                            fontWeight: isActive ? "700" : "600",
                           },
                         ]}
                       >
@@ -1464,8 +1363,8 @@ export default function HomeScreen({ navigation }) {
                           styles.dateCircle,
                           {
                             backgroundColor: isActive
-                              ? colors.activeDateCircle || '#4F46E5'
-                              : colors.calendarDateCircle || colors.dateCircle || '#F1F5F9',
+                              ? colors.activeDateCircle || "#4F46E5"
+                              : colors.calendarDateCircle || colors.dateCircle || "#F1F5F9",
                           },
                         ]}
                       >
@@ -1474,9 +1373,9 @@ export default function HomeScreen({ navigation }) {
                             styles.dateText,
                             {
                               color: isActive
-                                ? colors.activeDateText || '#FFFFFF'
-                                : colors.calendarDateText || colors.dateText || '#1E293B',
-                              fontWeight: isActive ? '700' : '600',
+                                ? colors.activeDateText || "#FFFFFF"
+                                : colors.calendarDateText || colors.dateText || "#1E293B",
+                              fontWeight: isActive ? "700" : "600",
                             },
                           ]}
                         >
@@ -1489,778 +1388,579 @@ export default function HomeScreen({ navigation }) {
                           {
                             height: Math.random() * 40 + 15,
                             backgroundColor: isActive
-                              ? colors.activeProgressIndicator || '#4F46E5'
-                              : colors.calendarProgressIndicator || colors.progressIndicator || '#E2E8F0',
+                              ? colors.activeProgressIndicator || "#4F46E5"
+                              : colors.calendarProgressIndicator || colors.progressIndicator || "#E2E8F0",
                           },
                         ]}
                       />
                     </View>
-                  );
+                  )
                 })}
               </View>
             </Animated.View>
-
+            {/* Combined Nutrition Summary Card */}
             <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
-              <View style={styles.sectionHeader}></View>
-         
+              <NutritionSummaryCard />
             </Animated.View>
-
-            <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
-              <CaloriesSummaryCard />
-            </Animated.View>
-
-            <Animated.View style={[styles.sectionWeight, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
-              <View style={styles.sectionHeader}></View>
+            <Animated.View
+              style={[styles.sectionWeight, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}
+            >
               <WeightStatsAndChart />
             </Animated.View>
-
-            <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.sectionTitle || '#1E293B' }]}>Macros Breakdown</Text>
-                <TouchableOpacity onPress={() => handleNavigation('WeeklyProgressScreen', { initialTab: 'Macros' })}>
-                  <Text style={[styles.sectionAction, { color: colors.sectionAction || '#6366F1' }]}>Details</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={[styles.macrosCard, { backgroundColor: colors.calorieCardBackground || '#FFFFFF' }]}>
-                {Object.entries(dashboardData.nutritionSummary.macros).map(([key, macro], index) => (
-                  <MacroProgress
-                    key={key}
-                    name={key.charAt(0).toUpperCase() + key.slice(1)}
-                    color={macro.color}
-                    value={macro.value}
-                    target={nutritionTarget[key] ?? 0}
-                    unit={macro.unit}
-                    textColor={colors.calorieCardText || (theme === 'dark' ? '#FFFFFF' : '#1E293B')}
-                  />
-                ))}
-              </View>
-            </Animated.View>
-
             <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
               <View
                 style={[
                   styles.trainerBanner,
-                  { backgroundColor: colors.cardBackground || '#FFFFFF', shadowColor: colors.cardShadow || '#000' },
+                  { backgroundColor: colors.cardBackground || "#FFFFFF", shadowColor: colors.cardShadow || "#000" },
                 ]}
               >
                 <TrainerBanner />
               </View>
             </Animated.View>
+           
 
-            <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }], marginBottom: 80 }]}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.sectionTitle || '#1E293B' }]}>Discover</Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.discoverScroll}
-                decelerationRate="fast"
-              >
-                {discoverItems.map((item, index) => renderDiscoverItem(item, index))}
-              </ScrollView>
-            </Animated.View>
-          </>
+          {/* Discover section ở cuối màn hình */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }], marginTop: 30, marginBottom: 80 }]}> 
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.sectionTitle || '#1E293B' }]}>Discover</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.discoverList}
+              decelerationRate="fast"
+            >
+              {discoverItems.map((item, index) => renderDiscoverItem(item, index))}
+            </ScrollView>
+          </Animated.View>
+        </>
         )}
       </ScrollView>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   scrollContent: {
-    paddingBottom: 40,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  loadingGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-  },
-  loadingImage: {
-    width: 250,
-    height: 250,
-    marginBottom: 20,
-  },
-  loadingIndicator: {
-    marginBottom: 16,
-  },
-  loadingText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING,
-    backgroundColor: '#F8FAFC',
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  retryButtonGradient: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  welcomeStatsCard: {
-    marginHorizontal: SPACING,
-    marginTop: 40,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    elevation: 12,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#E2E8F0',
-    marginHorizontal: 8,
+    paddingBottom: 30,
   },
   section: {
+    marginBottom: SPACING,
     paddingHorizontal: SPACING,
-    marginTop: 12,
   },
   sectionWeight: {
+    marginBottom: SPACING,
     paddingHorizontal: SPACING,
-    marginTop: 12,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING / 2,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    fontSize: 18,
+    fontWeight: "bold",
   },
   sectionAction: {
+    color: "#6366F1",
     fontSize: 14,
-    fontWeight: '600',
-  },
-  aiGoalPlanBanner: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    marginBottom: 8,
-  },
-  aiGoalPlanBannerGradient: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  aiGoalPlanBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  aiGoalPlanBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  aiGoalPlanBannerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  aiGoalPlanBannerText: {
-    flex: 1,
-  },
-  aiGoalPlanBannerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  aiGoalPlanBannerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  aiGoalPlanBannerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  aiGoalPlanBannerBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  aiGoalPlanBannerBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  caloriesSummaryCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    marginTop: -20,
-  },
-  calorieMainDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  calorieMainInfo: {
-    flex: 1,
-  },
-  calorieMainValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  calorieMainLabel: {
-    fontSize: 16,
-  },
-  calorieProgressContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calorieProgressContent: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calorieProgressPercentage: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  calorieProgressLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    opacity: 0.8,
-  },
-  calorieStatsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  calorieStatCard: {
-    width: '48%',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  calorieStatIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  calorieStatValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  calorieStatLabel: {
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  calorieStatProgress: {
-    width: '100%',
-    height: 4,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  calorieStatProgressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  trainerBanner: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    elevation: 10,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    marginBottom: 8,
-  },
-  trainerBannerGradient: {
-    padding: 20,
-  },
-  trainerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  trainerInfo: {
-    flex: 1,
-    marginRight: 16,
-  },
-  trainerBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  trainerBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  trainerName: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  trainerSpecialty: {
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  trainerStats: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  trainerStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  trainerStatText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  contactButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  contactButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  trainerImageContainer: {
-    position: 'relative',
-  },
-  trainerImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  trainerImageOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   calendarCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    elevation: 8,
-    shadowColor: '#0056d2',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: SPACING / 2,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0,86,210,0.1)',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   dayColumn: {
-    alignItems: 'center',
-    flex: 1,
+    alignItems: "center",
   },
   dayText: {
     fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 12,
+    fontWeight: "600",
+    marginBottom: 4,
   },
   dateCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
   },
   dateText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   progressIndicator: {
     width: 6,
     borderRadius: 3,
   },
-  macrosCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    elevation: 4,
+  welcomeStatsCard: {
+    padding: SPACING,
+    borderRadius: 12,
+    marginHorizontal: SPACING,
+    marginBottom: SPACING,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  statLabel: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  statDivider: {
+    width: 1,
+    height: "70%",
+  },
+  discoverList: {
+    paddingHorizontal: SPACING / 4, // Reduce horizontal padding
+  },
+  discoverItem: {
+    width: width / 2.5 - SPACING, // Reduce width for closer icons
+    padding: SPACING / 3, // Reduce padding
+    borderRadius: 12,
+    marginBottom: SPACING,
+    alignItems: "center",
+    marginRight: SPACING / 2, // Add small right margin for spacing between items
+  },
+  activeDiscoverItem: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  discoverIconContainer: {
+    width: 42, // Reduce icon container size
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: SPACING / 4,
+  },
+  discoverTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  activeDiscoverTitle: {
+    fontWeight: "700",
+  },
+  activeIndicator: {
+    position: "absolute",
+    bottom: 0,
+    left: SPACING / 2,
+    right: SPACING / 2,
+    height: 3,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+  badgeContainer: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    backgroundColor: "#EF4444",
+    borderRadius: 9,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "bold",
   },
   macroItem: {
-    marginBottom: 20,
+    flex: 1,
+    marginBottom: SPACING / 2,
   },
   macroHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 4,
   },
   macroName: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "500",
   },
   macroValue: {
-    fontSize: 14,
-    flexDirection: "row",
-    alignItems: "center",
+    fontSize: 12,
   },
   progressBarContainer: {
     height: 8,
-    backgroundColor: "#E2E8F0",
     borderRadius: 4,
     overflow: "hidden",
   },
   progressBar: {
     height: "100%",
+    borderRadius: 4,
   },
-  discoverScroll: {
-    paddingVertical: 8,
-    paddingRight: 16,
-  },
-  discoverItem: {
-    alignItems: "center",
-    marginRight: 24,
-    width: 85,
-    position: "relative",
-  },
-  activeDiscoverItem: {
-    transform: [{ scale: 1.05 }],
-  },
-  discoverIconContainer: {
-    width: 68,
-    height: 68,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    elevation: 6,
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-  },
-  discoverTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#64748B",
-    textAlign: "center",
-    lineHeight: 16,
-  },
-  activeDiscoverTitle: {
-    color: "#4F46E5",
-    fontWeight: "700",
-  },
-  activeIndicator: {
-    position: "absolute",
-    bottom: -6,
-    width: 24,
-    height: 4,
-    backgroundColor: "#4F46E5",
-       borderRadius: 2,
-  },
-  badgeContainer: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    backgroundColor: "#EF4444",
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-  badgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  mealCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    marginBottom: 16,
-    elevation: 6,
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
+  aiGoalPlanBanner: {
+    borderRadius: 12,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(79, 70, 229, 0.08)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  mealImage: {
-    width: "100%",
-    height: 140,
+  aiGoalPlanBannerGradient: {
+    padding: SPACING,
   },
-  mealContent: {
+  aiGoalPlanBannerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
   },
-  mealInfo: {
-    flex: 1,
-    marginRight: 12,
+  aiGoalPlanBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  mealTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 6,
-  },
-  mealSubtitle: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 20,
-  },
-  addButton: {
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  addButtonGradient: {
+  aiGoalPlanBannerIcon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
-    alignItems: "center",
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING / 2,
   },
-  noDataText: {
-    color: "#64748B",
-    textAlign: "center",
-    marginTop: 20,
+  aiGoalPlanBannerText: {},
+  aiGoalPlanBannerTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  aiGoalPlanBannerSubtitle: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+  },
+  aiGoalPlanBannerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  aiGoalPlanBannerBadge: {
+    backgroundColor: "#FCD34D",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginRight: SPACING / 2,
+  },
+  aiGoalPlanBannerBadgeText: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#1E293B",
+  },
+  nutritionSummaryCard: {
+    borderRadius: 12,
+    padding: SPACING,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  caloriesSection: {
+    marginBottom: SPACING / 2,
+  },
+  calorieMainDisplay: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING / 2,
+  },
+  calorieMainInfo: {
+    flex: 1,
+    marginRight: SPACING / 2,
+  },
+  calorieMainValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  calorieMainLabel: {
     fontSize: 14,
+    opacity: 0.8,
+  },
+  calorieProgressContainer: {
+    width: 90,
+    height: 90,
+  },
+  calorieProgressContent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  calorieProgressPercentage: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  calorieProgressLabel: {
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  compactStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  compactStatItem: {
+    alignItems: "center",
+  },
+  compactStatValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  compactStatLabel: {
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  nutritionDivider: {
+    height: 1,
+    marginVertical: SPACING / 2,
+  },
+  macrosSection: {},
+  macrosSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: SPACING / 2,
+  },
+  macrosGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
   healthCard: {
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: "hidden",
-    elevation: 8,
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   healthCardGradient: {
-    padding: 16,
+    padding: SPACING,
   },
   healthCardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: SPACING / 2,
   },
   healthCardTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: SPACING / 4,
   },
   progressContainer: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#E2E8F0",
-    overflow: "hidden",
-    marginBottom: 16,
+    marginBottom: SPACING / 2,
   },
   progressBackground: {
-    height: "100%",
-    backgroundColor: "#F1F5F9",
-    borderRadius: 4,
+    height: 10,
+    borderRadius: 5,
+    overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#6366F1",
   },
   progressText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#1E293B",
-    textAlign: "center",
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: SPACING / 4,
   },
   healthStats: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
   },
-  // Weight Chart Styles
+  trainerBanner: {
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  trainerBannerGradient: {
+    padding: SPACING,
+  },
+  trainerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  trainerInfo: {
+    flex: 1,
+    marginRight: SPACING / 2,
+  },
+  trainerBadge: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: SPACING / 4,
+  },
+  trainerBadgeText: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  trainerName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: SPACING / 8,
+  },
+  trainerSpecialty: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.9)",
+    marginBottom: SPACING / 4,
+  },
+  trainerStats: {
+    flexDirection: "row",
+    marginBottom: SPACING / 2,
+  },
+  trainerStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: SPACING / 2,
+  },
+  trainerStatText: {
+    fontSize: 12,
+    color: "#FFFFFF",
+    marginLeft: SPACING / 8,
+  },
+  contactButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING / 2,
+    paddingVertical: SPACING / 4,
+    borderRadius: 8,
+  },
+  contactButtonText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    marginRight: SPACING / 8,
+  },
+  trainerImageContainer: {
+    position: "relative",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: "hidden",
+  },
+  trainerImage: {
+    width: "100%",
+    height: "100%",
+  },
+  trainerImageOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.2)",
+  },
   weightContainer: {
-    borderRadius: 20,
-    marginHorizontal: 8,
-    marginBottom: 24,
-    padding: 20,
-    elevation: 4,
+    borderRadius: 12,
+    padding: SPACING,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-  },
-  weightLoadingContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  weightLoadingText: {
-    marginTop: 8,
-    fontSize: 14,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   weightStatsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  weightStatItem: {
     alignItems: "center",
-    flex: 1,
-  },
-  weightStatLabel: {
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  weightStatValue: {
-    fontSize: 16,
-    fontWeight: "700",
+    marginBottom: SPACING / 2,
   },
   weightChartContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderRadius: 12,
+    paddingVertical: SPACING / 2,
+    marginBottom: SPACING / 2,
   },
   weightChart: {
-    borderRadius: 12,
+    marginRight: -SPACING,
   },
   weightNoDataContainer: {
-    height: 200,
+    paddingVertical: SPACING,
     alignItems: "center",
-    justifyContent: "center",
   },
   weightNoDataText: {
     fontSize: 14,
+    opacity: 0.8,
   },
   timeFrameScrollContainer: {
-    marginTop: 8,
+    marginBottom: SPACING / 2,
   },
   timeFrameContainer: {
     flexDirection: "row",
-    paddingHorizontal: 4,
   },
   timeFrameButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    marginHorizontal: 4,
-    borderWidth: 1,
+    paddingHorizontal: SPACING / 2,
+    paddingVertical: SPACING / 4,
+    borderRadius: 8,
+    marginRight: SPACING / 4,
   },
   timeFrameButtonText: {
-    fontSize: 13,
-    fontWeight: "500",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  retryButton: {
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  retryButtonGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
   },
 })

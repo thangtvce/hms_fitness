@@ -462,6 +462,8 @@ export default function RegisterScreen() {
         gender: formData.gender,
         birthDate: formData.birthDate.toISOString().split("T")[0],
       }
+      // Log dữ liệu đăng ký để debug
+      console.log('Register payload:', register);
       const dataRegister = await apiAuthService.register(register)
       if (!dataRegister || dataRegister.statusCode !== 200) {
         if (dataRegister?.statusCode === 400 && dataRegister.errors) {
@@ -500,29 +502,24 @@ export default function RegisterScreen() {
         AsyncStorage.removeItem("registrationFormData"),
         AsyncStorage.removeItem("registrationCurrentStep"),
       ])
-      const successMessage = `Your account has been created successfully!. Please check your email to verify your account.`
-      Alert.alert("Registration Successful",successMessage,[
-        {
-          text: "OK",
-          onPress: () => navigation.replace("Login"),
-        },
-      ])
+      showSuccessMessage("Your account has been created successfully! Please check your email to verify your account.");
+      navigation.replace("Login");
     } catch (error) {
-      let errorMessage = error?.message || "An unexpected error occurred. Please try again."
+      let errorMessage = error?.message || "An unexpected error occurred. Please try again.";
       if (error.response?.data?.errors) {
-        const serverErrors = error.response.data.errors
-        const newErrors = { ...errors }
-        if (serverErrors.Email) newErrors.email = serverErrors.Email[0]
-        if (serverErrors.Password) newErrors.password = serverErrors.Password[0]
-        if (serverErrors.Phone) newErrors.phone = serverErrors.Phone[0]
-        setErrors(newErrors)
+        const serverErrors = error.response.data.errors;
+        const newErrors = { ...errors };
+        if (serverErrors.Email) newErrors.email = serverErrors.Email[0];
+        if (serverErrors.Password) newErrors.password = serverErrors.Password[0];
+        if (serverErrors.Phone) newErrors.phone = serverErrors.Phone[0];
+        setErrors(newErrors);
         errorMessage = Object.entries(serverErrors)
-          .map(([field,messages]) => `${field}: ${messages.join(", ")}`)
-          .join("\n")
-      } else if (error.message.includes("Registration failed") || error.message.includes("Profile creation failed")) {
-        errorMessage = error.message
+          .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
+          .join("\n");
+      } else if (error.message && (error.message.includes("Registration failed") || error.message.includes("Profile creation failed"))) {
+        errorMessage = error.message;
       }
-      Alert.alert("Registration Failed",errorMessage)
+      showErrorFetchAPI(errorMessage || (typeof error === 'string' ? error : JSON.stringify(error)));
     } finally {
       setIsLoading(false)
     }
@@ -708,14 +705,8 @@ export default function RegisterScreen() {
               disabled={isLoading}
               accessibilityLabel={isFinalStep ? "Register" : "Next step"}
             >
-              {isLoading ? (
-                <Loading />
-              ) : (
-                <>
-                  <Text style={styles.nextButtonText}>{isFinalStep ? "Register" : "Next"}</Text>
-                  {!isFinalStep && <Ionicons name="arrow-forward" size={20} color="#FFFFFF" style={styles.nextIcon} />}
-                </>
-              )}
+            <Text style={styles.nextButtonText}>{isFinalStep ? (isLoading ? "Registering..." : "Register") : "Next"}</Text>
+            {!isFinalStep && <Ionicons name="arrow-forward" size={20} color="#FFFFFF" style={styles.nextIcon} />}
             </TouchableOpacity>
           </View>
         </ScrollView>

@@ -18,7 +18,7 @@ import {
   Alert,
 } from "react-native"
 import Header from "components/Header"
-import { Ionicons } from "@expo/vector-icons"
+import { Ionicons, Feather } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
 import { foodService } from "services/apiFoodService"
 import { LinearGradient } from "expo-linear-gradient"
@@ -62,6 +62,40 @@ const MAX_SERVING = 2000
 const MIN_PORTION = 1
 const MAX_PORTION = 10
 
+// New component for Food AI Recommend Banner
+const FoodAIRecommendBanner = () => {
+  const navigation = useNavigation();
+  return (
+    <TouchableOpacity
+      style={styles.aiRecommendBanner}
+      onPress={() => navigation.navigate("AIRecommendedFoodScreen")}
+      activeOpacity={0.9}
+    >
+      <LinearGradient
+        colors={["#0056d2", "#38BDF8"]} // Blue gradient for food
+        style={styles.aiRecommendBannerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <View style={styles.aiRecommendBannerContent}>
+          <View style={styles.aiRecommendBannerLeft}>
+            <View style={styles.aiRecommendBannerIcon}>
+              <Feather name="book-open" size={20} color="#FFFFFF" /> 
+            </View>
+            <View style={styles.aiRecommendBannerText}>
+              <Text style={styles.aiRecommendBannerTitle}>Food AI Recommend</Text>
+              <Text style={styles.aiRecommendBannerSubtitle}>Discover personalized meal ideas</Text>
+            </View>
+          </View>
+          <View style={styles.aiRecommendBannerRight}>
+            <Feather name="arrow-right" size={18} color="#FFFFFF" />
+          </View>
+        </View>
+      </LinearGradient>
+    </TouchableOpacity>
+  )
+}
+
 const FoodListScreen = () => {
   const navigation = useNavigation()
   const [foods, setFoods] = useState([])
@@ -77,11 +111,7 @@ const FoodListScreen = () => {
   const [layoutMode, setLayoutMode] = useState(1) // Can be number or "quick"
   const [showLayoutModal, setShowLayoutModal] = useState(false)
   const [selectedFoods, setSelectedFoods] = useState([])
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalItems, setTotalItems] = useState(0)
-  const [hasNextPage, setHasNextPage] = useState(false)
-  const [hasPrevPage, setHasPrevPage] = useState(false)
+  // Pagination states removed for full list
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState({
     pageNumber: 1,
@@ -108,6 +138,7 @@ const FoodListScreen = () => {
     maxCalories: "",
   })
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("")
+
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
 
@@ -188,24 +219,27 @@ const FoodListScreen = () => {
     }
   }
 
-  const fetchFoods = async (isRefresh = false, customParams = null, pageNumber = null) => {
-    if (!isRefresh) setLoading(true)
+  const fetchFoods = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError(null)
     try {
-      const params = customParams || {}
-      if (!customParams) {
-        params.pageNumber = pageNumber || appliedFilters.pageNumber || currentPage
-        params.pageSize = appliedFilters.pageSize || 10
-        if (appliedSearchQuery.trim()) params.searchTerm = appliedSearchQuery.trim()
-        if (appliedFilters.searchTerm.trim()) params.searchTerm = appliedFilters.searchTerm.trim()
-        if (appliedFilters.status) params.status = appliedFilters.status
-        if (appliedFilters.categoryId || selectedCategory)
-          params.categoryId = appliedFilters.categoryId || selectedCategory
-        if (appliedFilters.startDate) params.startDate = appliedFilters.startDate
-        if (appliedFilters.endDate) params.endDate = appliedFilters.endDate
-        if (appliedFilters.minCalories) params.minCalories = appliedFilters.minCalories
-        if (appliedFilters.maxCalories) params.maxCalories = appliedFilters.maxCalories
-      }
+      let params = {}
+      if (appliedSearchQuery.trim()) params.searchTerm = appliedSearchQuery.trim()
+      if (appliedFilters.searchTerm.trim()) params.searchTerm = appliedFilters.searchTerm.trim()
+      if (appliedFilters.status) params.status = appliedFilters.status
+      if (appliedFilters.categoryId || selectedCategory)
+        params.categoryId = appliedFilters.categoryId || selectedCategory
+      if (appliedFilters.startDate) params.startDate = appliedFilters.startDate
+      if (appliedFilters.endDate) params.endDate = appliedFilters.endDate
+      if (appliedFilters.minCalories) params.minCalories = appliedFilters.minCalories
+      if (appliedFilters.maxCalories) params.maxCalories = appliedFilters.maxCalories
+      // Always fetch all (no pagination)
+      params.pageSize = 10000
+      params.pageNumber = 1
 
       const response = await foodService.getAllActiveFoods(params)
       if (categories.length === 0) await fetchCategories()
@@ -216,34 +250,15 @@ const FoodListScreen = () => {
           : Array.isArray(response.data)
             ? response.data
             : []
-
         foodsData = sortFoods(foodsData, sortBy)
-
-        if (response.data.pagination) {
-          setCurrentPage(response.data.pagination.currentPage || params.pageNumber || 1)
-          setTotalPages(response.data.pagination.totalPages || 1)
-          setTotalItems(response.data.pagination.totalItems || foodsData.length)
-          setHasNextPage(response.data.pagination.hasNextPage || false)
-          setHasPrevPage(response.data.pagination.hasPreviousPage || false)
-        } else {
-          const totalCount = response.data.totalCount || foodsData.length
-          const pageSize = params.pageSize || 10
-          const currentPageNum = params.pageNumber || 1
-          setCurrentPage(currentPageNum)
-          setTotalPages(Math.ceil(totalCount / pageSize))
-          setTotalItems(totalCount)
-          setHasNextPage(currentPageNum < Math.ceil(totalCount / pageSize))
-          setHasPrevPage(currentPageNum > 1)
-        }
-
         setFoods([...foodsData])
       } else {
         setFoods([])
-        setCurrentPage(1)
-        setTotalPages(1)
-        setTotalItems(0)
-        setHasNextPage(false)
-        setHasPrevPage(false)
+        // setCurrentPage(1) // Removed pagination states
+        // setTotalPages(1)
+        // setTotalItems(0)
+        // setHasNextPage(false)
+        // setHasPrevPage(false)
       }
     } catch (err) {
       setError(err.message || "Failed to load foods")
@@ -281,47 +296,24 @@ const FoodListScreen = () => {
 
   useEffect(() => {
     if (selectedCategory || sortBy !== "name") {
-      const params = { pageNumber: 1, pageSize: appliedFilters.pageSize || 10 }
-      if (selectedCategory) params.categoryId = selectedCategory
-      fetchFoods(false, params, 1)
+      fetchFoods()
     }
   }, [selectedCategory, sortBy])
 
   const onRefresh = () => {
     setRefreshing(true)
-    setCurrentPage(1)
-    fetchFoods(true, null, 1)
+    fetchFoods(true) // Pass true to indicate refresh
   }
 
   const handleSearch = () => {
     setAppliedSearchQuery(searchQuery)
-    setCurrentPage(1)
-    const searchParams = { pageNumber: 1, pageSize: appliedFilters.pageSize || 10 }
-    if (searchQuery.trim()) searchParams.searchTerm = searchQuery.trim()
-    if (appliedFilters.status) searchParams.status = appliedFilters.status
-    if (appliedFilters.categoryId || selectedCategory)
-      searchParams.categoryId = appliedFilters.categoryId || selectedCategory
-    if (appliedFilters.startDate) searchParams.startDate = appliedFilters.startDate
-    if (appliedFilters.endDate) searchParams.endDate = appliedFilters.endDate
-    if (appliedFilters.minCalories) searchParams.minCalories = appliedFilters.minCalories
-    if (appliedFilters.maxCalories) searchParams.maxCalories = appliedFilters.maxCalories
-    fetchFoods(false, searchParams, 1)
+    fetchFoods()
   }
 
   const applyFilters = () => {
     setAppliedFilters({ ...filters })
     setShowFilters(false)
-    setCurrentPage(1)
-    const filterParams = { pageNumber: 1, pageSize: filters.pageSize || 10 }
-    if (filters.searchTerm.trim()) filterParams.searchTerm = filters.searchTerm.trim()
-    if (filters.status) filterParams.status = filters.status
-    if (filters.categoryId || selectedCategory) filterParams.categoryId = filters.categoryId || selectedCategory
-    if (filters.startDate) filterParams.startDate = filters.startDate
-    if (filters.endDate) filterParams.endDate = filters.endDate
-    if (filters.minCalories) filterParams.minCalories = filters.minCalories
-    if (filters.maxCalories) filterParams.maxCalories = filters.maxCalories
-    if (appliedSearchQuery.trim()) filterParams.searchTerm = appliedSearchQuery.trim()
-    fetchFoods(false, filterParams, 1)
+    fetchFoods()
   }
 
   const resetFilters = () => {
@@ -343,23 +335,13 @@ const FoodListScreen = () => {
     setAppliedSearchQuery("")
     setSelectedCategory("")
     setSortBy("name")
-    setCurrentPage(1)
-    setTimeout(() => fetchFoods(false, { pageNumber: 1, pageSize: 10 }, 1), 100)
+    setTimeout(() => fetchFoods(), 100)
   }
 
   const clearSearch = () => {
     setSearchQuery("")
     setAppliedSearchQuery("")
-    setCurrentPage(1)
-    const filterParams = { pageNumber: 1, pageSize: appliedFilters.pageSize || 10 }
-    if (appliedFilters.status) filterParams.status = appliedFilters.status
-    if (appliedFilters.categoryId || selectedCategory)
-      filterParams.categoryId = appliedFilters.categoryId || selectedCategory
-    if (appliedFilters.startDate) filterParams.startDate = appliedFilters.startDate
-    if (appliedFilters.endDate) filterParams.endDate = appliedFilters.endDate
-    if (appliedFilters.minCalories) filterParams.minCalories = appliedFilters.minCalories
-    if (appliedFilters.maxCalories) filterParams.maxCalories = appliedFilters.maxCalories
-    fetchFoods(false, filterParams, 1)
+    fetchFoods()
   }
 
   // Modified handleSelectFood to only add if not exists, and remove if exists
@@ -399,6 +381,7 @@ const FoodListScreen = () => {
       const parsedServingSize = 1
       const parsedPortionSize = 1
       const today = dayjs().format("YYYY-MM-DD")
+
       let image = ""
       if (food.image) image = food.image
       else if (food.foodImage) image = food.foodImage
@@ -468,7 +451,6 @@ const FoodListScreen = () => {
       if (food.image) image = food.image
       else if (food.foodImage) image = food.foodImage
       else if (food.imageUrl) image = food.imageUrl
-
       // Fallback: try to get image from getFoodImage if still empty
       if (!image && food.foodName) image = getFoodImage(food.foodName)
 
@@ -488,9 +470,9 @@ const FoodListScreen = () => {
       }
 
       if (typeof food === "object") {
-
+        // This block is empty, consider removing or adding relevant logic
       } else {
-     
+        // This block is empty, consider removing or adding relevant logic
       }
 
       await addFoodToLog(today, mealType, logData)
@@ -513,24 +495,10 @@ const FoodListScreen = () => {
     return `https://source.unsplash.com/400x250/?food,${foodName.replace(/\s/g, "")}`
   }
 
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages && page !== currentPage) {
-      setCurrentPage(page)
-      fetchFoods(false, null, page)
-    }
-  }
-
-  const goToNextPage = () => {
-    if (hasNextPage) {
-      goToPage(currentPage + 1)
-    }
-  }
-
-  const goToPrevPage = () => {
-    if (hasPrevPage) {
-      goToPage(currentPage - 1)
-    }
-  }
+  // Pagination functions removed as per previous changes (full list fetch)
+  // const goToPage = (page) => { ... }
+  // const goToNextPage = () => { ... }
+  // const goToPrevPage = () => { ... }
 
   const renderCategoryItem = ({ item }) => {
     const isSelected = selectedCategory === item.categoryId;
@@ -553,7 +521,7 @@ const FoodListScreen = () => {
         ]}
         onPress={() => {
           setSelectedCategory(isSelected ? "" : item.categoryId);
-          setCurrentPage(1);
+          // setCurrentPage(1); // Removed pagination
         }}
         activeOpacity={0.8}
       >
@@ -677,79 +645,6 @@ const FoodListScreen = () => {
       </View>
     </Modal>
   )
-
-  const renderPaginationControls = () => {
-    if (totalPages <= 1) return null
-
-    const pageNumbers = []
-    const maxVisiblePages = 5
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
-    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
-
-    if (endPage - startPage + 1 < maxVisiblePages) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1)
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pageNumbers.push(i)
-    }
-
-    return (
-      <View style={styles.paginationContainer}>
-        <View style={styles.paginationInfo}>
-          <Text style={styles.paginationText}>
-            Showing {(currentPage - 1) * appliedFilters.pageSize + 1}-
-            {Math.min(currentPage * appliedFilters.pageSize, totalItems)} of {totalItems} foods
-          </Text>
-        </View>
-        <View style={styles.paginationControls}>
-          <TouchableOpacity
-            style={[styles.paginationButton, !hasPrevPage && styles.paginationButtonDisabled]}
-            onPress={goToPrevPage}
-            disabled={!hasPrevPage}
-          >
-            <Ionicons name="chevron-back" size={16} color={hasPrevPage ? "#4F46E5" : "#9CA3AF"} />
-          </TouchableOpacity>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pageNumbersContainer}>
-            {startPage > 1 && (
-              <>
-                <TouchableOpacity style={styles.pageNumberButton} onPress={() => goToPage(1)}>
-                  <Text style={styles.pageNumberText}>1</Text>
-                </TouchableOpacity>
-                {startPage > 2 && <Text style={styles.paginationEllipsis}>...</Text>}
-              </>
-            )}
-            {pageNumbers.map((pageNum) => (
-              <TouchableOpacity
-                key={pageNum}
-                style={[styles.pageNumberButton, currentPage === pageNum && styles.pageNumberButtonActive]}
-                onPress={() => goToPage(pageNum)}
-              >
-                <Text style={[styles.pageNumberText, currentPage === pageNum && styles.pageNumberTextActive]}>
-                  {pageNum}
-                </Text>
-              </TouchableOpacity>
-            ))}
-            {endPage < totalPages && (
-              <>
-                {endPage < totalPages - 1 && <Text style={styles.paginationEllipsis}>...</Text>}
-                <TouchableOpacity style={styles.pageNumberButton} onPress={() => goToPage(totalPages)}>
-                  <Text style={styles.pageNumberText}>{totalPages}</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </ScrollView>
-          <TouchableOpacity
-            style={[styles.paginationButton, !hasNextPage && styles.paginationButtonDisabled]}
-            onPress={goToNextPage}
-            disabled={!hasNextPage}
-          >
-            <Ionicons name="chevron-forward" size={16} color={hasNextPage ? "#4F46E5" : "#9CA3AF"} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    )
-  }
 
   const renderFilterModal = () => (
     <Modal visible={showFilters} transparent={true} animationType="slide" onRequestClose={() => setShowFilters(false)}>
@@ -1012,7 +907,6 @@ const FoodListScreen = () => {
           <View style={styles.quickFoodInfo}>
             <View style={styles.quickFoodNameRow}>
               <Text style={styles.quickFoodName}>{item.foodName || "Unknown Food"}</Text>
-              {/* Only show checkmark if selected */}
               {isSelected && (
                 <Ionicons name="checkmark-circle" size={16} color="#22C55E" style={styles.quickCheckmark} />
               )}
@@ -1025,7 +919,7 @@ const FoodListScreen = () => {
             style={styles.quickAddButton}
             onPress={(e) => {
               e.stopPropagation()
-              handleAddFoodToMeal(item, true) // Pass true to skip modal
+              handleAddFoodToMeal(item, true) 
             }}
           >
             <Ionicons name="add" size={24} color="#FFFFFF" />
@@ -1036,10 +930,9 @@ const FoodListScreen = () => {
 
     // Existing grid/list layouts
     const itemWidth =
-      layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : layoutMode === 4 ? "23%" : "23%" // Default for unknown layoutMode
-
+      layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : layoutMode === 4 ? "23%" : "23%" 
     const imageHeight =
-      layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : layoutMode === 4 ? 100 : 100 // Default for unknown layoutMode
+      layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : layoutMode === 4 ? 100 : 100 
 
     return (
       <Animated.View
@@ -1342,7 +1235,6 @@ const FoodListScreen = () => {
       >
         Discover healthy foods & nutrition
       </Text>
-
       <Animated.View
         style={[
           styles.searchContainer,
@@ -1375,6 +1267,16 @@ const FoodListScreen = () => {
         <TouchableOpacity style={[styles.searchButton, { backgroundColor: "#0056d2" }]} onPress={handleSearch}>
           <Ionicons name="search" size={20} color="#FFFFFF" />
         </TouchableOpacity>
+      </Animated.View>
+
+      {/* New: Food AI Recommend Banner */}
+      <Animated.View
+        style={[
+          styles.sectionContainer, // Use a consistent section container style
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
+      >
+        <FoodAIRecommendBanner />
       </Animated.View>
 
       <View style={styles.categoriesSection}>
@@ -1440,51 +1342,51 @@ const FoodListScreen = () => {
         appliedFilters.minCalories ||
         appliedFilters.maxCalories ||
         sortBy !== "name") && (
-        <View style={styles.activeFiltersContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFiltersScroll}>
-            {appliedSearchQuery && (
-              <View style={styles.activeFilterChip}>
-                <Text style={styles.activeFilterText}>Search: {appliedSearchQuery}</Text>
-                <TouchableOpacity onPress={clearSearch}>
-                  <Ionicons name="close" size={16} color="#4F46E5" />
-                </TouchableOpacity>
-              </View>
-            )}
-            {selectedCategory && (
-              <View style={styles.activeFilterChip}>
-                <Text style={styles.activeFilterText}>Category: {categoryMap[selectedCategory]}</Text>
-              </View>
-            )}
-            {sortBy !== "name" && (
-              <View style={styles.activeFilterChip}>
-                <Text style={styles.activeFilterText}>
-                  Sort: {SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label}
-                </Text>
-              </View>
-            )}
-            {appliedFilters.status && (
-              <View style={styles.activeFilterChip}>
-                <Text style={styles.activeFilterText}>Status: {appliedFilters.status}</Text>
-              </View>
-            )}
-            {(appliedFilters.minCalories || appliedFilters.maxCalories) && (
-              <View style={styles.activeFilterChip}>
-                <Text style={styles.activeFilterText}>
-                  Calories: {appliedFilters.minCalories || 0}-{appliedFilters.maxCalories || "∞"}
-                </Text>
-              </View>
-            )}
-            {appliedFilters.pageSize !== 10 && (
-              <View style={styles.activeFilterChip}>
-                <Text style={styles.activeFilterText}>Per page: {appliedFilters.pageSize}</Text>
-              </View>
-            )}
-          </ScrollView>
-          <TouchableOpacity style={styles.clearAllFiltersButton} onPress={resetFilters}>
-            <Text style={styles.clearAllFiltersText}>Clear All</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+          <View style={styles.activeFiltersContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFiltersScroll}>
+              {appliedSearchQuery && (
+                <View style={styles.activeFilterChip}>
+                  <Text style={styles.activeFilterText}>Search: {appliedSearchQuery}</Text>
+                  <TouchableOpacity onPress={clearSearch}>
+                    <Ionicons name="close" size={16} color="#4F46E5" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {selectedCategory && (
+                <View style={styles.activeFilterChip}>
+                  <Text style={styles.activeFilterText}>Category: {categoryMap[selectedCategory]}</Text>
+                </View>
+              )}
+              {sortBy !== "name" && (
+                <View style={styles.activeFilterChip}>
+                  <Text style={styles.activeFilterText}>
+                    Sort: {SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label}
+                  </Text>
+                </View>
+              )}
+              {appliedFilters.status && (
+                <View style={styles.activeFilterChip}>
+                  <Text style={styles.activeFilterText}>Status: {appliedFilters.status}</Text>
+                </View>
+              )}
+              {(appliedFilters.minCalories || appliedFilters.maxCalories) && (
+                <View style={styles.activeFilterChip}>
+                  <Text style={styles.activeFilterText}>
+                    Calories: {appliedFilters.minCalories || 0}-{appliedFilters.maxCalories || "∞"}
+                  </Text>
+                </View>
+              )}
+              {appliedFilters.pageSize !== 10 && (
+                <View style={styles.activeFilterChip}>
+                  <Text style={styles.activeFilterText}>Per page: {appliedFilters.pageSize}</Text>
+                </View>
+              )}
+            </ScrollView>
+            <TouchableOpacity style={styles.clearAllFiltersButton} onPress={resetFilters}>
+              <Text style={styles.clearAllFiltersText}>Clear All</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
       <View style={styles.contentContainer}>
         {error && !refreshing ? (
@@ -1534,11 +1436,10 @@ const FoodListScreen = () => {
                 ) : null
               }
             />
-            {renderPaginationControls()}
+            {/* Pagination removed: all foods shown in one scroll */}
           </>
         )}
       </View>
-
       {renderFilterModal()}
       {renderSortModal()}
       {renderLayoutModal()}
@@ -1596,6 +1497,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#10B981",
     alignItems: "center",
     justifyContent: "center",
+  },
+  // New style for consistent section padding
+  sectionContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 16, // Added margin for spacing between AI banners
   },
   categoriesSection: { backgroundColor: "#F8FAFC", paddingBottom: 16 },
   sectionHeader: {
@@ -1659,7 +1565,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   categoryIconContainer: {
-    
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -1887,7 +1792,7 @@ const styles = StyleSheet.create({
     minHeight: height * 0.6,
   },
   errorText: { fontSize: 16, color: "#EF4444", textAlign: "center", lineHeight: 24 },
-  retryButton: { backgroundColor: "#4F46E5", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
+  retryButton: { backgroundColor: "#0056d2", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
   retryButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "flex-end" },
   filterModal: {
@@ -2214,6 +2119,51 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "#0056d2",
     justifyContent: "center",
+    alignItems: "center",
+  },
+  // Styles for AI Recommend Banner (copied from HomeScreen for consistency)
+  aiRecommendBanner: {
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  aiRecommendBannerGradient: {
+    padding: 20, // Using SPACING constant from HomeScreen
+  },
+  aiRecommendBannerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  aiRecommendBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  aiRecommendBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10, // Using SPACING / 2
+  },
+  aiRecommendBannerText: {},
+  aiRecommendBannerTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  aiRecommendBannerSubtitle: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+  },
+  aiRecommendBannerRight: {
+    flexDirection: "row",
     alignItems: "center",
   },
 })

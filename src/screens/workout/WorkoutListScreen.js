@@ -13,10 +13,11 @@ import {
   Modal,
   ScrollView,
   RefreshControl,
+  Alert, 
 } from "react-native";
 import Loading from "components/Loading";
 import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Feather } from "@expo/vector-icons"; 
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,6 +28,7 @@ import Header from "components/Header";
 import workoutService from "services/apiWorkoutService";
 
 const { width, height } = Dimensions.get("window");
+const SPACING = 20; 
 
 const CATEGORIES_COLORS = {
   1: ["#4F46E5", "#818CF8"],
@@ -40,8 +42,40 @@ const CATEGORIES_COLORS = {
   default: ["#6B7280", "#9CA3AF"],
 };
 
+const WorkoutAIRecommendBanner = ({ navigation }) => {
+  return (
+    <TouchableOpacity
+      style={styles.aiRecommendBanner}
+      onPress={() => navigation.navigate('AIRecommendedScreen')}
+      activeOpacity={0.9}
+    >
+      <LinearGradient
+        colors={["#0056d2", "#6366F1"]} 
+        style={styles.aiRecommendBannerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <View style={styles.aiRecommendBannerContent}>
+          <View style={styles.aiRecommendBannerLeft}>
+            <View style={styles.aiRecommendBannerIcon}>
+              <Feather name="cpu" size={20} color="#FFFFFF" /> 
+            </View>
+            <View style={styles.aiRecommendBannerText}>
+              <Text style={styles.aiRecommendBannerTitle}>Workout AI Recommend</Text>
+              <Text style={styles.aiRecommendBannerSubtitle}>Get personalized workout plans</Text>
+            </View>
+          </View>
+          <View style={styles.aiRecommendBannerRight}>
+            <Feather name="arrow-right" size={18} color="#FFFFFF" />
+          </View>
+        </View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+};
+
 export default function WorkoutListScreen() {
-  const navigation = useNavigation()
+  const navigation = useNavigation();
   const [showFilter, setShowFilter] = useState(false);
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,8 +106,8 @@ export default function WorkoutListScreen() {
     Status: '',
   });
 
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(30)).current
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   // Animation effect
   useEffect(() => {
@@ -100,13 +134,17 @@ export default function WorkoutListScreen() {
         const favoriteList = storedFavorites ? JSON.parse(storedFavorites) : [];
         setFavorites(favoriteList.map(item => item.exerciseId));
       } catch (error) {
+        // console.error("Failed to load favorites:", error);
       }
       fetchCategories();
       fetchExercises();
     };
+
     const unsubscribe = navigation.addListener('focus', loadAll);
+
     // Initial load
     loadAll();
+
     return unsubscribe;
   }, [navigation]);
 
@@ -126,6 +164,7 @@ export default function WorkoutListScreen() {
         setCategories({});
       }
     } catch (error) {
+      // console.error("Failed to fetch categories:", error);
       setCategoryList([]);
       setCategories({});
     }
@@ -138,18 +177,18 @@ export default function WorkoutListScreen() {
       let favoriteList = storedFavorites ? JSON.parse(storedFavorites) : [];
       const exists = favoriteList.some((ex) => ex.exerciseId === exercise.exerciseId);
       let updatedList;
-      
+
       if (exists) {
         updatedList = favoriteList.filter((ex) => ex.exerciseId !== exercise.exerciseId);
       } else {
         updatedList = [...favoriteList, exercise];
       }
-      
+
       await AsyncStorage.setItem('favoriteExercises', JSON.stringify(updatedList));
       setFavorites(updatedList.map(item => item.exerciseId));
-      
+
       // Show a small toast-like message instead of an alert
-       Alert.alert('Success', exists ? 'Removed from favorites' : 'Added to favorites');
+      Alert.alert('Success', exists ? 'Removed from favorites' : 'Added to favorites');
     } catch (error) {
       Alert.alert("Error", "Failed to update favorites.")
     }
@@ -176,7 +215,7 @@ export default function WorkoutListScreen() {
   // Fetch category name by ID
   const getCategoryName = async (id) => {
     if (!id || id <= 0 || categories[id]) return;
-    
+
     try {
       // Assuming workoutService.getCategoryById exists
       const data = await workoutService.getCategoryById(id);
@@ -256,7 +295,7 @@ export default function WorkoutListScreen() {
       SearchTerm: '',
       Status: '',
     };
-    
+
     setFilterDraft(resetState);
   };
 
@@ -275,17 +314,17 @@ export default function WorkoutListScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header 
-          title="Workout Library" 
-          onBack={() => navigation.goBack()} 
+        <Header
+          title="Workout Library"
+          onBack={() => navigation.goBack()}
           backgroundColor="#fff"
           titleStyle={{ color: "#0056d2", fontWeight: "bold" }}
         />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity 
-            style={styles.retryButton} 
+          <TouchableOpacity
+            style={styles.retryButton}
             onPress={() => fetchExercises()}
           >
             <Text style={styles.retryButtonText}>Try Again</Text>
@@ -299,9 +338,9 @@ export default function WorkoutListScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       {/* Header */}
-      <Header 
-        title="Workout Library" 
-        onBack={() => navigation.goBack()} 
+      <Header
+        title="Workout Library"
+        onBack={() => navigation.goBack()}
         backgroundColor="#fff"
         titleStyle={{ color: "#0056d2", fontWeight: "bold" }}
         rightActions={[
@@ -339,8 +378,8 @@ export default function WorkoutListScreen() {
             placeholderTextColor="#94A3B8"
           />
           {filters.SearchTerm ? (
-            <TouchableOpacity 
-              onPress={() => setFilters(prev => ({ ...prev, SearchTerm: '' }))} 
+            <TouchableOpacity
+              onPress={() => setFilters(prev => ({ ...prev, SearchTerm: '' }))}
               style={styles.clearButton}
             >
               <Ionicons name="close-circle" size={20} color="#94A3B8" />
@@ -348,13 +387,22 @@ export default function WorkoutListScreen() {
           ) : null}
         </View>
       </Animated.View>
-      {/* Categories Horizontal Scroll */}
+
+      <Animated.View
+        style={[
+          styles.sectionContainer, 
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
+      >
+        <WorkoutAIRecommendBanner navigation={navigation} />
+      </Animated.View>
+
       {categoryList.length > 0 && (
         <View style={styles.categoriesSection}>
           <Text style={styles.sectionTitle}>Categories</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoriesContainer}
           >
             {categoryList.map((category) => {
@@ -388,6 +436,7 @@ export default function WorkoutListScreen() {
         data={exercises}
         keyExtractor={(item, index) => item.exerciseId ? `exercise-${item.exerciseId}` : `item-${index}`}
         renderItem={({ item }) => {
+          // Log dữ liệu item để debug ảnh
           if (typeof item.categoryId === 'number' && !categories[item.categoryId]) {
             getCategoryName(item.categoryId);
           }
@@ -411,10 +460,11 @@ export default function WorkoutListScreen() {
               >
                 <View style={styles.exerciseImageContainer}>
                   <Image
-                    source={{ 
-                      uri: item.mediaUrl || 
-                           item.imageUrl || 
-                           `https://source.unsplash.com/400x250/?fitness,${item.exerciseName?.replace(/\s/g, "")}` 
+                    source={{
+                      uri:
+                        item.imageUrl && item.imageUrl.startsWith('http')
+                          ? item.imageUrl
+                          : `https://source.unsplash.com/400x250/?fitness,${item.exerciseName?.replace(/\s/g, "")}`
                     }}
                     style={styles.exerciseImage}
                     resizeMode="cover"
@@ -453,10 +503,10 @@ export default function WorkoutListScreen() {
                       style={[styles.actionButton, isFavorite && styles.favoriteButton]}
                       onPress={() => toggleFavorite(item)}
                     >
-                      <Ionicons 
-                        name={isFavorite ? "heart" : "heart-outline"} 
-                        size={20} 
-                        color={isFavorite ? "#FFFFFF" : "#FFFFFF"} 
+                      <Ionicons
+                        name={isFavorite ? "heart" : "heart-outline"}
+                        size={20}
+                        color={isFavorite ? "#FFFFFF" : "#FFFFFF"}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -477,10 +527,10 @@ export default function WorkoutListScreen() {
                   <View style={styles.exerciseTags}>
                     {item.genderSpecific && (
                       <View style={styles.tagContainer}>
-                        <Ionicons 
-                          name={item.genderSpecific.toLowerCase() === 'female' ? 'female' : 'male'} 
-                          size={12} 
-                          color="#6366F1" 
+                        <Ionicons
+                          name={item.genderSpecific.toLowerCase() === 'female' ? 'female' : 'male'}
+                          size={12}
+                          color="#6366F1"
                         />
                         <Text style={styles.tagText}>{item.genderSpecific}</Text>
                       </View>
@@ -523,7 +573,6 @@ export default function WorkoutListScreen() {
           </View>
         }
       />
-      {/* Floating Play Button */}
       <TouchableOpacity
         style={styles.fabPlay}
         onPress={() => navigation.navigate('WorkoutSessionScreen')}
@@ -531,7 +580,6 @@ export default function WorkoutListScreen() {
       >
         <Ionicons name="play" size={32} color="#fff" />
       </TouchableOpacity>
-      {/* Filter Modal */}
       <Modal
         visible={showFilter}
         transparent={true}
@@ -640,7 +688,6 @@ export default function WorkoutListScreen() {
         </View>
       </Modal>
     </SafeAreaView>
-
   );
 }
 
@@ -714,6 +761,10 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  sectionContainer: {
+    paddingHorizontal: 16,
+    marginBottom: SPACING,
   },
   categoriesSection: {
     paddingTop: 8,
@@ -1036,6 +1087,48 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     zIndex: 100,
   },
-  
+  aiRecommendBanner: {
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  aiRecommendBannerGradient: {
+    padding: SPACING,
+  },
+  aiRecommendBannerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  aiRecommendBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  aiRecommendBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING / 2,
+  },
+  aiRecommendBannerText: {},
+  aiRecommendBannerTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  aiRecommendBannerSubtitle: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+  },
+  aiRecommendBannerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
 });
-

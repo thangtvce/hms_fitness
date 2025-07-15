@@ -51,7 +51,7 @@ export const aiRecommentService = {
   async getAIRecommendations(userId, params = {}) {
     try {
       const response = await apiClient.get(`/RecommendedFoodItem/recommendation/${userId}`, { params });
-      return response.data;
+      return response.data.data;
     } catch (error) {
       throw error.response?.data || error;
     }

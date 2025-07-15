@@ -79,7 +79,7 @@ export default function ServicePackageScreen({ navigation }) {
           sortBy: filters.sortBy,
           sortDescending: filters.sortDescending,
         };
-        const res = await trainerService.getAllActiveServicePackage(params);
+        const res = await trainerService.getAllActivePackages(params);
         const data = res.data?.packages || [];
         setPackages((prev) => (page === 1 ? data : [...prev, ...data]));
         setTotalPages(res.data?.totalPages || 1);

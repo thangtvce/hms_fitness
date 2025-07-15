@@ -229,8 +229,15 @@ export const ThemeProvider = ({ children }) => {
         setTheme(theme === 'light' ? 'dark' : 'light');
     };
 
+    // Defensive: always provide a valid colors object
+    let safeTheme = theme;
+    if (!theme || !themes[theme]) {
+        safeTheme = 'light';
+    }
+    const colors = themes[safeTheme] || themes['light'];
+
     return (
-        <ThemeContext.Provider value={{ theme, colors: themes[theme], toggleTheme }}>
+        <ThemeContext.Provider value={{ theme: safeTheme, colors, toggleTheme }}>
             {children}
         </ThemeContext.Provider>
     );
