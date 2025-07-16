@@ -195,7 +195,7 @@ const AIRecommendedScreen = () => {
         showSuccessMessage('Added to favorites successfully');
       }
     } catch (error) {
-      showErrorFetchAPI('Failed to update favorites. Please try again.');
+      showErrorFetchAPI(error.message || 'Failed to update favorites. Please try again.');
     }
   };
 
@@ -213,7 +213,7 @@ const AIRecommendedScreen = () => {
       await AsyncStorage.setItem('scheduledExercises', JSON.stringify(scheduledExercises));
       showSuccessMessage(`${exercise.exerciseName} added to your workout schedule`);
     } catch (error) {
-      showErrorFetchAPI('Failed to add exercise to schedule. Please try again.');
+      showErrorFetchAPI(error.message || 'Failed to add exercise to schedule. Please try again.');
     }
   };
 

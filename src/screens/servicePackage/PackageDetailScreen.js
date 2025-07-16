@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect, useRef } from "react"
 import {
   View,
@@ -96,7 +94,7 @@ const PackageDetailScreen = ({ route, navigation }) => {
       } catch (error) {
         setError("Failed to fetch trainer data.")
         setLoading(false)
-        showErrorFetchAPI("Unable to load trainer details.");
+        showErrorFetchAPI(error.message || "Failed to fetch trainer data.");
         navigation.goBack();
       }
     }

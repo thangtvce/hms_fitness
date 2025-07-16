@@ -68,7 +68,7 @@ export default function ReminderPlanDetailScreen({ route }) {
       setPlan(res?.data || null);
     } catch (err) {
       setError(err.message || 'Failed to load plan details');
-      showErrorFetchAPI('Failed to load plan details.');
+      showErrorFetchAPI(err.message || 'Failed to load reminder plan.');
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ export default function ReminderPlanDetailScreen({ route }) {
       setPlan(updatedPlan);
       showSuccessMessage(`Reminder ${updatedPlan.isActive ? 'enabled' : 'disabled'} successfully!`);
     } catch (err) {
-      showErrorFetchAPI('Failed to update reminder. Please try again.');
+      showErrorFetchAPI(err.message || 'Failed to update reminder status.');
     } finally {
       setUpdating(false);
     }
@@ -101,7 +101,7 @@ export default function ReminderPlanDetailScreen({ route }) {
         showSuccessMessage('Reminder deleted successfully!');
         navigation.goBack();
       } catch (err) {
-        showErrorFetchAPI('Failed to delete reminder. Please try again.');
+        showErrorFetchAPI(err.message || 'Failed to delete reminder plan.');
       }
     };
     // For now, just delete directly (no Alert popup)

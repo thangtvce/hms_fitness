@@ -40,15 +40,12 @@ const NutritionTargetHistoryScreen = () => {
           const dd = String(today.getDate()).padStart(2, '0');
           return userId ? `nutritionTarget_${userId}_${yyyy}-${mm}-${dd}` : `nutritionTarget_${yyyy}-${mm}-${dd}`;
         };
-        // Lấy history
         const raw = await AsyncStorage.getItem("nutritionTargetHistory");
         let historyArr = [];
         if (raw) historyArr = JSON.parse(raw);
-        // Lấy target hiện tại từ AsyncStorage
         const rawTarget = await AsyncStorage.getItem(getStorageKey());
         let currentTarget = { carbs: 0, protein: 0, fats: 0, calories: 0 };
         if (rawTarget) currentTarget = JSON.parse(rawTarget);
-        // Nếu entry nào thiếu targetCarbs/targetProtein/targetFats/targetCalories thì bổ sung từ target hiện tại
         const fixed = historyArr.map(item => ({
           ...item,
           targetCarbs: item.targetCarbs ?? currentTarget.carbs,

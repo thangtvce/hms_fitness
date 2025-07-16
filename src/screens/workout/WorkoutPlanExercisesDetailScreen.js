@@ -1,4 +1,3 @@
-"use client"
 
 import { useEffect, useState } from "react"
 import {
@@ -182,7 +181,7 @@ export default function WorkoutPlanExercisesDetailScreen() {
 
       showSuccessMessage(`${exercise.exerciseName} added to workout session!`)
     } catch (e) {
-      showErrorFetchAPI("Unable to add to workout session.")
+      showErrorFetchAPI(e.message || "Failed to add exercise to session. Please try again.")
     }
   }
 

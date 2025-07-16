@@ -331,8 +331,7 @@ export default function WeeklyProgressScreen({ route }) {
     }
     setRefreshing(false)
   }
-  // Use SelectModal for filter selection
-  // Add this component after the FilterModal component and before the FilterComponent
+
   const NavigationBoxes = ({ activeTab, setActiveTab }) => (
     <View style={styles.navigationContainer}>
       {[

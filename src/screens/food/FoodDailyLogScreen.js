@@ -193,7 +193,7 @@ const FoodDailyLogScreen = () => {
       })
 
       if (foodsToSave.length === 0) {
-        showErrorFetchAPI("No food items to save.")
+        showErrorFetchAPI(error)
         setLoading(false)
         return
       }

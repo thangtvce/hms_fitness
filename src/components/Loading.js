@@ -6,7 +6,7 @@ const Loading = ({ backgroundColor = '#FFFFFF', logoSize = 300 }) => {
     <View style={[styles.loadingContainer, { backgroundColor }]}> 
       <View style={styles.loadingGradient}>
         <Image
-          source={require('../../assets/logo.png')}
+          source={require('../../assets/images/logo.png')}
           style={[styles.loadingImage, { width: logoSize, height: logoSize }]}
           resizeMode="contain"
         />

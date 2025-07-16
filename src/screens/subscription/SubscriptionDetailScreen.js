@@ -169,7 +169,7 @@ const SubscriptionDetailScreen = ({ route, navigation }) => {
                 title: "My Fitness Subscription",
             });
         } catch (error) {
-            showErrorFetchAPI("Unable to share subscription details");
+            showErrorFetchAPI(error.message || "Failed to share subscription details.");
         }
     };
 

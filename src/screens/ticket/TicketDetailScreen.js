@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import Header from '../../components/Header';
+import Header from 'components/Header';
 import ticketService from 'services/apiTicketService';
 import apiUserService from 'services/apiUserService';
 import { AuthContext } from 'context/AuthContext';

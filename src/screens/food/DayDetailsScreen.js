@@ -75,7 +75,7 @@ const DayDetailsScreen = () => {
             showSuccessMessage("All food logs deleted!")
             navigation.goBack()
           } catch (error) {
-            showErrorFetchAPI("Failed to delete logs")
+            showErrorFetchAPI(error)
           }
         },
       },
@@ -118,7 +118,7 @@ const DayDetailsScreen = () => {
         showErrorFetchAPI(res.message || "Update failed")
       }
     } catch (error) {
-      showErrorFetchAPI("Update failed")
+      showErrorFetchAPI(error)
     }
   }
 

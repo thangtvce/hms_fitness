@@ -2,7 +2,6 @@ import React from "react"
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native"
 import { Feather } from "@expo/vector-icons"
 
-// Dashboard Water Tracker: Each cup = percent progress, not fixed ml
 export default function WaterCupTracker({
   targetMl = 2000,
   todayIntake = 0,
@@ -22,7 +21,7 @@ export default function WaterCupTracker({
     return (
       <View key={index} style={waterStyles.cupTouchable}>
         <Image
-          source={require('../../assets/water.png')}
+          source={require('../../assets/images/water.png')}
           style={{ width: 48, height: 48, opacity: fillPercent > 0 ? 1 : 0.3 }}
           resizeMode="contain"
         />

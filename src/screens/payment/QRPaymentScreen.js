@@ -156,7 +156,7 @@ const QRPaymentScreen = ({ route,navigation }) => {
             const sortedApps = data.apps.sort((a,b) => b.autofill - a.autofill)
             setBankApps(sortedApps)
         } catch (e) {
-            showErrorFetchAPI("Unable to load bank apps list.")
+            showErrorFetchAPI(e)
         } finally {
             setLoadingApps(false)
         }

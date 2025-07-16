@@ -175,11 +175,11 @@ export default function AddReminderPlanScreen({ navigation, route }) {
       setIsLoading(false);
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
-        showErrorFetchAPI('Failed to create reminder plan.');
+        showErrorFetchAPI('Failed to create reminder plan.', error);
       } else if (error.message) {
-        showErrorFetchAPI(error.message);
+        showErrorFetchAPI(error.message, error);
       } else {
-        showErrorFetchAPI('Failed to create reminder plan.');
+        showErrorFetchAPI('Failed to create reminder plan.', error);
       }
     }
   };

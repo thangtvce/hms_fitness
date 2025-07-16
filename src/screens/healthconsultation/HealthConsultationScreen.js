@@ -47,7 +47,7 @@ const HealthConsultationScreen = () => {
       setError(null)
     } catch (err) {
       setError("Failed to load consultations")
-      showErrorFetchAPI("Failed to load consultations")
+      showErrorFetchAPI(err)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -58,7 +58,7 @@ const HealthConsultationScreen = () => {
     try {
       await AsyncStorage.setItem("healthConsultations", JSON.stringify(newConsultations))
     } catch (err) {
-      showErrorFetchAPI("Failed to save consultation")
+      showErrorFetchAPI(err)
     }
   }
 
@@ -69,7 +69,7 @@ const HealthConsultationScreen = () => {
 
   const handleAskQuestion = async () => {
     if (!query.trim()) {
-      showErrorFetchAPI("Please enter a health-related question")
+      showErrorFetchAPI(err)
       return
     }
 

@@ -16,7 +16,6 @@ import {
 import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import Loading from "components/Loading";
 import { LinearGradient } from "expo-linear-gradient"
-// import { LinearGradient } from "expo-linear-gradient"
 import Header from "components/Header"
 import { Ionicons,MaterialCommunityIcons,Feather } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"

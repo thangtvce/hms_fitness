@@ -374,7 +374,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
         setAllTimeTotalIntake(allTotal)
       }
     } catch (error) {
-      showErrorFetchAPI("Failed to load water logs.")
+      showErrorFetchAPI(error.message || "Failed to fetch water logs.")
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -632,7 +632,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
         showErrorFetchAPI(response.message)
         return
       } else {
-        showErrorFetchAPI("Server error, please try again later.")
+        showErrorFetchAPI(error.message || "Unable to log water.")
         return
       }
     } catch (error) {
@@ -861,7 +861,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
           showErrorFetchAPI("Failed to delete water log.")
         }
       } catch (error) {
-        showErrorFetchAPI("Failed to delete water log.")
+        showErrorFetchAPI(error.message || "Failed to delete water log.")
       }
     }
     // If you want to keep a confirm dialog, you can use a custom modal or a simple JS confirm for now

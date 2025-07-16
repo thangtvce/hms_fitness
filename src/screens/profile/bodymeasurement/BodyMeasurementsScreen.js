@@ -58,11 +58,11 @@ export default function BodyMeasurementsScreen({ navigation }) {
           setMeasurements(sortedMeasurements);
         }
       } else {
-        showErrorFetchAPI('Vui lòng đăng nhập.');
+        showErrorFetchAPI(error);
         navigation.replace('Login');
       }
     } catch (error) {
-      showErrorFetchAPI('Không thể tải dữ liệu đo chỉ số cơ thể.');
+      showErrorFetchAPI(error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -102,7 +102,7 @@ export default function BodyMeasurementsScreen({ navigation }) {
           showSuccessMessage('Xóa đo chỉ số thành công.');
         }
       } catch (error) {
-        showErrorFetchAPI('Xóa đo chỉ số thất bại.');
+        showErrorFetchAPI(error);
       }
     };
     // If you want a confirm dialog, use a custom modal. For now, call confirmDelete directly:

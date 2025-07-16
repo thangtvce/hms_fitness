@@ -13,8 +13,8 @@ import { useNavigation } from "@react-navigation/native";
 import ticketService from "services/apiTicketService";
 import { AuthContext } from "context/AuthContext";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Header from "../../components/Header";
-import SelectModal from "../../components/SelectModal";
+import Header from "components/Header";
+import SelectModal from "components/SelectModal";
 import Loading from "components/Loading";
 import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 

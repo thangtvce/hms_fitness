@@ -19,7 +19,6 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons,Feather } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { AuthContext } from "context/AuthContext";
 import { checkUserReport,deleteGroup } from "services/apiCommunityService";
 import {

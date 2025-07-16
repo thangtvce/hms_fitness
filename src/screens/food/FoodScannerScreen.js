@@ -98,7 +98,7 @@ export default function FoodScannerScreen({ navigation }) {
                     setShowResults(true)
                 },2500)
             } catch (error) {
-            showErrorFetchAPI("Failed to take picture")
+            showErrorFetchAPI(error)
             }
         }
     }
@@ -123,7 +123,7 @@ export default function FoodScannerScreen({ navigation }) {
                 },2500)
             }
         } catch (error) {
-            showErrorFetchAPI("Failed to select image from gallery")
+            showErrorFetchAPI(error)
         }
     }
 

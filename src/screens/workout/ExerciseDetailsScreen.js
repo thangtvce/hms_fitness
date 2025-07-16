@@ -76,7 +76,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
       setIsFavorite(!exists)
       showSuccessMessage(exists ? "Removed from favorites" : "Added to favorites")
     } catch (error) {
-      showErrorFetchAPI("Failed to update favorites.")
+      showErrorFetchAPI(error.message || "Failed to update favorites. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -122,7 +122,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
       await AsyncStorage.setItem("scheduledExercises", JSON.stringify(scheduledExercises))
       showSuccessMessage(`${exercise.exerciseName} added to your workout schedule`)
     } catch (error) {
-      showErrorFetchAPI("Failed to add exercise to schedule. Please try again.")
+      showErrorFetchAPI(error.message || "Failed to add exercise to schedule. Please try again.")
     } finally {
       setLoading(false)
     }

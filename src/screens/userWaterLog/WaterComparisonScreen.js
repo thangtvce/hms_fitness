@@ -91,7 +91,7 @@ export default function WaterComparisonScreen({ navigation }) {
                 processAvailableDates(logs);
             }
         } catch (error) {
-            showErrorFetchAPI('Failed to load water log dates.');
+            showErrorFetchAPI(error.message || "Failed to fetch water logs.");
         } finally {
             setLoading(false);
             setRefreshing(false);

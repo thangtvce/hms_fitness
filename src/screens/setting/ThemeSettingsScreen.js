@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { View, Text, Switch, StyleSheet, SafeAreaView } from 'react-native';
-import { ThemeContext } from '../../components/theme/ThemeContext';
+import { ThemeContext } from 'components/theme/ThemeContext';
 
 const ThemeSettingsScreen = () => {
   const { theme, toggleTheme, colors } = useContext(ThemeContext);

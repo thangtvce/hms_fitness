@@ -73,7 +73,7 @@ export default function WeightHistoryScreen({ navigation }) {
                 }
             }
         } catch (error) {
-            showErrorFetchAPI("Failed to load weight history. Please try again later.");
+            showErrorFetchAPI(error);
         } finally {
             setLoading(false)
             setRefreshing(false)
@@ -132,7 +132,7 @@ export default function WeightHistoryScreen({ navigation }) {
                 showSuccessMessage("Weight entry deleted successfully.")
             }
         } catch (error) {
-            showErrorFetchAPI("Failed to delete weight entry.")
+            showErrorFetchAPI(error)
         }
     }
 

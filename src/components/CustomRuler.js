@@ -7,13 +7,7 @@ import { Audio } from 'expo-av';
 const screenWidth = Dimensions.get('window').width;
 const unitWidth = 10; // 1 đơn vị = 10px
 
-/**
- * CustomRuler
- * type: 'height' | 'weight' (optional, for semantic usage)
- * min, max, unit, majorStep, minorStep: customize for height/weight
- * Example for height: min=140, max=220, unit='cm'
- * Example for weight: min=40, max=150, unit='kg'
- */
+
 export default function CustomRuler({
   type = 'height', // 'height' or 'weight' (optional, for semantic usage)
   min,
@@ -25,15 +19,14 @@ export default function CustomRuler({
   onUnitChange, // callback(unit)
   majorStep,
   minorStep,
-  soundFile = require('../../assets/snap1.wav'),
+  soundFile = require('../../assets/sounds/snap1.wav'),
   indicatorColor = 'red',
   indicatorWidth = 2,
   indicatorHeight = 70,
   style,
   renderLabel,
 }) {
-  // Default values by type
-  // Đơn vị mặc định và min/max theo đơn vị
+
   let defaultUnit, defaultMin, defaultMax, defaultValue, defaultMajorStep, defaultMinorStep;
   if (type === 'weight') {
     defaultUnit = 'kg';

@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#0056d2",
     borderRadius: 12,
     height: 56,
     marginBottom: 24,

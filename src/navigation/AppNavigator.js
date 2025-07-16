@@ -1,8 +1,13 @@
+import ActiveStaticsScreen from 'screens/home/ActiveStaticsScreen';
+import CaloriesLogStatisticsScreen from 'screens/food/CaloriesLogStatisticsScreen';
 import WorkoutInProgressScreen from 'screens/workout/WorkoutInProgressScreen';
 import ExercisesByCategoryScreen from 'screens/workout/ExercisesByCategoryScreen';
+import NutrientLogStatisticsScreen from 'screens/food/NutrientLogStatisticsScreen';
+
 // Trainer Workout Screens
 import TrainerExerciseManagement from 'screens/trainer/exercise/TrainerExerciseManagement';
 import ExerciseDetailScreen from 'screens/trainer/exercise/ExerciseDetailScreen';
+import StreakCalendarScreen from 'screens/streak/StreakCalendarScreen';
 import EditExerciseScreen from 'screens/trainer/exercise/EditExerciseScreen';
 import DeleteExerciseScreen from 'screens/trainer/exercise/DeleteExerciseScreen';
 import CreateExerciseScreen from 'screens/trainer/exercise/CreateExerciseScreen';
@@ -130,6 +135,8 @@ import AIRecommendedScreen from 'screens/workout/AIRecommendedScreen';
 import AIRecommendedFoodScreen from 'screens/food/AIRecommendedFoodScreen';
 import UserGoalPlansScreen from 'screens/profile/UserGoalPlansScreen';
 import WeeklyProgressScreen from 'screens/home/WeeklyProgressScreen';
+import AnalysisScreen from 'screens/home/AnalysisScreen';
+
 import BanMembersScreen from 'screens/community/BanMembersScreen';
 import AddExerciseToPlanScreen from 'screens/trainer/exercisePlan/AddExerciseToPlanScreen';
 import EditExerciseToPlanScreen from 'screens/trainer/exercisePlan/EditExerciseToPlanScreen';
@@ -214,11 +221,13 @@ const notificationListener = useRef();
       <Stack.Screen name="EditWeight" component={EditWeightScreen} />
       <Stack.Screen name="Food" component={FoodListScreen} />
       <Stack.Screen name="FoodDetails" component={FoodDetailsScreen} />
+      <Stack.Screen name="ActiveStaticsScreen" component={ActiveStaticsScreen} />
       <Stack.Screen name="WorkoutListScreen" component={WorkoutListScreen} options={{ title: 'Workout List' }} />
       <Stack.Screen name="CategoryDetails" component={CategoryDetailsScreen} />
       <Stack.Screen name="ExerciseDetails" component={ExerciseDetailsScreen} />
       <Stack.Screen name="ExerciseDetailsScreen" component={ExerciseDetailsScreen} options={{ title: 'Exercise Details' }} />
       <Stack.Screen name="ExercisesByCategoryScreen" component={ExercisesByCategoryScreen} options={{ title: 'Exercises By Category' }} />
+      <Stack.Screen name="StreakCalendar" component={StreakCalendarScreen} options={{ headerShown: false }} />
 
     {/* Ticket System Screens */}
     <Stack.Screen name="TicketList" component={TicketListScreen} options={{ title: 'My Tickets' }} />
@@ -226,6 +235,8 @@ const notificationListener = useRef();
     <Stack.Screen name="TicketDetail" component={TicketDetailScreen} options={{ title: 'Ticket Detail' }} />
       <Stack.Screen name="Notifications" component={NotificationScreen} />
       <Stack.Screen name="StepCounter" component={StepCounterScreen} />
+      <Stack.Screen name="CaloriesLogStatisticsScreen" component={CaloriesLogStatisticsScreen} options={{ title: 'Thống kê calo theo ngày' }} />
+      <Stack.Screen name="NutrientLogStatistics" component={NutrientLogStatisticsScreen} />
       <Stack.Screen name="FoodScannerScreen" component={FoodScannerScreen} />
       <Stack.Screen name="ServicePackage" component={ServicePackageScreen} />
       <Stack.Screen name="PackageDetail" component={PackageDetailScreen} />
@@ -343,6 +354,7 @@ const notificationListener = useRef();
     <Stack.Screen name="WeeklyProgressScreen" component={WeeklyProgressScreen} options={{ title: 'Weekly Progress' }} />
       <Stack.Screen name="BanMembersScreen" component={BanMembersScreen} options={{ title: 'Ban Members' }} />
       <Stack.Screen name="ProgressComparisonScreen" component={ProgressComparisonScreen} options={{ title: 'Progress Comparison' }} />
+      <Stack.Screen name="AnalysisScreen" component={AnalysisScreen}  />
 
 
     </Stack.Navigator>

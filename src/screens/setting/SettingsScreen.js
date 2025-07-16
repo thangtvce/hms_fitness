@@ -457,7 +457,7 @@ export default function SettingsScreen({ navigation }) {
         showSuccessMessage("Profile picture removed successfully")
       }
     } catch (error) {
-      showErrorFetchAPI("Failed to remove profile picture.")
+      showErrorFetchAPI(error);
     }
   }
 

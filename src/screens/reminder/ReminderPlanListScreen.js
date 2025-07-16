@@ -108,7 +108,7 @@ export default function ReminderPlanListScreen() {
       );
       showSuccessMessage(`Reminder ${updatedPlan.isActive ? 'enabled' : 'disabled'} successfully!`);
     } catch (err) {
-      showErrorFetchAPI('Failed to update reminder. Please try again.');
+      showErrorFetchAPI(err.message || 'Failed to update reminder status.');
     }
   };
 
@@ -134,7 +134,7 @@ export default function ReminderPlanListScreen() {
       setPlans(res?.data?.plans || []);
     } catch (err) {
       setError(err.message || 'Failed to load reminder plans');
-      showErrorFetchAPI('Failed to load reminder plans.');
+      showErrorFetchAPI(err.message || 'Failed to load reminder plans.');
     } finally {
       setLoading(false);
       setRefreshing(false);

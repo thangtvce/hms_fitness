@@ -334,7 +334,7 @@ const TrendsScreen = ({ route, logs, navigation }) => {
           try {
             navigation.goBack();
           } catch (err) {
-            showErrorFetchAPI("An error occurred when going back to the previous screen");
+            showErrorFetchAPI(err);
           }
         }}
         rightActions={[]}

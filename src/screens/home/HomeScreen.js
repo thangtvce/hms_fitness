@@ -1,3 +1,4 @@
+
 import React, { useCallback, useMemo, useState, useEffect, useContext } from "react"
 import Loading from "components/Loading"
 import { LineChart } from "react-native-chart-kit"
@@ -15,7 +16,6 @@ import {
   Image,
   Animated,
   RefreshControl,
-  
 } from "react-native"
 import { Feather } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
@@ -29,38 +29,47 @@ import { apiUserWaterLogService } from "services/apiUserWaterLogService"
 import Header from "components/Header"
 import { AnimatedCircularProgress } from "react-native-circular-progress"
 import { useStepTracker } from "context/StepTrackerContext"
-
-import WaterCupTracker from "components/WaterCupTracker"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const { width } = Dimensions.get("window")
 const SPACING = 20
 const screenWidth = Dimensions.get("window").width
 
+// Define a modern shadow style
+const MODERN_SHADOW = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.08,
+  shadowRadius: 8,
+  elevation: 5,
+}
+
 export default function HomeScreen({ navigation }) {
+  const [waterTarget, setWaterTarget] = useState(null)
   // Debug: log waterTarget whenever it changes
-  useEffect(() => {
-  }, [waterTarget]);
-  const [waterTarget, setWaterTarget] = useState(null);
+  useEffect(() => {}, [waterTarget])
+
+  const { user } = useContext(AuthContext)
+
   // Load water target from AsyncStorage
   useEffect(() => {
     const loadTarget = async () => {
-      if (!user?.userId) return;
+      if (!user?.userId) return
       try {
-        const key = `user_water_target_${user.userId}`;
-        const data = await AsyncStorage.getItem(key);
+        const key = `user_water_target_${user.userId}`
+        const data = await AsyncStorage.getItem(key)
         if (data) {
-          setWaterTarget(JSON.parse(data));
+          setWaterTarget(JSON.parse(data))
         } else {
-          setWaterTarget(null);
+          setWaterTarget(null)
         }
       } catch (e) {
-        setWaterTarget(null);
+        setWaterTarget(null)
       }
-    };
-    loadTarget();
-  }, [user?.userId]);
-  const { user } = useContext(AuthContext)
+    }
+    loadTarget()
+  }, [user?.userId])
+
   const { colors, theme } = useContext(ThemeContext)
   const { steps, duration, isReady } = useStepTracker()
   const fadeAnim = React.useRef(new Animated.Value(0)).current
@@ -81,6 +90,7 @@ export default function HomeScreen({ navigation }) {
   const [weightHistory, setWeightHistory] = useState([])
   const [weightStats, setWeightStats] = useState({ current: 0, lowest: 0, highest: 0, average: 0, change: 0 })
   const [weightTimeFrame, setWeightTimeFrame] = useState("3m")
+
   // StepCounter AsyncStorage values
   const [stepCounterData, setStepCounterData] = useState({ steps: 0, calories: 0, distance: 0, target: 10000 })
 
@@ -172,7 +182,9 @@ export default function HomeScreen({ navigation }) {
       experience: "6+ years",
     },
   ]
+
   const [currentTrainerIndex, setCurrentTrainerIndex] = useState(0)
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTrainerIndex((prev) => (prev + 1) % trainerAds.length)
@@ -259,6 +271,8 @@ export default function HomeScreen({ navigation }) {
     setError(null)
     try {
       const userData = await apiUserService.getUserById(user.userId)
+      // Log currentStreak value from API response
+      console.log('API currentStreak:', userData?.data?.currentStreak)
       const avatar = userData.data.avatar
       if (avatar) await AsyncStorage.setItem("userAvatar", avatar)
 
@@ -273,6 +287,7 @@ export default function HomeScreen({ navigation }) {
         startDate: startOfMonth,
         endDate: endOfMonth,
       })
+
       const grouped = {}
       if (nutritionResponse.statusCode === 200 && Array.isArray(nutritionResponse.data.nutritionLogs)) {
         nutritionResponse.data.nutritionLogs.forEach((log) => {
@@ -281,13 +296,16 @@ export default function HomeScreen({ navigation }) {
           grouped[date].push(log)
         })
       }
+
       const todayKey = dayjs(currentDate).format("YYYY-MM-DD")
       const todayLogs = grouped[todayKey] || []
+
       let consumedCalories = 0
       let carbs = 0
       let protein = 0
       let fats = 0
       const mealCalories = { Breakfast: 0, Lunch: 0, Dinner: 0, Other: 0 }
+
       todayLogs.forEach((log) => {
         consumedCalories += log.calories || 0
         carbs += log.carbs || 0
@@ -301,6 +319,7 @@ export default function HomeScreen({ navigation }) {
         pageNumber: 1,
         pageSize: 50,
       })
+
       let burnedCalories = 0
       let activitySteps = 0
       if (Array.isArray(activitiesResponse)) {
@@ -323,6 +342,7 @@ export default function HomeScreen({ navigation }) {
         endDate: tomorrow.toISOString().split("T")[0],
         pageSize: 100,
       })
+
       const waterLogs = waterResponse?.data?.records || waterResponse?.data || []
       const todayTotal = waterLogs
         .filter((log) => {
@@ -330,6 +350,7 @@ export default function HomeScreen({ navigation }) {
           return d >= today && d < tomorrow
         })
         .reduce((sum, log) => sum + (log.amountMl || 0), 0)
+
       const dailyTotals = Array(7).fill(0)
       for (let i = 0; i < 7; i++) {
         const day = new Date(weekAgo)
@@ -435,6 +456,7 @@ export default function HomeScreen({ navigation }) {
     try {
       const raw = await AsyncStorage.getItem("nutritionTarget")
       if (!raw) return
+
       const target = JSON.parse(raw)
       const netCalories = Number(calories) - Number(burnedCalories)
       const completed =
@@ -498,23 +520,25 @@ export default function HomeScreen({ navigation }) {
 
   // Helper to get userId-based key (same as NutritionTargetScreen)
   const getUserId = () => {
-    if (user && typeof user === 'object') {
-      return user.id || user._id || user.userId || '';
+    if (user && typeof user === "object") {
+      return user.id || user._id || user.userId || ""
     }
-    return '';
-  };
+    return ""
+  }
+
   const getStorageKey = () => {
-    const userId = getUserId();
-    return userId ? `nutritionTarget_${userId}` : 'nutritionTarget';
-  };
+    const userId = getUserId()
+    return userId ? `nutritionTarget_${userId}` : "nutritionTarget"
+  }
+
   const getTodayKey = () => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const userId = getUserId();
-    return userId ? `nutritionTarget_${userId}_${yyyy}-${mm}-${dd}` : `nutritionTarget_${yyyy}-${mm}-${dd}`;
-  };
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, "0")
+    const dd = String(today.getDate()).padStart(2, "0")
+    const userId = getUserId()
+    return userId ? `nutritionTarget_${userId}_${yyyy}-${mm}-${dd}` : `nutritionTarget_${yyyy}-${mm}-${dd}`
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -618,7 +642,7 @@ export default function HomeScreen({ navigation }) {
     return (
       <TouchableOpacity
         key={index}
-        style={[styles.discoverItem, isActive && styles.activeDiscoverItem]}
+        style={styles.discoverItem} // Apply MODERN_SHADOW directly to discoverItem
         onPress={() => handleNavigation(item.route)}
         activeOpacity={0.8}
       >
@@ -686,7 +710,7 @@ export default function HomeScreen({ navigation }) {
   const AIGoalPlanBanner = () => {
     return (
       <TouchableOpacity
-        style={styles.aiGoalPlanBanner}
+        style={[styles.aiGoalPlanBanner, MODERN_SHADOW]}
         onPress={() => handleNavigation("UserGoalPlansScreen")}
         activeOpacity={0.9}
       >
@@ -732,7 +756,13 @@ export default function HomeScreen({ navigation }) {
     const progressPercentage = total > 0 ? Math.min((achievedCalories / total) * 100, 100) : 0
 
     return (
-      <View style={[styles.nutritionSummaryCard, { backgroundColor: colors.calorieCardBackground || "#FFFFFF" }]}>
+      <View
+        style={[
+          styles.nutritionSummaryCard,
+          { backgroundColor: colors.calorieCardBackground || "#FFFFFF" },
+          MODERN_SHADOW,
+        ]}
+      >
         {/* Calories Section */}
         <View style={styles.caloriesSection}>
           <View style={styles.sectionHeader}>
@@ -764,7 +794,6 @@ export default function HomeScreen({ navigation }) {
                   color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B"),
                   fontSize: 11,
                   marginTop: 2,
-                  opacity: 0.6,
                 }}
               >
                 Target - Food + Exercise
@@ -880,8 +909,8 @@ export default function HomeScreen({ navigation }) {
           styles.trainerBanner,
           {
             backgroundColor: colors.trainerBannerBackground || colors.cardBackground || "#FFFFFF",
-            shadowColor: colors.trainerBannerShadow || colors.shadow || "#000",
           },
+          MODERN_SHADOW,
         ]}
         onPress={() => Alert.alert("Trainer Profile", `Contact ${currentTrainer.name} for personalized training!`)}
         activeOpacity={0.9}
@@ -1021,6 +1050,7 @@ export default function HomeScreen({ navigation }) {
         style={[
           styles.weightContainer,
           { backgroundColor: colors.cardBackground || (theme === "dark" ? "#18181B" : "#FFFFFF") },
+          MODERN_SHADOW,
         ]}
       >
         <View style={[styles.weightStatsRow, { flexDirection: "row", alignItems: "center", marginBottom: 16 }]}>
@@ -1137,18 +1167,35 @@ export default function HomeScreen({ navigation }) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background || "#F8FAFC" }]}>
         <Header
-          title="HMS Fitness"
-          showAvatar={true}
-          avatarUrl={dashboardData?.user?.avatar || user?.avatar || null}
-          rightActions={[
-            {
-              icon: "notifications-outline",
-              onPress: () => handleNavigation("Notifications"),
-              color: colors.primary || "#0056d2",
-              badge: 3,
-            },
-          ]}
-        />
+        title="HMS Fitness" // Simple string title
+        showAvatar={true} // Pass true to show avatar
+        avatarUrl={dashboardData?.user?.avatar || user?.avatar || null} // Pass avatar URL
+        rightActions={[
+          {
+            icon: "fire", // Streak icon
+            onPress: () => Alert.alert("Streak", `You have a ${dashboardData?.user?.currentStreak} day streak!`),
+            color: "#F59E0B", // Orange for fire
+            backgroundColor: "#FFFFFF",
+            label: dashboardData?.user?.currentStreak !== undefined
+              ? `${dashboardData.user.currentStreak}` // Just the number
+              : undefined,
+          },
+          {
+            icon: "analytics-outline",
+            onPress: () => handleNavigation("AnalysisScreen"),
+            color: colors.primary || "#0056d2",
+            backgroundColor: "#FFFFFF",
+            // No label here, streak is separate
+          },
+          {
+            icon: "notifications-outline",
+            onPress: () => handleNavigation("Notifications"),
+            color: colors.primary || "#0056d2",
+            badge: 3,
+            backgroundColor: "#FFFFFF",
+          },
+        ]}
+      />
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: colors.error || "#EF4444" }]}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={() => fetchUserData()}>
@@ -1195,30 +1242,41 @@ export default function HomeScreen({ navigation }) {
                 </View>
               )}
             </TouchableOpacity>
-            {/* Streak */}
-            {dashboardData?.user?.streak !== undefined && (
-              <View style={{ flexDirection: "row", alignItems: "center", marginRight: 12 }}>
-                <Feather name="fire" size={18} color="#F59E0B" style={{ marginRight: 3 }} />
-                <Text style={{ fontWeight: "bold", color: "#F59E0B", fontSize: 16 }}>{dashboardData.user.streak}</Text>
-              </View>
-            )}
-            {/* Title */}
-            <Text style={{ fontSize: 20, fontWeight: "bold", color: colors.headerText || "#0056d2" }}>HMS Fitness</Text>
+            {/* Title + Fire emoji + currentStreak to the right */}
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom:10, color: colors.headerText || "#0056d2" }}>HMS Fitness</Text>
+              <Text style={{ fontSize: 20, marginLeft: 6,  marginBottom:10 }}>🔥</Text>
+              {dashboardData?.user?.currentStreak !== undefined && (
+                <Text style={{ fontSize: 18, fontWeight: "bold", color: "#F59E0B", marginLeft: 3, marginRight:20, marginBottom:10 }}>{dashboardData.user.currentStreak}</Text>
+              )}
+            </View>
           </View>
         }
         showAvatar={false}
-        rightActions={[
+       rightActions={[
+        
+          { 
+            
+            icon: "analytics-outline",
+            onPress: () => handleNavigation("AnalysisScreen"),
+            color: colors.primary || "#0056d2",
+            backgroundColor: "#FFFFFF",
+            label: dashboardData?.user?.currentStreak !== undefined
+              ? `${dashboardData.user.currentStreak} 🔥`
+              : undefined,
+          },
           {
             icon: "notifications-outline",
             onPress: () => handleNavigation("Notifications"),
             color: colors.primary || "#0056d2",
             badge: 3,
+            backgroundColor: "#FFFFFF",
           },
         ]}
       />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: 80 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: 80, marginTop: 50 }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1234,91 +1292,6 @@ export default function HomeScreen({ navigation }) {
       >
         {dashboardData && (
           <>
-            <Animated.View
-              style={[
-                styles.welcomeStatsCard,
-                {
-                  backgroundColor: colors.calorieCardBackground || "#FFFFFF",
-                  opacity: fadeAnim,
-                  transform: [{ translateY: translateY }],
-                  marginTop: 50,
-                },
-              ]}
-            >
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || "#F3F4F6" }]}>
-                    <Feather name="activity" size={20} color={theme === "dark" ? "#6366F1" : "#4F46E5"} />
-                  </View>
-                  <Text
-                    style={[
-                      styles.statValue,
-                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B") },
-                    ]}
-                  >
-                    {stepCounterData.steps}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statLabel,
-                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B"), opacity: 0.7 },
-                    ]}
-                  >
-                    Steps Today
-                  </Text>
-                </View>
-                <View
-                  style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || "#E2E8F0" }]}
-                />
-                <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || "#F3F4F6" }]}>
-                    <Feather name="zap" size={20} color={theme === "dark" ? "#FBBF24" : "#F59E0B"} />
-                  </View>
-                  <Text
-                    style={[
-                      styles.statValue,
-                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B") },
-                    ]}
-                  >
-                    {stepCounterData.calories}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statLabel,
-                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B"), opacity: 0.7 },
-                    ]}
-                  >
-                    Calories Burned
-                  </Text>
-                </View>
-                <View
-                  style={[styles.statDivider, { backgroundColor: colors.cardBorder || colors.border || "#E2E8F0" }]}
-                />
-                <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: colors.statIconBackground || "#F3F4F6" }]}>
-                    <Feather name="target" size={20} color={theme === "dark" ? "#34D399" : "#10B981"} />
-                  </View>
-                  <Text
-                    style={[
-                      styles.statValue,
-                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#1E293B") },
-                    ]}
-                  >
-                    {stepCounterData.distance < 1
-                      ? `${Math.round(stepCounterData.distance * 1000)} m`
-                      : `${stepCounterData.distance.toFixed(2)} km`}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statLabel,
-                      { color: colors.calorieCardText || (theme === "dark" ? "#FFFFFF" : "#64748B"), opacity: 0.7 },
-                    ]}
-                  >
-                    Distance
-                  </Text>
-                </View>
-              </View>
-            </Animated.View>
             <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
               <AIGoalPlanBanner />
             </Animated.View>
@@ -1335,8 +1308,8 @@ export default function HomeScreen({ navigation }) {
                   {
                     backgroundColor: colors.calendarCardBackground || "#FFFFFF",
                     borderColor: colors.calendarCardBorder || "#E2E8F0",
-                    shadowColor: colors.calendarCardShadow || "#000",
                   },
+                  MODERN_SHADOW, // Apply modern shadow
                 ]}
               >
                 {daysOfWeek.map((day, index) => {
@@ -1407,33 +1380,76 @@ export default function HomeScreen({ navigation }) {
             >
               <WeightStatsAndChart />
             </Animated.View>
+            {/* Activities Section Header - moved below Weight */}
+            <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.sectionTitle || "#1E293B" }]}>Steps</Text>
+                <TouchableOpacity onPress={() => handleNavigation("StepCounter")}>
+                  <Text style={[styles.sectionAction, { color: colors.sectionAction || "#6366F1" }]}>More</Text>
+                </TouchableOpacity>
+              </View>
+              {/* Activities Card (Steps, Distance, Calories) */}
+              <Animated.View
+                style={[
+                  styles.activitiesCard,
+                  {
+                    backgroundColor: "#f8a23aff", // Orange color from image
+                    opacity: fadeAnim,
+                    transform: [{ translateY: translateY }],
+                  },
+                  MODERN_SHADOW, // Apply modern shadow
+                ]}
+              >
+                <Text style={styles.activitiesStepsValue}>{stepCounterData.steps.toLocaleString("en-US")} steps</Text>
+                <Text style={styles.activitiesSubText}>
+                  {stepCounterData.distance < 1
+                    ? `${Math.round(stepCounterData.distance * 1000)} m`
+                    : `${stepCounterData.distance.toFixed(2)} km`}
+                  , {stepCounterData.calories} kcal
+                </Text>
+                <View style={styles.activitiesProgressBarContainer}>
+                  <View
+                    style={[
+                      styles.activitiesProgressBarFill,
+                      {
+                        width: `${Math.min((stepCounterData.steps / stepCounterData.target) * 100, 100)}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              </Animated.View>
+            </Animated.View>
             <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }] }]}>
               <View
                 style={[
                   styles.trainerBanner,
-                  { backgroundColor: colors.cardBackground || "#FFFFFF", shadowColor: colors.cardShadow || "#000" },
+                  { backgroundColor: colors.cardBackground || "#FFFFFF" },
+                  MODERN_SHADOW, // Apply modern shadow
                 ]}
               >
                 <TrainerBanner />
               </View>
             </Animated.View>
-           
-
-          {/* Discover section ở cuối màn hình */}
-          <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: translateY }], marginTop: 30, marginBottom: 80 }]}> 
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.sectionTitle || '#1E293B' }]}>Discover</Text>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.discoverList}
-              decelerationRate="fast"
+            {/* Discover section ở cuối màn hình */}
+            <Animated.View
+              style={[
+                styles.section,
+                { opacity: fadeAnim, transform: [{ translateY: translateY }], marginTop: 30, marginBottom: 80 },
+              ]}
             >
-              {discoverItems.map((item, index) => renderDiscoverItem(item, index))}
-            </ScrollView>
-          </Animated.View>
-        </>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.sectionTitle || "#1E293B" }]}>Discover</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.discoverList}
+                decelerationRate="fast"
+              >
+                {discoverItems.map((item, index) => renderDiscoverItem(item, index))}
+              </ScrollView>
+            </Animated.View>
+          </>
         )}
       </ScrollView>
     </View>
@@ -1475,11 +1491,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING / 2,
     borderRadius: 12,
     borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    // Shadow applied via MODERN_SHADOW
   },
   dayColumn: {
     alignItems: "center",
@@ -1505,66 +1517,53 @@ const styles = StyleSheet.create({
     width: 6,
     borderRadius: 3,
   },
-  welcomeStatsCard: {
+  // NEW: Activities Card styles
+  activitiesCard: {
     padding: SPACING,
     borderRadius: 12,
-    marginHorizontal: SPACING,
-    marginBottom: SPACING,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    // Shadow applied via MODERN_SHADOW
+    alignItems: "center", // Center content horizontally
   },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 16,
+  activitiesStepsValue: {
+    fontSize: 24, // Adjusted from 28 - 4
     fontWeight: "bold",
+    color: "#FFFFFF", // White text
+    marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 12,
-    opacity: 0.7,
+  activitiesSubText: {
+    fontSize: 14, // Adjusted from 16 - 2
+    color: "rgba(255, 255, 255, 0.9)", // Slightly transparent white
+    marginBottom: SPACING,
   },
-  statDivider: {
-    width: 1,
-    height: "70%",
+  activitiesProgressBarContainer: {
+    width: "100%",
+    height: 12,
+    backgroundColor: "#E67E22", // Darker orange background for the track
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  activitiesProgressBarFill: {
+    height: "100%",
+    backgroundColor: "#FFFFFF", // White fill for the progress
+    borderRadius: 6,
   },
   discoverList: {
-    paddingHorizontal: SPACING / 4, // Reduce horizontal padding
+    paddingHorizontal: SPACING, // Consistent padding
   },
   discoverItem: {
-    width: width / 2.5 - SPACING, // Reduce width for closer icons
-    padding: SPACING / 3, // Reduce padding
+    width: width / 2.5 - SPACING, // Keep width for horizontal scroll
+    padding: SPACING / 2, // Slightly more padding
     borderRadius: 12,
     marginBottom: SPACING,
     alignItems: "center",
     marginRight: SPACING / 2, // Add small right margin for spacing between items
-  },
-  activeDiscoverItem: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    backgroundColor: "#FFFFFF", // Ensure background for shadow
+    ...MODERN_SHADOW, // Apply modern shadow to all items
   },
   discoverIconContainer: {
-    width: 42, // Reduce icon container size
-    height: 42,
-    borderRadius: 21,
+    width: 50, // Slightly larger icon container
+    height: 50,
+    borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: SPACING / 4,
@@ -1627,11 +1626,7 @@ const styles = StyleSheet.create({
   aiGoalPlanBanner: {
     borderRadius: 12,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    // Shadow applied via MODERN_SHADOW
   },
   aiGoalPlanBannerGradient: {
     padding: SPACING,
@@ -1683,11 +1678,7 @@ const styles = StyleSheet.create({
   nutritionSummaryCard: {
     borderRadius: 12,
     padding: SPACING,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    // Shadow applied via MODERN_SHADOW
   },
   caloriesSection: {
     marginBottom: SPACING / 2,
@@ -1764,11 +1755,7 @@ const styles = StyleSheet.create({
   healthCard: {
     borderRadius: 12,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    // Shadow applied via MODERN_SHADOW
   },
   healthCardGradient: {
     padding: SPACING,
@@ -1805,10 +1792,7 @@ const styles = StyleSheet.create({
   trainerBanner: {
     borderRadius: 12,
     overflow: "hidden",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    // Shadow applied via MODERN_SHADOW
   },
   trainerBannerGradient: {
     padding: SPACING,
@@ -1894,11 +1878,7 @@ const styles = StyleSheet.create({
   weightContainer: {
     borderRadius: 12,
     padding: SPACING,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    // Shadow applied via MODERN_SHADOW
   },
   weightStatsRow: {
     flexDirection: "row",

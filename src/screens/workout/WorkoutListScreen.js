@@ -208,7 +208,7 @@ export default function WorkoutListScreen() {
       await AsyncStorage.setItem('scheduledExercises', JSON.stringify(scheduledExercises));
       showSuccessMessage(`${exercise.exerciseName} added to your workout schedule`);
     } catch (error) {
-      showErrorFetchAPI("Failed to add exercise to schedule. Please try again.");
+      showErrorFetchAPI(error.message || "Failed to add exercise to schedule. Please try again.");
     }
   }
 

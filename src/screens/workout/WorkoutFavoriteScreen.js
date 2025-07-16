@@ -34,7 +34,7 @@ export default function WorkoutFavoriteScreen({ navigation }) {
         showSuccessMessage('Added to favorite workouts successfully.');
       }
     } catch (error) {
-      showErrorFetchAPI('Failed to update favorites.');
+      showErrorFetchAPI(error.message || 'Failed to update favorites. Please try again.');
     }
   };
 
@@ -47,7 +47,7 @@ export default function WorkoutFavoriteScreen({ navigation }) {
         setFavorites(favoriteList);
       } catch (error) {
         setFavorites([]);
-        showErrorFetchAPI('Failed to load favorite workouts.');
+        showErrorFetchAPI(error.message || 'Failed to load favorite workouts.');
       } finally {
         setLoading(false);
       }
@@ -65,7 +65,7 @@ export default function WorkoutFavoriteScreen({ navigation }) {
           setCategories(categoriesObj);
         }
       } catch {
-        showErrorFetchAPI('Failed to load categories.');
+        showErrorFetchAPI(error.message || 'Failed to load workout categories.');
       }
     };
     const unsubscribe = navigation?.addListener('focus', () => {

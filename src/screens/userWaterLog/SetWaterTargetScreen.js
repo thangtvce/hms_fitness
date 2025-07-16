@@ -4,7 +4,7 @@ import Slider from '@react-native-community/slider';
 import { showSuccessMessage } from 'utils/toastUtil';
 import Header from 'components/Header';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons'; // Import Ionicons
+import { Ionicons } from '@expo/vector-icons'; 
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

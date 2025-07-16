@@ -1,6 +1,3 @@
-
-"use client"
-
 import { useEffect,useRef } from "react"
 import { View,Text,StyleSheet,TouchableOpacity,Platform,Animated,Dimensions,ScrollView } from "react-native"
 import Loading from "components/Loading";

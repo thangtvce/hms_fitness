@@ -34,7 +34,6 @@ import { addFoodToLog } from "utils/foodLogStorage"
 import dayjs from "dayjs"
 import Header from "components/Header";
 import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
-import Loading from "components/Loading"
 
 const { width, height } = Dimensions.get("window")
 const SPACING = 16

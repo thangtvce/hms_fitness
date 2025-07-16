@@ -188,11 +188,10 @@ export default function AddWaterLogScreen({ navigation }) {
                 setSelectedQuickAmount(null);
                 navigation.goBack();
             } else {
-                showErrorFetchAPI(response.message || "Failed to save water log.");
+                showErrorFetchAPI(e.message || "Failed to save water log.");
             }
         } catch (error) {
-            console.log("Error submitting water log:", error);
-            showErrorFetchAPI("Something went wrong. Please try again.");
+            showErrorFetchAPI(e.message || "An error occurred while saving your water log.");
         } finally {
             setLoading(false);
         }

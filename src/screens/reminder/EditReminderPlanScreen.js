@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState, useContext } from "react"
 import {
   View,
@@ -155,7 +153,7 @@ export default function EditReminderPlanScreen() {
       setPendingFrequency(validFrequency)
     } catch (err) {
       setError("Failed to load reminder plan")
-      showErrorFetchAPI("Failed to load reminder plan.")
+      showErrorFetchAPI(err.message || "Unable to load reminder plan.")
     } finally {
       setLoading(false)
     }
@@ -163,15 +161,15 @@ export default function EditReminderPlanScreen() {
 
   const handleSave = async () => {
     if (!plan.title?.trim()) {
-      showErrorFetchAPI("Please enter a title for your reminder.");
+      showErrorFetchAPI(error.message || "Please enter a title for your reminder.");
       return;
     }
     if (!plan.time) {
-      showErrorFetchAPI("Please select a time for your reminder.");
+      showErrorFetchAPI(error.message || "Please select a time for your reminder.");
       return;
     }
     if (plan.frequency === "Weekly" && !plan.daysOfWeek) {
-      showErrorFetchAPI("Please select at least one day for weekly reminders.");
+      showErrorFetchAPI(error.message || "Please select at least one day of the week.");
       return;
     }
 
@@ -181,7 +179,7 @@ export default function EditReminderPlanScreen() {
       showSuccessMessage("Reminder updated successfully!");
       navigation.goBack();
     } catch (err) {
-      showErrorFetchAPI("Failed to update reminder. Please try again.");
+      showErrorFetchAPI(err.message || "Failed to update reminder plan.");
     } finally {
       setSaving(false);
     }

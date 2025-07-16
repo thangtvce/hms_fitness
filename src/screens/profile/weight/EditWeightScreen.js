@@ -132,7 +132,7 @@ export default function EditWeightScreen({ navigation,route }) {
                 showErrorFetchAPI(response.message || "Failed to update weight entry.");
             }
         } catch (error) {
-            showErrorFetchAPI("Unable to update weight entry. Please try again.");
+            showErrorFetchAPI(error);
         } finally {
             setIsLoading(false);
         }

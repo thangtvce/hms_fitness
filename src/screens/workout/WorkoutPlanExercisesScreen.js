@@ -300,8 +300,9 @@ export default function WorkoutPlanExercisesScreen({ route }) {
       await AsyncStorage.setItem("scheduledExercises", JSON.stringify(arr))
       setSessionCount(arr.length)
       showSuccessMessage("Added to workout!")
-    } catch {
-      showErrorFetchAPI("Error adding to workout!")
+    } catch (error) {
+      showErrorFetchAPI("Error adding to workout!", error)
+      throw error
     }
   }
 

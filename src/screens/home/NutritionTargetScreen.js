@@ -18,9 +18,7 @@ import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
 import Loading from "components/Loading";
 const { width } = Dimensions.get('window');
 
-// Expanded preset targets (50+ options)
 const PRESET_TARGETS = [
-  // Cutting (8 options)
   { name: "Cutting - Standard", type: "Cutting", calories: 1700, carbs: 150, protein: 130, fats: 40, description: "Balanced cutting macros for steady fat loss" },
   { name: "Cutting - High Protein", type: "Cutting", calories: 1600, carbs: 120, protein: 160, fats: 35, description: "Extra protein to preserve muscle while cutting" },
   { name: "Cutting - Low Carb", type: "Cutting", calories: 1500, carbs: 80, protein: 140, fats: 50, description: "Lower carbs for faster fat loss" },
@@ -127,8 +125,10 @@ const NutritionTargetScreen = () => {
       try {
         const saved = await AsyncStorage.getItem(getStorageKey());
         if (saved) {
-          setTarget(JSON.parse(saved));
-          setLastSaved(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          setTarget(parsed);
+          setLastSaved(parsed);
+        } else {
         }
       } catch (e) {
         showErrorFetchAPI(e.message || "Failed to load nutrition target");

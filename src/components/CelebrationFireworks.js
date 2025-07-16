@@ -1,27 +1,24 @@
-"use client"
 
 import { useRef, useEffect } from "react"
 import { View, Animated, StyleSheet, Dimensions } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 
 const { width, height } = Dimensions.get("window")
-const NUM_PARTICLES = 30 // Tăng số lượng hạt để hiệu ứng dày đặc hơn
+const NUM_PARTICLES = 30 
 
 const CelebrationFireworks = ({
   isVisible,
-  colors = ["#FFD700", "#FF6347", "#6A5ACD", "#00CED1", "#32CD32", "#FF1493"], // Thêm nhiều màu sắc rực rỡ
+  colors = ["#FFD700", "#FF6347", "#6A5ACD", "#00CED1", "#32CD32", "#FF1493"], 
 }) => {
   const animations = useRef([]).current
-  const particleProps = useRef([]).current // Lưu trữ các thuộc tính ngẫu nhiên cho mỗi hạt
+  const particleProps = useRef([]).current 
 
   useEffect(() => {
     if (isVisible) {
-      // Khởi tạo animations và thuộc tính hạt nếu chưa có
       if (animations.length === 0) {
         for (let i = 0; i < NUM_PARTICLES; i++) {
           animations.push(new Animated.Value(0))
 
-          // Tính toán vị trí đích ngẫu nhiên cho mỗi hạt
           const targetX = Math.random() * 400 - 200 // Từ -200 đến 200 (ngang)
           const targetY = Math.random() * 400 - 300 // Từ -300 (lên trên) đến 100 (xuống dưới)
           const duration = Math.random() * 800 + 1200 // Thời gian animation từ 1200ms đến 2000ms

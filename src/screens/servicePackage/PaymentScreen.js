@@ -56,7 +56,7 @@ const PaymentScreen = ({ route,navigation }) => {
         showErrorFetchAPI(response.message || "Unable to process payment request.");
       }
     } catch (error) {
-      showErrorFetchAPI("An error occurred while processing your payment.");
+      showErrorFetchAPI(error.message || "An error occurred while processing your payment.");
     } finally {
       setLoading(false);
     }

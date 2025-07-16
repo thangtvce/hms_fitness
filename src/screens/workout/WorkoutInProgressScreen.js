@@ -7,13 +7,12 @@ import { Ionicons } from "@expo/vector-icons"
 import { Video } from "expo-av"
 import YouTubeIframe from "react-native-youtube-iframe"
 import { LinearGradient } from "expo-linear-gradient"
-import { AuthContext } from "context/AuthContext" // Assuming AuthContext is available
+import { AuthContext } from "context/AuthContext"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { workoutService } from "services/apiWorkoutService" // Assuming workoutService is available
+import { workoutService } from "services/apiWorkoutService"
 
 const { width, height: screenHeight } = Dimensions.get("window")
 
-// Helper function to extract YouTube video ID from URL
 const getYouTubeVideoId = (url) => {
   if (!url) return null
   const regex = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/
