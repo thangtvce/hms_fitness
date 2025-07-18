@@ -33,24 +33,15 @@ const PlatformSpecificDatePicker = (props) => <DateTimePicker {...props} />;
 const { width: screenWidth } = Dimensions.get("window");
 
 const CHART_FILTERS = [
-  { id: "1d", label: "1D", type: "day", days: 1, groupBy: "day" },
-  { id: "1w", label: "1W", type: "day", days: 7, groupBy: "day" },
-  { id: "1m", label: "1M", type: "month", months: 1, groupBy: "day" },
-  { id: "3m", label: "3M", type: "month", months: 3, groupBy: "month" },
-  { id: "6m", label: "6M", type: "month", months: 6, groupBy: "month" },
-  { id: "1y", label: "1Y", type: "year", years: 1, groupBy: "month" },
-  { id: "3y", label: "3Y", type: "year", years: 3, groupBy: "year" },
+  { id: "daily", label: "Daily", type: "day", days: 1, groupBy: "day" },
+  { id: "weekly", label: "Weekly", type: "week", days: 7, groupBy: "week" },
+  { id: "monthly", label: "Monthly", type: "month", months: 1, groupBy: "month" },
 ];
 
 const LOG_FILTERS = [
-  { id: "1d", label: "1D", days: 1 },
-  { id: "3d", label: "3D", days: 3 },
-  { id: "1w", label: "1W", days: 7 },
-  { id: "1m", label: "1M", days: 30 },
-  { id: "3m", label: "3M", days: 90 },
-  { id: "6m", label: "6M", days: 180 },
-  { id: "1y", label: "1Y", days: 365 },
-  { id: "custom", label: "Custom", days: null },
+  { id: "daily", label: "Daily", days: 1 },
+  { id: "weekly", label: "Weekly", days: 7 },
+  { id: "monthly", label: "Monthly", days: 30 },
 ];
 
 export default function WaterLogAnalyticsScreen({ navigation }) {
@@ -80,8 +71,8 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
   // State management
   const [searchTerm, setSearchTerm] = useState("");
   const [showSearchInput, setShowSearchInput] = useState(false);
-  const [chartFilter, setChartFilter] = useState("1w");
-  const [logFilter, setLogFilter] = useState("1d");
+  // Unified filter for both chart and logs
+  const [mainFilter, setMainFilter] = useState("daily");
   const [chartData, setChartData] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -114,40 +105,32 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
 
   useEffect(() => {
     fetchChartData();
-  }, [chartFilter]);
-
-  useEffect(() => {
     fetchLogs();
-  }, [logFilter, searchTerm, customStartDate, customEndDate]);
+  }, [mainFilter, searchTerm, customStartDate, customEndDate]);
 
   const fetchChartData = async () => {
     setChartLoading(true);
     try {
-      const filterObj = CHART_FILTERS.find(f => f.id === chartFilter) || CHART_FILTERS[0];
+      const filterObj = CHART_FILTERS.find(f => f.id === mainFilter) || CHART_FILTERS[0];
       let startDate, endDate;
-      if (filterObj.id === '1d') {
-        // Force add 7 hours to UTC then get Vietnam date
+      if (filterObj.id === 'daily') {
+        // Daily: today only
         const nowUTC = dayjs.utc();
         const nowVN = nowUTC.add(7, 'hour');
-        const todayVNStr = nowVN.format('YYYY-MM-DD');
-        const nowVNDetail = nowVN.format('YYYY-MM-DD HH:mm:ss');
-        console.log('DEBUG Water Consumption Chart 1D - Vietnam date string used for filter (+7h):', todayVNStr, '| Full Vietnam time now:', nowVNDetail);
         startDate = nowVN.startOf('day').toDate();
         endDate = nowVN.endOf('day').toDate();
-      } else {
+      } else if (filterObj.id === 'weekly') {
+        // Weekly: last 7 days
         endDate = new Date();
         endDate.setHours(23, 59, 59, 999);
         startDate = new Date();
-        if (filterObj.type === 'day') {
-          startDate.setDate(endDate.getDate() - (filterObj.days - 1));
-        } else if (filterObj.type === 'month') {
-          startDate.setMonth(endDate.getMonth() - (filterObj.months - 1));
-          startDate.setDate(1);
-        } else if (filterObj.type === 'year') {
-          startDate.setFullYear(endDate.getFullYear() - (filterObj.years - 1));
-          startDate.setMonth(0);
-          startDate.setDate(1);
-        }
+        startDate.setDate(endDate.getDate() - 6);
+        startDate.setHours(0, 0, 0, 0);
+      } else if (filterObj.id === 'monthly') {
+        // Monthly: current month
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
         startDate.setHours(0, 0, 0, 0);
       }
       const queryParams = {
@@ -180,9 +163,8 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
     let labels = [];
     let data = [];
 
-    // Special case for 1D: only show today (Vietnam time, UTC+7)
-    if (filterObj.id === '1d') {
-      // Use UTC+7 for today, matching fetchChartData logic
+    if (filterObj.id === 'daily') {
+      // Daily: show today (Vietnam time, UTC+7)
       const nowUTC = dayjs.utc();
       const nowVN = nowUTC.add(7, 'hour');
       const todayVNStr = nowVN.format('YYYY-MM-DD');
@@ -190,7 +172,6 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
       records.forEach(log => {
         let dVN;
         if (typeof log.consumptionDate === 'string') {
-          // Parse as UTC then add 7h to get Vietnam time
           dVN = dayjs.utc(log.consumptionDate).add(7, 'hour');
         } else {
           dVN = dayjs(log.consumptionDate).utc().add(7, 'hour');
@@ -201,10 +182,8 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
       });
       labels = [nowVN.format('DD/MM')];
       data = [total];
-    }
-    // Special case for 1W: group by week, each column is a week
-    else if (filterObj.id === '1w') {
-      // Group by each day in the last 7 days (Vietnam time, Asia/Ho_Chi_Minh)
+    } else if (filterObj.id === 'weekly') {
+      // Weekly: group by each day in the last 7 days (Vietnam time)
       let days = [];
       let dayStart = dayjs(startDate).tz('Asia/Ho_Chi_Minh').startOf('day');
       let dayEnd = dayjs(endDate).tz('Asia/Ho_Chi_Minh').endOf('day');
@@ -216,7 +195,6 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
         });
         dayStart = dayStart.add(1, 'day');
       }
-      // Group logs by day (Vietnam time)
       records.forEach(log => {
         let dVN;
         if (typeof log.consumptionDate === 'string') {
@@ -236,29 +214,38 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
       });
       labels = days.map(d => d.label);
       data = days.map(d => d.total);
-    }
-    else if (filterObj.id === '1m') {
-      // 1M: mỗi cột là tổng lượng nước của từng tháng
-      const months = [];
-      let temp = dayjs(startDate).tz('Asia/Ho_Chi_Minh').startOf('month');
-      let end = dayjs(endDate).tz('Asia/Ho_Chi_Minh').endOf('month');
-      while (temp.isBefore(end) || temp.isSame(end, 'month')) {
-        months.push({
-          key: temp.format('YYYY-MM'),
-          label: temp.format('MM/YYYY'),
+    } else if (filterObj.id === 'monthly') {
+      // Monthly: group by each day in current month
+      const days = [];
+      let temp = dayjs(startDate).tz('Asia/Ho_Chi_Minh').startOf('day');
+      let end = dayjs(endDate).tz('Asia/Ho_Chi_Minh').endOf('day');
+      while (temp.isBefore(end) || temp.isSame(end, 'day')) {
+        days.push({
+          date: temp.format('YYYY-MM-DD'),
+          label: temp.format('DD/MM'),
           total: 0
         });
-        temp = temp.add(1, 'month');
+        temp = temp.add(1, 'day');
       }
       records.forEach(log => {
-        let d = log.consumptionDate;
-        const dVN = dayjs.tz(typeof d === 'string' ? d + ' 00:00:00' : d, 'Asia/Ho_Chi_Minh');
-        const key = dVN.format('YYYY-MM');
-        const monthData = months.find(m => m.key === key);
-        if (monthData) monthData.total += log.amountMl || 0;
+        let dVN;
+        if (typeof log.consumptionDate === 'string') {
+          dVN = dayjs.tz(log.consumptionDate, 'Asia/Ho_Chi_Minh');
+          if (!dVN.isValid()) {
+            dVN = dayjs.tz(log.consumptionDate + ' 00:00:00', 'Asia/Ho_Chi_Minh');
+          }
+        } else {
+          dVN = dayjs(log.consumptionDate).tz('Asia/Ho_Chi_Minh');
+        }
+        if (dVN.isValid()) {
+          const idx = days.findIndex(day => dVN.format('YYYY-MM-DD') === day.date);
+          if (idx !== -1) {
+            days[idx].total += log.amountMl || 0;
+          }
+        }
       });
-      labels = months.map(m => m.label);
-      data = months.map(m => m.total);
+      labels = days.map(d => d.label);
+      data = days.map(d => d.total);
     }
     else if (filterObj.id === '3m') {
       // 3M: mỗi cột là tổng lượng nước của 3 tháng
@@ -371,27 +358,40 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
     setLoading(true);
     try {
       let startDate, endDate;
-      if (logFilter === 'custom' && customStartDate && customEndDate) {
+      if (mainFilter === 'custom' && customStartDate && customEndDate) {
         startDate = new Date(customStartDate);
         startDate.setHours(0, 0, 0, 0);
         endDate = new Date(customEndDate);
         endDate.setHours(23, 59, 59, 999);
-      } else if (logFilter === '1d') {
-        // Force add 7 hours to UTC then get Vietnam date
+      } else if (mainFilter === 'daily') {
         const nowUTC = dayjs.utc();
         const nowVN = nowUTC.add(7, 'hour');
-        const todayVNStr = nowVN.format('YYYY-MM-DD');
-        const nowVNDetail = nowVN.format('YYYY-MM-DD HH:mm:ss');
-        console.log('DEBUG Water Logs List 1D - Vietnam date string used for filter (+7h):', todayVNStr, '| Full Vietnam time now:', nowVNDetail);
         startDate = nowVN.startOf('day').toDate();
         endDate = nowVN.endOf('day').toDate();
-      } else {
-        const filterObj = LOG_FILTERS.find(f => f.id === logFilter) || LOG_FILTERS[0];
+      } else if (mainFilter === 'weekly') {
         endDate = new Date();
         endDate.setHours(23, 59, 59, 999);
         startDate = new Date();
-        startDate.setDate(endDate.getDate() - (filterObj.days - 1));
+        startDate.setDate(endDate.getDate() - 6);
         startDate.setHours(0, 0, 0, 0);
+      } else if (mainFilter === 'monthly') {
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0);
+      } else {
+        // Fallback: use today
+        const nowUTC = dayjs.utc();
+        const nowVN = nowUTC.add(7, 'hour');
+        startDate = nowVN.startOf('day').toDate();
+        endDate = nowVN.endOf('day').toDate();
+      }
+      if (!startDate || !endDate) {
+        // Defensive: fallback to today
+        const nowUTC = dayjs.utc();
+        const nowVN = nowUTC.add(7, 'hour');
+        startDate = nowVN.startOf('day').toDate();
+        endDate = nowVN.endOf('day').toDate();
       }
       const queryParams = {
         pageNumber: 1,
@@ -405,22 +405,6 @@ export default function WaterLogAnalyticsScreen({ navigation }) {
       const response = await apiUserWaterLogService.getMyWaterLogs(queryParams);
       if (response?.statusCode === 200 && response?.data) {
         let records = response.data.records || [];
-        if (logFilter === '1d') {
-          const todayVN = dayjs().tz('Asia/Ho_Chi_Minh', true);
-          const todayStr = todayVN.format('YYYY-MM-DD');
-          records = records.filter(log => {
-            let dVN;
-            if (typeof log.consumptionDate === 'string') {
-              dVN = dayjs.tz(log.consumptionDate, 'Asia/Ho_Chi_Minh');
-              if (!dVN.isValid()) {
-                dVN = dayjs.tz(log.consumptionDate + ' 00:00:00', 'Asia/Ho_Chi_Minh');
-              }
-            } else {
-              dVN = dayjs(log.consumptionDate).tz('Asia/Ho_Chi_Minh');
-            }
-            return dVN.isValid() && dVN.format('YYYY-MM-DD') === todayStr;
-          });
-        }
         setLogs(records);
         const total = records.reduce((sum, log) => sum + (log.amountMl || 0), 0);
         setTotalAmount(total);
@@ -501,24 +485,21 @@ const renderStatistics = () => (
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Water Consumption Chart</Text>
       </View>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false} 
-        style={styles.filterTabs}
-        contentContainerStyle={styles.filterTabsContent}
-      >
-        {CHART_FILTERS.map(filter => (
-          <TouchableOpacity
-            key={filter.id}
-            style={[styles.filterTab, chartFilter === filter.id && styles.filterTabActive]}
-            onPress={() => setChartFilter(filter.id)}
-          >
-            <Text style={[styles.filterTabText, chartFilter === filter.id && styles.filterTabTextActive]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.filterTabs}>
+        <View style={styles.filterTabsContent}>
+          {CHART_FILTERS.map(filter => (
+            <TouchableOpacity
+              key={filter.id}
+              style={[styles.filterTab, mainFilter === filter.id && styles.filterTabActive]}
+              onPress={() => setMainFilter(filter.id)}
+            >
+              <Text style={[styles.filterTabText, mainFilter === filter.id && styles.filterTabTextActive]}>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
       <View style={styles.chartContainer}>
         {chartData && chartData.datasets[0].data.some(val => val > 0) ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -559,32 +540,9 @@ const renderStatistics = () => (
         <Text style={styles.sectionTitle}>Water Logs List</Text>
       </View>
 
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false} 
-        style={styles.filterTabs}
-        contentContainerStyle={styles.filterTabsContent}
-      >
-        {LOG_FILTERS.map(filter => (
-          <TouchableOpacity
-            key={filter.id}
-            style={[
-              styles.filterTab, 
-              logFilter === filter.id && styles.filterTabActive
-            ]}
-            onPress={() => setLogFilter(filter.id)}
-          >
-            <Text style={[
-              styles.filterTabText, 
-              logFilter === filter.id && styles.filterTabTextActive
-            ]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Remove separate filter tabs for logs, use unified filter above */}
 
-      {logFilter === 'custom' && (
+      {mainFilter === 'custom' && (
         <View style={styles.customDateContainer}>
           <TouchableOpacity
             style={styles.datePickerButton}

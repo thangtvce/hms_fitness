@@ -1,9 +1,5 @@
-// utils/toastUtil.js
 import Toast from "react-native-toast-message";
 
-/**
- * Extract all error messages from an API error object.
- */
 export function extractErrors(error) {
     if (error?.errors) return Object.values(error.errors).flat();
     if (error?.response?.data?.errors)

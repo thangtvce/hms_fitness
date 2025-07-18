@@ -74,6 +74,14 @@ const analysisCategories = [
     targetScreen: "FoodList", // Placeholder
     targetParams: {},
   },
+    {
+    id: "progressPhotos",
+    title: "Progress Photos",
+    icon: "body-outline",
+    gradient: ["#fb6a76ff", "#ec2a61ff"], // Medium Purple-Blue Violet gradient
+    targetScreen: "ProgressComparisonScreen", // Placeholder
+    targetParams: {},
+  },
 ]
 
 export default function AnalysisScreen() {

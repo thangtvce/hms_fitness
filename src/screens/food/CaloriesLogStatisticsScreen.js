@@ -21,7 +21,7 @@ const TABS = [
   { key: "monthly", label: "Monthly" },
 ]
 
-const NutritionLogStatisticsScreen = () => {
+const CaloriesLogStatisticsScreen = () => {
   const navigation = useNavigation()
   const { user } = useContext(AuthContext)
   const [loading, setLoading] = useState(true)
@@ -170,7 +170,7 @@ const NutritionLogStatisticsScreen = () => {
       <View style={styles.container}>
         <Header title="Calorie Statistics" onBack={() => navigation.goBack()} />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color="#0056d2" />
           <Text style={styles.loadingText}>Loading statistics...</Text>
         </View>
       </View>
@@ -208,14 +208,14 @@ const NutritionLogStatisticsScreen = () => {
 
         {/* Statistics Cards */}
         <View style={styles.statsContainer}>
-          <LinearGradient colors={["#FF6B6B", "#FF8E8E"]} style={styles.statCard}>
+          <LinearGradient colors={["#0056d2", "#0056d2"]} style={styles.statCard}>
             <Text style={styles.statLabel}>Average Intake</Text>
             <Text style={styles.statValue}>{stats.averageCalories}</Text>
             <Text style={styles.statUnit}>kcal</Text>
           </LinearGradient>
 
           {goalCalories && (
-            <LinearGradient colors={["#4ECDC4", "#44A08D"]} style={styles.statCard}>
+            <LinearGradient colors={["#0056d2", "#0056d2"]} style={styles.statCard}>
               <Text style={styles.statLabel}>Daily Goal</Text>
               <Text style={styles.statValue}>{goalCalories}</Text>
               <Text style={styles.statUnit}>kcal</Text>
@@ -247,8 +247,9 @@ const NutritionLogStatisticsScreen = () => {
                 backgroundGradientFrom: "#ffffff",
                 backgroundGradientTo: "#ffffff",
                 decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(255, 107, 107, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(60, 60, 60, ${opacity})`,
+              color: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
+labelColor: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
+
                 style: {
                   borderRadius: 16,
                 },
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   errorText: {
-    color: "#FF6B6B",
+    color: "#0056d2",
     fontSize: 16,
     fontWeight: "500",
     textAlign: "center",
@@ -372,8 +373,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tabActive: {
-    backgroundColor: "#FF6B6B",
-    shadowColor: "#FF6B6B",
+    backgroundColor: "#0056d2",
+    shadowColor: "#0056d2",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -538,7 +539,7 @@ const styles = StyleSheet.create({
   historyCalories: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#FF6B6B",
+    color: "#0056d2",
   },
   historyUnit: {
     fontSize: 12,
@@ -562,4 +563,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default NutritionLogStatisticsScreen
+export default CaloriesLogStatisticsScreen

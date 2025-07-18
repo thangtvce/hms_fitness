@@ -85,8 +85,8 @@ const WorkoutHistoryScreen = () => {
       setHistorySessions(sessions.reverse());
       setError(null);
     } catch (err) {
-      setError(err.message || "Failed to fetch workout sessions");
-      showErrorFetchAPI(err.message || "Failed to fetch workout sessions");
+      setError(err || "Failed to fetch workout sessions");
+      showErrorFetchAPI(err || "Failed to fetch workout sessions");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -225,7 +225,7 @@ const WorkoutHistoryScreen = () => {
       setEditModalVisible(false)
       fetchHistory() 
     } catch (err) {
-      showErrorFetchAPI(err.message || "Failed to update activity")
+      showErrorFetchAPI(err || "Failed to update activity")
     }
   }
 
@@ -235,7 +235,7 @@ const WorkoutHistoryScreen = () => {
       showSuccessMessage("Activity deleted successfully!")
       fetchHistory()
     } catch (err) {
-      showErrorFetchAPI(err.message || "Failed to delete activity")
+      showErrorFetchAPI(err || "Failed to delete activity")
     }
   }
 

@@ -1,4 +1,3 @@
-"use client"
 
 import { useEffect, useState, useContext } from "react"
 import { getGeminiHealthAdvice } from "utils/gemini"
@@ -11,7 +10,7 @@ import {
   TouchableOpacity,
   Dimensions,
   PanResponder,
-  Platform, // Import Platform for shadows
+  Platform, 
 } from "react-native"
 import { showErrorFetchAPI } from "utils/toastUtil"
 import Loading from "components/Loading"

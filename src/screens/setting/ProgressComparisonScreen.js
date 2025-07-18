@@ -166,7 +166,6 @@ const StepWizard = ({ visible,onClose,onComplete,measurements,user }) => {
                 setWizardData((prev) => ({ ...prev,[`${type}PhotoUrl`]: result.assets[0].uri }))
             }
         } catch (error) {
-            console.error("Image pick error:",error.message)
             Alert.alert("Error","Failed to select image. Please try again.")
         }
     }
@@ -191,7 +190,6 @@ const StepWizard = ({ visible,onClose,onComplete,measurements,user }) => {
                 setWizardData((prev) => ({ ...prev,[`${type}PhotoUrl`]: result.assets[0].uri }))
             }
         } catch (error) {
-            console.error("Camera capture error:",error.message)
             Alert.alert("Error","Failed to capture image. Please try again.")
         }
     }
@@ -304,7 +302,6 @@ const StepWizard = ({ visible,onClose,onComplete,measurements,user }) => {
             })
             setPreviewImages({ before: null,after: null })
         } catch (error) {
-            console.error("Save comparison error:",error.message)
             Alert.alert("Error","Failed to save progress comparison. Please try again.")
         } finally {
             setUploading(false)
@@ -920,11 +917,9 @@ export default function ProgressComparisonScreen({ navigation }) {
             if (navigation && typeof navigation.navigate === "function") {
                 navigation.navigate(screen,params)
             } else {
-                console.error("Navigation not available")
                 Alert.alert("Error","Navigation is not available")
             }
         } catch (error) {
-            console.error("Navigation error:",error)
         }
     }
 
@@ -935,10 +930,8 @@ export default function ProgressComparisonScreen({ navigation }) {
             } else if (navigation && typeof navigation.navigate === "function") {
                 navigation.navigate("Home")
             } else {
-                console.error("Navigation not available")
             }
         } catch (error) {
-            console.error("Navigation error:",error)
         }
     }
 
@@ -946,7 +939,6 @@ export default function ProgressComparisonScreen({ navigation }) {
         try {
             if (showLoading) setLoading(true)
             if (!user) {
-                console.warn("No user")
                 return
             }
 
@@ -963,7 +955,6 @@ export default function ProgressComparisonScreen({ navigation }) {
                 setComparisons(response.data.comparisons || [])
             }
         } catch (error) {
-            console.error("Fetch comparisons error:",error.message)
             Alert.alert("Error","Failed to load progress comparisons.")
         } finally {
             setLoading(false)
@@ -978,7 +969,6 @@ export default function ProgressComparisonScreen({ navigation }) {
                 setMeasurements(response.data.records || [])
             }
         } catch (error) {
-            console.error("Fetch measurements error:",error.message)
             Alert.alert("Error","Failed to load body measurements.")
         }
     }

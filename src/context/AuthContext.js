@@ -60,7 +60,6 @@ export const AuthProvider = ({ children }) => {
 
       // Hiển thị token ra console khi reload (loadToken được gọi)
       console.log('AuthContext loadToken - accessToken:', token);
-      console.log('AuthContext loadToken - refreshToken:', refreshToken);
 
       if (token && refreshToken && userData) {
         if (!validateToken(token) || !validateToken(refreshToken)) {

@@ -256,9 +256,7 @@ export default function ServicePackageScreen({ navigation }) {
                 <Text style={styles.bannerSubtitle}>Premium training packages</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.bannerButton}>
-              <Text style={styles.bannerButtonText}>View All</Text>
-            </TouchableOpacity>
+      
           </View>
         </LinearGradient>
       </Animated.View>
