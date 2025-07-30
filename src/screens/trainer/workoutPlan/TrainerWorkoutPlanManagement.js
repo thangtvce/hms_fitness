@@ -22,6 +22,8 @@ import { trainerService } from 'services/apiTrainerService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -493,28 +495,25 @@ const TrainerWorkoutPlanManagement = () => {
     return (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Settings")}>
-                        <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Workout Plans</Text>
-                    </View>
-                    <View style={styles.headerRight}>
-                        <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-                            <Ionicons name="options-outline" size={24} color="#0056D2" />
-                            {(filters.startDate || filters.endDate) && <View style={styles.filterBadge} />}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.statsButton}
-                            onPress={() => navigation.navigate('TrainerWorkoutPlanStatisticsScreen')}
-                        >
-                            <Ionicons name="stats-chart-outline" size={24} color="#0056D2" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
+            <Header
+                title="Workout Plans"
+                onBack={() => navigation.navigate("Settings")}
+                backIconColor="#0056D2"
+                rightActions={[
+                    {
+                        icon: 'options-outline',
+                        onPress: () => setShowFilterModal(true),
+                        badge: filters.startDate || filters.endDate,
+                        color: "#0056D2",
+                    },
+                    {
+                        icon: 'stats-chart-outline',
+                        onPress: () => navigation.navigate('TrainerWorkoutPlanStatisticsScreen'),
+                        color: "#0056D2",
+                    },
+                ]}
+            />
+
             <Animated.View
                 style={[
                     styles.searchSection,
@@ -541,10 +540,7 @@ const TrainerWorkoutPlanManagement = () => {
                 </View>
             </Animated.View>
             {loading && pageNumber === 1 ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#0056D2" />
-                    <Text style={styles.loadingText}>Loading workout plans...</Text>
-                </View>
+                <CommonSkeleton />
             ) : (
                 <FlatList
                     data={displayedPlans}
@@ -639,6 +635,7 @@ const styles = StyleSheet.create({
         paddingVertical: 15,
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
+        marginTop: 70
     },
     searchContainer: {
         flexDirection: 'row',

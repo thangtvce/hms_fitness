@@ -16,8 +16,11 @@ import { useNavigation,useRoute } from "@react-navigation/native"
 import { getMyGroupActiveById,deleteGroup } from "services/apiCommunityService"
 import { Ionicons } from "@expo/vector-icons"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { RichEditor } from "react-native-pell-rich-editor"
 import { showErrorMessage,showSuccessMessage,showErrorFetchAPI } from "utils/toastUtil"
+import { StatusBar } from "expo-status-bar"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+import Header from "components/Header"
+import RenderHTML from "react-native-render-html"
 
 const { width } = Dimensions.get("window")
 
@@ -135,12 +138,7 @@ const MyGroupDetailScreen = () => {
   }
 
   const renderLoadingScreen = () => (
-    <View style={styles.container}>
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0056d2" />
-        <Text style={styles.loadingText}>Loading group data...</Text>
-      </View>
-    </View>
+    <CommonSkeleton />
   )
 
   const renderImageSection = () => (
@@ -235,18 +233,19 @@ const MyGroupDetailScreen = () => {
 
         {group?.description ? (
           <View style={styles.descriptionContainer}>
-            <RichEditor
-              ref={null}
-              initialContentHTML={group.description}
-              disabled={true}
-              style={styles.richEditor}
-              editorStyle={{
-                backgroundColor: "#FFFFFF",
-                color: "#000000",
-                fontSize: 16,
-                fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
-                lineHeight: 24,
-                padding: 16,
+            <RenderHTML
+              source={{
+                html:
+                  group.description || "N/A"
+              }}
+              tagsStyles={{
+                p: {
+                  fontSize: 14,
+                  color: "#64748B",
+                  margin: 0,
+                  lineHeight: 20,
+                  fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
+                },
               }}
             />
           </View>
@@ -353,22 +352,19 @@ const MyGroupDetailScreen = () => {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color="#0056d2" />
-            </TouchableOpacity>
+        <Header
+          title={`#GROUP${group?.groupId || "Your group"}`}
+          onBack={() => navigation.goBack()}
+          showAvatar={false}
+          rightActions={[
+            {
+              icon: <Ionicons name="pencil-outline" size={24} color="#0056d2" />,
+              onPress: handleEdit,
+              backgroundColor: 'transparent',
+            },
+          ]}
+        />
 
-            <View style={styles.headerCenter}>
-              <Text style={styles.headerTitle}>#GROUP{group?.groupId || "Your group"}</Text>
-            </View>
-            <View style={{ flexDirection: 'row',alignItems: 'center' }}>
-              <TouchableOpacity style={styles.filterButton} onPress={handleEdit}>
-                <Ionicons name="pencil-outline" size={24} color="#0056d2" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
         <ScrollView
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContent}
@@ -425,6 +421,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+    marginTop: 70
   },
   scrollContent: {
     padding: 20,

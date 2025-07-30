@@ -18,6 +18,8 @@ import { useNavigation,useRoute } from '@react-navigation/native';
 import { trainerService } from 'services/apiTrainerService';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -140,7 +142,6 @@ const TrainerSubscriptionDetailScreen = () => {
 
     const handleDeletePlan = async (planId) => {
         try {
-            // Assuming a delete endpoint exists
             const response = await trainerService.deleteWorkoutPlan(planId);
             if (response.statusCode === 200) {
                 showSuccessMessage('Workout plan deleted successfully.');
@@ -162,10 +163,7 @@ const TrainerSubscriptionDetailScreen = () => {
     const renderLoadingScreen = () => (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#0056D2" />
-                <Text style={styles.loadingText}>Loading subscription details...</Text>
-            </View>
+            <CommonSkeleton />
         </SafeAreaView>
     );
 
@@ -189,7 +187,6 @@ const TrainerSubscriptionDetailScreen = () => {
                 ]}
             >
                 <View style={styles.infoContainer}>
-                    <Text style={styles.sectionTitle}>Subscription Details</Text>
                     <View style={styles.infoCard}>
                         <Text style={styles.cardTitle}>Subscription #{subscriptionData?.subscriptionId || 'Unknown'}</Text>
                         <View style={styles.statItem}>
@@ -323,33 +320,38 @@ const TrainerSubscriptionDetailScreen = () => {
             ]}
         >
             <View style={styles.infoContainer}>
-                <View style={styles.createGroupCard}>
-                    <View style={styles.createGroupContent}>
-                        <View style={styles.createGroupLeft}>
-                            <View style={styles.createGroupIcon}>
-                                <Ionicons name="add-circle" size={32} color="#0056D2" />
-                            </View>
-                            <View style={styles.createGroupText}>
-                                <Text style={styles.createGroupTitle}>Create Workout Plan</Text>
-                                <Text style={styles.createGroupSubtitle}>Design a new workout plan for this subscription</Text>
+
+                {
+                    (subscriptionData?.status === "paid" || subscriptionData?.status === "systempaid") && (
+                        <View style={styles.createGroupCard}>
+                            <View style={styles.createGroupContent}>
+                                <View style={styles.createGroupLeft}>
+                                    <View style={styles.createGroupIcon}>
+                                        <Ionicons name="add-circle" size={32} color="#0056D2" />
+                                    </View>
+                                    <View style={styles.createGroupText}>
+                                        <Text style={styles.createGroupTitle}>Create Workout Plan</Text>
+                                        <Text style={styles.createGroupSubtitle}>Design a new workout plan for this subscription</Text>
+                                    </View>
+                                </View>
+                                <TouchableOpacity
+                                    style={styles.createGroupButton}
+                                    onPress={() =>
+                                        navigation.navigate('AddWorkoutPlanScreen',{
+                                            subscriptionId,
+                                            userId: subscriptionData?.userId,
+                                            trainerId: subscriptionData?.trainerId,
+                                        })
+                                    }
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.createGroupButtonText}>Create</Text>
+                                    <Ionicons name="arrow-forward" size={16} color="#0056D2" />
+                                </TouchableOpacity>
                             </View>
                         </View>
-                        <TouchableOpacity
-                            style={styles.createGroupButton}
-                            onPress={() =>
-                                navigation.navigate('AddWorkoutPlanScreen',{
-                                    subscriptionId,
-                                    userId: subscriptionData?.userId,
-                                    trainerId: subscriptionData?.trainerId,
-                                })
-                            }
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.createGroupButtonText}>Create</Text>
-                            <Ionicons name="arrow-forward" size={16} color="#0056D2" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                    )
+                }
             </View>
         </Animated.View>
     );
@@ -358,7 +360,7 @@ const TrainerSubscriptionDetailScreen = () => {
         const statusInfo = {
             active: { color: '#22C55E',bgColor: '#DCFCE7',text: 'Active' },
             inactive: { color: '#EF4444',bgColor: '#FEE2E2',text: 'Inactive' },
-        }[item.status?.toLowerCase()] || { color: '#6B7280',bgColor: '#E5E7EB',text: item.status || 'Unknown' };
+        }[item?.status?.toLowerCase()] || { color: '#6B7280',bgColor: '#E5E7EB',text: item.status || 'Unknown' };
 
         return (
             <Animated.View
@@ -403,7 +405,7 @@ const TrainerSubscriptionDetailScreen = () => {
                     </View>
                     <View style={styles.descriptionSection}>
                         <Text style={styles.descriptionText} numberOfLines={1}>
-                            {item.description ? item.description.replace(/<[^>]+>/g,'') : 'No description available'}
+                            {item?.description ? item?.description.replace(/<[^>]+>/g,'') : 'No description available'}
                         </Text>
                         <Text style={styles.dateText}>Start: {formatDate(item.startDate)}</Text>
                         <Text style={styles.dateText}>End: {formatDate(item.endDate)}</Text>
@@ -464,17 +466,12 @@ const TrainerSubscriptionDetailScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Subscription Details</Text>
-                    </View>
-                    <View style={styles.headerRight} />
-                </View>
-            </View>
+            <Header
+                title="Subscription Details"
+                onBack={() => navigation.goBack()}
+                backIconColor="#0056D2"
+            />
+
             <FlatList
                 data={workoutPlans}
                 keyExtractor={(item) => item._key}
@@ -560,6 +557,7 @@ const styles = StyleSheet.create({
     listContainer: {
         padding: 20,
         paddingBottom: 50,
+        marginTop: 70
     },
     loadingContainer: {
         flex: 1,

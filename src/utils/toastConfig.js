@@ -52,6 +52,14 @@ export const toastConfig = {
             text2={text2}
         />
     ),
+    celebrate: ({ text1,text2 }) => (
+        <BaseCustomToast
+            icon="sparkles-outline" 
+            backgroundColor="#A855F7" 
+            text1={text1}
+            text2={text2}
+        />
+    ),
     confirm: ({ text1,text2,onPress }) => (
         <View style={[styles.toastContainer,styles.confirmToast]}>
             <View style={styles.textContainer}>

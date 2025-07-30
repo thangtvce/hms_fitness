@@ -1,8 +1,32 @@
-import React, { useContext } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import React,{ useContext } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Dimensions,
+  Platform,
+  StatusBar
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ThemeContext } from "components/theme/ThemeContext";
 import { AuthContext } from "context/AuthContext";
+
+const { width: screenWidth,height: screenHeight } = Dimensions.get('window');
+
+// Fixed dimensions - không thay đổi trên mọi thiết bị
+const getFixedDimensions = () => {
+  return {
+    headerHeight: 70, // Chiều cao cố định
+    avatarSize: 50,    // Avatar size cố định
+    titleFontSize: 16, // Font size nhỏ hơn, hợp lý hơn
+    iconSize: 24,      // Icon size cố định  
+    buttonSize: 36,    // Button size cố định
+    horizontalPadding: 16, // Padding cố định
+    statusBarHeight: Platform.OS === 'ios' ? (screenHeight >= 812 ? 44 : 20) : StatusBar.currentHeight || 0,
+  };
+};
 
 const Header = ({
   title,
@@ -16,50 +40,130 @@ const Header = ({
   const { colors } = useContext(ThemeContext);
   const { user } = useContext(AuthContext);
 
+  const dimensions = getFixedDimensions();
   const bgColor = backgroundColor || colors.headerBackground || "#FFFFFF";
   const txtColor = textColor || colors.headerText || "#1E293B";
 
+  const dynamicStyles = StyleSheet.create({
+    headerContainer: {
+      height: dimensions.headerHeight + dimensions.statusBarHeight,
+      paddingTop: dimensions.statusBarHeight,
+    },
+    header: {
+      height: dimensions.headerHeight,
+      paddingHorizontal: dimensions.horizontalPadding,
+    },
+    headerTitle: {
+      fontSize: dimensions.titleFontSize,
+    },
+    avatar: {
+      width: dimensions.avatarSize,
+      height: dimensions.avatarSize,
+      borderRadius: dimensions.avatarSize / 2,
+    },
+    headerButton: {
+      width: dimensions.buttonSize,
+      height: dimensions.buttonSize,
+      borderRadius: dimensions.buttonSize / 2,
+    },
+    onlineIndicator: {
+      width: dimensions.avatarSize * 0.28,
+      height: dimensions.avatarSize * 0.28,
+      borderRadius: dimensions.avatarSize * 0.14,
+      bottom: dimensions.avatarSize * 0.04,
+      right: dimensions.avatarSize * 0.04,
+    },
+  });
+
   return (
-    <View style={[styles.headerContainer, { backgroundColor: bgColor }, containerStyle]}>
-      <View style={styles.header}>
-        <View style={styles.headerSide}>
-          {onBack && (
-            <TouchableOpacity onPress={onBack} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={txtColor} />
+    <View style={[
+      styles.headerContainer,
+      dynamicStyles.headerContainer,
+      { backgroundColor: bgColor },
+      containerStyle
+    ]}>
+      <View style={[styles.header,dynamicStyles.header]}>
+        {/* Left side - Back button or Avatar */}
+        <View style={styles.leftSide}>
+          {onBack && !showAvatar && (
+            <TouchableOpacity
+              onPress={onBack}
+              style={styles.backButton}
+              hitSlop={{ top: 10,bottom: 10,left: 10,right: 10 }}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={dimensions.iconSize}
+                color={txtColor}
+              />
             </TouchableOpacity>
           )}
+
           {showAvatar && user && (
             <TouchableOpacity
               style={styles.avatarContainer}
               onPress={() => onBack && onBack()}
+              hitSlop={{ top: 5,bottom: 5,left: 5,right: 5 }}
             >
               <Image
                 source={{
-                  uri:
-                    user.avatar ||
+                  uri: user.avatar ||
                     "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
                 }}
-                style={styles.avatar}
+                style={[styles.avatar,dynamicStyles.avatar]}
+                resizeMode="cover"
               />
-              <View style={[styles.onlineIndicator, { backgroundColor: colors.success || "#10B981" }]} />
+              <View style={[
+                styles.onlineIndicator,
+                dynamicStyles.onlineIndicator,
+                { backgroundColor: colors.success || "#10B981" }
+              ]} />
             </TouchableOpacity>
           )}
         </View>
-        <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: txtColor }]}>{title}</Text>
+
+        {/* Center - Title */}
+        <View style={styles.titleContainer}>
+          <Text
+            style={[styles.headerTitle,dynamicStyles.headerTitle,{ color: txtColor }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {title}
+          </Text>
         </View>
-        <View style={[styles.headerSide, styles.headerSideRight]}>
+
+        {/* Right side - Actions */}
+        <View style={styles.rightSide}>
           {rightActions.length > 0 && (
             <View style={styles.headerActions}>
-              {rightActions.map((action, index) => (
+              {rightActions.map((action,index) => (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.headerButton, { backgroundColor: colors.headerButtonBackground || "#F3F4F6" }]}
+                  style={[
+                    styles.headerButton,
+                    dynamicStyles.headerButton,
+                    {
+                      backgroundColor: colors.headerButtonBackground || "#F3F4F6",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0,height: 1 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 2,
+                      elevation: 2,
+                    }
+                  ]}
                   onPress={action.onPress}
+                  hitSlop={{ top: 5,bottom: 5,left: 5,right: 5 }}
                 >
-                  {typeof action.icon === "string"
-                    ? <Ionicons name={action.icon} size={20} color={action.color || colors.primary || "#1E293B"} />
-                    : action.icon}
+                  {typeof action.icon === "string" ? (
+                    <Ionicons
+                      name={action.icon}
+                      size={dimensions.iconSize - 2}
+                      color={action.color || colors.primary || "#1E293B"}
+                    />
+                  ) : (
+                    action.icon
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -76,67 +180,68 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
+    zIndex: 1000,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
+    paddingVertical: 8,
   },
-  headerSide: {
-    width: 100,
+  leftSide: {
+    flex: 1,
     alignItems: "flex-start",
+    justifyContent: "center",
+    minWidth: 60,
   },
-  headerSideRight: {
-    alignItems: "flex-end",
-  },
-  headerTitleContainer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 60,
+  titleContainer: {
+    flex: 2,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  rightSide: {
+    flex: 1,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    minWidth: 60,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontWeight: "600",
+    textAlign: "center",
+    letterSpacing: 0.3,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
+    borderRadius: 20,
   },
   avatarContainer: {
     position: "relative",
+    padding: 2,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: "#FFFFFF",
   },
   onlineIndicator: {
     position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
   headerActions: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 8,
-    padding: 4,
   },
   headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },

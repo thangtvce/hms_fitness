@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useContext } from "react";
+import { useEffect,useState,useCallback,useContext } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,9 @@ import {
   Dimensions,
   Switch,
 } from "react-native";
-import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import ShimmerPlaceholder from "components/shimmer/ShimmerPlaceholder";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
+import { Ionicons,Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { aiRecommentService } from "services/apiAIRecommentService";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -26,26 +26,26 @@ const { height } = Dimensions.get("window");
 
 const UserGoalPlansScreen = () => {
   const navigation = useNavigation();
-  const { user, loading: authLoading } = useAuth();
-  const { colors, theme } = useContext(ThemeContext);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [goalPlans, setGoalPlans] = useState([]);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [expandedPlan, setExpandedPlan] = useState(null);
-  const [filters, setFilters] = useState({
+  const { user,loading: authLoading } = useAuth();
+  const { colors,theme } = useContext(ThemeContext);
+  const [loading,setLoading] = useState(false);
+  const [error,setError] = useState(null);
+  const [goalPlans,setGoalPlans] = useState([]);
+  const [pageNumber,setPageNumber] = useState(1);
+  const [totalPages,setTotalPages] = useState(1);
+  const [refreshing,setRefreshing] = useState(false);
+  const [showFilters,setShowFilters] = useState(false);
+  const [expandedPlan,setExpandedPlan] = useState(null);
+  const [filters,setFilters] = useState({
     sortBy: "createdAt",
     sortDescending: true,
   });
-  const [tempFilters, setTempFilters] = useState(filters);
+  const [tempFilters,setTempFilters] = useState(filters);
 
   const userId = user?.userId;
 
   const fetchGoalPlans = useCallback(
-    async (page = 1, isRefresh = false) => {
+    async (page = 1,isRefresh = false) => {
       if (!userId) {
         setError("User is not authenticated. Please log in.");
         setLoading(false);
@@ -54,7 +54,7 @@ const UserGoalPlansScreen = () => {
       try {
         if (isRefresh) setRefreshing(true);
         else setLoading(true);
-        const response = await aiRecommentService.getUserGoalPlansByUser(userId, {
+        const response = await aiRecommentService.getUserGoalPlansByUser(userId,{
           pageNumber: page,
           pageSize: 10,
           sortBy: filters.sortBy,
@@ -62,7 +62,7 @@ const UserGoalPlansScreen = () => {
         });
         if (response && Array.isArray(response.userGoalPlans)) {
           const newPlans = response.userGoalPlans;
-          setGoalPlans((prev) => (page === 1 ? newPlans : [...prev, ...newPlans]));
+          setGoalPlans((prev) => (page === 1 ? newPlans : [...prev,...newPlans]));
           setTotalPages(response.totalPages || 1);
         } else {
           throw new Error("Failed to load user goal plans: Unexpected API response format.");
@@ -76,19 +76,19 @@ const UserGoalPlansScreen = () => {
         if (isRefresh) setRefreshing(false);
       }
     },
-    [userId, filters],
+    [userId,filters],
   );
 
   useEffect(() => {
     if (!authLoading && userId) {
       fetchGoalPlans(1);
     }
-  }, [fetchGoalPlans, authLoading, userId]);
+  },[fetchGoalPlans,authLoading,userId]);
 
   const onRefresh = useCallback(() => {
     setPageNumber(1);
-    fetchGoalPlans(1, true);
-  }, [fetchGoalPlans]);
+    fetchGoalPlans(1,true);
+  },[fetchGoalPlans]);
 
   const loadMore = () => {
     if (pageNumber < totalPages && !loading) {
@@ -118,7 +118,7 @@ const UserGoalPlansScreen = () => {
   const getStatusColor = (plan) => {
     const now = dayjs();
     const created = dayjs(plan.createdAt);
-    const daysDiff = now.diff(created, "days");
+    const daysDiff = now.diff(created,"days");
 
     if (daysDiff <= 7) return "#10B981"; // Green for new
     if (daysDiff <= 30) return "#F59E0B"; // Orange for recent
@@ -128,23 +128,23 @@ const UserGoalPlansScreen = () => {
   const getStatusText = (plan) => {
     const now = dayjs();
     const created = dayjs(plan.createdAt);
-    const daysDiff = now.diff(created, "days");
+    const daysDiff = now.diff(created,"days");
 
     if (daysDiff <= 7) return "New";
     if (daysDiff <= 30) return "Recent";
     return "Archived";
   };
 
-  const renderPlanCard = (plan, idx) => {
+  const renderPlanCard = (plan,idx) => {
     const isExpanded = expandedPlan === plan.id;
     const statusColor = getStatusColor(plan);
     const statusText = getStatusText(plan);
 
     return (
-      <View key={plan.id || idx} style={[styles.planCard, { backgroundColor: colors.cardBackground }]}>
+      <View key={plan.id || idx} style={[styles.planCard,{ backgroundColor: colors.cardBackground }]}>
         {/* Card Header */}
         <LinearGradient
-          colors={theme === "dark" ? ["#1E293B", "#334155"] : ["#0056d2", "#0056d2"]}
+          colors={theme === "dark" ? ["#1E293B","#334155"] : ["#0056d2","#0056d2"]}
           style={styles.planHeader}
         >
           <View style={styles.planHeaderContent}>
@@ -158,7 +158,7 @@ const UserGoalPlansScreen = () => {
               </View>
             </View>
             <View style={styles.planHeaderRight}>
-              <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+              <View style={[styles.statusBadge,{ backgroundColor: statusColor }]}>
                 <Text style={styles.statusText}>{statusText}</Text>
               </View>
               <TouchableOpacity
@@ -173,9 +173,9 @@ const UserGoalPlansScreen = () => {
 
         {/* Quick Summary */}
         <View style={styles.planSummary}>
-          <Text style={[styles.summaryTitle, { color: colors.text }]}>Evaluation Summary</Text>
+          <Text style={[styles.summaryTitle,{ color: colors.text }]}>Evaluation Summary</Text>
           <Text
-            style={[styles.summaryText, { color: colors.textSecondary }]}
+            style={[styles.summaryText,{ color: colors.textSecondary }]}
             numberOfLines={isExpanded ? undefined : 3}
           >
             {plan.evaluationSummary}
@@ -189,17 +189,17 @@ const UserGoalPlansScreen = () => {
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Feather name="alert-circle" size={16} color="#EF4444" />
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Health Concerns</Text>
+                <Text style={[styles.sectionTitle,{ color: colors.text }]}>Health Concerns</Text>
               </View>
-              <Text style={[styles.sectionContent, { color: colors.textSecondary }]}>{plan.healthConcerns}</Text>
+              <Text style={[styles.sectionContent,{ color: colors.textSecondary }]}>{plan.healthConcerns}</Text>
             </View>
 
             {/* Month Plans */}
             <View style={styles.monthPlansContainer}>
               {/* Month 1 */}
-              <View style={[styles.monthCard, { backgroundColor: colors.background }]}>
+              <View style={[styles.monthCard,{ backgroundColor: colors.background }]}>
                 <View style={styles.monthHeader}>
-                  <LinearGradient colors={["#0056d2", "#0056d2"]} style={styles.monthBadge}>
+                  <LinearGradient colors={["#0056d2","#0056d2"]} style={styles.monthBadge}>
                     <Text style={styles.monthBadgeText}>Month 1</Text>
                   </LinearGradient>
                 </View>
@@ -208,9 +208,9 @@ const UserGoalPlansScreen = () => {
                   <View style={styles.monthSection}>
                     <View style={styles.monthSectionHeader}>
                       <Feather name="activity" size={14} color="#10B981" />
-                      <Text style={[styles.monthSectionTitle, { color: colors.text }]}>Exercise Schedule</Text>
+                      <Text style={[styles.monthSectionTitle,{ color: colors.text }]}>Exercise Schedule</Text>
                     </View>
-                    <Text style={[styles.monthSectionText, { color: colors.textSecondary }]}>
+                    <Text style={[styles.monthSectionText,{ color: colors.textSecondary }]}>
                       {plan.oneMonthExerciseSchedule}
                     </Text>
                   </View>
@@ -218,9 +218,9 @@ const UserGoalPlansScreen = () => {
                   <View style={styles.monthSection}>
                     <View style={styles.monthSectionHeader}>
                       <Feather name="coffee" size={14} color="#10B981" />
-                      <Text style={[styles.monthSectionTitle, { color: colors.text }]}>Nutrition Targets</Text>
+                      <Text style={[styles.monthSectionTitle,{ color: colors.text }]}>Nutrition Targets</Text>
                     </View>
-                    <Text style={[styles.monthSectionText, { color: colors.textSecondary }]}>
+                    <Text style={[styles.monthSectionText,{ color: colors.textSecondary }]}>
                       {plan.oneMonthNutritionTargets}
                     </Text>
                   </View>
@@ -228,9 +228,9 @@ const UserGoalPlansScreen = () => {
                   <View style={styles.monthSection}>
                     <View style={styles.monthSectionHeader}>
                       <Feather name="flag" size={14} color="#10B981" />
-                      <Text style={[styles.monthSectionTitle, { color: colors.text }]}>Milestones</Text>
+                      <Text style={[styles.monthSectionTitle,{ color: colors.text }]}>Milestones</Text>
                     </View>
-                    <Text style={[styles.monthSectionText, { color: colors.textSecondary }]}>
+                    <Text style={[styles.monthSectionText,{ color: colors.textSecondary }]}>
                       {plan.oneMonthMilestones}
                     </Text>
                   </View>
@@ -238,9 +238,9 @@ const UserGoalPlansScreen = () => {
                   <View style={styles.monthSection}>
                     <View style={styles.monthSectionHeader}>
                       <Feather name="lightbulb" size={14} color="#10B981" />
-                      <Text style={[styles.monthSectionTitle, { color: colors.text }]}>Advice</Text>
+                      <Text style={[styles.monthSectionTitle,{ color: colors.text }]}>Advice</Text>
                     </View>
-                    <Text style={[styles.monthSectionText, { color: colors.textSecondary }]}>
+                    <Text style={[styles.monthSectionText,{ color: colors.textSecondary }]}>
                       {plan.oneMonthAdvice}
                     </Text>
                   </View>
@@ -248,9 +248,9 @@ const UserGoalPlansScreen = () => {
               </View>
 
               {/* Month 2 */}
-              <View style={[styles.monthCard, { backgroundColor: colors.background }]}>
+              <View style={[styles.monthCard,{ backgroundColor: colors.background }]}>
                 <View style={styles.monthHeader}>
-                  <LinearGradient colors={["#0056d2", "#0056d2"]} style={styles.monthBadge}>
+                  <LinearGradient colors={["#0056d2","#0056d2"]} style={styles.monthBadge}>
                     <Text style={styles.monthBadgeText}>Month 2</Text>
                   </LinearGradient>
                 </View>
@@ -259,9 +259,9 @@ const UserGoalPlansScreen = () => {
                   <View style={styles.monthSection}>
                     <View style={styles.monthSectionHeader}>
                       <Feather name="activity" size={14} color="#F59E0B" />
-                      <Text style={[styles.monthSectionTitle, { color: colors.text }]}>Exercise Schedule</Text>
+                      <Text style={[styles.monthSectionTitle,{ color: colors.text }]}>Exercise Schedule</Text>
                     </View>
-                    <Text style={[styles.monthSectionText, { color: colors.textSecondary }]}>
+                    <Text style={[styles.monthSectionText,{ color: colors.textSecondary }]}>
                       {plan.twoMonthExerciseSchedule}
                     </Text>
                   </View>
@@ -269,9 +269,9 @@ const UserGoalPlansScreen = () => {
                   <View style={styles.monthSection}>
                     <View style={styles.monthSectionHeader}>
                       <Feather name="coffee" size={14} color="#F59E0B" />
-                      <Text style={[styles.monthSectionTitle, { color: colors.text }]}>Nutrition Targets</Text>
+                      <Text style={[styles.monthSectionTitle,{ color: colors.text }]}>Nutrition Targets</Text>
                     </View>
-                    <Text style={[styles.monthSectionText, { color: colors.textSecondary }]}>
+                    <Text style={[styles.monthSectionText,{ color: colors.textSecondary }]}>
                       {plan.twoMonthNutritionTargets}
                     </Text>
                   </View>
@@ -279,9 +279,9 @@ const UserGoalPlansScreen = () => {
                   <View style={styles.monthSection}>
                     <View style={styles.monthSectionHeader}>
                       <Feather name="flag" size={14} color="#F59E0B" />
-                      <Text style={[styles.monthSectionTitle, { color: colors.text }]}>Milestones</Text>
+                      <Text style={[styles.monthSectionTitle,{ color: colors.text }]}>Milestones</Text>
                     </View>
-                    <Text style={[styles.monthSectionText, { color: colors.textSecondary }]}>
+                    <Text style={[styles.monthSectionText,{ color: colors.textSecondary }]}>
                       {plan.twoMonthMilestones}
                     </Text>
                   </View>
@@ -289,9 +289,9 @@ const UserGoalPlansScreen = () => {
                   <View style={styles.monthSection}>
                     <View style={styles.monthSectionHeader}>
                       <Feather name="lightbulb" size={14} color="#F59E0B" />
-                      <Text style={[styles.monthSectionTitle, { color: colors.text }]}>Advice</Text>
+                      <Text style={[styles.monthSectionTitle,{ color: colors.text }]}>Advice</Text>
                     </View>
-                    <Text style={[styles.monthSectionText, { color: colors.textSecondary }]}>
+                    <Text style={[styles.monthSectionText,{ color: colors.textSecondary }]}>
                       {plan.twoMonthAdvice}
                     </Text>
                   </View>
@@ -303,7 +303,7 @@ const UserGoalPlansScreen = () => {
             <View style={styles.metaInfo}>
               <View style={styles.metaItem}>
                 <Feather name="calendar" size={14} color={colors.textSecondary} />
-                <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                <Text style={[styles.metaText,{ color: colors.textSecondary }]}>
                   Recommended: {formatDate(plan.recommendationDate)}
                 </Text>
               </View>
@@ -316,20 +316,20 @@ const UserGoalPlansScreen = () => {
 
   const renderFilterModal = () => (
     <Modal visible={showFilters} transparent={true} animationType="slide" onRequestClose={() => setShowFilters(false)}>
-      <View style={[styles.modalOverlay, { backgroundColor: colors.overlay || "rgba(0, 0, 0, 0.5)" }]}>
-        <View style={[styles.filterModal, { backgroundColor: colors.cardBackground || "#FFFFFF" }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border || "#F3F4F6" }]}>
-            <Text style={[styles.modalTitle, { color: colors.text || "#0056d2" }]}>Filter & Sort</Text>
+      <View style={[styles.modalOverlay,{ backgroundColor: colors.overlay || "rgba(0, 0, 0, 0.5)" }]}>
+        <View style={[styles.filterModal,{ backgroundColor: colors.cardBackground || "#FFFFFF" }]}>
+          <View style={[styles.modalHeader,{ borderBottomColor: colors.border || "#F3F4F6" }]}>
+            <Text style={[styles.modalTitle,{ color: colors.text || "#0056d2" }]}>Filter & Sort</Text>
             <TouchableOpacity onPress={() => setShowFilters(false)}>
               <Ionicons name="close" size={24} color={colors.textSecondary || "#0056d2"} />
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.filterContent}>
             <View style={styles.filterSection}>
-              <Text style={[styles.filterLabel, { color: colors.text || "#374151" }]}>Sort By</Text>
+              <Text style={[styles.filterLabel,{ color: colors.text || "#374151" }]}>Sort By</Text>
               {[
-                { label: "Date Created", value: "createdAt" },
-                { label: "Recommendation Date", value: "recommendationDate" },
+                { label: "Date Created",value: "createdAt" },
+                { label: "Recommendation Date",value: "recommendationDate" },
               ].map((option) => (
                 <TouchableOpacity
                   key={option.value}
@@ -338,10 +338,10 @@ const UserGoalPlansScreen = () => {
                     { backgroundColor: colors.background },
                     tempFilters.sortBy === option.value && [
                       styles.selectedOption,
-                      { backgroundColor: colors.accent ? `${colors.accent}20` : "#e6f0fa", borderColor: colors.accent || "#0056d2" },
+                      { backgroundColor: colors.accent ? `${colors.accent}20` : "#e6f0fa",borderColor: colors.accent || "#0056d2" },
                     ],
                   ]}
-                  onPress={() => setTempFilters((prev) => ({ ...prev, sortBy: option.value }))}
+                  onPress={() => setTempFilters((prev) => ({ ...prev,sortBy: option.value }))}
                 >
                   <Text
                     style={[
@@ -363,28 +363,28 @@ const UserGoalPlansScreen = () => {
             </View>
             <View style={styles.filterSection}>
               <View style={styles.switchRow}>
-                <Text style={[styles.filterLabel, { color: colors.text || "#374151" }]}>Descending Order</Text>
+                <Text style={[styles.filterLabel,{ color: colors.text || "#374151" }]}>Descending Order</Text>
                 <Switch
                   value={tempFilters.sortDescending}
-                  onValueChange={(value) => setTempFilters((prev) => ({ ...prev, sortDescending: value }))}
-                  trackColor={{ false: colors.border || "#E5E7EB", true: colors.accent || "#0056d2" }}
+                  onValueChange={(value) => setTempFilters((prev) => ({ ...prev,sortDescending: value }))}
+                  trackColor={{ false: colors.border || "#E5E7EB",true: colors.accent || "#0056d2" }}
                   thumbColor={colors.cardBackground || "#FFFFFF"}
                 />
               </View>
             </View>
           </ScrollView>
-          <View style={[styles.modalActions, { borderTopColor: colors.border || "#F3F4F6" }]}>
+          <View style={[styles.modalActions,{ borderTopColor: colors.border || "#F3F4F6" }]}>
             <TouchableOpacity
-              style={[styles.resetButton, { backgroundColor: colors.border || "#F3F4F6" }]}
+              style={[styles.resetButton,{ backgroundColor: colors.border || "#F3F4F6" }]}
               onPress={resetFilters}
             >
-              <Text style={[styles.resetButtonText, { color: colors.textSecondary || "#6B7280" }]}>Reset</Text>
+              <Text style={[styles.resetButtonText,{ color: colors.textSecondary || "#6B7280" }]}>Reset</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: colors.accent || "#0056d2" }]}
+              style={[styles.applyButton,{ backgroundColor: colors.accent || "#0056d2" }]}
               onPress={applyFilters}
             >
-              <Text style={[styles.applyButtonText, { color: colors.textFilter || "#FFFFFF" }]}>Apply Filters</Text>
+              <Text style={[styles.applyButtonText,{ color: colors.textFilter || "#FFFFFF" }]}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -395,45 +395,46 @@ const UserGoalPlansScreen = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <LinearGradient
-        colors={theme === "dark" ? ["#1E293B", "#334155"] : ["#F8FAFC", "#E2E8F0"]}
+        colors={theme === "dark" ? ["#1E293B","#334155"] : ["#F8FAFC","#E2E8F0"]}
         style={styles.emptyStateContainer}
       >
         <View style={styles.emptyIconContainer}>
           <Feather name="target" size={48} color={colors.textSecondary} />
         </View>
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>No Goal Plans Yet</Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+        <Text style={[styles.emptyTitle,{ color: colors.text }]}>No Goal Plans Yet</Text>
+        <Text style={[styles.emptySubtitle,{ color: colors.textSecondary }]}>
           Your AI-generated fitness plans will appear here once created.
         </Text>
-        <TouchableOpacity
-          style={[styles.createButton, { backgroundColor: colors.accent }]}
-          onPress={() => navigation.navigate("AIRecommendedScreen")}
-        >
-          <Feather name="plus" size={20} color="#FFFFFF" />
-          <Text style={styles.createButtonText}>Create New Plan</Text>
-        </TouchableOpacity>
       </LinearGradient>
     </View>
   );
 
-  if (authLoading || (loading && !refreshing)) {
-    return <Loading />;
+
+  // Always render header, only shimmer the content
+  if (authLoading) {
+    return null;
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background || "#F9FAFB" }]}> 
+    <SafeAreaView style={[styles.safeArea,{ backgroundColor: colors.background || "#F9FAFB" }]}>
       <Header
         title="AI Goal Plans"
         onBack={() => navigation.goBack()}
-        rightActions={[{ icon: "options-outline", onPress: () => setShowFilters(true), color: colors.primary }]}
+        rightActions={[{ icon: "options-outline",onPress: () => setShowFilters(true),color: colors.primary }]}
       />
 
-      {error ? (
+
+      {(loading && !refreshing) ? (
+        <View style={{ flex: 1,padding: 24,justifyContent: 'flex-start' }}>
+          <ShimmerPlaceholder style={{ height: 180,borderRadius: 16,marginBottom: 16,marginTop: 50,}} />
+
+        </View>
+      ) : error ? (
         <View style={styles.centered}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.error || "#EF4444"} />
-          <Text style={[styles.errorText, { color: colors.error || "#EF4444" }]}>{error}</Text>
+          <Text style={[styles.errorText,{ color: colors.error || "#EF4444" }]}>{error}</Text>
           <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: colors.accent || "#0056d2" }]}
+            style={[styles.retryButton,{ backgroundColor: colors.accent || "#0056d2" }]}
             onPress={() => fetchGoalPlans(1)}
           >
             <Text style={styles.retryButtonText}>Try Again</Text>
@@ -442,7 +443,7 @@ const UserGoalPlansScreen = () => {
       ) : !userId ? (
         <View style={styles.centered}>
           <Ionicons name="person-outline" size={48} color={colors.error || "#EF4444"} />
-          <Text style={[styles.errorText, { color: colors.error || "#EF4444" }]}> 
+          <Text style={[styles.errorText,{ color: colors.error || "#EF4444" }]}>
             Please log in to view your goal plans.
           </Text>
         </View>
@@ -450,7 +451,7 @@ const UserGoalPlansScreen = () => {
         renderEmptyState()
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingTop: 80 }]}
+          contentContainerStyle={[styles.scrollContent,{ paddingTop: 80 }]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -460,15 +461,15 @@ const UserGoalPlansScreen = () => {
             />
           }
         >
-          {goalPlans.map((plan, idx) => renderPlanCard(plan, idx))}
+          {goalPlans.map((plan,idx) => renderPlanCard(plan,idx))}
 
           {pageNumber < totalPages && (
             <TouchableOpacity
-              style={[styles.loadMoreButton, { backgroundColor: colors.primary || "#0056d2" }]}
+              style={[styles.loadMoreButton,{ backgroundColor: colors.primary || "#0056d2" }]}
               onPress={loadMore}
             >
               <Feather name="chevron-down" size={20} color="#FFFFFF" />
-              <Text style={[styles.loadMoreText, { color: colors.headerText || "#FFFFFF" }]}>Load More</Text>
+              <Text style={[styles.loadMoreText,{ color: colors.headerText || "#FFFFFF" }]}>Load More</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -522,7 +523,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     elevation: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
   },

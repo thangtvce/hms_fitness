@@ -1,4 +1,4 @@
-import { useState,useEffect,useRef } from "react";
+import { useState,useEffect,useRef,useCallback } from "react";
 import {
   View,
   Text,
@@ -28,7 +28,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { apiUploadImageCloudService } from "services/apiUploadImageCloudService";
 import { Linking } from "react-native";
 import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
-import { RichEditor,RichToolbar,actions } from "react-native-pell-rich-editor";
+import { WebView } from "react-native-webview";
+import apiUserService from "services/apiUserService";
+import { handleDailyCheckin } from "utils/checkin";
 
 const { width,height } = Dimensions.get("window");
 
@@ -59,7 +61,7 @@ const CreatePostScreen = ({ route,navigation }) => {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const richText = useRef(null);
+  const webViewRef = useRef(null);
   const containerRef = useRef();
 
   const DEFAULT_IMAGE = "DEFAULT_IMAGE";
@@ -75,6 +77,76 @@ const CreatePostScreen = ({ route,navigation }) => {
       },
     })
   ).current;
+
+  const ckEditorHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <script src="https://cdn.ckeditor.com/ckeditor5/39.0.0/classic/ckeditor.js"></script>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: #FFFFFF;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        }
+        #editor-container {
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .ck-editor__top {
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          background: #F9FAFB;
+          border-bottom: 1px solid #E5E7EB;
+        }
+        .ck-editor__editable {
+          min-height: 140px;
+          padding: 16px;
+          background: #FFFFFF;
+        }
+        .ck-content {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+          font-size: 16px;
+          color: #000000;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="editor-container">
+        <div id="editor"></div>
+      </div>
+      <script>
+        ClassicEditor
+          .create( document.querySelector( '#editor' ), {
+            toolbar: {
+              items: [
+                'undo', 'redo',
+                '|',
+                'bold', 'italic', 'underline',
+                '|',
+                'bulletedList', 'numberedList',
+                '|',
+                'sourceEditing'
+              ]
+            },
+            language: 'en',
+            initialData: ''
+          } )
+          .then( editor => {
+            editor.model.document.on( 'change:data', () => {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content', data: editor.getData() }));
+            } );
+          } )
+          .catch( error => {
+            console.error( error );
+          } );
+      </script>
+    </body>
+    </html>
+  `;
 
   useEffect(() => {
     Animated.parallel([
@@ -149,7 +221,9 @@ const CreatePostScreen = ({ route,navigation }) => {
     try {
       const userStr = await AsyncStorage.getItem("user");
       if (userStr) {
-        setCurrentUser(JSON.parse(userStr));
+        const userJoin = JSON.parse(userStr);
+        const userRes = await apiUserService.getUserById(userJoin?.userId);
+        setCurrentUser(userRes?.data);
       }
       const tagsData = await getAllTags();
       setTags(tagsData || []);
@@ -160,7 +234,7 @@ const CreatePostScreen = ({ route,navigation }) => {
     }
   };
 
-  const createFormDataFromBase64 = (base64String,fileName = `image-${Date.now()}.jpg`) => {
+  const createFormDataFromBase64 = useCallback((base64String,fileName = `image-${Date.now()}.jpg`) => {
     const formData = new FormData();
     const mimeTypeMatch = base64String.match(/^data:(image\/[a-z]+);base64,/);
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg";
@@ -173,14 +247,14 @@ const CreatePostScreen = ({ route,navigation }) => {
     });
 
     return formData;
-  };
+  },[]);
 
-  const isValidUrl = (url) => {
+  const isValidUrl = useCallback((url) => {
     const urlRegex = /^(https?:\/\/[^\s$.?#].[^\s]*)$/i;
     return urlRegex.test(url);
-  };
+  },[]);
 
-  const checkImageUrl = async (url) => {
+  const checkImageUrl = useCallback(async (url) => {
     try {
       const response = await fetch(url,{ method: "HEAD" });
       const contentType = response.headers.get("content-type");
@@ -188,7 +262,7 @@ const CreatePostScreen = ({ route,navigation }) => {
     } catch (error) {
       return false;
     }
-  };
+  },[]);
 
   const handlePickImage = async () => {
     try {
@@ -368,7 +442,7 @@ const CreatePostScreen = ({ route,navigation }) => {
   const validateStatus = (status) => {
     if (!status) return null;
     if (status.length > 20) return "Status cannot exceed 20 characters.";
-    if (!/^(active|inactive)$/.test(status)) return "Status must be 'active', 'inactive'.";
+    if (!/^(active|inactive)$/.test(status)) return "Status must be 'active' or 'inactive'.";
     return null;
   };
 
@@ -431,6 +505,11 @@ const CreatePostScreen = ({ route,navigation }) => {
       ]).start();
 
       showSuccessMessage("Your post has been shared with the community!");
+      try {
+        await handleDailyCheckin(userId,"post_article");
+      } catch (e) {
+        console.log(e);
+      }
       setTimeout(() => {
         navigation.goBack();
       },1000);
@@ -466,12 +545,12 @@ const CreatePostScreen = ({ route,navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton}
+            hitSlop={{ top: 10,bottom: 10,left: 10,right: 10 }} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#0056d2" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Create Post</Text>
-            <Text style={styles.headerSubtitle}>Share with your community</Text>
           </View>
           <TouchableOpacity
             style={[styles.publishButton,!canPublish && styles.publishButtonDisabled]}
@@ -550,7 +629,7 @@ const CreatePostScreen = ({ route,navigation }) => {
                   </View>
                 </Animated.View>
 
-                {/* Content Input Section with Rich Editor */}
+                {/* Content Input Section with CKEditor */}
                 <Animated.View
                   style={[styles.fieldContainer,{ opacity: fadeAnim,transform: [{ translateY: slideAnim }] }]}
                 >
@@ -565,36 +644,26 @@ const CreatePostScreen = ({ route,navigation }) => {
                     </Text>
                   </View>
                   <View style={[styles.inputSection,error && styles.inputError]}>
-                    <RichToolbar
-                      editor={richText}
-                      actions={[
-                        actions.setBold,
-                        actions.setItalic,
-                        actions.setUnderline,
-                        actions.insertBulletsList,
-                        actions.insertOrderedList,
-                        actions.undo,
-                        actions.redo,
-                      ]}
-                      iconTint="#374151"
-                      selectedIconTint="#0056d2"
-                      style={styles.richToolbar}
-                      iconSize={18}
-                    />
-                    <RichEditor
-                      ref={richText}
-                      onChange={handleContentChange}
-                      placeholder="Share your health journey, tips, or ask questions..."
+                    <WebView
+                      ref={webViewRef}
+                      originWhitelist={["*"]}
+                      source={{ html: ckEditorHtml }}
                       style={styles.richEditor}
-                      initialContentHTML=""
-                      editorStyle={{
-                        backgroundColor: "#FFFFFF",
-                        color: "#000000",
-                        fontSize: 16,
-                        fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
-                        lineHeight: 24,
-                        padding: 16,
+                      onMessage={(event) => {
+                        const message = JSON.parse(event.nativeEvent.data);
+                        if (message.type === "content") {
+                          handleContentChange(message.data);
+                        }
                       }}
+                      javaScriptEnabled={true}
+                      domStorageEnabled={true}
+                      startInLoadingState={true}
+                      showsVerticalScrollIndicator={false}
+                      showsHorizontalScrollIndicator={false}
+                      scrollEnabled={false}
+                      scalesPageToFit={false}
+                      automaticallyAdjustContentInsets={false}
+                      contentInset={{ top: 0,left: 0,bottom: 0,right: 0 }}
                     />
                     <View style={styles.progressSection}>
                       <View style={styles.progressBarContainer}>
@@ -1015,8 +1084,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 20
   },
   headerCenter: {
     flex: 1,
@@ -1024,9 +1092,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#000000",
+    fontWeight: "600",
+    textAlign: "center",
+    letterSpacing: 0.3,
+    fontSize: 16
   },
   headerSubtitle: {
     fontSize: 14,
@@ -1182,15 +1251,8 @@ const styles = StyleSheet.create({
   inputError: {
     borderColor: "#EF4444",
   },
-  richToolbar: {
-    backgroundColor: "#F9FAFB",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
   richEditor: {
-    minHeight: 140,
+    height: 180,
     backgroundColor: "#FFFFFF",
   },
   progressSection: {

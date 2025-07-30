@@ -16,6 +16,8 @@ const DynamicStatusBar = ({ backgroundColor,translucent = false,...props }) => {
         return luminance > 0.5 ? "dark-content" : "light-content";
     };
 
+    backgroundColor = "#fff";
+
     return (
         <StatusBar
             barStyle={getStatusBarStyle(backgroundColor)}

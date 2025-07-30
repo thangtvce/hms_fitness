@@ -1,4 +1,4 @@
-import React,{ useState,useEffect,useRef,useMemo } from 'react';
+import React,{ useState,useEffect,useRef,useMemo,useContext } from 'react';
 import {
     View,
     Text,
@@ -16,17 +16,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from 'context/AuthContext';
+import { AuthContext,useAuth } from 'context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { trainerService } from 'services/apiTrainerService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { showErrorFetchAPI } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
 const TrainerRatingDetailScreen = () => {
-    const { user,loading: authLoading } = useAuth();
+    const { user,loading: authLoading } = useContext(AuthContext);
     const navigation = useNavigation();
     const [allRatings,setAllRatings] = useState([]);
     const [displayedRatings,setDisplayedRatings] = useState([]);
@@ -117,7 +119,7 @@ const TrainerRatingDetailScreen = () => {
                 PageNumber: pageNumber,
                 PageSize: pageSize,
                 TrainerId: user.userId,
-                Status: 'active', // Only fetch active ratings
+                Status: 'active',
                 StartDate: filters.startDate ? filters.startDate.toISOString() : undefined,
                 EndDate: filters.endDate ? filters.endDate.toISOString() : undefined,
                 SearchTerm: searchTerm || undefined,
@@ -491,30 +493,25 @@ const TrainerRatingDetailScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Rating History</Text>
-                    </View>
-                    <View style={styles.headerRight}>
-                        <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-                            <Ionicons name="options-outline" size={24} color="#0056D2" />
-                            {(searchTerm || filters.startDate || filters.endDate) && (
-                                <View style={styles.filterBadge} />
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.statsButton}
-                            onPress={() => navigation.navigate('TrainerRatingStatisticsScreen')}
-                        >
-                            <Ionicons name="stats-chart-outline" size={24} color="#0056D2" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
+            <Header
+                title="Rating History"
+                onBack={() => navigation.goBack()}
+                backIconColor="#0056D2"
+                rightActions={[
+                    {
+                        icon: "options-outline",
+                        onPress: () => setShowFilterModal(true),
+                        showBadge: !!(searchTerm || filters.startDate || filters.endDate),
+                        color: "#0056D2"
+                    },
+                    {
+                        icon: "stats-chart-outline",
+                        onPress: () => navigation.navigate('TrainerRatingStatisticsScreen'),
+                        color: "#0056D2"
+                    },
+                ]}
+            />
+
             {renderAverageRating()}
             <Animated.View
                 style={[
@@ -544,7 +541,7 @@ const TrainerRatingDetailScreen = () => {
             {loading && pageNumber === 1 ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#0056D2" />
-                    <Text style={styles.loadingText}>Loading ratings...</Text>
+                    <CommonSkeleton />
                 </View>
             ) : (
                 <FlatList
@@ -638,6 +635,7 @@ const styles = StyleSheet.create({
         paddingVertical: 15,
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
+        marginTop: 80
     },
     ratingContainer: {
         backgroundColor: '#FFFFFF',
@@ -691,7 +689,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 15,
         borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
+        borderBottomColor: '#E2E8F0'
     },
     searchContainer: {
         flexDirection: 'row',

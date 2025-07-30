@@ -1,5 +1,5 @@
 
-import React, { useState } from "react"
+import React,{ useState } from "react"
 import {
   View,
   Text,
@@ -9,44 +9,40 @@ import {
   TouchableOpacity,
   Modal,
   Pressable,
-  SafeAreaView,
-  StatusBar,
   Alert,
 } from "react-native"
 import Ionicons from "react-native-vector-icons/Ionicons"
 import Header from 'components/Header';
 import { apiProgressComparisonService } from "services/apiProgressComparisonService"
-// Giả sử có hàm xóa ảnh: apiProgressComparisonService.deleteProgressPhoto(photoId)
+import { showErrorFetchAPI,showInfoMessage,showSuccessMessage } from "utils/toastUtil";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function ProgressComparisonDetailScreen({ route, navigation }) {
+export default function ProgressComparisonDetailScreen({ route,navigation }) {
 
-  // Xóa so sánh tiến trình, show thông báo và quay lại nếu thành công
   const handleDelete = async (comparisonId) => {
     try {
-      // If there are progressPhotos, delete all photos in parallel first
       if (comparison.progressPhotos && comparison.progressPhotos.length > 0) {
         const deletePhotoPromises = comparison.progressPhotos
           .filter(p => p.progressPhotoId)
           .map(p => apiProgressComparisonService.deleteProgressPhoto(p.progressPhotoId)
-            .catch(err => ({ error: err, id: p.progressPhotoId }))
+            .catch(err => ({ error: err,id: p.progressPhotoId }))
           );
         const results = await Promise.all(deletePhotoPromises);
-        // Check if any photo failed to delete
         const failed = results.filter(r => r && r.error);
         if (failed.length > 0) {
-          Alert.alert('Error', `Failed to delete ${failed.length} linked photo(s). Cannot delete comparison.`);
+          showInfoMessage(`Failed to delete ${failed.length} linked photo(s). Cannot delete comparison.`)
           return;
         }
       }
-      // After deleting photos, delete comparison
       await apiProgressComparisonService.deleteComparison(comparisonId);
-      Alert.alert('Success', 'Deleted successfully!');
+      showSuccessMessage('Deleted successfully!')
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', error?.response?.data?.message || 'Delete failed!');
+      showErrorFetchAPI(error);
     }
   };
-  
+
   const { comparison } = route.params
   const photo = comparison.progressPhotos && comparison.progressPhotos[0]
   const beforePhoto = photo?.beforePhotoUrl
@@ -54,19 +50,19 @@ export default function ProgressComparisonDetailScreen({ route, navigation }) {
   const notes = photo?.notes || "No notes provided"
 
   const comparisonDate = comparison.comparisonDate
-    ? new Date(comparison.comparisonDate).toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
+    ? new Date(comparison.comparisonDate).toLocaleDateString("en-US",{
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
     : "Date not available"
 
-  const [modalVisible, setModalVisible] = useState(false)
-  const [modalImage, setModalImage] = useState(null)
-  const [modalTitle, setModalTitle] = useState("")
+  const [modalVisible,setModalVisible] = useState(false)
+  const [modalImage,setModalImage] = useState(null)
+  const [modalTitle,setModalTitle] = useState("")
 
-  const openImage = (uri, title) => {
+  const openImage = (uri,title) => {
     setModalImage(uri)
     setModalTitle(title)
     setModalVisible(true)
@@ -79,9 +75,9 @@ export default function ProgressComparisonDetailScreen({ route, navigation }) {
   }
 
   const getChangeColor = (value) => {
-    if (value > 0) return "#22C55E" // Green for increase
-    if (value < 0) return "#EF4444" // Red for decrease
-    return "#6B7280" // Gray for no change
+    if (value > 0) return "#22C55E"
+    if (value < 0) return "#EF4444"
+    return "#6B7280"
   }
 
   const getChangeIcon = (value) => {
@@ -102,7 +98,7 @@ export default function ProgressComparisonDetailScreen({ route, navigation }) {
           {
             icon: <Ionicons name="create-outline" size={22} color="#1F2937" />, // Edit icon
             onPress: () => {
-              navigation.navigate('EditProgressComparisonScreen', { comparison });
+              navigation.navigate('EditProgressComparisonScreen',{ comparison });
             },
           },
           {
@@ -113,7 +109,7 @@ export default function ProgressComparisonDetailScreen({ route, navigation }) {
           },
         ]}
       />
-      <ScrollView style={[styles.scrollView, { marginTop: 55 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.scrollView,{ marginTop: 55 }]} showsVerticalScrollIndicator={false}>
         {/* Date Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -143,7 +139,7 @@ export default function ProgressComparisonDetailScreen({ route, navigation }) {
                   size={16}
                   color={getChangeColor(comparison.weightChange)}
                 />
-                <Text style={[styles.changeValue, { color: getChangeColor(comparison.weightChange) }]}>
+                <Text style={[styles.changeValue,{ color: getChangeColor(comparison.weightChange) }]}>
                   {comparison.weightChange > 0 ? "+" : ""}
                   {comparison.weightChange} kg
                 </Text>
@@ -163,7 +159,7 @@ export default function ProgressComparisonDetailScreen({ route, navigation }) {
                     size={16}
                     color={getChangeColor(comparison.bodyFatChange)}
                   />
-                  <Text style={[styles.changeValue, { color: getChangeColor(comparison.bodyFatChange) }]}>
+                  <Text style={[styles.changeValue,{ color: getChangeColor(comparison.bodyFatChange) }]}>
                     {comparison.bodyFatChange > 0 ? "+" : ""}
                     {comparison.bodyFatChange}%
                   </Text>
@@ -196,7 +192,7 @@ export default function ProgressComparisonDetailScreen({ route, navigation }) {
               {beforePhoto ? (
                 <TouchableOpacity
                   style={styles.photoContainer}
-                  onPress={() => openImage(beforePhoto, "Before Photo")}
+                  onPress={() => openImage(beforePhoto,"Before Photo")}
                   activeOpacity={0.8}
                 >
                   <Image source={{ uri: beforePhoto }} style={styles.photo} />
@@ -218,7 +214,7 @@ export default function ProgressComparisonDetailScreen({ route, navigation }) {
               {afterPhoto ? (
                 <TouchableOpacity
                   style={styles.photoContainer}
-                  onPress={() => openImage(afterPhoto, "After Photo")}
+                  onPress={() => openImage(afterPhoto,"After Photo")}
                   activeOpacity={0.8}
                 >
                   <Image source={{ uri: afterPhoto }} style={styles.photo} />
@@ -237,7 +233,7 @@ export default function ProgressComparisonDetailScreen({ route, navigation }) {
         </View>
 
         {/* Notes Section */}
-        <View style={[styles.section, styles.lastSection]}>
+        <View style={[styles.section,styles.lastSection]}>
           <View style={styles.sectionHeader}>
             <Ionicons name="chatbubble-outline" size={20} color="#6B7280" />
             <Text style={styles.sectionTitle}>Photo Notes</Text>

@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react"
-import Loading from 'components/Loading';
+import { useState,useEffect,useRef } from "react"
 import {
   View,
   Text,
@@ -18,7 +17,7 @@ import {
   Alert,
 } from "react-native"
 import Header from "components/Header"
-import { Ionicons, Feather } from "@expo/vector-icons"
+import { Ionicons,Feather } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
 import { foodService } from "services/apiFoodService"
 import { LinearGradient } from "expo-linear-gradient"
@@ -27,34 +26,34 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { addFoodToLog } from "utils/foodLogStorage"
 import dayjs from "dayjs"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
+import ShimmerCard from "components/shimmer/ShimmerCard"
+import FoodImage from "./FoodImage"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
 
-const { width, height } = Dimensions.get("window")
+const { width,height } = Dimensions.get("window")
 
 const STATUS_OPTIONS = [
-  { label: "All Status", value: "" },
-  { label: "Active", value: "active" },
-  { label: "Inactive", value: "inactive" },
-  { label: "Draft", value: "draft" },
+  { label: "All Status",value: "" },
+  { label: "Active",value: "active" },
+  { label: "Inactive",value: "inactive" },
+  { label: "Draft",value: "draft" },
 ]
 
-const PAGE_SIZE_OPTIONS = [5, 10, 15, 20, 25, 50]
+const PAGE_SIZE_OPTIONS = [5,10,15,20,25,50]
 
 const SORT_OPTIONS = [
-  { label: "Name A-Z", value: "name", icon: "text-outline" },
-  { label: "Calories (High → Low)", value: "calories-high", icon: "flame-outline" },
-  { label: "Calories (Low → High)", value: "calories-low", icon: "flame-outline" },
-  { label: "Protein (High → Low)", value: "protein-high", icon: "fitness-outline" },
-  { label: "Carbs (High → Low)", value: "carbs-high", icon: "nutrition-outline" },
-  { label: "Fats (High → Low)", value: "fats-high", icon: "water-outline" },
+  { label: "Name A-Z",value: "name",icon: "text-outline" },
+  { label: "Calories (High → Low)",value: "calories-high",icon: "flame-outline" },
+  { label: "Calories (Low → High)",value: "calories-low",icon: "flame-outline" },
+  { label: "Protein (High → Low)",value: "protein-high",icon: "fitness-outline" },
+  { label: "Carbs (High → Low)",value: "carbs-high",icon: "nutrition-outline" },
+  { label: "Fats (High → Low)",value: "fats-high",icon: "water-outline" },
 ]
 
 const LAYOUT_OPTIONS = [
-  { columns: 1, icon: "list-outline", label: "1 col" },
-  { columns: 2, icon: "grid-outline", label: "2 cols" },
-  { columns: 3, icon: "apps-outline", label: "3 cols" },
-  { columns: 4, icon: "keypad-outline", label: "4 cols" },
-  { columns: "quick", icon: "flash-outline", label: "Quick" },
+  { columns: 1,icon: "list-outline",label: "1 col" },
+  { columns: 2,icon: "grid-outline",label: "2 cols" }
 ]
 
 const MIN_SERVING = 1
@@ -62,7 +61,6 @@ const MAX_SERVING = 2000
 const MIN_PORTION = 1
 const MAX_PORTION = 10
 
-// New component for Food AI Recommend Banner
 const FoodAIRecommendBanner = () => {
   const navigation = useNavigation();
   return (
@@ -72,15 +70,15 @@ const FoodAIRecommendBanner = () => {
       activeOpacity={0.9}
     >
       <LinearGradient
-        colors={["#0056d2", "#38BDF8"]} // Blue gradient for food
+        colors={["#0056d2","#38BDF8"]}
         style={styles.aiRecommendBannerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        start={{ x: 0,y: 0 }}
+        end={{ x: 1,y: 0 }}
       >
         <View style={styles.aiRecommendBannerContent}>
           <View style={styles.aiRecommendBannerLeft}>
             <View style={styles.aiRecommendBannerIcon}>
-              <Feather name="book-open" size={20} color="#FFFFFF" /> 
+              <Feather name="book-open" size={20} color="#FFFFFF" />
             </View>
             <View style={styles.aiRecommendBannerText}>
               <Text style={styles.aiRecommendBannerTitle}>Food AI Recommend</Text>
@@ -98,22 +96,21 @@ const FoodAIRecommendBanner = () => {
 
 const FoodListScreen = () => {
   const navigation = useNavigation()
-  const [foods, setFoods] = useState([])
-  const [categories, setCategories] = useState([])
-  const [categoryMap, setCategoryMap] = useState({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [refreshing, setRefreshing] = useState(false)
-  const [showFilters, setShowFilters] = useState(false)
-  const [showSortModal, setShowSortModal] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState("")
-  const [sortBy, setSortBy] = useState("name")
-  const [layoutMode, setLayoutMode] = useState(1) // Can be number or "quick"
-  const [showLayoutModal, setShowLayoutModal] = useState(false)
-  const [selectedFoods, setSelectedFoods] = useState([])
-  // Pagination states removed for full list
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filters, setFilters] = useState({
+  const [foods,setFoods] = useState([])
+  const [categories,setCategories] = useState([])
+  const [categoryMap,setCategoryMap] = useState({})
+  const [loading,setLoading] = useState(true)
+  const [error,setError] = useState(null)
+  const [refreshing,setRefreshing] = useState(false)
+  const [showSortModal,setShowSortModal] = useState(false)
+  const [selectedCategory,setSelectedCategory] = useState("")
+  const [sortBy,setSortBy] = useState("name")
+  const [layoutMode,setLayoutMode] = useState(1)
+  const [showLayoutModal,setShowLayoutModal] = useState(false)
+  const [selectedFoods,setSelectedFoods] = useState([])
+
+  const [searchQuery,setSearchQuery] = useState("")
+  const [filters,setFilters] = useState({
     pageNumber: 1,
     pageSize: 10,
     startDate: "",
@@ -125,7 +122,7 @@ const FoodListScreen = () => {
     minCalories: "",
     maxCalories: "",
   })
-  const [appliedFilters, setAppliedFilters] = useState({
+  const [appliedFilters,setAppliedFilters] = useState({
     pageNumber: 1,
     pageSize: 10,
     startDate: "",
@@ -137,46 +134,44 @@ const FoodListScreen = () => {
     minCalories: "",
     maxCalories: "",
   })
-  const [appliedSearchQuery, setAppliedSearchQuery] = useState("")
+  const [appliedSearchQuery,setAppliedSearchQuery] = useState("")
 
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
 
-  // State for custom input modal
-  const [inputModalVisible, setInputModalVisible] = useState(false)
-  const [inputValues, setInputValues] = useState({ portionSize: "1", servingSize: "1" })
-  const [pendingAddFood, setPendingAddFood] = useState(null)
-
-  // Animation for modal
+  const [inputModalVisible,setInputModalVisible] = useState(false)
+  const [inputValues,setInputValues] = useState({ portionSize: "1",servingSize: "1" })
+  const [pendingAddFood,setPendingAddFood] = useState(null)
+  const [imageError,setImageError] = useState(false);
   const modalScale = useRef(new Animated.Value(0)).current
   const modalOpacity = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim,{
         toValue: 1,
         duration: 600,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.timing(slideAnim,{
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
       }),
     ]).start()
-  }, [])
+  },[])
 
   // Modal animation effect
   useEffect(() => {
     if (inputModalVisible) {
       Animated.parallel([
-        Animated.spring(modalScale, {
+        Animated.spring(modalScale,{
           toValue: 1,
           tension: 100,
           friction: 8,
           useNativeDriver: true,
         }),
-        Animated.timing(modalOpacity, {
+        Animated.timing(modalOpacity,{
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
@@ -184,30 +179,30 @@ const FoodListScreen = () => {
       ]).start()
     } else {
       Animated.parallel([
-        Animated.timing(modalScale, {
+        Animated.timing(modalScale,{
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
         }),
-        Animated.timing(modalOpacity, {
+        Animated.timing(modalOpacity,{
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
         }),
       ]).start()
     }
-  }, [inputModalVisible])
+  },[inputModalVisible])
 
   const fetchCategories = async () => {
     try {
-      const response = await foodService.getAllActiveCategories({ pageNumber: 1, pageSize: 100 })
+      const response = await foodService.getAllActiveCategories({ pageNumber: 1,pageSize: 100 })
       if (response.statusCode === 200) {
         const categoriesData = response.data.categories || []
         setCategories(categoriesData)
-        const map = categoriesData.reduce((acc, category) => {
+        const map = categoriesData.reduce((acc,category) => {
           acc[category.categoryId] = category.categoryName
           return acc
-        }, {})
+        },{})
         setCategoryMap(map)
         return categoriesData
       } else {
@@ -237,7 +232,6 @@ const FoodListScreen = () => {
       if (appliedFilters.endDate) params.endDate = appliedFilters.endDate
       if (appliedFilters.minCalories) params.minCalories = appliedFilters.minCalories
       if (appliedFilters.maxCalories) params.maxCalories = appliedFilters.maxCalories
-      // Always fetch all (no pagination)
       params.pageSize = 10000
       params.pageNumber = 1
 
@@ -250,18 +244,12 @@ const FoodListScreen = () => {
           : Array.isArray(response.data)
             ? response.data
             : []
-        foodsData = sortFoods(foodsData, sortBy)
+        foodsData = sortFoods(foodsData,sortBy)
         setFoods([...foodsData])
       } else {
         setFoods([])
-        // setCurrentPage(1) // Removed pagination states
-        // setTotalPages(1)
-        // setTotalItems(0)
-        // setHasNextPage(false)
-        // setHasPrevPage(false)
       }
     } catch (err) {
-      setError(err.message || "Failed to load foods")
       setFoods([])
       showErrorFetchAPI(err);
     } finally {
@@ -270,21 +258,21 @@ const FoodListScreen = () => {
     }
   }
 
-  const sortFoods = (foods, sortType) => {
+  const sortFoods = (foods,sortType) => {
     const sorted = [...foods]
     switch (sortType) {
       case "name":
-        return sorted.sort((a, b) => (a.foodName || "").localeCompare(b.foodName || ""))
+        return sorted.sort((a,b) => (a.foodName || "").localeCompare(b.foodName || ""))
       case "calories-high":
-        return sorted.sort((a, b) => (b.calories || 0) - (a.calories || 0))
+        return sorted.sort((a,b) => (b.calories || 0) - (a.calories || 0))
       case "calories-low":
-        return sorted.sort((a, b) => (a.calories || 0) - (b.calories || 0))
+        return sorted.sort((a,b) => (a.calories || 0) - (b.calories || 0))
       case "protein-high":
-        return sorted.sort((a, b) => (b.protein || 0) - (a.protein || 0))
+        return sorted.sort((a,b) => (b.protein || 0) - (a.protein || 0))
       case "carbs-high":
-        return sorted.sort((a, b) => (b.carbs || 0) - (a.carbs || 0))
+        return sorted.sort((a,b) => (b.carbs || 0) - (a.carbs || 0))
       case "fats-high":
-        return sorted.sort((a, b) => (b.fats || 0) - (a.fats || 0))
+        return sorted.sort((a,b) => (b.fats || 0) - (a.fats || 0))
       default:
         return sorted
     }
@@ -292,27 +280,21 @@ const FoodListScreen = () => {
 
   useEffect(() => {
     fetchFoods()
-  }, [])
+  },[])
 
   useEffect(() => {
     if (selectedCategory || sortBy !== "name") {
       fetchFoods()
     }
-  }, [selectedCategory, sortBy])
+  },[selectedCategory,sortBy])
 
   const onRefresh = () => {
     setRefreshing(true)
-    fetchFoods(true) // Pass true to indicate refresh
+    fetchFoods(true)
   }
 
   const handleSearch = () => {
     setAppliedSearchQuery(searchQuery)
-    fetchFoods()
-  }
-
-  const applyFilters = () => {
-    setAppliedFilters({ ...filters })
-    setShowFilters(false)
     fetchFoods()
   }
 
@@ -335,7 +317,7 @@ const FoodListScreen = () => {
     setAppliedSearchQuery("")
     setSelectedCategory("")
     setSortBy("name")
-    setTimeout(() => fetchFoods(), 100)
+    setTimeout(() => fetchFoods(),100)
   }
 
   const clearSearch = () => {
@@ -344,23 +326,22 @@ const FoodListScreen = () => {
     fetchFoods()
   }
 
-  // Modified handleSelectFood to only add if not exists, and remove if exists
   const handleSelectFood = (food) => {
     setSelectedFoods((prev) => {
       const exists = prev.find((f) => f.foodId === food.foodId)
       if (exists) {
         return prev.filter((f) => f.foodId !== food.foodId)
       } else {
-        return [...prev, food]
+        return [...prev,food]
       }
     })
   }
 
-  const handleAddFoodToMeal = async (food, skipModal = false) => {
+  const handleAddFoodToMeal = async (food,skipModal = false) => {
     const mealTypes = [
-      { label: "Breakfast", value: "Breakfast" },
-      { label: "Lunch", value: "Lunch" },
-      { label: "Dinner", value: "Dinner" },
+      { label: "Breakfast",value: "Breakfast" },
+      { label: "Lunch",value: "Lunch" },
+      { label: "Dinner",value: "Dinner" },
     ]
 
     const mealType = await new Promise((resolve) => {
@@ -368,8 +349,8 @@ const FoodListScreen = () => {
         "Choose a meal",
         "Which session do you want to add?",
         [
-          ...mealTypes.map((m) => ({ text: m.label, onPress: () => resolve(m.value) })),
-          { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
+          ...mealTypes.map((m) => ({ text: m.label,onPress: () => resolve(m.value) })),
+          { text: "Cancel",style: "cancel",onPress: () => resolve(null) },
         ],
         { cancelable: true },
       )
@@ -404,31 +385,29 @@ const FoodListScreen = () => {
       }
 
       try {
-        await addFoodToLog(today, mealType, logData)
+        await addFoodToLog(today,mealType,logData)
         showSuccessMessage(`Added ${food.foodName} to ${mealType} log!`);
-        // Remove the food from selectedFoods after successful log
         setSelectedFoods((prev) => prev.filter((f) => f.foodId !== food.foodId))
       } catch (error) {
         showErrorFetchAPI(error);
       }
     } else {
-      setPendingAddFood({ food, mealType })
-      setInputValues({ portionSize: "1", servingSize: "1" })
+      setPendingAddFood({ food,mealType })
+      setInputValues({ portionSize: "1",servingSize: "1" })
       setInputModalVisible(true)
     }
   }
 
   const handleInputModalOk = async () => {
-    const { food, mealType } = pendingAddFood || {}
+    const { food,mealType } = pendingAddFood || {}
     if (!food || !mealType) {
       return
     }
 
-    const { portionSize, servingSize } = inputValues
+    const { portionSize,servingSize } = inputValues
     const parsedServingSize = Number.parseFloat(servingSize) || 1
     const parsedPortionSize = Number.parseFloat(portionSize) || 1
 
-    // Validate for spam/abuse and healthy adult limits
     if (
       parsedServingSize < MIN_SERVING ||
       parsedServingSize > MAX_SERVING ||
@@ -443,15 +422,12 @@ const FoodListScreen = () => {
     }
 
     try {
-      // Ensure today is defined
       const today = dayjs().format("YYYY-MM-DD")
 
-      // Map image field robustly
       let image = ""
       if (food.image) image = food.image
       else if (food.foodImage) image = food.foodImage
       else if (food.imageUrl) image = food.imageUrl
-      // Fallback: try to get image from getFoodImage if still empty
       if (!image && food.foodName) image = getFoodImage(food.foodName)
 
       const logData = {
@@ -463,21 +439,14 @@ const FoodListScreen = () => {
         fats: (food.fats || 0) * parsedServingSize,
         portionSize: parsedPortionSize,
         servingSize: parsedServingSize,
-        satisfactionRating: 1, // Set default rating to 0
+        satisfactionRating: 1,
         notes: "",
         consumptionDate: today,
         image,
       }
 
-      if (typeof food === "object") {
-        // This block is empty, consider removing or adding relevant logic
-      } else {
-        // This block is empty, consider removing or adding relevant logic
-      }
-
-      await addFoodToLog(today, mealType, logData)
+      await addFoodToLog(today,mealType,logData)
       showSuccessMessage(`Added ${food.foodName} to ${mealType} log with ${parsedServingSize} serving(s)!`);
-      // Remove the food from selectedFoods after successful log
       setSelectedFoods((prev) => prev.filter((f) => f.foodId !== food.foodId))
       setInputModalVisible(false)
       setPendingAddFood(null)
@@ -492,13 +461,9 @@ const FoodListScreen = () => {
   }
 
   const getFoodImage = (foodName) => {
-    return `https://source.unsplash.com/400x250/?food,${foodName.replace(/\s/g, "")}`
+    return `https://placehold.co/400x250?text=${foodName.replace(/\s/g,"")}`
   }
 
-  // Pagination functions removed as per previous changes (full list fetch)
-  // const goToPage = (page) => { ... }
-  // const goToNextPage = () => { ... }
-  // const goToPrevPage = () => { ... }
 
   const renderCategoryItem = ({ item }) => {
     const isSelected = selectedCategory === item.categoryId;
@@ -521,7 +486,6 @@ const FoodListScreen = () => {
         ]}
         onPress={() => {
           setSelectedCategory(isSelected ? "" : item.categoryId);
-          // setCurrentPage(1); // Removed pagination
         }}
         activeOpacity={0.8}
       >
@@ -561,7 +525,7 @@ const FoodListScreen = () => {
           </View>
         ) : (
           <LinearGradient
-            colors={["#F8FAFC", "#F1F5F9"]}
+            colors={["#F8FAFC","#F1F5F9"]}
             style={[
               styles.categoryGradient,
               {
@@ -616,7 +580,7 @@ const FoodListScreen = () => {
             {SORT_OPTIONS.map((option) => (
               <TouchableOpacity
                 key={option.value}
-                style={[styles.sortOption, sortBy === option.value && styles.selectedSortOption]}
+                style={[styles.sortOption,sortBy === option.value && styles.selectedSortOption]}
                 onPress={() => {
                   setSortBy(option.value)
                   setShowSortModal(false)
@@ -632,7 +596,7 @@ const FoodListScreen = () => {
                     <Ionicons name={option.icon} size={20} color={sortBy === option.value ? "#fff" : "#6B7280"} />
                   </View>
                   <Text
-                    style={[styles.sortOptionText, sortBy === option.value && { color: "#0056d2", fontWeight: "bold" }]}
+                    style={[styles.sortOptionText,sortBy === option.value && { color: "#0056d2",fontWeight: "bold" }]}
                   >
                     {option.label}
                   </Text>
@@ -641,199 +605,6 @@ const FoodListScreen = () => {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  )
-
-  const renderFilterModal = () => (
-    <Modal visible={showFilters} transparent={true} animationType="slide" onRequestClose={() => setShowFilters(false)}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.filterModal}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filters & Search</Text>
-            <TouchableOpacity onPress={() => setShowFilters(false)}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.filterContent}>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Search Term</Text>
-              <TextInput
-                style={styles.filterInput}
-                placeholder="Enter search term..."
-                value={filters.searchTerm}
-                onChangeText={(value) => setFilters((prev) => ({ ...prev, searchTerm: value }))}
-              />
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Items per page</Text>
-              <View style={styles.pageSizeContainer}>
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <TouchableOpacity
-                    key={size}
-                    style={[
-                      styles.pageSizeButton,
-                      filters.pageSize === size && {
-                        borderColor: "#0056d2",
-                        borderWidth: 2,
-                        backgroundColor: "#eaf1fb",
-                      },
-                    ]}
-                    onPress={() => setFilters((prev) => ({ ...prev, pageSize: size, validPageSize: size }))}
-                  >
-                    <Text
-                      style={[
-                        styles.pageSizeText,
-                        filters.pageSize === size && { color: "#0056d2", fontWeight: "bold" },
-                      ]}
-                    >
-                      {size}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Calorie Range</Text>
-              <View style={styles.dateRow}>
-                <View style={styles.dateInputContainer}>
-                  <Text style={styles.dateLabel}>Min Calories</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="0"
-                    value={filters.minCalories}
-                    onChangeText={(value) => setFilters((prev) => ({ ...prev, minCalories: value }))}
-                    keyboardType="numeric"
-                  />
-                </View>
-                <View style={styles.dateInputContainer}>
-                  <Text style={styles.dateLabel}>Max Calories</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="1000"
-                    value={filters.maxCalories}
-                    onChangeText={(value) => setFilters((prev) => ({ ...prev, maxCalories: value }))}
-                    keyboardType="numeric"
-                  />
-                </View>
-              </View>
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Date Range</Text>
-              <View style={styles.dateRow}>
-                <View style={styles.dateInputContainer}>
-                  <Text style={styles.dateLabel}>Start Date</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="DD-MM-YYYY"
-                    value={filters.startDate}
-                    onChangeText={(value) => setFilters((prev) => ({ ...prev, startDate: value }))}
-                  />
-                </View>
-                <View style={styles.dateInputContainer}>
-                  <Text style={styles.dateLabel}>End Date</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="DD-MM-YYYY"
-                    value={filters.endDate}
-                    onChangeText={(value) => setFilters((prev) => ({ ...prev, endDate: value }))}
-                  />
-                </View>
-              </View>
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Status</Text>
-              {STATUS_OPTIONS.map((status) => (
-                <TouchableOpacity
-                  key={status.value}
-                  style={[
-                    styles.filterOption,
-                    filters.status === status.value && {
-                      borderColor: "#0056d2",
-                      borderWidth: 2,
-                      backgroundColor: "#eaf1fb",
-                    },
-                  ]}
-                  onPress={() => setFilters((prev) => ({ ...prev, status: status.value }))}
-                >
-                  <Text
-                    style={[
-                      styles.filterOptionText,
-                      filters.status === status.value && { color: "#0056d2", fontWeight: "bold" },
-                    ]}
-                  >
-                    {status.label}
-                  </Text>
-                  {filters.status === status.value && <Ionicons name="checkmark" size={20} color="#0056d2" />}
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Category</Text>
-              <TouchableOpacity
-                style={[
-                  styles.filterOption,
-                  filters.categoryId === "" && {
-                    borderColor: "#0056d2",
-                    borderWidth: 2,
-                    backgroundColor: "#eaf1fb",
-                  },
-                ]}
-                onPress={() => setFilters((prev) => ({ ...prev, categoryId: "" }))}
-              >
-                <Text
-                  style={[
-                    styles.filterOptionText,
-                    filters.categoryId === "" && { color: "#0056d2", fontWeight: "bold" },
-                  ]}
-                >
-                  All Categories
-                </Text>
-                {filters.categoryId === "" && <Ionicons name="checkmark" size={20} color="#0056d2" />}
-              </TouchableOpacity>
-              {categories.map((category) => (
-                <TouchableOpacity
-                  key={category.categoryId}
-                  style={[
-                    styles.filterOption,
-                    filters.categoryId === category.categoryId && {
-                      borderColor: "#0056d2",
-                      borderWidth: 2,
-                      backgroundColor: "#eaf1fb",
-                    },
-                  ]}
-                  onPress={() => setFilters((prev) => ({ ...prev, categoryId: category.categoryId }))}
-                >
-                  <View style={styles.categoryOptionContent}>
-                    {/* Removed categoryIcon */}
-                    <Text
-                      style={[
-                        styles.filterOptionText,
-                        filters.categoryId === category.categoryId && { color: "#0056d2", fontWeight: "bold" },
-                      ]}
-                    >
-                      {category.categoryName}
-                    </Text>
-                  </View>
-                  {filters.categoryId === category.categoryId && (
-                    <Ionicons name="checkmark" size={20} color="#0056d2" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-          <View style={styles.modalActions}>
-            <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
-              <Text style={styles.resetButtonText}>Reset</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: "#0056d2", borderRadius: 8 }]}
-              onPress={applyFilters}
-            >
-              <Text style={[styles.applyButtonText, { color: "#fff", fontWeight: "bold" }]}>Apply Filters</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </Modal>
@@ -865,17 +636,17 @@ const FoodListScreen = () => {
                     style={[
                       styles.layoutOption,
                       isActive && styles.selectedLayoutOption,
-                      isActive && { borderColor: "#0056d2", borderWidth: 2, backgroundColor: "#eaf1fb" },
+                      isActive && { borderColor: "#0056d2",borderWidth: 2,backgroundColor: "#eaf1fb" },
                     ]}
                     onPress={() => {
                       setLayoutMode(option.columns)
                       setShowLayoutModal(false)
                     }}
                   >
-                    <View style={[styles.layoutIconContainer, { backgroundColor: isActive ? "#0056d2" : "#F9FAFB" }]}>
+                    <View style={[styles.layoutIconContainer,{ backgroundColor: isActive ? "#0056d2" : "#F9FAFB" }]}>
                       <Ionicons name={option.icon} size={24} color={isActive ? "#fff" : "#6B7280"} />
                     </View>
-                    <Text style={[styles.layoutOptionText, isActive && { color: "#0056d2", fontWeight: "bold" }]}>
+                    <Text style={[styles.layoutOptionText,isActive && { color: "#0056d2",fontWeight: "bold" }]}>
                       {option.label}
                     </Text>
                     {isActive && (
@@ -893,7 +664,7 @@ const FoodListScreen = () => {
     </Modal>
   )
 
-  const renderFoodItem = ({ item, index }) => {
+  const renderFoodItem = ({ item,index }) => {
     const isSelected = selectedFoods.some((f) => f.foodId === item.foodId)
 
     if (layoutMode === "quick") {
@@ -901,7 +672,7 @@ const FoodListScreen = () => {
         <TouchableOpacity
           key={index}
           style={styles.quickFoodCard}
-          onPress={() => navigation.navigate("FoodDetails", { food: item })}
+          onPress={() => navigation.navigate("FoodDetails",{ food: item })}
           activeOpacity={0.8}
         >
           <View style={styles.quickFoodInfo}>
@@ -919,7 +690,7 @@ const FoodListScreen = () => {
             style={styles.quickAddButton}
             onPress={(e) => {
               e.stopPropagation()
-              handleAddFoodToMeal(item, true) 
+              handleAddFoodToMeal(item,true)
             }}
           >
             <Ionicons name="add" size={24} color="#FFFFFF" />
@@ -928,11 +699,10 @@ const FoodListScreen = () => {
       )
     }
 
-    // Existing grid/list layouts
     const itemWidth =
-      layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : layoutMode === 4 ? "23%" : "23%" 
+      layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : layoutMode === 4 ? "23%" : "23%"
     const imageHeight =
-      layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : layoutMode === 4 ? 100 : 100 
+      layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : layoutMode === 4 ? 100 : 100
 
     return (
       <Animated.View
@@ -947,38 +717,38 @@ const FoodListScreen = () => {
         ]}
       >
         <TouchableOpacity
-          onPress={() => navigation.navigate("FoodDetails", { food: item })}
+          onPress={() => navigation.navigate("FoodDetails",{ food: item })}
           activeOpacity={0.8}
-          style={[styles.foodCard, isSelected && styles.selectedFoodCard]}
+          style={[styles.foodCard,isSelected && styles.selectedFoodCard]}
         >
           <View style={styles.foodImageContainer}>
-            <Image
-              source={{ uri: item.image || getFoodImage(item.foodName || "food") }}
-              style={[styles.foodImage, { height: imageHeight }]}
-              resizeMode="cover"
+            <FoodImage
+              imageUrl={item.image}
+              style={[styles.foodImage,{ height: imageHeight }]}
             />
-            <LinearGradient colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"]} style={styles.foodGradient}>
+
+            <LinearGradient colors={["rgba(0,0,0,0)","rgba(0,0,0,0.7)"]} style={styles.foodGradient}>
               <Text
-                style={[styles.foodName, { fontSize: layoutMode > 2 ? 16 : 20 }]}
+                style={[styles.foodName,{ fontSize: layoutMode > 2 ? 16 : 20 }]}
                 numberOfLines={layoutMode > 2 ? 2 : 1}
               >
                 {item.foodName || "Unknown Food"}
               </Text>
             </LinearGradient>
             <View style={styles.caloriesBadge}>
-              <Text style={[styles.caloriesText, { fontSize: layoutMode > 2 ? 10 : 12 }]}>
+              <Text style={[styles.caloriesText,{ fontSize: layoutMode > 2 ? 10 : 12 }]}>
                 {item.calories || 0} kcal
               </Text>
             </View>
             <TouchableOpacity
               style={[
                 styles.selectionButton,
-                { width: layoutMode > 2 ? 28 : 36, height: layoutMode > 2 ? 28 : 36 },
+                { width: layoutMode > 2 ? 28 : 36,height: layoutMode > 2 ? 28 : 36 },
                 isSelected && styles.selectedButton,
               ]}
               onPress={(e) => {
-                e.stopPropagation()
-                handleAddFoodToMeal(item)
+                e.stopPropagation();
+                navigation.navigate("AddFoodScreen",{ food: item });
               }}
             >
               <Ionicons
@@ -988,14 +758,14 @@ const FoodListScreen = () => {
               />
             </TouchableOpacity>
           </View>
-          <View style={[styles.foodContent, { padding: layoutMode > 2 ? 12 : 20 }]}>
-            <Text style={[styles.foodCategory, { fontSize: layoutMode > 2 ? 11 : 13 }]} numberOfLines={1}>
+          <View style={[styles.foodContent,{ padding: layoutMode > 2 ? 12 : 20 }]}>
+            <Text style={[styles.foodCategory,{ fontSize: layoutMode > 2 ? 11 : 13 }]} numberOfLines={1}>
               {categoryMap[item.categoryId] || `Category ${item.categoryId || "Unknown"}`}
             </Text>
-            <View style={[styles.macrosContainer, { gap: layoutMode > 2 ? 8 : 12 }]}>
+            <View style={[styles.macrosContainer,{ gap: layoutMode > 2 ? 8 : 12 }]}>
               {layoutMode <= 2 && (
                 <View style={styles.macroItem}>
-                  <View style={[styles.macroIconContainer, { backgroundColor: "#DBF4FF" }]}>
+                  <View style={[styles.macroIconContainer,{ backgroundColor: "#DBF4FF" }]}>
                     <Ionicons name="fitness-outline" size={14} color="#0EA5E9" />
                   </View>
                   <Text style={styles.macroText}>{item.protein || 0}g protein</Text>
@@ -1003,7 +773,7 @@ const FoodListScreen = () => {
               )}
               {layoutMode <= 2 && (
                 <View style={styles.macroItem}>
-                  <View style={[styles.macroIconContainer, { backgroundColor: "#FEF2F2" }]}>
+                  <View style={[styles.macroIconContainer,{ backgroundColor: "#FEF2F2" }]}>
                     <Ionicons name="nutrition-outline" size={14} color="#EF4444" />
                   </View>
                   <Text style={styles.macroText}>{item.carbs || 0}g carbs</Text>
@@ -1011,7 +781,7 @@ const FoodListScreen = () => {
               )}
               {layoutMode <= 2 && (
                 <View style={styles.macroItem}>
-                  <View style={[styles.macroIconContainer, { backgroundColor: "#FFFBEB" }]}>
+                  <View style={[styles.macroIconContainer,{ backgroundColor: "#FFFBEB" }]}>
                     <Ionicons name="water-outline" size={14} color="#F59E0B" />
                   </View>
                   <Text style={styles.macroText}>{item.fats || 0}g fats</Text>
@@ -1026,10 +796,10 @@ const FoodListScreen = () => {
 
   // Enhanced Input Modal Component
   const renderEnhancedInputModal = () => {
-    const { food, mealType } = pendingAddFood || {}
+    const { food,mealType } = pendingAddFood || {}
     return (
       <Modal visible={inputModalVisible} transparent animationType="none" onRequestClose={handleInputModalCancel}>
-        <Animated.View style={[styles.enhancedModalOverlay, { opacity: modalOpacity }]}>
+        <Animated.View style={[styles.enhancedModalOverlay,{ opacity: modalOpacity }]}>
           <Animated.View
             style={[
               styles.enhancedModalContainer,
@@ -1055,20 +825,20 @@ const FoodListScreen = () => {
                 },
               ]}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+              <View style={{ flexDirection: "row",alignItems: "center",flex: 1 }}>
                 <View
                   style={[
                     styles.modalIconContainer,
-                    { backgroundColor: "#fff", borderRadius: 20, marginRight: 12, padding: 6 },
+                    { backgroundColor: "#fff",borderRadius: 20,marginRight: 12,padding: 6 },
                   ]}
                 >
                   <Ionicons name="restaurant" size={22} color="#0056d2" />
                 </View>
                 <View style={styles.modalHeaderText}>
-                  <Text style={{ fontSize: 18, fontWeight: "bold", color: "#fff", letterSpacing: 0.2 }}>
+                  <Text style={{ fontSize: 18,fontWeight: "bold",color: "#fff",letterSpacing: 0.2 }}>
                     Add Food Details
                   </Text>
-                  <Text style={{ fontSize: 13, color: "#eaf1fb", marginTop: 2, fontWeight: "500" }}>
+                  <Text style={{ fontSize: 13,color: "#eaf1fb",marginTop: 2,fontWeight: "500" }}>
                     {food?.foodName} → {mealType}
                   </Text>
                 </View>
@@ -1099,7 +869,7 @@ const FoodListScreen = () => {
                         placeholder="1"
                         keyboardType="numeric"
                         value={inputValues.portionSize}
-                        onChangeText={(text) => setInputValues((prev) => ({ ...prev, portionSize: text }))}
+                        onChangeText={(text) => setInputValues((prev) => ({ ...prev,portionSize: text }))}
                         placeholderTextColor="#9CA3AF"
                       />
                       <View style={styles.inputUnit}>
@@ -1120,7 +890,7 @@ const FoodListScreen = () => {
                         placeholder="1"
                         keyboardType="numeric"
                         value={inputValues.servingSize}
-                        onChangeText={(text) => setInputValues((prev) => ({ ...prev, servingSize: text }))}
+                        onChangeText={(text) => setInputValues((prev) => ({ ...prev,servingSize: text }))}
                         placeholderTextColor="#9CA3AF"
                       />
                       <View style={styles.inputUnit}>
@@ -1168,8 +938,8 @@ const FoodListScreen = () => {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.confirmButton} onPress={handleInputModalOk}>
-                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                <Text style={[styles.confirmButtonText, { color: "#fff" }]}>Add to {mealType}</Text>
+                <Ionicons name="checkmark-circle" size={20} color="#6B7280" />
+                <Text style={[styles.confirmButtonText,{ color: "#fff" }]}>Add to {mealType}</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -1178,8 +948,11 @@ const FoodListScreen = () => {
     )
   }
 
+
   if (loading && !refreshing) {
-    return <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading foods..." />;
+    return (
+      <CommonSkeleton />
+    );
   }
 
   return (
@@ -1189,20 +962,10 @@ const FoodListScreen = () => {
         onBack={() => navigation.goBack()}
         rightActions={[
           {
-            icon: "options-outline",
-            onPress: () => setShowFilters(true),
-            color: "#0056d2",
-          },
-          {
             icon: "heart-outline",
             onPress: () => navigation.navigate("FavoriteFoodScreen"),
             color: "#EF4444",
-          },
-          {
-            icon: "play-circle-outline",
-            onPress: () => navigation.navigate("FoodDailyLogScreen"),
-            color: "#10B981",
-          },
+          }
         ]}
         backgroundColor="#fff"
         containerStyle={{
@@ -1210,7 +973,7 @@ const FoodListScreen = () => {
           borderBottomColor: "#E5E7EB",
           elevation: 2,
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
+          shadowOffset: { width: 0,height: 2 },
           shadowOpacity: 0.06,
           shadowRadius: 4,
         }}
@@ -1245,7 +1008,7 @@ const FoodListScreen = () => {
         ]}
       >
         <View style={styles.searchInputContainer}>
-          <View style={{ marginRight: 8, alignItems: "center", justifyContent: "center" }}>
+          <View style={{ marginRight: 8,alignItems: "center",justifyContent: "center" }}>
             <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
           </View>
           <TextInput
@@ -1264,7 +1027,7 @@ const FoodListScreen = () => {
             </TouchableOpacity>
           ) : null}
         </View>
-        <TouchableOpacity style={[styles.searchButton, { backgroundColor: "#0056d2" }]} onPress={handleSearch}>
+        <TouchableOpacity style={[styles.searchButton,{ backgroundColor: "#0056d2" }]} onPress={handleSearch}>
           <Ionicons name="search" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
@@ -1273,7 +1036,7 @@ const FoodListScreen = () => {
       <Animated.View
         style={[
           styles.sectionContainer, // Use a consistent section container style
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          { opacity: fadeAnim,transform: [{ translateY: slideAnim }] },
         ]}
       >
         <FoodAIRecommendBanner />
@@ -1289,13 +1052,13 @@ const FoodListScreen = () => {
                 size={18}
                 color="#0056d2"
               />
-              <Text style={[styles.layoutButtonText, { color: "#0056d2", fontSize: 15, fontWeight: "bold" }]}>
+              <Text style={[styles.layoutButtonText,{ color: "#0056d2",fontSize: 15,fontWeight: "bold" }]}>
                 {LAYOUT_OPTIONS.find((opt) => opt.columns === layoutMode)?.label || `${layoutMode} col`}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
               <Ionicons name="swap-vertical-outline" size={20} color="#0056d2" />
-              <Text style={[styles.sortButtonText, { color: "#0056d2", fontSize: 15, fontWeight: "bold" }]}>Sort</Text>
+              <Text style={[styles.sortButtonText,{ color: "#0056d2",fontSize: 15,fontWeight: "bold" }]}>Sort</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1389,7 +1152,11 @@ const FoodListScreen = () => {
         )}
 
       <View style={styles.contentContainer}>
-        {error && !refreshing ? (
+        {loading && !refreshing ? (
+          <Animated.View style={{ width: '100%',opacity: 1,transform: [{ translateY: 0 }] }}>
+            <ShimmerCard height={280} style={{ borderRadius: 16,width: '100%' }} />
+          </Animated.View>
+        ) : error && !refreshing ? (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
             <Text style={styles.errorText}>{error}</Text>
@@ -1402,10 +1169,10 @@ const FoodListScreen = () => {
             <FlatList
               data={foods}
               renderItem={renderFoodItem}
-              keyExtractor={(item, index) => (item.foodId ? `food-${item.foodId}` : `item-${index}`)}
-              numColumns={layoutMode === "quick" ? 1 : layoutMode} // Conditional numColumns
+              keyExtractor={(item,index) => (item.foodId ? `food-${item.foodId}` : `item-${index}`)}
+              numColumns={layoutMode === "quick" ? 1 : layoutMode}
               key={layoutMode}
-              contentContainerStyle={[styles.listContainer, { minHeight: height - 400 }]}
+              contentContainerStyle={[styles.listContainer,{ minHeight: height - 400 }]}
               style={styles.flatListStyle}
               refreshControl={
                 <RefreshControl
@@ -1436,11 +1203,9 @@ const FoodListScreen = () => {
                 ) : null
               }
             />
-            {/* Pagination removed: all foods shown in one scroll */}
           </>
         )}
       </View>
-      {renderFilterModal()}
       {renderSortModal()}
       {renderLayoutModal()}
       {renderEnhancedInputModal()}
@@ -1449,8 +1214,8 @@ const FoodListScreen = () => {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: theme.primaryColor },
-  header: { paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0, paddingBottom: 16 },
+  safeArea: { flex: 1,backgroundColor: theme.primaryColor },
+  header: { paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,paddingBottom: 16 },
   headerContent: {
     flexDirection: "row",
     alignItems: "center",
@@ -1458,14 +1223,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
   },
-  backButton: { padding: 8, borderRadius: 20, backgroundColor: "rgba(255, 255, 255, 0.2)" },
-  headerTextContainer: { flex: 1, alignItems: "center" },
-  headerTitle: { fontSize: 24, fontWeight: "700", color: "#FFFFFF", textAlign: "center" },
-  headerSubtitle: { fontSize: 14, color: "rgba(255, 255, 255, 0.8)", textAlign: "center", marginTop: 2 },
-  headerActionButton: { padding: 8, borderRadius: 20, backgroundColor: "rgba(255, 255, 255, 0.2)" },
+  backButton: { padding: 8,borderRadius: 20,backgroundColor: "rgba(255, 255, 255, 0.2)" },
+  headerTextContainer: { flex: 1,alignItems: "center" },
+  headerTitle: { fontSize: 24,fontWeight: "700",color: "#FFFFFF",textAlign: "center" },
+  headerSubtitle: { fontSize: 14,color: "rgba(255, 255, 255, 0.8)",textAlign: "center",marginTop: 2 },
+  headerActionButton: { padding: 8,borderRadius: 20,backgroundColor: "rgba(255, 255, 255, 0.2)" },
   searchContainer: {
     backgroundColor: "#F8FAFC",
-    marginTop: 20,
+    marginTop: 30,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 24,
@@ -1482,13 +1247,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
   searchIcon: { marginRight: 12 },
-  searchInput: { flex: 1, fontSize: 16, color: "#1E293B", paddingVertical: 16 },
+  searchInput: { flex: 1,fontSize: 16,color: "#1E293B",paddingVertical: 16 },
   clearButton: { padding: 4 },
   searchButton: {
     width: 48,
@@ -1498,20 +1263,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // New style for consistent section padding
+
   sectionContainer: {
     paddingHorizontal: 16,
-    marginBottom: 16, // Added margin for spacing between AI banners
+    marginBottom: 16,
   },
-  categoriesSection: { backgroundColor: "#F8FAFC", paddingBottom: 16 },
+  categoriesSection: { backgroundColor: "#F8FAFC",paddingBottom: 16 },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     marginBottom: 12,
+    paddingTop: 10
   },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerActions: { flexDirection: "row",alignItems: "center",gap: 8 },
   layoutButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1520,13 +1286,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
   },
-  layoutButtonText: { fontSize: 12, color: "#4F46E5", fontWeight: "500", marginLeft: 4 },
-  sectionTitle: { fontSize: 18, fontWeight: "600", color: "#1E293B" },
+  layoutButtonText: { fontSize: 12,color: "#4F46E5",fontWeight: "500",marginLeft: 4 },
+  sectionTitle: { fontSize: 18,fontWeight: "600",color: "#1E293B" },
   sortButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1535,12 +1301,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
   },
-  sortButtonText: { fontSize: 14, color: "#4F46E5", fontWeight: "500", marginLeft: 4 },
+  sortButtonText: { fontSize: 14,color: "#4F46E5",fontWeight: "500",marginLeft: 4 },
   categoriesList: { paddingHorizontal: 16 },
   categoryCard: {
     marginRight: 12,
@@ -1549,9 +1315,10 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
     borderRadius: 12,
+    backgroundColor: "#F8FAFC",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -1573,8 +1340,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
-  categoryName: { fontSize: 16, fontWeight: "600", textAlign: "center" }, // Increased font size for better visibility
-  selectedIndicator: { position: "absolute", top: 8, right: 8 },
+  categoryName: { fontSize: 16,fontWeight: "600",textAlign: "center" }, // Increased font size for better visibility
+  selectedIndicator: { position: "absolute",top: 8,right: 8 },
   selectedFoodsSection: {
     backgroundColor: "#F8FAFC",
     paddingVertical: 12,
@@ -1588,8 +1355,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 8,
   },
-  selectedTitle: { fontSize: 16, fontWeight: "600", color: "#1E293B" },
-  clearSelectedText: { fontSize: 14, color: "#EF4444", fontWeight: "500" },
+  selectedTitle: { fontSize: 16,fontWeight: "600",color: "#1E293B" },
+  clearSelectedText: { fontSize: 14,color: "#EF4444",fontWeight: "500" },
   selectedScroll: { paddingHorizontal: 16 },
   selectedFoodChip: {
     flexDirection: "row",
@@ -1600,16 +1367,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
   },
-  selectedFoodImage: { width: 24, height: 24, borderRadius: 12, marginRight: 8 },
-  selectedFoodName: { fontSize: 14, color: "#1E293B", fontWeight: "500", maxWidth: 80 },
-  removeSelectedButton: { marginLeft: 8, padding: 2 },
-  sortModal: { backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: height * 0.6 },
-  sortContent: { paddingHorizontal: 20, paddingVertical: 16 },
+  selectedFoodImage: { width: 24,height: 24,borderRadius: 12,marginRight: 8 },
+  selectedFoodName: { fontSize: 14,color: "#1E293B",fontWeight: "500",maxWidth: 80 },
+  removeSelectedButton: { marginLeft: 8,padding: 2 },
+  sortModal: { backgroundColor: "#FFFFFF",borderTopLeftRadius: 24,borderTopRightRadius: 24,maxHeight: height * 0.6 },
+  sortContent: { paddingHorizontal: 20,paddingVertical: 16 },
   sortOption: {
     flexDirection: "row",
     alignItems: "center",
@@ -1620,8 +1387,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: "#F9FAFB",
   },
-  selectedSortOption: { backgroundColor: "#EEF2FF", borderWidth: 1, borderColor: "#4F46E5" },
-  sortOptionLeft: { flexDirection: "row", alignItems: "center" },
+  selectedSortOption: { backgroundColor: "#EEF2FF",borderWidth: 1,borderColor: "#4F46E5" },
+  sortOptionLeft: { flexDirection: "row",alignItems: "center" },
   sortIconContainer: {
     width: 32,
     height: 32,
@@ -1630,8 +1397,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
-  sortOptionText: { fontSize: 16, color: "#6B7280", fontWeight: "500" },
-  selectedSortOptionText: { color: "#4F46E5", fontWeight: "600" },
+  sortOptionText: { fontSize: 16,color: "#6B7280",fontWeight: "500" },
+  selectedSortOptionText: { color: "#4F46E5",fontWeight: "600" },
   activeFiltersContainer: {
     backgroundColor: "#F8FAFC",
     paddingHorizontal: 16,
@@ -1652,12 +1419,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  activeFilterText: { fontSize: 12, color: "#0056d2", fontWeight: "500" },
-  clearAllFiltersButton: { paddingHorizontal: 12, paddingVertical: 6 },
-  clearAllFiltersText: { fontSize: 12, color: "#EF4444", fontWeight: "600" },
-  contentContainer: { flex: 1, backgroundColor: "#F9FAFB" },
+  activeFilterText: { fontSize: 12,color: "#0056d2",fontWeight: "500" },
+  clearAllFiltersButton: { paddingHorizontal: 12,paddingVertical: 6 },
+  clearAllFiltersText: { fontSize: 12,color: "#EF4444",fontWeight: "600" },
+  contentContainer: { flex: 1,backgroundColor: "#F9FAFB" },
   flatListStyle: { flex: 1 },
-  listContainer: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, backgroundColor: "#F9FAFB" },
+  listContainer: { paddingHorizontal: 16,paddingTop: 16,paddingBottom: 16,backgroundColor: "#F9FAFB" },
   paginationContainer: {
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
@@ -1665,9 +1432,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
   },
-  paginationInfo: { alignItems: "center", marginBottom: 12 },
-  paginationText: { fontSize: 14, color: "#6B7280", fontWeight: "500" },
-  paginationControls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  paginationInfo: { alignItems: "center",marginBottom: 12 },
+  paginationText: { fontSize: 14,color: "#6B7280",fontWeight: "500" },
+  paginationControls: { flexDirection: "row",alignItems: "center",justifyContent: "center",gap: 8 },
   paginationButton: {
     width: 36,
     height: 36,
@@ -1678,7 +1445,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  paginationButtonDisabled: { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
+  paginationButtonDisabled: { backgroundColor: "#F3F4F6",borderColor: "#E5E7EB" },
   pageNumbersContainer: { maxWidth: width * 0.6 },
   pageNumberButton: {
     minWidth: 36,
@@ -1692,11 +1459,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  pageNumberButtonActive: { backgroundColor: "#4F46E5", borderColor: "#4F46E5" },
-  pageNumberText: { fontSize: 14, color: "#6B7280", fontWeight: "500" },
-  pageNumberTextActive: { color: "#FFFFFF", fontWeight: "600" },
-  paginationEllipsis: { fontSize: 14, color: "#9CA3AF", paddingHorizontal: 8, alignSelf: "center" },
-  pageSizeContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  pageNumberButtonActive: { backgroundColor: "#4F46E5",borderColor: "#4F46E5" },
+  pageNumberText: { fontSize: 14,color: "#6B7280",fontWeight: "500" },
+  pageNumberTextActive: { color: "#FFFFFF",fontWeight: "600" },
+  paginationEllipsis: { fontSize: 14,color: "#9CA3AF",paddingHorizontal: 8,alignSelf: "center" },
+  pageSizeContainer: { flexDirection: "row",flexWrap: "wrap",gap: 8 },
   pageSizeButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -1707,23 +1474,23 @@ const styles = StyleSheet.create({
     minWidth: 40,
     alignItems: "center",
   },
-  selectedPageSize: { backgroundColor: "#4F46E5", borderColor: "#4F46E5" },
-  pageSizeText: { fontSize: 14, color: "#6B7280", fontWeight: "500" },
-  selectedPageSizeText: { color: "#FFFFFF", fontWeight: "600" },
+  selectedPageSize: { backgroundColor: "#4F46E5",borderColor: "#4F46E5" },
+  pageSizeText: { fontSize: 14,color: "#6B7280",fontWeight: "500" },
+  selectedPageSizeText: { color: "#FFFFFF",fontWeight: "600" },
   foodItem: { marginBottom: 20 },
   foodCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
   },
-  selectedFoodCard: { borderWidth: 2, borderColor: "#4F46E5" },
+  selectedFoodCard: { borderWidth: 2,borderColor: "#4F46E5" },
   foodImageContainer: { position: "relative" },
-  foodImage: { width: "100%", height: 180 },
+  foodImage: { width: "100%",height: 180 },
   foodGradient: {
     position: "absolute",
     left: 0,
@@ -1734,7 +1501,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
-  foodName: { fontSize: 20, fontWeight: "700", color: "#FFFFFF" },
+  foodName: { fontSize: 20,fontWeight: "700",color: "#FFFFFF" },
   caloriesBadge: {
     position: "absolute",
     top: 16,
@@ -1744,7 +1511,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#10B981",
   },
-  caloriesText: { fontSize: 12, color: "#FFFFFF", fontWeight: "600" },
+  caloriesText: { fontSize: 12,color: "#FFFFFF",fontWeight: "600" },
   selectionButton: {
     position: "absolute",
     top: 16,
@@ -1758,9 +1525,9 @@ const styles = StyleSheet.create({
   },
   selectedButton: { backgroundColor: "#4F46E5" },
   foodContent: { padding: 20 },
-  foodCategory: { fontSize: 13, color: "#64748B", fontWeight: "500", marginBottom: 12 },
-  macrosContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  macroItem: { flexDirection: "row", alignItems: "center" },
+  foodCategory: { fontSize: 13,color: "#64748B",fontWeight: "500",marginBottom: 12 },
+  macrosContainer: { flexDirection: "row",flexWrap: "wrap",gap: 12 },
+  macroItem: { flexDirection: "row",alignItems: "center" },
   macroIconContainer: {
     width: 24,
     height: 24,
@@ -1769,9 +1536,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 8,
   },
-  macroText: { fontSize: 12, color: "#64748B", fontWeight: "500" },
-  emptyContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 80, minHeight: height * 0.4 },
-  emptyTitle: { fontSize: 18, fontWeight: "600", color: "#374151", marginTop: 16, marginBottom: 8 },
+  macroText: { fontSize: 12,color: "#64748B",fontWeight: "500" },
+  emptyContainer: { alignItems: "center",justifyContent: "center",paddingVertical: 80,minHeight: height * 0.4 },
+  emptyTitle: { fontSize: 18,fontWeight: "600",color: "#374151",marginTop: 16,marginBottom: 8 },
   emptyText: {
     fontSize: 14,
     color: "#6B7280",
@@ -1780,8 +1547,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 32,
   },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16, backgroundColor: "#F9FAFB" },
-  loadingText: { fontSize: 16, color: "#4F46E5", fontWeight: "500" },
+  loadingContainer: { flex: 1,justifyContent: "center",alignItems: "center",gap: 16,backgroundColor: "#F9FAFB" },
+  loadingText: { fontSize: 16,color: "#4F46E5",fontWeight: "500" },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1791,10 +1558,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB",
     minHeight: height * 0.6,
   },
-  errorText: { fontSize: 16, color: "#EF4444", textAlign: "center", lineHeight: 24 },
-  retryButton: { backgroundColor: "#0056d2", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
-  retryButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "flex-end" },
+  errorText: { fontSize: 16,color: "#EF4444",textAlign: "center",lineHeight: 24 },
+  retryButton: { backgroundColor: "#0056d2",paddingVertical: 12,paddingHorizontal: 24,borderRadius: 12 },
+  retryButtonText: { color: "#FFFFFF",fontSize: 16,fontWeight: "600" },
+  modalOverlay: { flex: 1,backgroundColor: "rgba(0, 0, 0, 0.5)",justifyContent: "flex-end" },
   filterModal: {
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 24,
@@ -1810,10 +1577,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#1F2937" },
-  filterContent: { paddingHorizontal: 20, paddingVertical: 16 },
+  modalTitle: { fontSize: 18,fontWeight: "700",color: "#1F2937" },
+  filterContent: { paddingHorizontal: 20,paddingVertical: 16 },
   filterSection: { marginBottom: 24 },
-  filterLabel: { fontSize: 16, fontWeight: "600", color: "#374151", marginBottom: 12 },
+  filterLabel: { fontSize: 16,fontWeight: "600",color: "#374151",marginBottom: 12 },
   filterInput: {
     borderWidth: 1,
     borderColor: "#E5E7EB",
@@ -1823,20 +1590,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1F2937",
   },
-  dateRow: { flexDirection: "row", gap: 12 },
+  dateRow: { flexDirection: "row",gap: 12 },
   dateInputContainer: { flex: 1 },
-  dateLabel: { fontSize: 14, color: "#6B7280", marginBottom: 8 },
+  dateLabel: { fontSize: 14,color: "#6B7280",marginBottom: 8 },
   dateInput: {
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: "#1F2937",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
   },
-  filterOption: {
-    flexDirection: "row",
+  modalTitle: { fontSize: 18,fontWeight: "700",color: "#1F2937" },
+  filterContent: { paddingHorizontal: 20,paddingVertical: 16 },
+  filterSection: { marginBottom: 24 },
+  filterLabel: { fontSize: 16,fontWeight: "600",color: "#374151",marginBottom: 12 },
+  filterInput: {
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 12,
@@ -1845,10 +1612,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: "#F9FAFB",
   },
-  selectedOption: { backgroundColor: "#EEF2FF", borderWidth: 1, borderColor: "#4F46E5" },
-  filterOptionText: { fontSize: 14, color: "#6B7280", fontWeight: "500" },
-  selectedOptionText: { color: "#4F46E5", fontWeight: "600" },
-  categoryOptionContent: { flexDirection: "row", alignItems: "center" },
+  selectedOption: { backgroundColor: "#EEF2FF",borderWidth: 1,borderColor: "#4F46E5" },
+  filterOptionText: { fontSize: 14,color: "#6B7280",fontWeight: "500" },
+  selectedOptionText: { color: "#4F46E5",fontWeight: "600" },
+  categoryOptionContent: { flexDirection: "row",alignItems: "center" },
   categoryIcon: {
     width: 24,
     height: 24,
@@ -1866,19 +1633,19 @@ const styles = StyleSheet.create({
     borderTopColor: "#F3F4F6",
     gap: 12,
   },
-  resetButton: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center" },
-  resetButtonText: { fontSize: 16, color: "#6B7280", fontWeight: "600" },
-  applyButton: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#4F46E5", alignItems: "center" },
-  applyButtonText: { fontSize: 16, color: "#FFFFFF", fontWeight: "600" },
+  resetButton: { flex: 1,paddingVertical: 12,borderRadius: 12,backgroundColor: "#F3F4F6",alignItems: "center" },
+  resetButtonText: { fontSize: 16,color: "#6B7280",fontWeight: "600" },
+  applyButton: { flex: 1,paddingVertical: 12,borderRadius: 12,backgroundColor: "#4F46E5",alignItems: "center" },
+  applyButtonText: { fontSize: 16,color: "#FFFFFF",fontWeight: "600" },
   layoutModal: {
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: height * 0.4,
   },
-  layoutContent: { paddingHorizontal: 20, paddingVertical: 16 },
-  layoutDescription: { fontSize: 16, color: "#6B7280", textAlign: "center", marginBottom: 16 },
-  layoutGrid: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", gap: 12 },
+  layoutContent: { paddingHorizontal: 20,paddingVertical: 16 },
+  layoutDescription: { fontSize: 16,color: "#6B7280",textAlign: "center",marginBottom: 16 },
+  layoutGrid: { flexDirection: "row",justifyContent: "space-around",alignItems: "center",gap: 12 },
   layoutOption: {
     flex: 1,
     maxWidth: (width - 80) / 4,
@@ -1891,7 +1658,7 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
     position: "relative",
   },
-  selectedLayoutOption: { backgroundColor: "#EEF2FF", borderColor: "#4F46E5" },
+  selectedLayoutOption: { backgroundColor: "#EEF2FF",borderColor: "#4F46E5" },
   layoutIconContainer: {
     width: 36,
     height: 36,
@@ -1900,9 +1667,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
-  layoutOptionText: { fontSize: 12, color: "#6B7280", fontWeight: "500", textAlign: "center" },
-  selectedLayoutOptionText: { color: "#4F46E5", fontWeight: "600" },
-  layoutCheckmark: { position: "absolute", top: 4, right: 4 },
+  layoutOptionText: { fontSize: 12,color: "#6B7280",fontWeight: "500",textAlign: "center" },
+  selectedLayoutOptionText: { color: "#4F46E5",fontWeight: "600" },
+  layoutCheckmark: { position: "absolute",top: 4,right: 4 },
   // Enhanced Input Modal Styles
   enhancedModalOverlay: {
     flex: 1,
@@ -1918,7 +1685,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     height: height * 0.85, // Thay đổi từ maxHeight thành height cố định
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0,height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 10,
@@ -2018,7 +1785,7 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
@@ -2086,7 +1853,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -2126,7 +1893,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -2150,7 +1917,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10, // Using SPACING / 2
+    marginRight: 10,
   },
   aiRecommendBannerText: {},
   aiRecommendBannerTitle: {

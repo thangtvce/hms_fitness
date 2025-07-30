@@ -1,88 +1,87 @@
-import React, { useState, useEffect } from "react";
+import React,{ useState,useEffect } from "react";
 import { useAuth } from "context/AuthContext";
-import { 
-  ScrollView, 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
+import {
+  ScrollView,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
   Alert,
   Dimensions,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import Slider from "@react-native-community/slider";
 import Header from "../../components/Header";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
-import Loading from "components/Loading";
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
 const { width } = Dimensions.get('window');
 
 const PRESET_TARGETS = [
-  { name: "Cutting - Standard", type: "Cutting", calories: 1700, carbs: 150, protein: 130, fats: 40, description: "Balanced cutting macros for steady fat loss" },
-  { name: "Cutting - High Protein", type: "Cutting", calories: 1600, carbs: 120, protein: 160, fats: 35, description: "Extra protein to preserve muscle while cutting" },
-  { name: "Cutting - Low Carb", type: "Cutting", calories: 1500, carbs: 80, protein: 140, fats: 50, description: "Lower carbs for faster fat loss" },
-  { name: "Cutting - Aggressive", type: "Cutting", calories: 1400, carbs: 100, protein: 150, fats: 30, description: "Aggressive cut for rapid results" },
-  { name: "Cutting - Moderate", type: "Cutting", calories: 1800, carbs: 160, protein: 120, fats: 45, description: "Sustainable moderate cutting approach" },
-  { name: "Cutting - Carb Cycling", type: "Cutting", calories: 1650, carbs: 130, protein: 140, fats: 40, description: "Flexible carb cycling for cutting" },
-  { name: "Cutting - Mini Cut", type: "Cutting", calories: 1550, carbs: 110, protein: 145, fats: 35, description: "Short-term aggressive mini cut" },
-  { name: "Cutting - Contest Prep", type: "Cutting", calories: 1300, carbs: 70, protein: 160, fats: 25, description: "Competition preparation macros" },
+  { name: "Cutting - Standard",type: "Cutting",calories: 1700,carbs: 150,protein: 130,fats: 40,description: "Balanced cutting macros for steady fat loss" },
+  { name: "Cutting - High Protein",type: "Cutting",calories: 1600,carbs: 120,protein: 160,fats: 35,description: "Extra protein to preserve muscle while cutting" },
+  { name: "Cutting - Low Carb",type: "Cutting",calories: 1500,carbs: 80,protein: 140,fats: 50,description: "Lower carbs for faster fat loss" },
+  { name: "Cutting - Aggressive",type: "Cutting",calories: 1400,carbs: 100,protein: 150,fats: 30,description: "Aggressive cut for rapid results" },
+  { name: "Cutting - Moderate",type: "Cutting",calories: 1800,carbs: 160,protein: 120,fats: 45,description: "Sustainable moderate cutting approach" },
+  { name: "Cutting - Carb Cycling",type: "Cutting",calories: 1650,carbs: 130,protein: 140,fats: 40,description: "Flexible carb cycling for cutting" },
+  { name: "Cutting - Mini Cut",type: "Cutting",calories: 1550,carbs: 110,protein: 145,fats: 35,description: "Short-term aggressive mini cut" },
+  { name: "Cutting - Contest Prep",type: "Cutting",calories: 1300,carbs: 70,protein: 160,fats: 25,description: "Competition preparation macros" },
 
   // Bulking (10 options)
-  { name: "Bulking - Standard", type: "Bulking", calories: 2800, carbs: 320, protein: 120, fats: 70, description: "Classic bulking macros for muscle gain" },
-  { name: "Bulking - High Carb", type: "Bulking", calories: 3200, carbs: 400, protein: 110, fats: 60, description: "High carb approach for maximum energy" },
-  { name: "Bulking - Clean", type: "Bulking", calories: 2600, carbs: 300, protein: 140, fats: 60, description: "Clean bulk with quality nutrition" },
-  { name: "Bulking - High Fat", type: "Bulking", calories: 3000, carbs: 250, protein: 120, fats: 100, description: "Higher fat for calorie density" },
-  { name: "Bulking - Lean Gains", type: "Bulking", calories: 2500, carbs: 280, protein: 130, fats: 65, description: "Slow, lean muscle building" },
-  { name: "Bulking - Power", type: "Bulking", calories: 3500, carbs: 450, protein: 130, fats: 80, description: "High calorie for strength athletes" },
-  { name: "Bulking - Moderate", type: "Bulking", calories: 2700, carbs: 310, protein: 125, fats: 70, description: "Balanced moderate bulking" },
-  { name: "Bulking - High Protein", type: "Bulking", calories: 2900, carbs: 280, protein: 150, fats: 75, description: "Protein-focused muscle building" },
-  { name: "Bulking - Dirty Bulk", type: "Bulking", calories: 3800, carbs: 500, protein: 120, fats: 90, description: "Maximum calories for rapid gains" },
-  { name: "Bulking - Ectomorph", type: "Bulking", calories: 3300, carbs: 420, protein: 115, fats: 75, description: "High calories for hard gainers" },
+  { name: "Bulking - Standard",type: "Bulking",calories: 2800,carbs: 320,protein: 120,fats: 70,description: "Classic bulking macros for muscle gain" },
+  { name: "Bulking - High Carb",type: "Bulking",calories: 3200,carbs: 400,protein: 110,fats: 60,description: "High carb approach for maximum energy" },
+  { name: "Bulking - Clean",type: "Bulking",calories: 2600,carbs: 300,protein: 140,fats: 60,description: "Clean bulk with quality nutrition" },
+  { name: "Bulking - High Fat",type: "Bulking",calories: 3000,carbs: 250,protein: 120,fats: 100,description: "Higher fat for calorie density" },
+  { name: "Bulking - Lean Gains",type: "Bulking",calories: 2500,carbs: 280,protein: 130,fats: 65,description: "Slow, lean muscle building" },
+  { name: "Bulking - Power",type: "Bulking",calories: 3500,carbs: 450,protein: 130,fats: 80,description: "High calorie for strength athletes" },
+  { name: "Bulking - Moderate",type: "Bulking",calories: 2700,carbs: 310,protein: 125,fats: 70,description: "Balanced moderate bulking" },
+  { name: "Bulking - High Protein",type: "Bulking",calories: 2900,carbs: 280,protein: 150,fats: 75,description: "Protein-focused muscle building" },
+  { name: "Bulking - Dirty Bulk",type: "Bulking",calories: 3800,carbs: 500,protein: 120,fats: 90,description: "Maximum calories for rapid gains" },
+  { name: "Bulking - Ectomorph",type: "Bulking",calories: 3300,carbs: 420,protein: 115,fats: 75,description: "High calories for hard gainers" },
 
   // Maintenance (6 options)
-  { name: "Maintenance - Balanced", type: "Maintenance", calories: 2200, carbs: 220, protein: 110, fats: 55, description: "Perfectly balanced maintenance macros" },
-  { name: "Maintenance - High Protein", type: "Maintenance", calories: 2100, carbs: 180, protein: 140, fats: 50, description: "Protein-focused maintenance" },
-  { name: "Maintenance - Low Fat", type: "Maintenance", calories: 2300, carbs: 250, protein: 110, fats: 35, description: "Lower fat maintenance approach" },
-  { name: "Maintenance - Active", type: "Maintenance", calories: 2400, carbs: 240, protein: 120, fats: 60, description: "For active individuals" },
-  { name: "Maintenance - Sedentary", type: "Maintenance", calories: 1900, carbs: 190, protein: 100, fats: 50, description: "Lower activity maintenance" },
-  { name: "Maintenance - Flexible", type: "Maintenance", calories: 2250, carbs: 200, protein: 115, fats: 65, description: "Flexible maintenance approach" },
+  { name: "Maintenance - Balanced",type: "Maintenance",calories: 2200,carbs: 220,protein: 110,fats: 55,description: "Perfectly balanced maintenance macros" },
+  { name: "Maintenance - High Protein",type: "Maintenance",calories: 2100,carbs: 180,protein: 140,fats: 50,description: "Protein-focused maintenance" },
+  { name: "Maintenance - Low Fat",type: "Maintenance",calories: 2300,carbs: 250,protein: 110,fats: 35,description: "Lower fat maintenance approach" },
+  { name: "Maintenance - Active",type: "Maintenance",calories: 2400,carbs: 240,protein: 120,fats: 60,description: "For active individuals" },
+  { name: "Maintenance - Sedentary",type: "Maintenance",calories: 1900,carbs: 190,protein: 100,fats: 50,description: "Lower activity maintenance" },
+  { name: "Maintenance - Flexible",type: "Maintenance",calories: 2250,carbs: 200,protein: 115,fats: 65,description: "Flexible maintenance approach" },
 
   // Keto (5 options)
-  { name: "Keto - Standard", type: "Keto", calories: 1500, carbs: 30, protein: 100, fats: 120, description: "Classic ketogenic macros" },
-  { name: "Keto - High Protein", type: "Keto", calories: 1550, carbs: 30, protein: 130, fats: 100, description: "Protein-enhanced keto" },
-  { name: "Keto - Therapeutic", type: "Keto", calories: 1400, carbs: 20, protein: 90, fats: 125, description: "Medical-grade keto ratios" },
-  { name: "Keto - Maintenance", type: "Keto", calories: 1800, carbs: 35, protein: 110, fats: 140, description: "Keto for weight maintenance" },
-  { name: "Keto - Cyclical", type: "Keto", calories: 1600, carbs: 40, protein: 120, fats: 110, description: "Cyclical keto approach" },
+  { name: "Keto - Standard",type: "Keto",calories: 1500,carbs: 30,protein: 100,fats: 120,description: "Classic ketogenic macros" },
+  { name: "Keto - High Protein",type: "Keto",calories: 1550,carbs: 30,protein: 130,fats: 100,description: "Protein-enhanced keto" },
+  { name: "Keto - Therapeutic",type: "Keto",calories: 1400,carbs: 20,protein: 90,fats: 125,description: "Medical-grade keto ratios" },
+  { name: "Keto - Maintenance",type: "Keto",calories: 1800,carbs: 35,protein: 110,fats: 140,description: "Keto for weight maintenance" },
+  { name: "Keto - Cyclical",type: "Keto",calories: 1600,carbs: 40,protein: 120,fats: 110,description: "Cyclical keto approach" },
 
   // Low-Carb (4 options)
-  { name: "Low-Carb - Moderate", type: "Low-Carb", calories: 1600, carbs: 60, protein: 120, fats: 80, description: "Moderate low-carb approach" },
-  { name: "Low-Carb - High Fat", type: "Low-Carb", calories: 1700, carbs: 50, protein: 100, fats: 100, description: "High fat, low carb" },
-  { name: "Low-Carb - Athlete", type: "Low-Carb", calories: 2000, carbs: 80, protein: 140, fats: 90, description: "Low carb for athletes" },
-  { name: "Low-Carb - Flexible", type: "Low-Carb", calories: 1750, carbs: 70, protein: 130, fats: 85, description: "Flexible low-carb lifestyle" },
+  { name: "Low-Carb - Moderate",type: "Low-Carb",calories: 1600,carbs: 60,protein: 120,fats: 80,description: "Moderate low-carb approach" },
+  { name: "Low-Carb - High Fat",type: "Low-Carb",calories: 1700,carbs: 50,protein: 100,fats: 100,description: "High fat, low carb" },
+  { name: "Low-Carb - Athlete",type: "Low-Carb",calories: 2000,carbs: 80,protein: 140,fats: 90,description: "Low carb for athletes" },
+  { name: "Low-Carb - Flexible",type: "Low-Carb",calories: 1750,carbs: 70,protein: 130,fats: 85,description: "Flexible low-carb lifestyle" },
 
   // High-Protein (4 options)
-  { name: "High-Protein - Lean", type: "High-Protein", calories: 1800, carbs: 180, protein: 180, fats: 40, description: "Maximum protein, minimal fat" },
-  { name: "High-Protein - Moderate", type: "High-Protein", calories: 1900, carbs: 160, protein: 170, fats: 60, description: "High protein with moderate fats" },
-  { name: "High-Protein - Bulking", type: "High-Protein", calories: 2400, carbs: 200, protein: 200, fats: 70, description: "High protein muscle building" },
-  { name: "High-Protein - Recovery", type: "High-Protein", calories: 2100, carbs: 180, protein: 190, fats: 55, description: "Enhanced recovery focus" },
+  { name: "High-Protein - Lean",type: "High-Protein",calories: 1800,carbs: 180,protein: 180,fats: 40,description: "Maximum protein, minimal fat" },
+  { name: "High-Protein - Moderate",type: "High-Protein",calories: 1900,carbs: 160,protein: 170,fats: 60,description: "High protein with moderate fats" },
+  { name: "High-Protein - Bulking",type: "High-Protein",calories: 2400,carbs: 200,protein: 200,fats: 70,description: "High protein muscle building" },
+  { name: "High-Protein - Recovery",type: "High-Protein",calories: 2100,carbs: 180,protein: 190,fats: 55,description: "Enhanced recovery focus" },
 
   // Athlete (4 options)
-  { name: "Athlete - Endurance", type: "Athlete", calories: 2500, carbs: 400, protein: 120, fats: 40, description: "Endurance sports nutrition" },
-  { name: "Athlete - Strength", type: "Athlete", calories: 2700, carbs: 300, protein: 160, fats: 60, description: "Strength training focus" },
-  { name: "Athlete - Mixed", type: "Athlete", calories: 2600, carbs: 350, protein: 140, fats: 50, description: "Mixed training approach" },
-  { name: "Athlete - Competition", type: "Athlete", calories: 2800, carbs: 380, protein: 150, fats: 55, description: "Competition preparation" },
+  { name: "Athlete - Endurance",type: "Athlete",calories: 2500,carbs: 400,protein: 120,fats: 40,description: "Endurance sports nutrition" },
+  { name: "Athlete - Strength",type: "Athlete",calories: 2700,carbs: 300,protein: 160,fats: 60,description: "Strength training focus" },
+  { name: "Athlete - Mixed",type: "Athlete",calories: 2600,carbs: 350,protein: 140,fats: 50,description: "Mixed training approach" },
+  { name: "Athlete - Competition",type: "Athlete",calories: 2800,carbs: 380,protein: 150,fats: 55,description: "Competition preparation" },
 
   // Specialized Diets (9 options)
-  { name: "Vegan - Balanced", type: "Vegan", calories: 2200, carbs: 250, protein: 100, fats: 60, description: "Balanced plant-based nutrition" },
-  { name: "Vegan - High Protein", type: "Vegan", calories: 2100, carbs: 200, protein: 130, fats: 60, description: "Protein-focused vegan diet" },
-  { name: "Vegetarian - Standard", type: "Vegetarian", calories: 2300, carbs: 230, protein: 110, fats: 55, description: "Standard vegetarian macros" },
-  { name: "Paleo - Standard", type: "Paleo", calories: 2500, carbs: 150, protein: 120, fats: 80, description: "Traditional paleo approach" },
-  { name: "Mediterranean", type: "Mediterranean", calories: 2400, carbs: 200, protein: 100, fats: 80, description: "Heart-healthy Mediterranean" },
-  { name: "Zone Diet", type: "Zone", calories: 2100, carbs: 210, protein: 140, fats: 47, description: "40-30-30 zone ratios" },
-  { name: "Intermittent Fasting 16:8", type: "IF", calories: 2000, carbs: 200, protein: 120, fats: 60, description: "16:8 fasting window" },
-  { name: "Intermittent Fasting 20:4", type: "IF", calories: 1800, carbs: 180, protein: 120, fats: 70, description: "20:4 warrior diet" },
-  { name: "Body Recomposition", type: "Recomp", calories: 1900, carbs: 180, protein: 160, fats: 50, description: "Simultaneous fat loss & muscle gain" },
+  { name: "Vegan - Balanced",type: "Vegan",calories: 2200,carbs: 250,protein: 100,fats: 60,description: "Balanced plant-based nutrition" },
+  { name: "Vegan - High Protein",type: "Vegan",calories: 2100,carbs: 200,protein: 130,fats: 60,description: "Protein-focused vegan diet" },
+  { name: "Vegetarian - Standard",type: "Vegetarian",calories: 2300,carbs: 230,protein: 110,fats: 55,description: "Standard vegetarian macros" },
+  { name: "Paleo - Standard",type: "Paleo",calories: 2500,carbs: 150,protein: 120,fats: 80,description: "Traditional paleo approach" },
+  { name: "Mediterranean",type: "Mediterranean",calories: 2400,carbs: 200,protein: 100,fats: 80,description: "Heart-healthy Mediterranean" },
+  { name: "Zone Diet",type: "Zone",calories: 2100,carbs: 210,protein: 140,fats: 47,description: "40-30-30 zone ratios" },
+  { name: "Intermittent Fasting 16:8",type: "IF",calories: 2000,carbs: 200,protein: 120,fats: 60,description: "16:8 fasting window" },
+  { name: "Intermittent Fasting 20:4",type: "IF",calories: 1800,carbs: 180,protein: 120,fats: 70,description: "20:4 warrior diet" },
+  { name: "Body Recomposition",type: "Recomp",calories: 1900,carbs: 180,protein: 160,fats: 50,description: "Simultaneous fat loss & muscle gain" },
 ];
 
 const FILTERS = [
@@ -93,11 +92,11 @@ const FILTERS = [
 const NutritionTargetScreen = () => {
   const { user } = useAuth();
   const navigation = useNavigation();
-  const [target, setTarget] = useState({ calories: 0, carbs: 0, protein: 0, fats: 0 });
-  const [selectedPreset, setSelectedPreset] = useState(null);
-  const [filter, setFilter] = useState("All");
-  const [lastSaved, setLastSaved] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [target,setTarget] = useState({ calories: 0,carbs: 0,protein: 0,fats: 0 });
+  const [selectedPreset,setSelectedPreset] = useState(null);
+  const [filter,setFilter] = useState("All");
+  const [lastSaved,setLastSaved] = useState(null);
+  const [loading,setLoading] = useState(true);
 
   // Helper to get userId-based key
   const getUserId = () => {
@@ -113,8 +112,8 @@ const NutritionTargetScreen = () => {
   const getTodayKey = () => {
     const today = new Date();
     const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
     const userId = getUserId();
     return userId ? `nutritionTarget_${userId}_${yyyy}-${mm}-${dd}` : `nutritionTarget_${yyyy}-${mm}-${dd}`;
   };
@@ -131,12 +130,12 @@ const NutritionTargetScreen = () => {
         } else {
         }
       } catch (e) {
-        showErrorFetchAPI(e.message || "Failed to load nutrition target");
+        showErrorFetchAPI(e);
       } finally {
         setLoading(false);
       }
     })();
-  }, [user]);
+  },[user]);
 
   const handleReset = async () => {
     const saved = await AsyncStorage.getItem(getStorageKey());
@@ -146,12 +145,12 @@ const NutritionTargetScreen = () => {
     }
   };
 
-  const handlePreset = (preset, idx) => {
-    setTarget({ 
-      calories: preset.calories, 
-      carbs: preset.carbs, 
-      protein: preset.protein, 
-      fats: preset.fats 
+  const handlePreset = (preset,idx) => {
+    setTarget({
+      calories: preset.calories,
+      carbs: preset.carbs,
+      protein: preset.protein,
+      fats: preset.fats
     });
     setSelectedPreset(idx);
   };
@@ -159,38 +158,36 @@ const NutritionTargetScreen = () => {
 
   const handleSave = async () => {
     if (!target.calories || !target.carbs || !target.protein || !target.fats) {
-      showErrorFetchAPI("Please set all nutrition targets before saving");
+      showErrorMessage("Please set all nutrition targets before saving");
       return;
     }
 
     setLoading(true);
     try {
-      // Save as latest for this user
-      await AsyncStorage.setItem(getStorageKey(), JSON.stringify(target));
-      // Save as per-day for this user
+      await AsyncStorage.setItem(getStorageKey(),JSON.stringify(target));
       const todayKey = getTodayKey();
-      await AsyncStorage.setItem(todayKey, JSON.stringify(target));
+      await AsyncStorage.setItem(todayKey,JSON.stringify(target));
 
-      setLastSaved(target); // update UI immediately
+      setLastSaved(target);
       showSuccessMessage("Your nutrition targets have been saved successfully!");
       navigation.navigate("HomeScreen");
     } catch (e) {
-      showErrorFetchAPI(e.message || "Failed to save nutrition target");
+      showErrorFetchAPI(e);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredPresets = filter === "All" 
-    ? PRESET_TARGETS 
+  const filteredPresets = filter === "All"
+    ? PRESET_TARGETS
     : PRESET_TARGETS.filter(p => p.type === filter);
 
-  const MacroSlider = ({ label, value, max, color, unit = "", onChange }) => (
+  const MacroSlider = ({ label,value,max,color,unit = "",onChange }) => (
     <View style={styles.sliderContainer}>
       <View style={styles.sliderHeader}>
         <Text style={styles.sliderLabel}>{label}</Text>
-        <View style={[styles.valueChip, { backgroundColor: color + '20' }]}>
-          <Text style={[styles.valueText, { color: color }]}>
+        <View style={[styles.valueChip,{ backgroundColor: color + '20' }]}>
+          <Text style={[styles.valueText,{ color: color }]}>
             {Math.round(value)}{unit}
           </Text>
         </View>
@@ -212,22 +209,22 @@ const NutritionTargetScreen = () => {
 
   // Macro selection state
   const macroOptions = [
-    { key: 'calories', label: 'Calories', color: '#FF6B6B', max: 5000, unit: '' },
-    { key: 'carbs', label: 'Carbs', color: '#4ECDC4', max: 500, unit: 'g' },
-    { key: 'protein', label: 'Protein', color: '#45B7D1', max: 300, unit: 'g' },
-    { key: 'fats', label: 'Fats', color: '#F9CA24', max: 200, unit: 'g' },
+    { key: 'calories',label: 'Calories',color: '#FF6B6B',max: 5000,unit: '' },
+    { key: 'carbs',label: 'Carbs',color: '#4ECDC4',max: 500,unit: 'g' },
+    { key: 'protein',label: 'Protein',color: '#45B7D1',max: 300,unit: 'g' },
+    { key: 'fats',label: 'Fats',color: '#F9CA24',max: 200,unit: 'g' },
   ];
-  const [selectedMacro, setSelectedMacro] = useState('calories');
+  const [selectedMacro,setSelectedMacro] = useState('calories');
 
   if (loading) {
-    return <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading nutrition target..." />
+    return <CommonSkeleton />
   }
 
   return (
     <View style={styles.container}>
-      <Header title="Nutrition Targets" onBack={navigation.goBack} />
+      <Header title="Targets" onBack={navigation.goBack} />
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -238,19 +235,19 @@ const NutritionTargetScreen = () => {
             <Text style={styles.currentTargetTitle}>Current Target</Text>
             <View style={styles.macroSummary}>
               <View style={styles.macroItem}>
-                <Text style={[styles.macroValue, { color: '#FF6B6B' }]}>{lastSaved.calories}</Text>
+                <Text style={[styles.macroValue,{ color: '#FF6B6B' }]}>{lastSaved.calories}</Text>
                 <Text style={styles.macroLabel}>Calories</Text>
               </View>
               <View style={styles.macroItem}>
-                <Text style={[styles.macroValue, { color: '#4ECDC4' }]}>{lastSaved.carbs}g</Text>
+                <Text style={[styles.macroValue,{ color: '#4ECDC4' }]}>{lastSaved.carbs}g</Text>
                 <Text style={styles.macroLabel}>Carbs</Text>
               </View>
               <View style={styles.macroItem}>
-                <Text style={[styles.macroValue, { color: '#45B7D1' }]}>{lastSaved.protein}g</Text>
+                <Text style={[styles.macroValue,{ color: '#45B7D1' }]}>{lastSaved.protein}g</Text>
                 <Text style={styles.macroLabel}>Protein</Text>
               </View>
               <View style={styles.macroItem}>
-                <Text style={[styles.macroValue, { color: '#F9CA24' }]}>{lastSaved.fats}g</Text>
+                <Text style={[styles.macroValue,{ color: '#F9CA24' }]}>{lastSaved.fats}g</Text>
                 <Text style={styles.macroLabel}>Fats</Text>
               </View>
             </View>
@@ -262,11 +259,11 @@ const NutritionTargetScreen = () => {
           {macroOptions.map((macro) => (
             <TouchableOpacity
               key={macro.key}
-              style={[styles.macroSelectButton, selectedMacro === macro.key && { backgroundColor: macro.color + '22' }]}
+              style={[styles.macroSelectButton,selectedMacro === macro.key && { backgroundColor: macro.color + '22' }]}
               onPress={() => setSelectedMacro(macro.key)}
             >
-              <Text style={[styles.macroSelectLabel, selectedMacro === macro.key && { color: macro.color }]}>{macro.label}</Text>
-              <Text style={[styles.macroSelectValue, selectedMacro === macro.key && { color: macro.color }]}>
+              <Text style={[styles.macroSelectLabel,selectedMacro === macro.key && { color: macro.color }]}>{macro.label}</Text>
+              <Text style={[styles.macroSelectValue,selectedMacro === macro.key && { color: macro.color }]}>
                 {target[macro.key]}{macro.unit}
               </Text>
             </TouchableOpacity>
@@ -285,29 +282,29 @@ const NutritionTargetScreen = () => {
             maximumTrackTintColor="#E5E7EB"
             thumbTintColor={macroOptions.find(m => m.key === selectedMacro).color}
             value={target[selectedMacro]}
-            onValueChange={(v) => { setTarget({ ...target, [selectedMacro]: v }); setSelectedPreset(null); }}
+            onValueChange={(v) => { setTarget({ ...target,[selectedMacro]: v }); setSelectedPreset(null); }}
           />
           <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
             <Text style={styles.resetButtonText}>↻ Reset to Saved</Text>
           </TouchableOpacity>
         </View>
-  
+
         {/* Filter Section */}
         <View style={styles.filterSection}>
           <Text style={styles.sectionTitle}>Quick Presets</Text>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterScrollContent}
           >
             {FILTERS.map((f) => (
               <TouchableOpacity
                 key={f}
-                style={[styles.filterChip, filter === f && styles.filterChipActive]}
+                style={[styles.filterChip,filter === f && styles.filterChipActive]}
                 onPress={() => setFilter(f)}
               >
                 <Text style={[
-                  styles.filterChipText, 
+                  styles.filterChipText,
                   filter === f && styles.filterChipTextActive
                 ]}>
                   {f}
@@ -322,25 +319,25 @@ const NutritionTargetScreen = () => {
           <Text style={styles.presetCount}>
             {filteredPresets.length} preset{filteredPresets.length !== 1 ? 's' : ''} available
           </Text>
-          
-          {filteredPresets.map((preset, idx) => (
+
+          {filteredPresets.map((preset,idx) => (
             <TouchableOpacity
               key={`${preset.name}-${idx}`}
               style={[
                 styles.presetCard,
                 selectedPreset === idx && styles.presetCardActive,
               ]}
-              onPress={() => handlePreset(preset, idx)}
+              onPress={() => handlePreset(preset,idx)}
             >
               <View style={styles.presetHeader}>
                 <Text style={styles.presetName}>{preset.name}</Text>
-                <View style={[styles.typeTag, { backgroundColor: getTypeColor(preset.type) }]}> 
+                <View style={[styles.typeTag,{ backgroundColor: getTypeColor(preset.type) }]}>
                   <Text style={styles.typeTagText}>{preset.type}</Text>
                 </View>
               </View>
-              
+
               <Text style={styles.presetDescription}>{preset.description}</Text>
-              
+
               <View style={styles.presetMacros}>
                 <View style={styles.presetMacroItem}>
                   <Text style={styles.presetMacroValue}>{preset.calories}</Text>
@@ -403,7 +400,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    marginTop: 90,
+    marginTop: 120,
     paddingBottom: 100,
   },
   header: {
@@ -446,7 +443,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#374151',
     marginBottom: 12,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   macroSummary: {
     flexDirection: 'row',
@@ -472,7 +469,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -569,7 +566,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
@@ -628,7 +625,7 @@ const styles = StyleSheet.create({
   },
   saveButtonContainer: {
     position: 'absolute',
-    bottom: 20, 
+    bottom: 20,
     left: 0,
     right: 0,
     backgroundColor: '#FFFFFF',
@@ -643,7 +640,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,

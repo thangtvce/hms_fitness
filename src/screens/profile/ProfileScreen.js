@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState,useCallback,useMemo,useEffect,useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
@@ -13,8 +13,7 @@ import {
   PanResponder,
   Animated,
 } from "react-native";
-import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "context/AuthContext";
 import { profileService } from "services/apiProfileService";
@@ -23,19 +22,20 @@ import { weightHistoryService } from "services/apiWeightHistoryService";
 import { apiUserService } from "services/apiUserService";
 import { theme } from "theme/color";
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView,useSafeAreaInsets } from "react-native-safe-area-context";
 import FloatingMenuButton from "components/FloatingMenuButton";
 import CheckInModal from "components/checkin/CheckInModel";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
 
-const { width, height: screenHeight } = Dimensions.get("window");
+const { width,height: screenHeight } = Dimensions.get("window");
 
 const calculateXPRequired = (level) => {
-  return Math.floor(100 * Math.pow(1.2, level - 1));
+  return Math.floor(100 * Math.pow(1.2,level - 1));
 };
 
-const calculateLevelUp = (currentLevel, currentXP, xpToAdd) => {
+const calculateLevelUp = (currentLevel,currentXP,xpToAdd) => {
   let newLevel = currentLevel;
   let newXP = currentXP + xpToAdd;
   while (true) {
@@ -47,21 +47,21 @@ const calculateLevelUp = (currentLevel, currentXP, xpToAdd) => {
       break;
     }
   }
-  return { newLevel, newXP };
+  return { newLevel,newXP };
 };
 
-const ImageZoomViewer = ({ visible, imageUri, onClose, showDeleteButton = false }) => {
+const ImageZoomViewer = ({ visible,imageUri,onClose,showDeleteButton = false }) => {
   const scale = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
-  const [isZoomed, setIsZoomed] = useState(false);
-  const [lastTap, setLastTap] = useState(null);
+  const [isZoomed,setIsZoomed] = useState(false);
+  const [lastTap,setLastTap] = useState(null);
 
   const resetTransform = () => {
     Animated.parallel([
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
-      Animated.spring(translateX, { toValue: 0, useNativeDriver: true }),
-      Animated.spring(translateY, { toValue: 0, useNativeDriver: true }),
+      Animated.spring(scale,{ toValue: 1,useNativeDriver: true }),
+      Animated.spring(translateX,{ toValue: 0,useNativeDriver: true }),
+      Animated.spring(translateY,{ toValue: 0,useNativeDriver: true }),
     ]).start();
     setIsZoomed(false);
   };
@@ -73,7 +73,7 @@ const ImageZoomViewer = ({ visible, imageUri, onClose, showDeleteButton = false 
       if (isZoomed) {
         resetTransform();
       } else {
-        Animated.spring(scale, { toValue: 2, useNativeDriver: true }).start();
+        Animated.spring(scale,{ toValue: 2,useNativeDriver: true }).start();
         setIsZoomed(true);
       }
     } else {
@@ -83,7 +83,7 @@ const ImageZoomViewer = ({ visible, imageUri, onClose, showDeleteButton = false 
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
+      onMoveShouldSetPanResponder: (evt,gestureState) => {
         return isZoomed || Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2;
       },
       onMoveShouldSetPanResponderCapture: () => false,
@@ -92,20 +92,20 @@ const ImageZoomViewer = ({ visible, imageUri, onClose, showDeleteButton = false 
         translateY.setOffset(translateY._value);
         scale.setOffset(scale._value);
       },
-      onPanResponderMove: (evt, gestureState) => {
+      onPanResponderMove: (evt,gestureState) => {
         if (evt.nativeEvent.touches.length === 2) {
           const touch1 = evt.nativeEvent.touches[0];
           const touch2 = evt.nativeEvent.touches[1];
           const distance = Math.sqrt(
-            Math.pow(touch2.pageX - touch1.pageX, 2) + Math.pow(touch2.pageY - touch1.pageY, 2)
+            Math.pow(touch2.pageX - touch1.pageX,2) + Math.pow(touch2.pageY - touch1.pageY,2)
           );
-          const newScale = Math.min(Math.max(distance / 200, 0.5), 5);
+          const newScale = Math.min(Math.max(distance / 200,0.5),5);
           scale.setValue(newScale);
           setIsZoomed(newScale > 1.1);
         } else if (isZoomed && evt.nativeEvent.touches.length === 1) {
           const maxTranslate = 100;
-          translateX.setValue(Math.min(Math.max(gestureState.dx, -maxTranslate), maxTranslate));
-          translateY.setValue(Math.min(Math.max(gestureState.dy, -maxTranslate), maxTranslate));
+          translateX.setValue(Math.min(Math.max(gestureState.dx,-maxTranslate),maxTranslate));
+          translateY.setValue(Math.min(Math.max(gestureState.dy,-maxTranslate),maxTranslate));
         }
       },
       onPanResponderRelease: () => {
@@ -149,7 +149,7 @@ const ImageZoomViewer = ({ visible, imageUri, onClose, showDeleteButton = false 
               style={[
                 zoomStyles.imageWrapper,
                 {
-                  transform: [{ scale }, { translateX }, { translateY }],
+                  transform: [{ scale },{ translateX },{ translateY }],
                 },
               ]}
               {...panResponder.panHandlers}
@@ -160,7 +160,7 @@ const ImageZoomViewer = ({ visible, imageUri, onClose, showDeleteButton = false 
                   style={zoomStyles.image}
                   resizeMode="contain"
                   onError={() => {
-                    Alert.alert("Error", "Failed to load image");
+                    showErrorMessage("Failed to load image");
                     handleClose();
                   }}
                 />
@@ -181,105 +181,97 @@ const ImageZoomViewer = ({ visible, imageUri, onClose, showDeleteButton = false 
   );
 };
 
-const useProfileData = (user, authToken, authLoading, navigation) => {
-  const [data, setData] = useState({
+const useProfileData = (user,authToken,authLoading,navigation) => {
+  const [data,setData] = useState({
     userData: null,
     profile: null,
     bodyMeasurements: [],
     weightHistory: [],
   });
-  const [loading, setLoading] = useState({
+  const [loading,setLoading] = useState({
     userData: true,
     profile: true,
     bodyMeasurements: true,
     weightHistory: true,
   });
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing,setRefreshing] = useState(false);
 
   const fetchUserData = useCallback(
     async (abortController) => {
       try {
         if (!user || !user.userId || !authToken) return;
-        setLoading((prev) => ({ ...prev, userData: true }));
-        const userRes = await apiUserService.getUserById(user.userId, { signal: abortController.signal });
+        setLoading((prev) => ({ ...prev,userData: true }));
+        const userRes = await apiUserService.getUserById(user.userId,{ signal: abortController.signal });
         if (userRes.statusCode === 200) {
-          setData((prev) => ({ ...prev, userData: userRes.data }));
+          setData((prev) => ({ ...prev,userData: userRes.data }));
         }
       } catch (error) {
-        if (error.name !== "AbortError") {
-          // Handle error silently
-        }
+        showErrorFetchAPI(error);
       } finally {
-        setLoading((prev) => ({ ...prev, userData: false }));
+        setLoading((prev) => ({ ...prev,userData: false }));
       }
     },
-    [user, authToken]
+    [user,authToken]
   );
 
   const fetchProfile = useCallback(
     async (abortController) => {
       try {
         if (!user?.userId || !authToken) return;
-        setLoading((prev) => ({ ...prev, profile: true }));
-        const profileRes = await profileService.getLatestProfile(user.userId, { signal: abortController.signal });
+        setLoading((prev) => ({ ...prev,profile: true }));
+        const profileRes = await profileService.getLatestProfile(user.userId,{ signal: abortController.signal });
         if (profileRes.statusCode === 200) {
-          setData((prev) => ({ ...prev, profile: profileRes.data.profile }));
+          setData((prev) => ({ ...prev,profile: profileRes.data.profile }));
         }
       } catch (error) {
-        if (error.name !== "AbortError") {
-          // Handle error silently
-        }
+        showErrorFetchAPI(error);
       } finally {
-        setLoading((prev) => ({ ...prev, profile: false }));
+        setLoading((prev) => ({ ...prev,profile: false }));
       }
     },
-    [user, authToken]
+    [user,authToken]
   );
 
   const fetchBodyMeasurements = useCallback(
     async (abortController) => {
       try {
         if (!user?.userId || !authToken) return;
-        setLoading((prev) => ({ ...prev, bodyMeasurements: true }));
+        setLoading((prev) => ({ ...prev,bodyMeasurements: true }));
         const measurementsRes = await bodyMeasurementService.getMyMeasurements(
-          { pageNumber: 1, pageSize: 5 },
+          { pageNumber: 1,pageSize: 5 },
           { signal: abortController.signal }
         );
         if (measurementsRes.statusCode === 200) {
-          setData((prev) => ({ ...prev, bodyMeasurements: measurementsRes.data.records || [] }));
+          setData((prev) => ({ ...prev,bodyMeasurements: measurementsRes.data.records || [] }));
         }
       } catch (error) {
-        if (error.name !== "AbortError") {
-          // Handle error silently
-        }
+        showErrorFetchAPI(error);
       } finally {
-        setLoading((prev) => ({ ...prev, bodyMeasurements: false }));
+        setLoading((prev) => ({ ...prev,bodyMeasurements: false }));
       }
     },
-    [user, authToken]
+    [user,authToken]
   );
 
   const fetchWeightHistory = useCallback(
     async (abortController) => {
       try {
         if (!user?.userId || !authToken) return;
-        setLoading((prev) => ({ ...prev, weightHistory: true }));
+        setLoading((prev) => ({ ...prev,weightHistory: true }));
         const weightRes = await weightHistoryService.getMyWeightHistory(
-          { pageNumber: 1, pageSize: 5 },
+          { pageNumber: 1,pageSize: 5 },
           { signal: abortController.signal }
         );
         if (weightRes.statusCode === 200) {
-          setData((prev) => ({ ...prev, weightHistory: weightRes.data.records || [] }));
+          setData((prev) => ({ ...prev,weightHistory: weightRes.data.records || [] }));
         }
       } catch (error) {
-        if (error.name !== "AbortError") {
-          // Handle error silently
-        }
+        showErrorFetchAPI(error);
       } finally {
-        setLoading((prev) => ({ ...prev, weightHistory: false }));
+        setLoading((prev) => ({ ...prev,weightHistory: false }));
       }
     },
-    [user, authToken]
+    [user,authToken]
   );
 
   const fetchAllData = useCallback(
@@ -293,7 +285,7 @@ const useProfileData = (user, authToken, authLoading, navigation) => {
         ]);
       }
     },
-    [authLoading, user, authToken, navigation, fetchUserData, fetchProfile, fetchBodyMeasurements, fetchWeightHistory]
+    [authLoading,user,authToken,navigation,fetchUserData,fetchProfile,fetchBodyMeasurements,fetchWeightHistory]
   );
 
   const onRefresh = useCallback(() => {
@@ -301,26 +293,27 @@ const useProfileData = (user, authToken, authLoading, navigation) => {
     const abortController = new AbortController();
     fetchAllData(abortController).finally(() => setRefreshing(false));
     return () => abortController.abort();
-  }, [fetchAllData]);
+  },[fetchAllData]);
 
   useFocusEffect(
     useCallback(() => {
       const abortController = new AbortController();
       fetchAllData(abortController);
       return () => abortController.abort();
-    }, [fetchAllData])
+    },[fetchAllData])
   );
 
-  return { ...data, loading, refreshing, onRefresh };
+  return { ...data,loading,refreshing,onRefresh };
 };
 
-const ProfileHeader = ({ userData, onEdit, onLayout, headerHeight, onAvatarPress, onTabPress }) => {
+const ProfileHeader = ({ userData,onEdit,onLayout,headerHeight,onAvatarPress,onTabPress }) => {
+  const insets = useSafeAreaInsets();
   const userLevel = userData?.levelAccount || 1;
   const experience = userData?.experience || 0;
   const currentStreak = userData?.currentStreak || 0;
   const xpRequired = calculateXPRequired(userLevel);
-  const progress = Math.min(100, (experience / xpRequired) * 100);
-  const insets = useSafeAreaInsets();
+  const progress = Math.min(100,(experience / xpRequired) * 100);
+  // const insets = useSafeAreaInsets();
 
   const getStreakMessage = (streak) => {
     if (streak === 0) return "Start your journey!";
@@ -340,7 +333,6 @@ const ProfileHeader = ({ userData, onEdit, onLayout, headerHeight, onAvatarPress
   };
 
   const navigation = useRef(null);
-  // Accept navigation as prop if not already
   if (!ProfileHeader.navigation && typeof globalThis.navigation !== 'undefined') {
     ProfileHeader.navigation = globalThis.navigation;
   }
@@ -350,7 +342,8 @@ const ProfileHeader = ({ userData, onEdit, onLayout, headerHeight, onAvatarPress
       style={[
         styles.profileHeaderContainer,
         {
-          height: headerHeight,
+          minHeight: headerHeight - 20,
+          maxHeight: headerHeight + 20,
           paddingTop: insets.top + 10,
           backgroundColor: "#0056d2",
         },
@@ -400,7 +393,7 @@ const ProfileHeader = ({ userData, onEdit, onLayout, headerHeight, onAvatarPress
               </View>
               <View style={styles.progressBarContainer}>
                 <View style={styles.progressBar}>
-                  <Animated.View style={[styles.progressFill, { width: `${progress}%` }]} />
+                  <Animated.View style={[styles.progressFill,{ width: `${progress}%` }]} />
                 </View>
               </View>
             </View>
@@ -421,8 +414,8 @@ const ProfileHeader = ({ userData, onEdit, onLayout, headerHeight, onAvatarPress
         </View>
 
         {/* Navigation Tabs */}
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity style={[styles.tab, styles.activeTab]}>
+        <View style={[styles.tabsContainer,{ paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
+          <TouchableOpacity style={[styles.tab,styles.activeTab]}>
             <Ionicons name="person" size={18} color="#FFFFFF" />
             <Text style={styles.activeTabText}>Profile</Text>
           </TouchableOpacity>
@@ -448,32 +441,32 @@ const ProfileHeader = ({ userData, onEdit, onLayout, headerHeight, onAvatarPress
   );
 };
 
-const HealthSummaryCard = ({ profile, latestWeight, latestMeasurement, navigation, loading }) => {
+const HealthSummaryCard = ({ profile,latestWeight,latestMeasurement,navigation,loading }) => {
   const bmi = useMemo(() => {
     if (profile?.height && profile?.weight) {
       const heightInMeters = profile.height / 100;
       return (profile.weight / (heightInMeters * heightInMeters)).toFixed(1);
     }
     return null;
-  }, [profile]);
+  },[profile]);
 
   const getBmiCategory = (bmiValue) => {
-    if (!bmiValue) return { text: "N/A", color: "#64748B" };
+    if (!bmiValue) return { text: "N/A",color: "#64748B" };
     const value = Number.parseFloat(bmiValue);
-    if (value < 18.5) return { text: "Underweight", color: "#FBBF24" };
-    if (value < 25) return { text: "Normal", color: "#10B981" };
-    if (value < 30) return { text: "Overweight", color: "#F59E0B" };
-    return { text: "Obese", color: "#EF4444" };
+    if (value < 18.5) return { text: "Underweight",color: "#FBBF24" };
+    if (value < 25) return { text: "Normal",color: "#10B981" };
+    if (value < 30) return { text: "Overweight",color: "#F59E0B" };
+    return { text: "Obese",color: "#EF4444" };
   };
 
   const bmiCategory = getBmiCategory(bmi);
 
   const handleEditProfileMetric = () => {
-    navigation.navigate("EditProfile", { profile });
+    navigation.navigate("EditProfile",{ profile });
   };
 
   if (loading) {
-    return <SkeletonLoader />;
+    return <CommonSkeleton />;
   }
 
   return (
@@ -482,10 +475,10 @@ const HealthSummaryCard = ({ profile, latestWeight, latestMeasurement, navigatio
         <Text style={styles.healthSummaryTitle}>Health Summary</Text>
         <TouchableOpacity
           onPress={handleEditProfileMetric}
-          style={[styles.editMetricButton, { backgroundColor: "#E6F0FA", flexDirection: "row", alignItems: "center" }]}
+          style={[styles.editMetricButton,{ backgroundColor: "#E6F0FA",flexDirection: "row",alignItems: "center" }]}
         >
           <Ionicons name="pencil" size={16} color="#0056d2" />
-          <Text style={[styles.editMetricText, { color: "#0056d2", marginLeft: 4 }]}>Edit</Text>
+          <Text style={[styles.editMetricText,{ color: "#0056d2",marginLeft: 4 }]}>Edit</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.lastUpdatedContainer}>
@@ -496,14 +489,14 @@ const HealthSummaryCard = ({ profile, latestWeight, latestMeasurement, navigatio
       </View>
       <View style={styles.healthMetricsGrid}>
         <View style={styles.healthMetricItem}>
-          <View style={[styles.metricIconContainer, { backgroundColor: "#EEF2FF" }]}>
+          <View style={[styles.metricIconContainer,{ backgroundColor: "#EEF2FF" }]}>
             <Ionicons name="resize-outline" size={20} color="#0056d2" />
           </View>
           <Text style={styles.metricLabel}>Height</Text>
           <Text style={styles.metricValue}>{profile?.height ? `${profile.height} cm` : "N/A"}</Text>
         </View>
         <View style={styles.healthMetricItem}>
-          <View style={[styles.metricIconContainer, { backgroundColor: "#F0FDF4" }]}>
+          <View style={[styles.metricIconContainer,{ backgroundColor: "#F0FDF4" }]}>
             <Ionicons name="scale-outline" size={20} color="#10B981" />
           </View>
           <Text style={styles.metricLabel}>Weight</Text>
@@ -512,21 +505,21 @@ const HealthSummaryCard = ({ profile, latestWeight, latestMeasurement, navigatio
           </Text>
         </View>
         <View style={styles.healthMetricItem}>
-          <View style={[styles.metricIconContainer, { backgroundColor: "#EFF6FF" }]}>
+          <View style={[styles.metricIconContainer,{ backgroundColor: "#EFF6FF" }]}>
             <Ionicons name="analytics-outline" size={20} color="#3B82F6" />
           </View>
           <Text style={styles.metricLabel}>BMI</Text>
           <View style={styles.bmiContainer}>
             <Text style={styles.metricValue}>{bmi || "N/A"}</Text>
             {bmi && (
-              <View style={[styles.bmiCategoryBadge, { backgroundColor: `${bmiCategory.color}20` }]}>
-                <Text style={[styles.bmiCategoryText, { color: bmiCategory.color }]}>{bmiCategory.text}</Text>
+              <View style={[styles.bmiCategoryBadge,{ backgroundColor: `${bmiCategory.color}20` }]}>
+                <Text style={[styles.bmiCategoryText,{ color: bmiCategory.color }]}>{bmiCategory.text}</Text>
               </View>
             )}
           </View>
         </View>
         <View style={styles.healthMetricItem}>
-          <View style={[styles.metricIconContainer, { backgroundColor: "#FEF2F2" }]}>
+          <View style={[styles.metricIconContainer,{ backgroundColor: "#FEF2F2" }]}>
             <Ionicons name="water-outline" size={20} color="#EF4444" />
           </View>
           <Text style={styles.metricLabel}>Body Fat</Text>
@@ -534,8 +527,8 @@ const HealthSummaryCard = ({ profile, latestWeight, latestMeasurement, navigatio
             {profile?.bodyFatPercentage
               ? `${profile.bodyFatPercentage}%`
               : latestMeasurement?.bodyFatPercentage
-              ? `${latestMeasurement.bodyFatPercentage}%`
-              : "N/A"}
+                ? `${latestMeasurement.bodyFatPercentage}%`
+                : "N/A"}
           </Text>
         </View>
       </View>
@@ -543,7 +536,7 @@ const HealthSummaryCard = ({ profile, latestWeight, latestMeasurement, navigatio
   );
 };
 
-const SectionCard = ({ title, onAction, actionIcon, actionText, children, loading }) => {
+const SectionCard = ({ title,onAction,actionIcon,actionText,children,loading }) => {
   if (loading) {
     return (
       <View style={styles.sectionCard}>
@@ -557,9 +550,9 @@ const SectionCard = ({ title, onAction, actionIcon, actionText, children, loadin
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {onAction && (
-          <TouchableOpacity onPress={onAction} style={[styles.actionButton, { backgroundColor: "#E6F0FA" }]}>
+          <TouchableOpacity onPress={onAction} style={[styles.actionButton,{ backgroundColor: "#E6F0FA" }]}>
             {actionText ? (
-              <Text style={[styles.actionButtonText, { color: "#0056d2" }]}>{actionText}</Text>
+              <Text style={[styles.actionButtonText,{ color: "#0056d2" }]}>{actionText}</Text>
             ) : (
               <Ionicons name={actionIcon} size={18} color="#0056d2" />
             )}
@@ -573,24 +566,24 @@ const SectionCard = ({ title, onAction, actionIcon, actionText, children, loadin
 
 const BodyMeasurementItem = ({ item }) => {
   const fields = [
-    { key: "weight", label: "Weight", unit: "kg" },
-    { key: "height", label: "Height", unit: "cm" },
-    { key: "bodyFatPercentage", label: "Body Fat", unit: "%" },
-    { key: "neckCm", label: "Neck", unit: "cm" },
-    { key: "chestCm", label: "Chest", unit: "cm" },
-    { key: "bicepCm", label: "Bicep", unit: "cm" },
-    { key: "waistCm", label: "Waist", unit: "cm" },
-    { key: "hipCm", label: "Hip", unit: "cm" },
-    { key: "thighCm", label: "Thigh", unit: "cm" },
+    { key: "weight",label: "Weight",unit: "kg" },
+    { key: "height",label: "Height",unit: "cm" },
+    { key: "bodyFatPercentage",label: "Body Fat",unit: "%" },
+    { key: "neckCm",label: "Neck",unit: "cm" },
+    { key: "chestCm",label: "Chest",unit: "cm" },
+    { key: "bicepCm",label: "Bicep",unit: "cm" },
+    { key: "waistCm",label: "Waist",unit: "cm" },
+    { key: "hipCm",label: "Hip",unit: "cm" },
+    { key: "thighCm",label: "Thigh",unit: "cm" },
   ];
 
   return (
     <View style={styles.measurementItem}>
       <View style={styles.measurementHeader}>
-        <View style={[styles.measurementDateContainer, { backgroundColor: "#E6F0FA" }]}>
+        <View style={[styles.measurementDateContainer,{ backgroundColor: "#E6F0FA" }]}>
           <Ionicons name="calendar-outline" size={16} color="#0056d2" />
-          <Text style={[styles.measurementHeaderDate, { color: "#0056d2" }]}>
-            {new Date(item.measurementDate).toLocaleDateString("en-US", {
+          <Text style={[styles.measurementHeaderDate,{ color: "#0056d2" }]}>
+            {new Date(item.measurementDate).toLocaleDateString("en-US",{
               month: "short",
               day: "numeric",
               year: "numeric",
@@ -600,7 +593,7 @@ const BodyMeasurementItem = ({ item }) => {
       </View>
       <View style={styles.measurementGrid}>
         {fields.map(
-          ({ key, label, unit }) =>
+          ({ key,label,unit }) =>
             item[key] != null && (
               <View key={key} style={styles.measurementField}>
                 <Text style={styles.measurementLabel}>{label}</Text>
@@ -616,7 +609,7 @@ const BodyMeasurementItem = ({ item }) => {
   );
 };
 
-const WeightHistoryItem = ({ item, previousWeight }) => {
+const WeightHistoryItem = ({ item,previousWeight }) => {
   const weightChange = previousWeight ? (item.weight - previousWeight).toFixed(1) : null;
   const isGain = weightChange > 0;
 
@@ -629,9 +622,9 @@ const WeightHistoryItem = ({ item, previousWeight }) => {
         <View style={styles.weightInfoContainer}>
           <Text style={styles.weightHistoryText}>{item.weight} kg</Text>
           {weightChange && (
-            <View style={[styles.weightChangeBadge, { backgroundColor: isGain ? "#FEF2F2" : "#F0FDF4" }]}>
+            <View style={[styles.weightChangeBadge,{ backgroundColor: isGain ? "#FEF2F2" : "#F0FDF4" }]}>
               <Ionicons name={isGain ? "arrow-up" : "arrow-down"} size={12} color={isGain ? "#EF4444" : "#10B981"} />
-              <Text style={[styles.weightChangeText, { color: isGain ? "#EF4444" : "#10B981" }]}>
+              <Text style={[styles.weightChangeText,{ color: isGain ? "#EF4444" : "#10B981" }]}>
                 {Math.abs(weightChange)} kg
               </Text>
             </View>
@@ -650,8 +643,8 @@ const WeightHistoryItem = ({ item, previousWeight }) => {
             ]}
           >
             <Ionicons name="calendar-outline" size={14} color="#0056d2" />
-            <Text style={[styles.weightHistoryDate, { color: "#0056d2", marginLeft: 4 }]}>
-              {new Date(item.recordedAt).toLocaleDateString("en-US", {
+            <Text style={[styles.weightHistoryDate,{ color: "#0056d2",marginLeft: 4 }]}>
+              {new Date(item.recordedAt).toLocaleDateString("en-US",{
                 month: "short",
                 day: "numeric",
                 year: "numeric",
@@ -664,7 +657,7 @@ const WeightHistoryItem = ({ item, previousWeight }) => {
   );
 };
 
-const HealthGoalsCard = ({ profile, navigation, loading }) => {
+const HealthGoalsCard = ({ profile,navigation,loading }) => {
   const goals = [
     {
       id: "1",
@@ -676,7 +669,7 @@ const HealthGoalsCard = ({ profile, navigation, loading }) => {
       color: "#3B82F6",
       progress:
         profile?.weight && profile?.weightGoal
-          ? Math.min(100, Math.max(0, (profile.weight / profile.weightGoal) * 100))
+          ? Math.min(100,Math.max(0,(profile.weight / profile.weightGoal) * 100))
           : 0,
     },
     {
@@ -689,13 +682,13 @@ const HealthGoalsCard = ({ profile, navigation, loading }) => {
       color: "#EF4444",
       progress:
         profile?.bodyFatPercentage && profile?.bodyFatGoal
-          ? Math.min(100, Math.max(0, (profile.bodyFatPercentage / profile.bodyFatGoal) * 100))
+          ? Math.min(100,Math.max(0,(profile.bodyFatPercentage / profile.bodyFatGoal) * 100))
           : 0,
     },
   ];
 
   if (loading) {
-    return <SkeletonLoader />;
+    return <CommonSkeleton />;
   }
 
   return (
@@ -703,11 +696,11 @@ const HealthGoalsCard = ({ profile, navigation, loading }) => {
       <View style={styles.goalsHeader}>
         <Text style={styles.goalsTitle}>Health Goals</Text>
         <TouchableOpacity
-          style={[styles.goalsEditButton, { backgroundColor: "#E6F0FA", flexDirection: "row", alignItems: "center" }]}
-          onPress={() => navigation.navigate("EditProfile", { profile })}
+          style={[styles.goalsEditButton,{ backgroundColor: "#E6F0FA",flexDirection: "row",alignItems: "center" }]}
+          onPress={() => navigation.navigate("EditProfile",{ profile })}
         >
           <Ionicons name="pencil" size={16} color="#0056d2" />
-          <Text style={[styles.goalsEditText, { color: "#0056d2", marginLeft: 4 }]}>Edit</Text>
+          <Text style={[styles.goalsEditText,{ color: "#0056d2",marginLeft: 4 }]}>Edit</Text>
         </TouchableOpacity>
       </View>
       {goals.map((goal) => (
@@ -722,7 +715,7 @@ const HealthGoalsCard = ({ profile, navigation, loading }) => {
             </Text>
           </View>
           <View style={styles.goalProgressBar}>
-            <View style={[styles.goalProgressFill, { width: `${goal.progress}%`, backgroundColor: "#0056d2" }]} />
+            <View style={[styles.goalProgressFill,{ width: `${goal.progress}%`,backgroundColor: "#0056d2" }]} />
           </View>
         </View>
       ))}
@@ -737,9 +730,9 @@ const SkeletonLoader = () => (
 );
 
 export default function ProfileScreen({ navigation }) {
-  const { user, authToken, authLoading } = useAuth();
+  const { user,authToken,authLoading } = useAuth();
   const checkInModalRef = useRef(null);
-  const [hasCheckedIn, setHasCheckedIn] = useState(false);
+  const [hasCheckedIn,setHasCheckedIn] = useState(false);
 
   const handleOpenCheckIn = () => {
     if (checkInModalRef.current) {
@@ -747,19 +740,19 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  const { userData, profile, bodyMeasurements, weightHistory, loading, refreshing, onRefresh } = useProfileData(
+  const { userData,profile,bodyMeasurements,weightHistory,loading,refreshing,onRefresh } = useProfileData(
     user,
     authToken,
     authLoading,
     navigation
   );
 
-  const [headerHeight, setHeaderHeight] = useState(200);
-  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [headerHeight,setHeaderHeight] = useState(200);
+  const [showImageViewer,setShowImageViewer] = useState(false);
   const insets = useSafeAreaInsets();
 
-  const handleEditProfile = () => navigation.navigate("EditUserScreen", { user: userData });
-  const handleEditBody = () => navigation.navigate("EditProfile", { profile });
+  const handleEditProfile = () => navigation.navigate("EditUserScreen",{ user: userData });
+  const handleEditBody = () => navigation.navigate("EditProfile",{ profile });
   const handleAddBodyMeasurement = () => navigation.navigate("AddBodyMeasurement");
   const handleAddWeightHistory = () => navigation.navigate("AddWeightHistory");
   const handleChangePassword = () => navigation.navigate("ChangePassword");
@@ -773,52 +766,38 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  const handleReset = () => {
-    // Custom confirm dialog using toast (no Alert)
-    // You may want to implement a custom modal for confirmation in the future
-    showErrorFetchAPI("Reset confirmation is not implemented. Please use a custom modal if needed.");
-    // Example for actual reset logic (uncomment and use a custom modal for confirmation):
-    // try {
-    //   await apiUserService.resetProgress(user.userId);
-    //   showSuccessMessage("Your progress has been reset!");
-    //   onRefresh();
-    // } catch (error) {
-    //   showErrorFetchAPI("Failed to reset progress. Please try again.");
-    // }
-  };
-
   useEffect(() => {
     const checkCheckInStatus = async () => {
       try {
         const lastDate = await AsyncStorage.getItem("lastCheckInDate");
         const today = new Date().toISOString().split("T")[0];
         setHasCheckedIn(lastDate === today);
-      } catch (err) {}
+      } catch (err) { }
     };
     checkCheckInStatus();
-  }, []);
+  },[]);
 
   const latestMeasurement = useMemo(() => {
     if (bodyMeasurements.length === 0) return null;
-    return bodyMeasurements.reduce((latest, current) =>
+    return bodyMeasurements.reduce((latest,current) =>
       new Date(current.measurementDate).getTime() > new Date(latest.measurementDate).getTime() ? current : latest
     );
-  }, [bodyMeasurements]);
+  },[bodyMeasurements]);
 
   const latestWeight = useMemo(() => {
     if (weightHistory.length === 0) return null;
-    return weightHistory.reduce((latest, current) =>
+    return weightHistory.reduce((latest,current) =>
       new Date(current.recordedAt).getTime() > new Date(latest.recordedAt).getTime() ? current : latest
     );
-  }, [weightHistory]);
+  },[weightHistory]);
 
   const previousWeight = useMemo(() => {
     if (weightHistory.length <= 1) return null;
     const sortedWeights = [...weightHistory].sort(
-      (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
+      (a,b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
     );
     return sortedWeights[1]?.weight || null;
-  }, [weightHistory]);
+  },[weightHistory]);
 
   const handleHeaderLayout = (event) => {
     // const { height } = event.nativeEvent.layout;
@@ -831,11 +810,11 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  useEffect(() => {}, [headerHeight]);
+  useEffect(() => { },[headerHeight]);
 
   // Show loading overlay if any main data is loading
   if (loading.userData || loading.profile || loading.bodyMeasurements || loading.weightHistory) {
-    return <Loading />;
+    return <CommonSkeleton />;
   }
 
   return (
@@ -848,16 +827,15 @@ export default function ProfileScreen({ navigation }) {
         headerHeight={headerHeight}
         onAvatarPress={handleAvatarPress}
         onCheckIn={handleOpenCheckIn}
-        onReset={handleReset}
         hasCheckedIn={hasCheckedIn}
         setHasCheckedIn={setHasCheckedIn}
         onTabPress={handleTabPress}
       />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight || insets.top + 200 }]}
+        contentContainerStyle={[styles.scrollContent,{ paddingTop: headerHeight || insets.top + 200 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#4F46E5"]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0056D2"]} />}
       >
         <HealthSummaryCard
           profile={profile}
@@ -874,12 +852,12 @@ export default function ProfileScreen({ navigation }) {
             <TouchableOpacity
               style={[
                 styles.goalsEditButton,
-                { backgroundColor: "#E6F0FA", flexDirection: "row", alignItems: "center" },
+                { backgroundColor: "#E6F0FA",flexDirection: "row",alignItems: "center" },
               ]}
               onPress={handleEditBody}
             >
               <Ionicons name="pencil" size={16} color="#0056d2" />
-              <Text style={[styles.goalsEditText, { color: "#0056d2", marginLeft: 4 }]}>Edit</Text>
+              <Text style={[styles.goalsEditText,{ color: "#0056d2",marginLeft: 4 }]}>Edit</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.metricsGrid}>
@@ -910,10 +888,10 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="body-outline" size={40} color="#CBD5E1" />
               <Text style={styles.noDataText}>No body measurements available.</Text>
               <TouchableOpacity
-                style={[styles.addFirstButton, { backgroundColor: "#E6F0FA" }]}
+                style={[styles.addFirstButton,{ backgroundColor: "#E6F0FA" }]}
                 onPress={handleAddBodyMeasurement}
               >
-                <Text style={[styles.addFirstButtonText, { color: "#0056d2" }]}>Add Your First Measurement</Text>
+                <Text style={[styles.addFirstButtonText,{ color: "#0056d2" }]}>Add Your First Measurement</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -937,10 +915,10 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="scale-outline" size={40} color="#CBD5E1" />
               <Text style={styles.noDataText}>No weight history available.</Text>
               <TouchableOpacity
-                style={[styles.addFirstButton, { backgroundColor: "#E6F0FA" }]}
+                style={[styles.addFirstButton,{ backgroundColor: "#E6F0FA" }]}
                 onPress={handleAddWeightHistory}
               >
-                <Text style={[styles.addFirstButtonText, { color: "#0056d2" }]}>Add Your First Weight</Text>
+                <Text style={[styles.addFirstButtonText,{ color: "#0056d2" }]}>Add Your First Weight</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -972,7 +950,7 @@ export default function ProfileScreen({ navigation }) {
         />
       )}
       <FloatingMenuButton
-        initialPosition={{ x: width - 70, y: screenHeight - 150 }}
+        initialPosition={{ x: width - 70,y: screenHeight - 150 }}
         autoHide={true}
         navigation={navigation}
         autoHideDelay={4000}
@@ -1230,13 +1208,19 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.2)",
     marginTop: 4,
+    minHeight: 56,
+    backgroundColor: "#0056d2",
+    alignItems: "center",
+    paddingBottom: 0,
   },
   tab: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
+    minHeight: 56,
+    paddingVertical: 0,
+    paddingBottom: 0,
   },
   activeTab: {
     borderBottomWidth: 2,
@@ -1245,13 +1229,13 @@ const styles = StyleSheet.create({
   tabText: {
     color: "rgba(255, 255, 255, 0.6)",
     marginLeft: 4,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "500",
   },
   activeTabText: {
     color: "#FFFFFF",
     marginLeft: 4,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
   },
   healthSummaryCard: {
@@ -1261,10 +1245,11 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     elevation: 4,
     padding: 16,
     zIndex: 10,
+    marginTop: 20
   },
   healthSummaryHeader: {
     flexDirection: "row",
@@ -1360,7 +1345,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     elevation: 4,
     padding: 16,
   },
@@ -1426,7 +1411,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     elevation: 3,
     overflow: "hidden",
   },
@@ -1504,7 +1489,7 @@ const styles = StyleSheet.create({
   },
   measurementHeaderDate: {
     fontSize: 14,
-    color: "#4F46E5",
+    color: "#0056D2",
     fontWeight: "500",
     marginLeft: 4,
   },
@@ -1522,7 +1507,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.03,
     shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     elevation: 1,
   },
   measurementLabel: {
@@ -1639,7 +1624,7 @@ const styles = StyleSheet.create({
     shadowColor: "#0056d2",
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     elevation: 4,
   },
   insightsButton: {
@@ -1653,7 +1638,7 @@ const styles = StyleSheet.create({
     shadowColor: "#10B981",
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     elevation: 4,
   },
   buttonIcon: {
@@ -1675,7 +1660,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     elevation: 4,
     padding: 16,
     height: 100,

@@ -14,20 +14,21 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AuthContext,useAuth } from 'context/AuthContext';
+import { AuthContext } from 'context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation,useRoute } from '@react-navigation/native';
 import { trainerService } from 'services/apiTrainerService';
 import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from 'utils/toastUtil';
-import { RichEditor,RichToolbar,actions } from 'react-native-pell-rich-editor';
+import { WebView } from 'react-native-webview';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import Header from 'components/Header';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
 
 const EditServicePackageScreen = () => {
     const { user,loading: authLoading } = useContext(AuthContext);
     const navigation = useNavigation();
     const route = useRoute();
     const { packageId } = route.params || {};
-    const richText = useRef();
     const [newPackage,setNewPackage] = useState({
         packageName: '',
         description: '',
@@ -40,8 +41,82 @@ const EditServicePackageScreen = () => {
     const [formErrors,setFormErrors] = useState({});
     const [actionLoading,setActionLoading] = useState(false);
     const [loadingPackage,setLoadingPackage] = useState(true);
+    const [editorHtml,setEditorHtml] = useState('');
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
+    const webViewRef = useRef(null);
+
+    const generateCkEditorHtml = (initialData = '') => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <script src="https://cdn.ckeditor.com/ckeditor5/39.0.0/classic/ckeditor.js"></script>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: #F8FAFC;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        }
+        #editor-container {
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .ck-editor__top {
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          background: #F1F5F9;
+          border-bottom: 1px solid #E2E8F0;
+        }
+        .ck-editor__editable {
+          min-height: 150px;
+          padding: 12px;
+          background: #F8FAFC;
+        }
+        .ck-content {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+          font-size: 16px;
+          color: #1E293B;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="editor-container">
+        <div id="editor"></div>
+      </div>
+      <script>
+        ClassicEditor
+          .create( document.querySelector( '#editor' ), {
+            toolbar: {
+              items: [
+                'undo', 'redo',
+                '|',
+                'bold', 'italic',
+                '|',
+                'bulletedList', 'numberedList',
+                '|',
+                'link',
+                '|',
+                'sourceEditing'
+              ]
+            },
+            language: 'en',
+            initialData: '${(initialData || "").replace(/'/g,"\\'")}'
+          } )
+          .then( editor => {
+            editor.model.document.on( 'change:data', () => {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content', data: editor.getData() }));
+            } );
+          } )
+          .catch( error => {
+            console.error( error );
+          } );
+      </script>
+    </body>
+    </html>
+  `;
 
     useEffect(() => {
         if (authLoading) return;
@@ -66,6 +141,7 @@ const EditServicePackageScreen = () => {
                             maxSubscribers: response.data.maxSubscribers ? response.data.maxSubscribers.toString() : '',
                             trainerId: user.userId,
                         });
+                        setEditorHtml(generateCkEditorHtml(response.data.description));
                         Animated.parallel([
                             Animated.timing(fadeAnim,{
                                 toValue: 1,
@@ -105,7 +181,7 @@ const EditServicePackageScreen = () => {
         } else if (newPackage.packageName.length < 3 || newPackage.packageName.length > 255) {
             errors.packageName = 'Package name must be between 3 and 255 characters.';
         }
-        if (newPackage.description.length > 1000) {
+        if (newPackage.description.replace(/<[^>]*>/g,'').length > 1000) {
             errors.description = 'Description cannot exceed 1000 characters.';
         }
         if (!newPackage.price || isNaN(parseFloat(newPackage.price)) || parseFloat(newPackage.price) < 0) {
@@ -147,7 +223,6 @@ const EditServicePackageScreen = () => {
                 maxSubscribers: newPackage.maxSubscribers ? parseInt(newPackage.maxSubscribers) : null,
                 trainerId: user.userId,
             };
-            console.log(packageData)
             const response = await trainerService.updateServicePackage(packageId,packageData);
             if (response.statusCode === 200) {
                 showSuccessMessage('Service package updated successfully.');
@@ -165,10 +240,7 @@ const EditServicePackageScreen = () => {
     const renderLoadingScreen = () => (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#0056D2" />
-                <Text style={styles.loadingText}>Loading package details...</Text>
-            </View>
+            <CommonSkeleton />
         </SafeAreaView>
     );
 
@@ -217,118 +289,120 @@ const EditServicePackageScreen = () => {
         </Animated.View>
     );
 
+    const renderFormField = (label,value,onChangeText,placeholder,keyboardType = 'default') => (
+        <Animated.View
+            style={[
+                styles.inputContainer,
+                {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                },
+            ]}
+        >
+            <Text style={styles.inputLabel}>{label}</Text>
+            <View style={[styles.inputWrapper,formErrors[label.toLowerCase().replace(' ($)','').replace(/\s+/g,'')] && styles.inputError]}>
+                <Ionicons
+                    name={
+                        label === 'Package Name' ? 'pricetag-outline' :
+                            label === 'Price ($)' ? 'cash-outline' :
+                                label === 'Duration (Days)' ? 'calendar-outline' :
+                                    'people-outline'
+                    }
+                    size={20}
+                    color="#64748B"
+                    style={styles.inputIcon}
+                />
+                <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChangeText}
+                    placeholder={placeholder}
+                    placeholderTextColor="#94A3B8"
+                    keyboardType={keyboardType}
+                />
+            </View>
+            {formErrors[label.toLowerCase().replace(' ($)','').replace(/\s+/g,'')] && (
+                <Text style={styles.errorText}>{formErrors[label.toLowerCase().replace(' ($)','').replace(/\s+/g,'')]}</Text>
+            )}
+        </Animated.View>
+    );
+
     if (loadingPackage) return renderLoadingScreen();
 
     return (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Edit Service Package</Text>
-                    </View>
-                    <View style={styles.headerRight} />
-                </View>
-            </View>
+            <Header
+                title="Edit Service"
+                onBack={() => navigation.goBack()}
+                backIconColor="#0056D2"
+            />
+
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <Animated.View style={[styles.content,{ opacity: fadeAnim,transform: [{ translateY: slideAnim }] }]}>
                     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Package Name</Text>
-                            <View style={[styles.inputWrapper,formErrors.packageName && styles.inputError]}>
-                                <Ionicons name="pricetag-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={newPackage.packageName}
-                                    onChangeText={(text) => handleInputChange('packageName',text)}
-                                    placeholder="Enter package name"
-                                    placeholderTextColor="#94A3B8"
-                                />
-                            </View>
-                            {formErrors.packageName && <Text style={styles.errorText}>{formErrors.packageName}</Text>}
-                        </View>
-                        <View style={styles.inputContainer}>
+                        {renderFormField(
+                            'Package Name',
+                            newPackage.packageName,
+                            (text) => handleInputChange('packageName',text),
+                            'Enter package name'
+                        )}
+                        <Animated.View
+                            style={[
+                                styles.inputContainer,
+                                {
+                                    opacity: fadeAnim,
+                                    transform: [{ translateY: slideAnim }],
+                                },
+                            ]}
+                        >
                             <Text style={styles.inputLabel}>Description</Text>
                             <View style={[styles.richEditorWrapper,formErrors.description && styles.inputError]}>
-                                <RichEditor
-                                    ref={richText}
-                                    initialContentHTML={newPackage.description}
-                                    onChange={(text) => handleInputChange('description',text)}
-                                    placeholder="Enter description"
+                                <WebView
+                                    ref={webViewRef}
+                                    originWhitelist={['*']}
+                                    source={{ html: editorHtml }}
                                     style={styles.richEditor}
-                                    editorStyle={{
-                                        backgroundColor: '#F8FAFC',
-                                        color: '#1E293B',
-                                        placeholderColor: '#94A3B8',
-                                        contentCSSText: `font-size: 16px; padding: 12px; font-family: ${Platform.OS === 'ios' ? 'System' : 'Roboto'};`,
+                                    onMessage={(event) => {
+                                        const message = JSON.parse(event.nativeEvent.data);
+                                        if (message.type === 'content') {
+                                            handleInputChange('description',message.data);
+                                        }
                                     }}
+                                    javaScriptEnabled={true}
+                                    domStorageEnabled={true}
+                                    startInLoadingState={true}
+                                    showsVerticalScrollIndicator={false}
+                                    showsHorizontalScrollIndicator={false}
+                                    scrollEnabled={false}
+                                    scalesPageToFit={false}
+                                    automaticallyAdjustContentInsets={false}
+                                    contentInset={{ top: 0,left: 0,bottom: 0,right: 0 }}
                                 />
                             </View>
-                            <RichToolbar
-                                editor={richText}
-                                actions={[
-                                    actions.setBold,
-                                    actions.setItalic,
-                                    actions.insertBulletsList,
-                                    actions.insertOrderedList,
-                                    actions.insertLink,
-                                    actions.undo,
-                                    actions.redo,
-                                ]}
-                                iconTint="#64748B"
-                                selectedIconTint="#0056D2"
-                                style={styles.richToolbar}
-                            />
                             {formErrors.description && <Text style={styles.errorText}>{formErrors.description}</Text>}
-                        </View>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Price ($)</Text>
-                            <View style={[styles.inputWrapper,formErrors.price && styles.inputError]}>
-                                <Ionicons name="cash-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={newPackage.price}
-                                    onChangeText={(text) => handleInputChange('price',text)}
-                                    placeholder="Enter price"
-                                    keyboardType="numeric"
-                                    placeholderTextColor="#94A3B8"
-                                />
-                            </View>
-                            {formErrors.price && <Text style={styles.errorText}>{formErrors.price}</Text>}
-                        </View>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Duration (Days)</Text>
-                            <View style={[styles.inputWrapper,formErrors.durationDays && styles.inputError]}>
-                                <Ionicons name="calendar-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={newPackage.durationDays}
-                                    onChangeText={(text) => handleInputChange('durationDays',text)}
-                                    placeholder="Enter duration"
-                                    keyboardType="numeric"
-                                    placeholderTextColor="#94A3B8"
-                                />
-                            </View>
-                            {formErrors.durationDays && <Text style={styles.errorText}>{formErrors.durationDays}</Text>}
-                        </View>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Maximum Subscribers (Optional)</Text>
-                            <View style={[styles.inputWrapper,formErrors.maxSubscribers && styles.inputError]}>
-                                <Ionicons name="people-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={newPackage.maxSubscribers}
-                                    onChangeText={(text) => handleInputChange('maxSubscribers',text)}
-                                    placeholder="Enter max subscribers"
-                                    keyboardType="numeric"
-                                    placeholderTextColor="#94A3B8"
-                                />
-                            </View>
-                            {formErrors.maxSubscribers && <Text style={styles.errorText}>{formErrors.maxSubscribers}</Text>}
-                        </View>
+                        </Animated.View>
+                        {renderFormField(
+                            'Price ($)',
+                            newPackage.price,
+                            (text) => handleInputChange('price',text),
+                            'Enter price',
+                            'numeric'
+                        )}
+                        {renderFormField(
+                            'Duration (Days)',
+                            newPackage.durationDays,
+                            (text) => handleInputChange('durationDays',text),
+                            'Enter duration',
+                            'numeric'
+                        )}
+                        {renderFormField(
+                            'Maximum Subscribers (Optional)',
+                            newPackage.maxSubscribers,
+                            (text) => handleInputChange('maxSubscribers',text),
+                            'Enter max subscribers',
+                            'numeric'
+                        )}
                         {renderStatusSelector()}
                         <TouchableOpacity
                             style={[styles.button,actionLoading && styles.buttonDisabled]}
@@ -382,10 +456,11 @@ const styles = StyleSheet.create({
         color: '#1E293B',
     },
     headerRight: {
-        width: 40, // Placeholder for alignment
+        width: 40,
     },
     content: {
         flex: 1,
+        marginTop: 80
     },
     scrollContent: {
         paddingHorizontal: 20,
@@ -432,15 +507,7 @@ const styles = StyleSheet.create({
     },
     richEditor: {
         minHeight: 150,
-        padding: 12,
-    },
-    richToolbar: {
-        backgroundColor: '#F1F5F9',
-        borderBottomLeftRadius: 12,
-        borderBottomRightRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderTopWidth: 0,
+        backgroundColor: '#F8FAFC',
     },
     errorText: {
         fontSize: 12,

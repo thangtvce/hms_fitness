@@ -19,6 +19,7 @@ import { trainerService } from 'services/apiTrainerService';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Header from 'components/Header';
 
 const AddWorkoutPlanScreen = () => {
     const navigation = useNavigation();
@@ -244,17 +245,12 @@ const AddWorkoutPlanScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Add Workout Plan</Text>
-                    </View>
-                    <View style={styles.headerRight} />
-                </View>
-            </View>
+            <Header
+                title="Add Workout Plan"
+                onBack={() => navigation.goBack()}
+                backIconColor="#0056D2"
+            />
+
             <KeyboardAvoidingView
                 style={styles.keyboardAvoidingContainer}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -468,6 +464,7 @@ const styles = StyleSheet.create({
     },
     keyboardAvoidingContainer: {
         flex: 1,
+        marginTop: 80
     },
     content: {
         flexGrow: 1,

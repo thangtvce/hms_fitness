@@ -1,4 +1,4 @@
-import React,{ useState,useEffect, useContext } from 'react';
+import React,{ useState,useEffect,useContext } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,10 @@ import {
   Dimensions,
 } from 'react-native';
 import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from 'utils/toastUtil';
 import { Ionicons } from '@expo/vector-icons';
 import { weightHistoryService } from 'services/apiWeightHistoryService';
-import { useAuth } from 'context/AuthContext';
+import { AuthContext,useAuth } from 'context/AuthContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,12 +22,14 @@ import Header from 'components/Header';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import { handleDailyCheckin } from 'utils/checkin';
 
 
 const { width } = Dimensions.get('window');
 
 export default function AddWeightHistoryScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user } = useContext(AuthContext);
   const { colors } = useContext(ThemeContext);
   const [formData,setFormData] = useState({
     weight: '',
@@ -46,10 +48,10 @@ export default function AddWeightHistoryScreen({ navigation }) {
   const fetchRecentWeights = async () => {
     try {
       setLoading(true);
-      const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1, pageSize: 7 });
+      const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1,pageSize: 7 });
       if (response.statusCode === 200 && response.data && response.data.records) {
         const sortedWeights = response.data.records
-          .sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
+          .sort((a,b) => new Date(a.recordedAt) - new Date(b.recordedAt))
           .slice(-7);
 
         setRecentWeights(sortedWeights);
@@ -67,7 +69,6 @@ export default function AddWeightHistoryScreen({ navigation }) {
         }
       }
     } catch (error) {
-      // Không thông báo lỗi khi loading dữ liệu biểu đồ
     } finally {
       setLoading(false);
     }
@@ -81,47 +82,43 @@ export default function AddWeightHistoryScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    // UserId validation
     if (!user || !user.userId) {
-      showErrorFetchAPI('You are not logged in. Please log in again.');
+      showErrorMessage('You are not logged in. Please log in again.');
       navigation.replace('Login');
       return;
     }
-    const userId = parseInt(user.userId, 10);
+    const userId = parseInt(user.userId,10);
     if (isNaN(userId) || userId <= 0) {
-      showErrorFetchAPI('UserId must be a positive integer.');
+      showErrorMessage('UserId must be a positive integer.');
       return;
     }
 
-    // Weight validation: required, 0.1-500
     if (!formData.weight || isNaN(parseFloat(formData.weight))) {
-      showErrorFetchAPI('Weight is required and must be a valid number.');
+      showErrorMessage('Weight is required and must be a valid number.');
       return;
     }
     const weight = parseFloat(formData.weight);
     if (weight < 0.1 || weight > 500) {
-      showErrorFetchAPI('Weight must be between 0.1 and 500 kg.');
+      showErrorMessage('Weight must be between 0.1 and 500 kg.');
       return;
     }
 
-    // RecordedAt validation: not in the future
     const now = new Date();
     if (formData.recordedAt && formData.recordedAt > now) {
-      showErrorFetchAPI('Recorded date cannot be in the future.');
+      showErrorMessage('Recorded date cannot be in the future.');
       return;
     }
 
     try {
       setLoading(true);
-      // Format local datetime as 'YYYY-MM-DDTHH:mm:ss' (no Z, no UTC)
       const d = formData.recordedAt;
       const localDateTime =
         d.getFullYear() + '-' +
-        String(d.getMonth() + 1).padStart(2, '0') + '-' +
-        String(d.getDate()).padStart(2, '0') + 'T' +
-        String(d.getHours()).padStart(2, '0') + ':' +
-        String(d.getMinutes()).padStart(2, '0') + ':' +
-        String(d.getSeconds()).padStart(2, '0');
+        String(d.getMonth() + 1).padStart(2,'0') + '-' +
+        String(d.getDate()).padStart(2,'0') + 'T' +
+        String(d.getHours()).padStart(2,'0') + ':' +
+        String(d.getMinutes()).padStart(2,'0') + ':' +
+        String(d.getSeconds()).padStart(2,'0');
       const response = await weightHistoryService.addWeightHistory({
         historyId: "0",
         userId: userId,
@@ -131,6 +128,13 @@ export default function AddWeightHistoryScreen({ navigation }) {
 
       if (response.statusCode === 201) {
         showSuccessMessage('Weight recorded successfully.');
+        try {
+          if (user?.userId) {
+            await handleDailyCheckin(user?.userId,"weight_log");
+          }
+        } catch (e) {
+          console.log(e);
+        }
         navigation.goBack();
       } else {
         let errorMessage = response.message || 'An error occurred.';
@@ -143,10 +147,10 @@ export default function AddWeightHistoryScreen({ navigation }) {
           errorMessage = validationErrors || errorMessage;
         }
 
-        showErrorFetchAPI(errorMessage);
+        showErrorMessage(errorMessage);
       }
     } catch (error) {
-      showErrorFetchAPI(error.message || 'An unknown error occurred.');
+      showErrorFetchAPI(error);
     } finally {
       setLoading(false);
     }
@@ -241,7 +245,7 @@ export default function AddWeightHistoryScreen({ navigation }) {
   };
 
   if (loading) {
-    return <Loading />;
+    return <CommonSkeleton />;
   }
 
   return (
@@ -253,7 +257,7 @@ export default function AddWeightHistoryScreen({ navigation }) {
         backgroundColor={colors.headerBackground || "#FFFFFF"}
         textColor={colors.headerText || colors.primary || "#0056d2"}
       />
-      <View style={[styles.container, { paddingTop: 80 }]}> 
+      <View style={[styles.container,{ paddingTop: 80 }]}>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -312,7 +316,7 @@ export default function AddWeightHistoryScreen({ navigation }) {
 
             <TouchableOpacity
               onPress={handleSubmit}
-              style={[styles.submitButton, { backgroundColor: colors.primary || '#0056d2' }]}
+              style={[styles.submitButton,{ backgroundColor: colors.primary || '#0056d2' }]}
               disabled={loading}
             >
               <>

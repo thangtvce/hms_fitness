@@ -23,17 +23,19 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import Header from "components/Header"
 import Loading from "components/Loading"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+import { handleDailyCheckin } from "utils/checkin"
 
 const { width,height } = Dimensions.get("window")
 
 // Format date to yyyy-MM-ddTHH:mm:ss (local time, no timezone)
 function formatDateLocal(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2,"0");
-        const day = String(date.getDate()).padStart(2,"0");
-        return `${year}-${month}-${day}`;
-    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2,"0");
+    const day = String(date.getDate()).padStart(2,"0");
+    return `${year}-${month}-${day}`;
+}
 
 // Compact quick amounts
 const QUICK_AMOUNTS = [
@@ -57,7 +59,7 @@ export default function AddWaterLogScreen({ navigation }) {
     })
     const [activeField,setActiveField] = useState(null)
     const [isSubmitting,setIsSubmitting] = useState(false)
-    const [loading, setLoading] = useState(false)
+    const [loading,setLoading] = useState(false)
     const [showDatePicker,setShowDatePicker] = useState(false)
     const [selectedQuickAmount,setSelectedQuickAmount] = useState(null)
     const [fadeAnim] = useState(new Animated.Value(0))
@@ -102,55 +104,53 @@ export default function AddWaterLogScreen({ navigation }) {
         try {
             setLoading(true);
 
-            // UserId validation
             if (!user || !user.userId) {
-                showErrorFetchAPI("Please log in to continue.");
+                showErrorMessage("Please log in to continue.");
                 navigation.replace("Login");
                 return;
             }
-            const userId = Number.parseInt(user.userId, 10);
+            const userId = Number.parseInt(user.userId,10);
             if (isNaN(userId) || userId <= 0) {
-                showErrorFetchAPI("UserId must be a positive integer.");
+                showErrorMessage("UserId must be a positive integer.");
                 return;
             }
 
-            // AmountMl validation
             const amountMl = formData.amountMl ? Number.parseFloat(formData.amountMl) : null;
             if (amountMl === null || isNaN(amountMl)) {
-                showErrorFetchAPI("AmountMl is required.");
+                showErrorMessage("AmountMl is required.");
                 return;
             }
             if (amountMl < 1 || amountMl > 999999.99) {
-                showErrorFetchAPI("Amount must be between 1 and 999,999.99 ml.");
+                showErrorMessage("Amount must be between 1 and 999,999.99 ml.");
                 return;
             }
 
             // ConsumptionDate validation
             const consumptionDate = formData.consumptionDate;
             if (!(consumptionDate instanceof Date) || isNaN(consumptionDate.getTime())) {
-                showErrorFetchAPI("ConsumptionDate is required.");
+                showErrorMessage("ConsumptionDate is required.");
                 return;
             }
             // Compare only date part (not time)
             const today = new Date();
-            const dateOnly = new Date(consumptionDate.getFullYear(), consumptionDate.getMonth(), consumptionDate.getDate());
-            const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const dateOnly = new Date(consumptionDate.getFullYear(),consumptionDate.getMonth(),consumptionDate.getDate());
+            const todayOnly = new Date(today.getFullYear(),today.getMonth(),today.getDate());
             if (dateOnly > todayOnly) {
-                showErrorFetchAPI("ConsumptionDate cannot be in the future.");
+                showErrorMessage("ConsumptionDate cannot be in the future.");
                 return;
             }
 
             // Notes validation
             const notes = formData.notes?.trim() || null;
             if (notes && notes.length > 500) {
-                showErrorFetchAPI("Notes cannot exceed 500 characters.");
+                showErrorMessage("Notes cannot exceed 500 characters.");
                 return;
             }
 
             // Status validation
             const status = formData.status || "active";
             if (status && status.length > 20) {
-                showErrorFetchAPI("Status cannot exceed 20 characters.");
+                showErrorMessage("Status cannot exceed 20 characters.");
                 return;
             }
 
@@ -167,17 +167,6 @@ export default function AddWaterLogScreen({ navigation }) {
 
             // Check-in logic: only check-in once per day
             if (response.statusCode === 201) {
-                try {
-                    const checkinKey = `@Checkin_${formatDateLocal(todayOnly)}`;
-                    const alreadyCheckedIn = await AsyncStorage.getItem(checkinKey);
-                    if (!alreadyCheckedIn) {
-                        const checkinResponse = await apiUserService.checkInUser('checkin');
-                        console.log('Check-in response:', checkinResponse);
-                        await AsyncStorage.setItem(checkinKey, '1');
-                    }
-                } catch (e) {
-                    // Silent fail for check-in, do not block log
-                }
                 showSuccessMessage("Water intake logged successfully!");
                 setFormData({
                     amountMl: "",
@@ -186,12 +175,19 @@ export default function AddWaterLogScreen({ navigation }) {
                     status: "active",
                 });
                 setSelectedQuickAmount(null);
+                try {
+                    if (user?.userId) {
+                        await handleDailyCheckin(user.userId,"water_log");
+                    }
+                } catch (e) {
+                    console.log(e);
+                }
                 navigation.goBack();
             } else {
-                showErrorFetchAPI(e.message || "Failed to save water log.");
+                showErrorMessage(e.message || "Failed to save water log.");
             }
         } catch (error) {
-            showErrorFetchAPI(e.message || "An error occurred while saving your water log.");
+            showErrorFetchAPI(error);
         } finally {
             setLoading(false);
         }
@@ -219,7 +215,7 @@ export default function AddWaterLogScreen({ navigation }) {
                 onBack={() => navigation.goBack()}
                 backgroundColor="#FFFFFF"
                 titleColor="#1F2937"
-                // You can add rightActions if needed
+            // You can add rightActions if needed
             />
 
             <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -241,16 +237,16 @@ export default function AddWaterLogScreen({ navigation }) {
                                         key={amount.value}
                                         style={[
                                             styles.quickAmountPill,
-                                            selectedQuickAmount === amount.value && { backgroundColor: '#0056d2', borderColor: '#0056d2' },
+                                            selectedQuickAmount === amount.value && { backgroundColor: '#0056d2',borderColor: '#0056d2' },
                                         ]}
                                         onPress={() => handleQuickAmountSelect(amount.value)}
                                         activeOpacity={0.7}
                                     >
                                         <Text
-                                        style={[
-                                            styles.quickAmountText,
-                                            selectedQuickAmount === amount.value && { color: '#fff' },
-                                        ]}
+                                            style={[
+                                                styles.quickAmountText,
+                                                selectedQuickAmount === amount.value && { color: '#fff' },
+                                            ]}
                                         >
                                             {amount.label}
                                         </Text>
@@ -342,12 +338,12 @@ export default function AddWaterLogScreen({ navigation }) {
                         {/* Submit Button */}
                         <TouchableOpacity
                             onPress={handleSubmit}
-                            style={[styles.submitButton, { backgroundColor: '#0056d2' }, loading && styles.submitButtonDisabled]}
+                            style={[styles.submitButton,{ backgroundColor: '#0056d2' },loading && styles.submitButtonDisabled]}
                             disabled={loading}
                             activeOpacity={0.8}
                         >
                             <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                            <Text style={[styles.submitButtonText, { color: '#FFFFFF' }]}>Save Entry</Text>
+                            <Text style={[styles.submitButtonText,{ color: '#FFFFFF' }]}>Save Entry</Text>
                         </TouchableOpacity>
 
                         <View style={styles.bottomSpacer} />
@@ -391,7 +387,7 @@ export default function AddWaterLogScreen({ navigation }) {
                             <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDatePickerModal(false)}>
                                 <Text style={styles.modalCancelText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalConfirmButton, { backgroundColor: '#0056d2' }]} onPress={() => setShowDatePickerModal(false)}>
+                            <TouchableOpacity style={[styles.modalConfirmButton,{ backgroundColor: '#0056d2' }]} onPress={() => setShowDatePickerModal(false)}>
                                 <Text style={styles.modalConfirmText}>Confirm</Text>
                             </TouchableOpacity>
                         </View>
@@ -427,7 +423,7 @@ export default function AddWaterLogScreen({ navigation }) {
                     </View>
                 </View>
             </Modal>
-        {loading && <Loading />}
+            {loading && <CommonSkeleton />}
         </SafeAreaView>
     )
 }

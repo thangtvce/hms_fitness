@@ -21,6 +21,8 @@ import { AuthContext } from "context/AuthContext"
 import { LinearGradient } from "expo-linear-gradient"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+import Header from "components/Header"
 
 const { width } = Dimensions.get("window")
 
@@ -594,10 +596,7 @@ const ActiveMembersScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0056d2" />
-          <Text style={styles.loadingText}>Loading group members...</Text>
-        </View>
+        <CommonSkeleton />
       </SafeAreaView>
     )
   }
@@ -605,20 +604,20 @@ const ActiveMembersScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056d2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Group Members</Text>
-            <Text style={styles.headerSubtitle}>{filteredMembers.length} members</Text>
-          </View>
-          <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
-            <Ionicons name="options-outline" size={24} color="#0056d2" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Group Members"
+        subtitle={`${filteredMembers.length} members`}
+        onBack={() => navigation.goBack()}
+        showAvatar={false}
+        rightActions={[
+          {
+            icon: <Ionicons name="options-outline" size={24} color="#0056d2" />,
+            onPress: () => setShowSortModal(true),
+            backgroundColor: 'transparent',
+          },
+        ]}
+      />
+
 
       {/* Search Bar */}
       {isOwner && (
@@ -1242,6 +1241,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    marginTop: 70
   },
   tabBarButton: {
     flex: 1,

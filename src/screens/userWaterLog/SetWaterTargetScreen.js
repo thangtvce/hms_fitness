@@ -25,14 +25,11 @@ const getTargetWaterLog = async (userId) => {
   try {
     const key = `waterTarget_${userId}`;
     const stored = await AsyncStorage.getItem(key);
-    console.log(`Fetching water target for user ${userId}`);
     if (stored) {
       return JSON.parse(stored);
     }
-    // Nếu chưa có thì trả về mặc định
     return { target: 2000, unit: 'ml' };
   } catch (e) {
-    console.log('Error fetching water target:', e);
     return { target: 2000, unit: 'ml' };
   }
 };
@@ -44,7 +41,6 @@ export default function SetWaterTargetScreen({ route, navigation }) {
   const [target, setTarget] = React.useState(initialTarget || 2000);
   const [saving, setSaving] = React.useState(false);
 
-  // Load saved target when screen mounts
   React.useEffect(() => {
     let isMounted = true;
     if (userId) {
@@ -65,9 +61,7 @@ export default function SetWaterTargetScreen({ route, navigation }) {
       if (saved && typeof saved.target === 'number') {
         setTarget(saved.target);
       }
-      console.log('Saved water target:', saved);
     } catch (e) {
-      console.log('Error reading saved water target:', e);
     }
     setSaving(false);
     if (onSaved) onSaved(target, 'ml');
@@ -95,7 +89,7 @@ export default function SetWaterTargetScreen({ route, navigation }) {
         backIconColor="#FFFFFF"
       />
       <LinearGradient
-        colors={['#0056d2', '#2070e0']} // Updated gradient colors
+        colors={['#0056d2', '#2070e0']} 
         style={styles.gradientBackground}
       >
         <View style={styles.content}>

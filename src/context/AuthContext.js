@@ -57,10 +57,7 @@ export const AuthProvider = ({ children }) => {
         AsyncStorage.getItem('refreshToken'),
         AsyncStorage.getItem('user'),
       ]);
-
-      // Hiển thị token ra console khi reload (loadToken được gọi)
-      console.log('AuthContext loadToken - accessToken:', token);
-
+      console.log('AuthContext loadToken - accessToken:',token);
       if (token && refreshToken && userData) {
         if (!validateToken(token) || !validateToken(refreshToken)) {
           await logout();
@@ -203,7 +200,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    
+
     loadToken();
     return () => {
       if (refreshTimerRef.current) {

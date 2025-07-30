@@ -20,6 +20,8 @@ import { showErrorFetchAPI } from 'utils/toastUtil';
 import { PieChart,BarChart } from 'react-native-chart-kit';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -149,10 +151,7 @@ const TrainerWorkoutPlanStatisticsScreen = () => {
     const renderLoadingScreen = () => (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#0056D2" />
-                <Text style={styles.loadingText}>Loading workout plan statistics...</Text>
-            </View>
+            <CommonSkeleton />
         </SafeAreaView>
     );
 
@@ -492,22 +491,20 @@ const TrainerWorkoutPlanStatisticsScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('TrainerWorkoutPlanManagement')}>
-                        <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Workout Plan Statistics</Text>
-                    </View>
-                    <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-                        <Ionicons name="options-outline" size={24} color="#0056D2" />
-                        {(filters.startDate || filters.endDate || filters.status !== 'all') && (
-                            <View style={styles.filterBadge} />
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </View>
+            <Header
+                title="Workout Plan Statistics"
+                onBack={() => navigation.navigate('TrainerWorkoutPlanManagement')}
+                backIconColor="#0056D2"
+                rightActions={[
+                    {
+                        icon: 'options-outline',
+                        onPress: () => setShowFilterModal(true),
+                        badge: filters.startDate || filters.endDate || filters.status !== 'all',
+                        color: "#0056D2"
+                    },
+                ]}
+            />
+
             <ScrollView
                 style={styles.scrollContainer}
                 contentContainerStyle={styles.scrollContent}
@@ -570,6 +567,7 @@ const styles = StyleSheet.create({
     scrollContainer: {
         flex: 1,
         backgroundColor: '#F8FAFC',
+        marginTop: 70
     },
     scrollContent: {
         padding: 20,

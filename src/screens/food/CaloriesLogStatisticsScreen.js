@@ -1,11 +1,12 @@
 
-import { useEffect, useState, useContext } from "react"
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Dimensions } from "react-native"
+import { useEffect,useState,useContext } from "react"
+import { View,Text,StyleSheet,FlatList,ActivityIndicator,TouchableOpacity,Dimensions } from "react-native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { AuthContext } from "context/AuthContext"
 import { foodService } from "services/apiFoodService"
 import { BarChart } from "react-native-chart-kit"
 import dayjs from "dayjs"
+import ShimmerPlaceholder from "components/shimmer/ShimmerPlaceholder"
 import isoWeek from "dayjs/plugin/isoWeek"
 import Header from "components/Header"
 import { useNavigation } from "@react-navigation/native"
@@ -16,26 +17,25 @@ dayjs.extend(isoWeek)
 const { width: screenWidth } = Dimensions.get("window")
 
 const TABS = [
-  { key: "daily", label: "Daily" },
-  { key: "weekly", label: "Weekly" },
-  { key: "monthly", label: "Monthly" },
+  { key: "daily",label: "Daily" },
+  { key: "weekly",label: "Weekly" },
+  { key: "monthly",label: "Monthly" },
 ]
 
 const CaloriesLogStatisticsScreen = () => {
   const navigation = useNavigation()
   const { user } = useContext(AuthContext)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [tab, setTab] = useState("daily")
-  const [stats, setStats] = useState({
+  const [loading,setLoading] = useState(true)
+  const [error,setError] = useState(null)
+  const [tab,setTab] = useState("daily")
+  const [stats,setStats] = useState({
     logsByDate: [],
     logsByWeek: [],
     logsByMonth: [],
     averageCalories: 0,
   })
-  const [goalCalories, setGoalCalories] = useState(null)
+  const [goalCalories,setGoalCalories] = useState(null)
 
-  // Hàm lấy giá trị goal calories mới nhất từ AsyncStorage, dùng userId từ AuthContext
   const fetchGoalCalories = async () => {
     try {
       const userId = user?.id || user?._id || user?.userId || null
@@ -52,7 +52,6 @@ const CaloriesLogStatisticsScreen = () => {
     }
   }
 
-  // Always fetch fresh data on mount and every time screen is focused
   useEffect(() => {
     const fetchStatistics = async () => {
       try {
@@ -61,37 +60,32 @@ const CaloriesLogStatisticsScreen = () => {
         const res = await foodService.getMyNutritionLogStatistics()
         const logsByDate = res.data?.logsByDate || []
 
-        // Log tổng giá trị calo khi vào screen
-        const totalCalories = logsByDate.reduce((sum, item) => sum + item.totalCalories, 0)
-        console.log('Tổng giá trị calo:', totalCalories)
+        const totalCalories = logsByDate.reduce((sum,item) => sum + item.totalCalories,0)
 
-        // Group by week
         const weekMap = {}
         logsByDate.forEach((item) => {
           const date = dayjs(item.date)
           const weekNum = date.isoWeek()
           const year = date.year()
           const weekKey = `${year}-W${weekNum}`
-          if (!weekMap[weekKey]) weekMap[weekKey] = { week: weekKey, totalCalories: 0, count: 0 }
+          if (!weekMap[weekKey]) weekMap[weekKey] = { week: weekKey,totalCalories: 0,count: 0 }
           weekMap[weekKey].totalCalories += item.totalCalories
           weekMap[weekKey].count += 1
         })
         const logsByWeek = Object.values(weekMap)
 
-        // Group by month
         const monthMap = {}
         logsByDate.forEach((item) => {
           const date = dayjs(item.date)
           const monthKey = date.format("YYYY-MM")
-          if (!monthMap[monthKey]) monthMap[monthKey] = { month: monthKey, totalCalories: 0, count: 0 }
+          if (!monthMap[monthKey]) monthMap[monthKey] = { month: monthKey,totalCalories: 0,count: 0 }
           monthMap[monthKey].totalCalories += item.totalCalories
           monthMap[monthKey].count += 1
         })
         const logsByMonth = Object.values(monthMap)
 
-        // Calculate average calories for each tab
         const getAvg = (arr) =>
-          arr.length === 0 ? 0 : Math.round(arr.reduce((sum, i) => sum + i.totalCalories, 0) / arr.length)
+          arr.length === 0 ? 0 : Math.round(arr.reduce((sum,i) => sum + i.totalCalories,0) / arr.length)
 
         setStats({
           logsByDate,
@@ -101,23 +95,21 @@ const CaloriesLogStatisticsScreen = () => {
             tab === "daily" ? getAvg(logsByDate) : tab === "weekly" ? getAvg(logsByWeek) : getAvg(logsByMonth),
         })
       } catch (err) {
-        setError(err.message)
+        showErrorFetchAPI(err);
       } finally {
         setLoading(false)
       }
     }
 
-    // Initial fetch on mount
     fetchStatistics()
     fetchGoalCalories()
 
-    // Fetch again every time screen is focused
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener('focus',() => {
       fetchStatistics()
       fetchGoalCalories()
     })
     return unsubscribe
-  }, [navigation, tab])
+  },[navigation,tab])
 
   const getCurrentData = () => {
     if (tab === "daily") return stats.logsByDate
@@ -129,7 +121,7 @@ const CaloriesLogStatisticsScreen = () => {
   const chartData = getCurrentData()
 
   const getWeekLabel = (weekStr) => {
-    const [year, week] = weekStr.split("-W")
+    const [year,week] = weekStr.split("-W")
     return `Week ${week}`
   }
 
@@ -148,7 +140,7 @@ const CaloriesLogStatisticsScreen = () => {
   const getChartMaxValue = () => {
     const maxDataValue = calories.length > 0 ? Math.max(...calories) : 0
     if (goalCalories) {
-      const maxValue = Math.max(goalCalories, maxDataValue)
+      const maxValue = Math.max(goalCalories,maxDataValue)
       return Math.ceil(maxValue * 1.2)
     }
     return Math.ceil(maxDataValue * 1.2)
@@ -169,9 +161,31 @@ const CaloriesLogStatisticsScreen = () => {
     return (
       <View style={styles.container}>
         <Header title="Calorie Statistics" onBack={() => navigation.goBack()} />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#0056d2" />
-          <Text style={styles.loadingText}>Loading statistics...</Text>
+        {/* Tabs luôn hiển thị */}
+        <View style={styles.contentWrapper}>
+          <View style={styles.tabContainer}>
+            {TABS.map((t) => (
+              <TouchableOpacity
+                key={t.key}
+                style={[styles.tab,tab === t.key && styles.tabActive]}
+                onPress={() => setTab(t.key)}
+              >
+                <Text style={[styles.tabLabel,tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={{ padding: 8 }}>
+            {/* Shimmer cho Header */}
+            {/* Shimmer cho Statistics Cards */}
+            <View style={{ flexDirection: 'row',gap: 12,marginBottom: 24 }}>
+              <ShimmerPlaceholder style={{ flex: 1,height: 80,borderRadius: 16 }} />
+              <ShimmerPlaceholder style={{ flex: 1,height: 80,borderRadius: 16 }} />
+            </View>
+            {/* Shimmer cho Chart */}
+            <ShimmerPlaceholder style={{ height: 260,borderRadius: 16,marginBottom: 24 }} />
+            {/* Shimmer cho History Card */}
+            <ShimmerPlaceholder style={{ height: 260,borderRadius: 16 }} />
+          </View>
         </View>
       </View>
     )
@@ -198,24 +212,24 @@ const CaloriesLogStatisticsScreen = () => {
           {TABS.map((t) => (
             <TouchableOpacity
               key={t.key}
-              style={[styles.tab, tab === t.key && styles.tabActive]}
+              style={[styles.tab,tab === t.key && styles.tabActive]}
               onPress={() => setTab(t.key)}
             >
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              <Text style={[styles.tabLabel,tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Statistics Cards */}
         <View style={styles.statsContainer}>
-          <LinearGradient colors={["#0056d2", "#0056d2"]} style={styles.statCard}>
+          <LinearGradient colors={["#0056d2","#0056d2"]} style={styles.statCard}>
             <Text style={styles.statLabel}>Average Intake</Text>
             <Text style={styles.statValue}>{stats.averageCalories}</Text>
             <Text style={styles.statUnit}>kcal</Text>
           </LinearGradient>
 
           {goalCalories && (
-            <LinearGradient colors={["#0056d2", "#0056d2"]} style={styles.statCard}>
+            <LinearGradient colors={["#0056d2","#0056d2"]} style={styles.statCard}>
               <Text style={styles.statLabel}>Daily Goal</Text>
               <Text style={styles.statValue}>{goalCalories}</Text>
               <Text style={styles.statUnit}>kcal</Text>
@@ -247,8 +261,8 @@ const CaloriesLogStatisticsScreen = () => {
                 backgroundGradientFrom: "#ffffff",
                 backgroundGradientTo: "#ffffff",
                 decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
-labelColor: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
+                color: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
 
                 style: {
                   borderRadius: 16,
@@ -277,12 +291,12 @@ labelColor: (opacity = 1) => `rgba(0, 86, 210, ${opacity})`,
         <View style={styles.historyContainer}>
           <Text style={styles.historyTitle}>Recent History</Text>
           <FlatList
-            data={chartData.slice(0, 10)} // Show only recent 10 entries
-            keyExtractor={(item, idx) =>
+            data={chartData.slice(0,10)} // Show only recent 10 entries
+            keyExtractor={(item,idx) =>
               (tab === "daily" ? item.date : tab === "weekly" ? item.week : item.month) + idx
             }
-            renderItem={({ item, index }) => (
-              <View style={[styles.historyItem, index === 0 && styles.historyItemFirst]}>
+            renderItem={({ item,index }) => (
+              <View style={[styles.historyItem,index === 0 && styles.historyItemFirst]}>
                 <View style={styles.historyItemLeft}>
                   <Text style={styles.historyDate}>
                     {tab === "daily"
@@ -330,7 +344,7 @@ const styles = StyleSheet.create({
   contentWrapper: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 100,
+    paddingTop: 120,
   },
   centered: {
     flex: 1,

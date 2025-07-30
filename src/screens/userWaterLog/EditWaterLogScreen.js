@@ -13,7 +13,7 @@ import {
     Modal,
 } from "react-native"
 import Loading from "components/Loading"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { apiUserWaterLogService } from "services/apiUserWaterLogService"
@@ -21,6 +21,7 @@ import { useAuth } from "context/AuthContext"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { SafeAreaView } from "react-native-safe-area-context"
 import Header from "components/Header"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
 
 const { width,height } = Dimensions.get("window")
 
@@ -103,12 +104,12 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
         }
     }
 
-                    function formatDateLocal(date) {
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2,"0");
-                        const day = String(date.getDate()).padStart(2,"0");
-                        return `${year}-${month}-${day}`;
-                    }
+    function formatDateLocal(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2,"0");
+        const day = String(date.getDate()).padStart(2,"0");
+        return `${year}-${month}-${day}`;
+    }
 
     const handleSave = async () => {
         try {
@@ -116,61 +117,56 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
 
             // UserId validation
             if (!user || !user.userId) {
-                showErrorFetchAPI("Please log in to continue.");
+                showErrorMessage("Please log in to continue.");
                 return;
             }
-            const userId = Number.parseInt(user.userId, 10);
+            const userId = Number.parseInt(user.userId,10);
             if (isNaN(userId) || userId <= 0) {
-                showErrorFetchAPI("UserId must be a positive integer.");
+                showErrorMessage("UserId must be a positive integer.");
                 return;
             }
             if (userId !== formData.userId) {
-                showErrorFetchAPI("You can only edit your own water logs.");
+                showErrorMessage("You can only edit your own water logs.");
                 return;
             }
 
-            // AmountMl validation
             let amountMl = null;
             if (formData.amountMl === undefined || formData.amountMl === null || formData.amountMl === "") {
-                showErrorFetchAPI("AmountMl is required.");
+                showErrorMessage("AmountMl is required.");
                 return;
             }
             amountMl = Number.parseFloat(formData.amountMl);
             if (isNaN(amountMl)) {
-                showErrorFetchAPI("AmountMl is required.");
+                showErrorMessage("AmountMl is required.");
                 return;
             }
             if (amountMl < 1 || amountMl > 999999.99) {
-                showErrorFetchAPI("Amount must be between 1 and 999,999.99 ml.");
+                showErrorMessage("Amount must be between 1 and 999,999.99 ml.");
                 return;
             }
 
-            // ConsumptionDate validation
             const consumptionDate = formData.consumptionDate;
             if (!(consumptionDate instanceof Date) || isNaN(consumptionDate.getTime())) {
-                showErrorFetchAPI("ConsumptionDate is required.");
+                showErrorMessage("ConsumptionDate is required.");
                 return;
             }
-            // Only compare date part (not time)
             const today = new Date();
-            const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const logDate = new Date(consumptionDate.getFullYear(), consumptionDate.getMonth(), consumptionDate.getDate());
+            const localToday = new Date(today.getFullYear(),today.getMonth(),today.getDate());
+            const logDate = new Date(consumptionDate.getFullYear(),consumptionDate.getMonth(),consumptionDate.getDate());
             if (logDate > localToday) {
-                showErrorFetchAPI("ConsumptionDate cannot be in the future.");
+                showErrorMessage("ConsumptionDate cannot be in the future.");
                 return;
             }
 
-            // Notes validation
             const notes = formData.notes?.trim() || null;
             if (notes && notes.length > 500) {
-                showErrorFetchAPI("Notes cannot exceed 500 characters.");
+                showErrorMessage("Notes cannot exceed 500 characters.");
                 return;
             }
 
-            // Status validation
             let status = formData.status || "active";
             if (status && status.length > 20) {
-                showErrorFetchAPI("Status cannot exceed 20 characters.");
+                showErrorMessage("Status cannot exceed 20 characters.");
                 return;
             }
 
@@ -184,20 +180,20 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                 Status: status,
             };
 
-            const response = await apiUserWaterLogService.updateWaterLog(formData.logId, payload);
+            const response = await apiUserWaterLogService.updateWaterLog(formData.logId,payload);
 
             if (response.statusCode === 200) {
                 showSuccessMessage("Water log updated successfully!");
                 navigation.goBack();
             } else {
-                showErrorFetchAPI(response.message || "Failed to update water log.");
+                showErrorMessage(response.message || "Failed to update water log.");
             }
         } catch (error) {
-            showErrorFetchAPI(error.message || "Failed to update water log.");
+            showErrorFetchAPI(error);
         } finally {
             setLoading(false);
         }
-    } 
+    }
 
     const getProgressColor = () => {
         const amount = Number.parseFloat(formData.amountMl) || 0
@@ -243,16 +239,16 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                                         key={amount.value}
                                         style={[
                                             styles.quickAmountPill,
-                                            selectedQuickAmount === amount.value && { backgroundColor: '#0056d2', borderColor: '#0056d2' },
+                                            selectedQuickAmount === amount.value && { backgroundColor: '#0056d2',borderColor: '#0056d2' },
                                         ]}
                                         onPress={() => handleQuickAmountSelect(amount.value)}
                                         activeOpacity={0.7}
                                     >
                                         <Text
-                                        style={[
-                                            styles.quickAmountText,
-                                            selectedQuickAmount === amount.value && { color: '#fff' },
-                                        ]}
+                                            style={[
+                                                styles.quickAmountText,
+                                                selectedQuickAmount === amount.value && { color: '#fff' },
+                                            ]}
                                         >
                                             {amount.label}
                                         </Text>
@@ -343,7 +339,7 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                         {/* Save Button */}
                         <TouchableOpacity
                             onPress={handleSave}
-                            style={[styles.saveButton, { backgroundColor: '#0056d2' }, loading && styles.saveButtonDisabled]}
+                            style={[styles.saveButton,{ backgroundColor: '#0056d2' },loading && styles.saveButtonDisabled]}
                             disabled={loading}
                             activeOpacity={0.8}
                         >
@@ -352,7 +348,7 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                         </TouchableOpacity>
 
                         {/* Info Card */}
-                        <View style={[styles.infoCard, { borderLeftColor: '#0056d2' }] }>
+                        <View style={[styles.infoCard,{ borderLeftColor: '#0056d2' }]}>
                             <Ionicons name="information-circle" size={20} color="#0056d2" />
                             <Text style={styles.infoText}>Keep your hydration records accurate for better health tracking.</Text>
                         </View>
@@ -391,7 +387,7 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                             <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDatePickerModal(false)}>
                                 <Text style={styles.modalCancelText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalConfirmButton, { backgroundColor: '#0056d2' }]} onPress={() => setShowDatePickerModal(false)}>
+                            <TouchableOpacity style={[styles.modalConfirmButton,{ backgroundColor: '#0056d2' }]} onPress={() => setShowDatePickerModal(false)}>
                                 <Text style={styles.modalConfirmText}>Confirm</Text>
                             </TouchableOpacity>
                         </View>
@@ -427,7 +423,7 @@ export default function EditWaterLogScreen({ navigation = { goBack: () => { } },
                     </View>
                 </View>
             </Modal>
-        {loading && <Loading />}
+            {loading && <CommonSkeleton />}
         </SafeAreaView>
     )
 }

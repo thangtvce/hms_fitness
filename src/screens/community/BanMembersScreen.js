@@ -17,6 +17,8 @@ import { getGroupJoinRequests,updateMemberStatus } from "services/apiCommunitySe
 import { Ionicons } from "@expo/vector-icons"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
+import Header from "components/Header"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
 
 const BanMembersScreen = () => {
   const navigation = useNavigation()
@@ -181,10 +183,7 @@ const BanMembersScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0056d2" />
-          <Text style={styles.loadingText}>Loading banned members...</Text>
-        </View>
+        <CommonSkeleton />
       </SafeAreaView>
     )
   }
@@ -192,20 +191,19 @@ const BanMembersScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056d2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Banned Members</Text>
-            <Text style={styles.headerSubtitle}>{filteredMembers.length} banned</Text>
-          </View>
-          <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
-            <Ionicons name="options-outline" size={24} color="#0056d2" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Banned"
+        subtitle={`${filteredMembers.length} banned`}
+        onBack={() => navigation.goBack()}
+        showAvatar={false}
+        rightActions={[
+          {
+            icon: <Ionicons name="options-outline" size={24} color="#0056d2" />,
+            onPress: () => setShowSortModal(true),
+            backgroundColor: 'transparent',
+          },
+        ]}
+      />
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>

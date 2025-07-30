@@ -23,6 +23,9 @@ import { trainerService } from 'services/apiTrainerService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import { StatusBar } from 'expo-status-bar';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -731,22 +734,21 @@ const TrainerServiceManagement = () => {
   return (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#F8FAFC" />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056D2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Service Packages</Text>
-          </View>
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-            <Ionicons name="options-outline" size={24} color="#0056D2" />
-            {(searchTerm || filters.status !== 'all' || filters.startDate || filters.endDate) && (
-              <View style={styles.filterBadge} />
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Service Packages"
+        onBack={() => navigation.goBack()}
+        backIconColor="#0056D2"
+        rightActions={[
+          {
+            icon: "options-outline",
+            onPress: () => setShowFilterModal(true),
+            color: "#0056D2",
+            accessibilityLabel: "Open Filters",
+            showBadge: searchTerm || filters.status !== 'all' || filters.startDate || filters.endDate,
+          }
+        ]}
+      />
+
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tabItem,activeTab === 'all' && styles.tabItemActive]}
@@ -823,7 +825,7 @@ const TrainerServiceManagement = () => {
       {loading && pageNumber === 1 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0056D2" />
-          <Text style={styles.loadingText}>Loading packages...</Text>
+          <CommonSkeleton />
         </View>
       ) : (
         <FlatList
@@ -933,6 +935,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     marginBottom: 2,
+    marginTop: 70
   },
   tabItem: {
     flex: 1,

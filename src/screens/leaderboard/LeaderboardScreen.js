@@ -16,8 +16,8 @@ import {
     Alert,
     Animated,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
 import Loading from "components/Loading";
 import { LinearGradient } from "expo-linear-gradient";
 import Header from "components/Header";
@@ -28,6 +28,7 @@ import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
 import { SafeAreaView,useSafeAreaInsets } from "react-native-safe-area-context";
 import FloatingMenuButton from "components/FloatingMenuButton";
 import { AuthContext } from "context/AuthContext";
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
 
 const { width,height } = Dimensions.get("window");
 
@@ -82,14 +83,6 @@ const LeaderboardScreenModern = ({ navigation }) => {
         }).start();
     },[loading,currentPage]);
 
-    const formatDate = (date) => {
-        return date.toLocaleDateString("en-US",{
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-        });
-    };
-
     const formatDisplayDate = (date) => {
         if (!date) return "Select Date";
         return `${(date.getMonth() + 1).toString().padStart(2,"0")}-${date
@@ -120,7 +113,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
                     setCurrentPage(page);
                 }
             } catch (error) {
-                showErrorFetchAPI(error.message || "Failed to load leaderboard.");
+                showErrorFetchAPI(error);
             } finally {
                 setLoading(false);
                 setRefreshing(false);
@@ -327,12 +320,6 @@ const LeaderboardScreenModern = ({ navigation }) => {
         { key: "streak",label: "Streak",icon: "flame-outline" },
     ];
 
-    const pageSizeOptions = [
-        { label: "5",value: 5 },
-        { label: "10",value: 10 },
-        { label: "20",value: 20 },
-        { label: "50",value: 50 },
-    ];
 
     const renderFilterModal = () => (
         <Modal
@@ -348,7 +335,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
                 <View style={styles.filterModalContent}>
                     <View style={styles.dragHandle} />
                     <View style={styles.filterHeader}>
-                        <Text style={styles.filterTitle}>Filter & Sort Leaderboard</Text>
+                        <Text style={styles.filterTitle}>Filter & Sort</Text>
                         <TouchableOpacity
                             onPress={() => {
                                 setShowFilterModal(false);
@@ -390,7 +377,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                         />
                                         <Text style={[
                                             styles.sortOptionText,
-                                            tempFilters.sortBy === option.key && { color: '#0056d2', fontWeight: '600' },
+                                            tempFilters.sortBy === option.key && { color: '#0056d2',fontWeight: '600' },
                                         ]}>
                                             {option.label}
                                         </Text>
@@ -402,22 +389,22 @@ const LeaderboardScreenModern = ({ navigation }) => {
                             <Text style={styles.filterSectionTitle}>Sort Order</Text>
                             <View style={styles.sortDirectionContainer}>
                                 <TouchableOpacity
-                                    style={[styles.sortDirectionButton, tempFilters.sortOrder === "asc" && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
-                                    onPress={() => setTempFilters({ ...tempFilters, sortOrder: "asc" })}
+                                    style={[styles.sortDirectionButton,tempFilters.sortOrder === "asc" && { backgroundColor: '#0056d2',borderColor: '#0056d2' }]}
+                                    onPress={() => setTempFilters({ ...tempFilters,sortOrder: "asc" })}
                                 >
                                     <Ionicons name="arrow-up" size={20} color={tempFilters.sortOrder === "asc" ? "#FFFFFF" : "#64748B"} />
                                     <Text
                                         style={[
                                             styles.sortDirectionText,
-                                            tempFilters.sortOrder === "asc" && { color: '#fff', fontWeight: '600' },
+                                            tempFilters.sortOrder === "asc" && { color: '#fff',fontWeight: '600' },
                                         ]}
                                     >
                                         Ascending
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={[styles.sortDirectionButton, tempFilters.sortOrder === "desc" && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
-                                    onPress={() => setTempFilters({ ...tempFilters, sortOrder: "desc" })}
+                                    style={[styles.sortDirectionButton,tempFilters.sortOrder === "desc" && { backgroundColor: '#0056d2',borderColor: '#0056d2' }]}
+                                    onPress={() => setTempFilters({ ...tempFilters,sortOrder: "desc" })}
                                 >
                                     <Ionicons
                                         name="arrow-down"
@@ -427,41 +414,12 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                     <Text
                                         style={[
                                             styles.sortDirectionText,
-                                            tempFilters.sortOrder === "desc" && { color: '#fff', fontWeight: '600' },
+                                            tempFilters.sortOrder === "desc" && { color: '#fff',fontWeight: '600' },
                                         ]}
                                     >
                                         Descending
                                     </Text>
                                 </TouchableOpacity>
-                            </View>
-                        </View>
-                        <View style={styles.filterSection}>
-                            <Text style={styles.filterSectionTitle}>Items per Page</Text>
-                            <View style={styles.pageSizeGrid}>
-                                {pageSizeOptions.map((option) => (
-                                    <TouchableOpacity
-                                        key={option.value}
-                                        style={[styles.pageSizeCard, tempFilters.pageSize === option.value && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
-                                        onPress={() => setTempFilters({ ...tempFilters,pageSize: option.value })}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.pageSizeCardText,
-                                                tempFilters.pageSize === option.value && { color: '#fff' },
-                                            ]}
-                                        >
-                                            {option.label}
-                                        </Text>
-                                        <Text
-                                            style={[
-                                                styles.pageSizeCardLabel,
-                                                tempFilters.pageSize === option.value && { color: 'rgba(255,255,255,0.8)' },
-                                            ]}
-                                        >
-                                            users
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
                             </View>
                         </View>
                     </ScrollView>
@@ -511,8 +469,8 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                     <TouchableOpacity style={styles.datePickerCancelButton} onPress={() => setShowStartDatePicker(false)}>
                                         <Text style={styles.datePickerCancelText}>Cancel</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.datePickerConfirmButton, { backgroundColor: '#0056d2' }]} onPress={() => setShowStartDatePicker(false)}>
-                                        <Text style={[styles.datePickerConfirmText, { color: '#fff' }]}>Done</Text>
+                                    <TouchableOpacity style={[styles.datePickerConfirmButton,{ backgroundColor: '#0056d2' }]} onPress={() => setShowStartDatePicker(false)}>
+                                        <Text style={[styles.datePickerConfirmText,{ color: '#fff' }]}>Done</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
@@ -554,8 +512,8 @@ const LeaderboardScreenModern = ({ navigation }) => {
                                     <TouchableOpacity style={styles.datePickerCancelButton} onPress={() => setShowEndDatePicker(false)}>
                                         <Text style={styles.datePickerCancelText}>Cancel</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.datePickerConfirmButton, { backgroundColor: '#0056d2' }]} onPress={() => setShowEndDatePicker(false)}>
-                                        <Text style={[styles.datePickerConfirmText, { color: '#fff' }]}>Done</Text>
+                                    <TouchableOpacity style={[styles.datePickerConfirmButton,{ backgroundColor: '#0056d2' }]} onPress={() => setShowEndDatePicker(false)}>
+                                        <Text style={[styles.datePickerConfirmText,{ color: '#fff' }]}>Done</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
@@ -570,8 +528,8 @@ const LeaderboardScreenModern = ({ navigation }) => {
         if (!loading || currentPage === 1) return null;
         return (
             <Animated.View style={[styles.footerLoader,{ opacity: loaderFadeAnim }]}>
-                <ActivityIndicator size="small" color="#4F46E5" />
-                <Text style={styles.footerLoaderText}>Loading more users...</Text>
+                <ActivityIndicator size="small" color="#0056d2" />
+                <CommonSkeleton />
             </Animated.View>
         );
     };
@@ -604,16 +562,15 @@ const LeaderboardScreenModern = ({ navigation }) => {
         <SafeAreaView style={styles.safeArea}>
             <DynamicStatusBar backgroundColor={theme.primaryColor} />
             <Header
-                title="Health Leaderboard"
+                title="Leaderboard"
                 onBack={() => navigation.goBack()}
-                
+
                 rightActions={[
                     {
                         icon: "options-outline",
                         onPress: () => setShowFilterModal(true),
                     },
                 ]}
-                containerStyle={{ paddingTop: 0, paddingBottom: 0, borderBottomWidth: 0 }}
             />
             <View style={{ height: 70 }} />
             <Animated.View
@@ -628,7 +585,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
                     },
                 ]}
             >
-                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 16, marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
+                <View style={{ flex: 1,flexDirection: 'row',alignItems: 'center',backgroundColor: '#fff',borderRadius: 16,paddingHorizontal: 16,marginBottom: 0,shadowColor: '#000',shadowOffset: { width: 0,height: 2 },shadowOpacity: 0.05,shadowRadius: 8,elevation: 2 }}>
                     <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
@@ -646,18 +603,10 @@ const LeaderboardScreenModern = ({ navigation }) => {
                         </TouchableOpacity>
                     ) : null}
                 </View>
-                <TouchableOpacity onPress={handleSearch} style={{ backgroundColor: '#0056d2', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, marginLeft: 8, shadowColor: '#0056d2', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 }}>
+                <TouchableOpacity onPress={handleSearch} style={{ backgroundColor: '#0056d2',paddingHorizontal: 16,paddingVertical: 12,borderRadius: 12,marginLeft: 8,shadowColor: '#0056d2',shadowOffset: { width: 0,height: 2 },shadowOpacity: 0.3,shadowRadius: 4,elevation: 3 }}>
                     <Ionicons name="search" size={18} color="#fff" />
                 </TouchableOpacity>
             </Animated.View>
-            <LinearGradient
-                colors={["#E6F0FA", "#E6F0FA", "#E6F0FA"]}
-                style={{ borderRadius: 16, marginHorizontal: 16, marginTop: 16, marginBottom: 10, padding: 16, alignItems: 'center' }}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-            >
-                <Text style={{ fontSize: 16, color: '#0056d2', fontWeight: '700' }}>{totalUsers} users • Page {currentPage} of {totalPages}</Text>
-            </LinearGradient>
             {loading && currentPage === 1 ? (
                 <Loading backgroundColor="rgba(255,255,255,0.9)" text="" />
             ) : (
@@ -671,7 +620,7 @@ const LeaderboardScreenModern = ({ navigation }) => {
                     ListEmptyComponent={renderEmpty}
                     ListFooterComponent={renderFooter}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#4F46E5"]} tintColor="#4F46E5" />
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0056d2"]} tintColor="#0056d2" />
                     }
                     onEndReached={loadMore}
                     onEndReachedThreshold={0.5}
@@ -1001,7 +950,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF",
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        height: "85%",
+        height: "65%",
         minHeight: "50%",
         paddingBottom: Platform.OS === "ios" ? 34 : 20,
     },

@@ -1,6 +1,8 @@
 import Toast from "react-native-toast-message";
 
 export function extractErrors(error) {
+    if (typeof error === "string") return [error];
+
     if (error?.errors) return Object.values(error.errors).flat();
     if (error?.response?.data?.errors)
         return Object.values(error.response.data.errors).flat();
@@ -68,5 +70,24 @@ export const showInfoMessage = (message) => {
         type: "info",
         text1: "Info",
         text2: message,
+    });
+};
+
+const taskMap = {
+    meal_log: "Log a Meal",
+    water_log: "Log Water",
+    weight_log: "Log Weight",
+    body_measurement_log: "Log Body Measurement",
+    comment_post_and_post_article: "Comment and up a post",
+    workout: "Complete Workout",
+    checkin: "Check In completed",
+};
+
+export const showCelebrate = (taskKey) => {
+    const taskName = taskMap[taskKey] || "a task";
+    Toast.show({
+        type: "celebrate",
+        text1: `You've completed ${taskName}!`,
+        text2: `Great job on ${taskName}. Keep up the momentum!`,
     });
 };

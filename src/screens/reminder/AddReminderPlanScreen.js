@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React,{ useState,useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,73 +16,74 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import Header from 'components/Header';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
 
 const { width } = Dimensions.get('window');
 
 const REMINDER_TYPES = [
-  { 
-    label: 'Drink Water', 
-    value: 'drink', 
+  {
+    label: 'Drink Water',
+    value: 'drink',
     icon: 'water',
     color: '#06B6D4',
-    gradient: ['#06B6D4', '#0EA5E9'],
+    gradient: ['#06B6D4','#0EA5E9'],
     description: 'Stay hydrated throughout the day'
   },
-  { 
-    label: 'Meal Time', 
-    value: 'meal', 
+  {
+    label: 'Meal Time',
+    value: 'meal',
     icon: 'restaurant',
     color: '#F59E0B',
-    gradient: ['#F59E0B', '#EAB308'],
+    gradient: ['#F59E0B','#EAB308'],
     description: 'Never miss your meals'
   },
-  { 
-    label: 'Exercise', 
-    value: 'exercise', 
+  {
+    label: 'Exercise',
+    value: 'exercise',
     icon: 'fitness',
     color: '#10B981',
-    gradient: ['#10B981', '#059669'],
+    gradient: ['#10B981','#059669'],
     description: 'Keep your body active'
   },
-  { 
-    label: 'Sleep Time', 
-    value: 'sleep', 
+  {
+    label: 'Sleep Time',
+    value: 'sleep',
     icon: 'moon',
     color: '#8B5CF6',
-    gradient: ['#8B5CF6', '#7C3AED'],
+    gradient: ['#8B5CF6','#7C3AED'],
     description: 'Get quality rest'
   },
 ];
 
 const FREQUENCIES = [
-  { label: 'Daily', value: 'Daily', icon: 'today' },
-  { label: 'Weekly', value: 'Weekly', icon: 'calendar' },
-  { label: 'Monthly', value: 'Monthly', icon: 'calendar-outline' },
+  { label: 'Daily',value: 'Daily',icon: 'today' },
+  { label: 'Weekly',value: 'Weekly',icon: 'calendar' },
+  { label: 'Monthly',value: 'Monthly',icon: 'calendar-outline' },
 ];
 
 const DAYS_OF_WEEK = [
-  { label: 'Mon', value: 'Mon', fullName: 'Monday' },
-  { label: 'Tue', value: 'Tue', fullName: 'Tuesday' },
-  { label: 'Wed', value: 'Wed', fullName: 'Wednesday' },
-  { label: 'Thu', value: 'Thu', fullName: 'Thursday' },
-  { label: 'Fri', value: 'Fri', fullName: 'Friday' },
-  { label: 'Sat', value: 'Sat', fullName: 'Saturday' },
-  { label: 'Sun', value: 'Sun', fullName: 'Sunday' },
+  { label: 'Mon',value: 'Mon',fullName: 'Monday' },
+  { label: 'Tue',value: 'Tue',fullName: 'Tuesday' },
+  { label: 'Wed',value: 'Wed',fullName: 'Wednesday' },
+  { label: 'Thu',value: 'Thu',fullName: 'Thursday' },
+  { label: 'Fri',value: 'Fri',fullName: 'Friday' },
+  { label: 'Sat',value: 'Sat',fullName: 'Saturday' },
+  { label: 'Sun',value: 'Sun',fullName: 'Sunday' },
 ];
 
 const QUICK_AMOUNTS = {
-  drink: ['250ml', '500ml', '750ml', '1L'],
-  meal: ['Breakfast', 'Lunch', 'Dinner', 'Snack'],
-  exercise: ['15 min', '30 min', '45 min', '1 hour'],
-  sleep: ['7 hours', '8 hours', '9 hours', 'Custom'],
+  drink: ['250ml','500ml','750ml','1L'],
+  meal: ['Breakfast','Lunch','Dinner','Snack'],
+  exercise: ['15 min','30 min','45 min','1 hour'],
+  sleep: ['7 hours','8 hours','9 hours','Custom'],
 };
 
-export default function AddReminderPlanScreen({ navigation, route }) {
+export default function AddReminderPlanScreen({ navigation,route }) {
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [form, setForm] = useState({
+  const [currentStep,setCurrentStep] = useState(1);
+  const [form,setForm] = useState({
     userId: '',
     title: '',
     type: '',
@@ -94,29 +95,29 @@ export default function AddReminderPlanScreen({ navigation, route }) {
     isActive: true,
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading,setIsLoading] = useState(false);
 
   useEffect(() => {
     if (user && user.userId) {
-      setForm((prev) => ({ ...prev, userId: user.userId.toString() }));
+      setForm((prev) => ({ ...prev,userId: user.userId.toString() }));
     }
-  }, [user]);
+  },[user]);
 
-  const [errors, setErrors] = useState({});
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [errors,setErrors] = useState({});
+  const [showTimePicker,setShowTimePicker] = useState(false);
 
-  const handleChange = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => ({ ...prev, [key]: undefined }));
+  const handleChange = (key,value) => {
+    setForm((prev) => ({ ...prev,[key]: value }));
+    setErrors((prev) => ({ ...prev,[key]: undefined }));
   };
 
-  const handleTimeChange = (event, selectedDate) => {
+  const handleTimeChange = (event,selectedDate) => {
     setShowTimePicker(false);
     if (selectedDate) {
-      const h = selectedDate.getHours().toString().padStart(2, '0');
-      const m = selectedDate.getMinutes().toString().padStart(2, '0');
-      const s = selectedDate.getSeconds().toString().padStart(2, '0');
-      handleChange('time', `${h}:${m}:${s}`);
+      const h = selectedDate.getHours().toString().padStart(2,'0');
+      const m = selectedDate.getMinutes().toString().padStart(2,'0');
+      const s = selectedDate.getSeconds().toString().padStart(2,'0');
+      handleChange('time',`${h}:${m}:${s}`);
     }
   };
 
@@ -127,15 +128,15 @@ export default function AddReminderPlanScreen({ navigation, route }) {
     } else {
       days.push(day);
     }
-    handleChange('daysOfWeek', days.join(','));
+    handleChange('daysOfWeek',days.join(','));
   };
 
   const handleTypeSelect = (type) => {
-    handleChange('type', type);
+    handleChange('type',type);
     // Auto-generate title based on type
     const typeData = REMINDER_TYPES.find(t => t.value === type);
     if (typeData && !form.title) {
-      handleChange('title', typeData.label);
+      handleChange('title',typeData.label);
     }
     setCurrentStep(2);
   };
@@ -158,6 +159,14 @@ export default function AddReminderPlanScreen({ navigation, route }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  const getLocalTimeAsDate = (timeStr) => {
+    const [h,m,s] = timeStr.split(':').map(Number);
+    const now = new Date();
+    now.setHours(h,m,s || 0,0);
+    return now;
+  };
+
+
   const handleSubmit = async () => {
     if (!validate()) return;
     setIsLoading(true);
@@ -173,20 +182,13 @@ export default function AddReminderPlanScreen({ navigation, route }) {
       navigation.goBack();
     } catch (error) {
       setIsLoading(false);
-      if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
-        showErrorFetchAPI('Failed to create reminder plan.', error);
-      } else if (error.message) {
-        showErrorFetchAPI(error.message, error);
-      } else {
-        showErrorFetchAPI('Failed to create reminder plan.', error);
-      }
+      showErrorFetchAPI(error);
     }
   };
 
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
-      {[1, 2, 3].map((step) => (
+      {[1,2,3].map((step) => (
         <View key={step} style={styles.stepContainer}>
           <View style={[
             styles.stepCircle,
@@ -217,7 +219,7 @@ export default function AddReminderPlanScreen({ navigation, route }) {
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>What would you like to be reminded about?</Text>
       <Text style={styles.stepSubtitle}>Choose the type of reminder you want to create</Text>
-      
+
       <View style={styles.typeGrid}>
         {REMINDER_TYPES.map((type) => (
           <TouchableOpacity
@@ -230,17 +232,17 @@ export default function AddReminderPlanScreen({ navigation, route }) {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={form.type === type.value ? type.gradient : ['#FFFFFF', '#F8FAFC']}
+              colors={form.type === type.value ? type.gradient : ['#FFFFFF','#F8FAFC']}
               style={styles.typeCardGradient}
             >
               <View style={[
                 styles.typeIconContainer,
                 { backgroundColor: form.type === type.value ? 'rgba(255,255,255,0.2)' : `${type.color}15` }
               ]}>
-                <Ionicons 
-                  name={type.icon} 
-                  size={32} 
-                  color={form.type === type.value ? '#FFFFFF' : type.color} 
+                <Ionicons
+                  name={type.icon}
+                  size={32}
+                  color={form.type === type.value ? '#FFFFFF' : type.color}
                 />
               </View>
               <Text style={[
@@ -264,7 +266,7 @@ export default function AddReminderPlanScreen({ navigation, route }) {
 
   const renderDetailsForm = () => {
     const selectedType = REMINDER_TYPES.find(t => t.value === form.type);
-    
+
     return (
       <View style={styles.stepContent}>
         <View style={styles.selectedTypeHeader}>
@@ -279,13 +281,13 @@ export default function AddReminderPlanScreen({ navigation, route }) {
 
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>Reminder Details</Text>
-          
+
           <View style={styles.formGroup}>
             <Text style={styles.label}>Title</Text>
             <TextInput
-              style={[styles.modernInput, errors.title && styles.inputError]}
+              style={[styles.modernInput,errors.title && styles.inputError]}
               value={form.title}
-              onChangeText={(v) => handleChange('title', v)}
+              onChangeText={(v) => handleChange('title',v)}
               placeholder={`${selectedType.label} reminder`}
               maxLength={255}
             />
@@ -303,7 +305,7 @@ export default function AddReminderPlanScreen({ navigation, route }) {
                       styles.quickAmountChip,
                       form.amount === amount && styles.quickAmountChipSelected
                     ]}
-                    onPress={() => handleChange('amount', amount)}
+                    onPress={() => handleChange('amount',amount)}
                   >
                     <Text style={[
                       styles.quickAmountText,
@@ -315,9 +317,9 @@ export default function AddReminderPlanScreen({ navigation, route }) {
                 ))}
               </View>
               <TextInput
-                style={[styles.modernInput, { marginTop: 8 }]}
+                style={[styles.modernInput,{ marginTop: 8 }]}
                 value={form.amount}
-                onChangeText={(v) => handleChange('amount', v)}
+                onChangeText={(v) => handleChange('amount',v)}
                 placeholder="Or enter custom amount"
                 maxLength={100}
               />
@@ -327,7 +329,7 @@ export default function AddReminderPlanScreen({ navigation, route }) {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Time</Text>
             <TouchableOpacity
-              style={[styles.modernInput, styles.timeInput]}
+              style={[styles.modernInput,styles.timeInput]}
               onPress={() => setShowTimePicker(true)}
             >
               <Ionicons name="time-outline" size={20} color="#6B7280" />
@@ -335,12 +337,12 @@ export default function AddReminderPlanScreen({ navigation, route }) {
                 styles.timeText,
                 { color: form.time ? '#1F2937' : '#9CA3AF' }
               ]}>
-                {form.time ? form.time.slice(0, 5) : 'Select time'}
+                {form.time ? form.time.slice(0,5) : 'Select time'}
               </Text>
             </TouchableOpacity>
             {showTimePicker && (
               <DateTimePicker
-                value={form.time ? new Date(`1970-01-01T${form.time}`) : new Date()}
+                value={form.time ? getLocalTimeAsDate(form.time) : new Date()}
                 mode="time"
                 is24Hour={true}
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
@@ -359,7 +361,7 @@ export default function AddReminderPlanScreen({ navigation, route }) {
             <Ionicons name="arrow-back" size={20} color="#6B7280" />
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={styles.nextButton}
             onPress={() => setCurrentStep(3)}
@@ -387,12 +389,12 @@ export default function AddReminderPlanScreen({ navigation, route }) {
                 styles.frequencyCard,
                 form.frequency === freq.value && styles.frequencyCardSelected
               ]}
-              onPress={() => handleChange('frequency', freq.value)}
+              onPress={() => handleChange('frequency',freq.value)}
             >
-              <Ionicons 
-                name={freq.icon} 
-                size={24} 
-                color={form.frequency === freq.value ? '#fff' : '#6B7280'} 
+              <Ionicons
+                name={freq.icon}
+                size={24}
+                color={form.frequency === freq.value ? '#fff' : '#6B7280'}
               />
               <Text style={[
                 styles.frequencyText,
@@ -433,9 +435,9 @@ export default function AddReminderPlanScreen({ navigation, route }) {
       <View style={styles.formSection}>
         <Text style={styles.sectionTitle}>Additional Notes</Text>
         <TextInput
-          style={[styles.modernInput, styles.notesInput]}
+          style={[styles.modernInput,styles.notesInput]}
           value={form.notes}
-          onChangeText={(v) => handleChange('notes', v)}
+          onChangeText={(v) => handleChange('notes',v)}
           placeholder="Add any additional notes or instructions..."
           multiline
           numberOfLines={3}
@@ -449,10 +451,10 @@ export default function AddReminderPlanScreen({ navigation, route }) {
             <Text style={styles.toggleDescription}>Turn on to activate this reminder</Text>
           </View>
           <TouchableOpacity
-            style={[styles.toggle, form.isActive && styles.toggleActive]}
-            onPress={() => handleChange('isActive', !form.isActive)}
+            style={[styles.toggle,form.isActive && styles.toggleActive]}
+            onPress={() => handleChange('isActive',!form.isActive)}
           >
-            <View style={[styles.toggleThumb, form.isActive && styles.toggleThumbActive]} />
+            <View style={[styles.toggleThumb,form.isActive && styles.toggleThumbActive]} />
           </TouchableOpacity>
         </View>
       </View>
@@ -465,9 +467,9 @@ export default function AddReminderPlanScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={20} color="#6B7280" />
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
-          style={[styles.createButton, { backgroundColor: '#0056d2' }]}
+          style={[styles.createButton,{ backgroundColor: '#0056d2' }]}
           onPress={handleSubmit}
         >
           <View style={styles.createButtonGradient}>
@@ -482,18 +484,18 @@ export default function AddReminderPlanScreen({ navigation, route }) {
   return (
     <View style={styles.container}>
       <Header
-        title={<Text style={{ fontSize: 20, fontWeight: '700', color: '#1F2937', textAlign: 'center' }}>Create Reminder</Text>}
+        title={"Create Reminder"}
         onBack={() => navigation.goBack()}
         backgroundColor="#fff"
-        containerStyle={{ position: 'relative', zIndex: 10 }}
+        containerStyle={{ position: 'relative',zIndex: 10 }}
       />
 
-      {isLoading && <Loading />}
+      {isLoading && <CommonSkeleton />}
 
       {!isLoading && (
         <>
           {renderStepIndicator()}
-          <ScrollView 
+          <ScrollView
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -517,7 +519,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop:50,
+    paddingTop: 50,
     paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: '#FFFFFF',
@@ -526,7 +528,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
@@ -624,7 +626,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 12,
       },
@@ -669,7 +671,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
@@ -728,7 +730,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0,height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 2,
       },
@@ -795,7 +797,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 4,
       },
@@ -859,7 +861,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0,height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 2,
       },
@@ -892,7 +894,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
       },
@@ -944,7 +946,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#06B6D4',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
       },

@@ -29,10 +29,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { RichEditor,RichToolbar,actions } from 'react-native-pell-rich-editor';
+import { WebView } from 'react-native-webview';
+import { showErrorFetchAPI,showSuccessMessage,showErrorMessage } from 'utils/toastUtil';
 import { Video } from 'expo-av';
 import YoutubePlayer from 'react-native-youtube-iframe';
-import { showErrorFetchAPI,showSuccessMessage,showErrorMessage } from 'utils/toastUtil';
+import Header from 'components/Header';
 
 const { width,height } = Dimensions.get('window');
 const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/bmp'];
@@ -81,15 +82,15 @@ const EditExerciseScreen = () => {
   const [keyboardHeight,setKeyboardHeight] = useState(0);
   const [isKeyboardVisible,setIsKeyboardVisible] = useState(false);
   const [currentInputFocused,setCurrentInputFocused] = useState(null);
+  const [loadingData,setLoadingData] = useState(true);
+  const [editorHtml,setEditorHtml] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
-  const richText = useRef();
-  const [isEditorReady,setIsEditorReady] = useState(false);
-  const [isContentSet,setIsContentSet] = useState(false);
-  const scrollViewRef = useRef();
-  const containerRef = useRef();
+  const webViewRef = useRef(null);
+  const scrollViewRef = useRef(null);
+  const containerRef = useRef(null);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -102,6 +103,76 @@ const EditExerciseScreen = () => {
       },
     })
   ).current;
+
+  const generateCkEditorHtml = (initialData) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <script src="https://cdn.ckeditor.com/ckeditor5/39.0.0/classic/ckeditor.js"></script>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: #FFFFFF;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        }
+        #editor-container {
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .ck-editor__top {
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          background: #F9FAFB;
+          border-bottom: 1px solid #E5E7EB;
+        }
+        .ck-editor__editable {
+          min-height: 140px;
+          padding: 16px;
+          background: #FFFFFF;
+        }
+        .ck-content {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+          font-size: 16px;
+          color: #000000;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="editor-container">
+        <div id="editor"></div>
+      </div>
+      <script>
+        ClassicEditor
+          .create( document.querySelector( '#editor' ), {
+            toolbar: {
+              items: [
+                'undo', 'redo',
+                '|',
+                'bold', 'italic', 'underline',
+                '|',
+                'bulletedList', 'numberedList',
+                '|',
+                'sourceEditing'
+              ]
+            },
+            language: 'en',
+            initialData: '${(initialData || "").replace(/'/g,"\\'")}'
+          } )
+          .then( editor => {
+            editor.model.document.on( 'change:data', () => {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content', data: editor.getData() }));
+            } );
+          } )
+          .catch( error => {
+            console.error( error );
+          } );
+      </script>
+    </body>
+    </html>
+  `;
 
   useEffect(() => {
     if (authLoading || !user?.userId) return;
@@ -188,24 +259,16 @@ const EditExerciseScreen = () => {
         setCloudImageUrl(exercise.imageUrl || '');
         setVideoThumbnail(exercise.mediaUrl && isValidYouTubeUrl(exercise.mediaUrl) ? getYouTubeThumbnail(exercise.mediaUrl) : exercise.mediaUrl || '');
         setCloudVideoUrl(exercise.mediaUrl || '');
+        setEditorHtml(generateCkEditorHtml(exercise.description));
       } else {
         throw new Error('Failed to fetch exercise data.');
       }
     } catch (error) {
       showErrorFetchAPI(error);
+    } finally {
+      setLoadingData(false);
     }
   };
-
-  useEffect(() => {
-    if (
-      !isContentSet &&
-      richText.current &&
-      exerciseData.description
-    ) {
-      richText.current.setContentHTML(exerciseData.description);
-      setIsContentSet(true);
-    }
-  },[isContentSet,exerciseData.description]);
 
   const validateForm = () => {
     const errors = {};
@@ -215,7 +278,7 @@ const EditExerciseScreen = () => {
     } else if (exerciseData.exerciseName.length < 3 || exerciseData.exerciseName.length > 255) {
       errors.exerciseName = 'Exercise name must be between 3 and 255 characters.';
     }
-    if (exerciseData.description && exerciseData.description.length > 500) {
+    if (exerciseData.description && exerciseData.description.replace(/<[^>]*>/g,'').length > 500) {
       errors.description = 'Description cannot exceed 500 characters.';
     }
     if (!exerciseData.categoryId) {
@@ -224,7 +287,10 @@ const EditExerciseScreen = () => {
     if (exerciseData.genderSpecific && !GENDER_OPTIONS.includes(exerciseData.genderSpecific)) {
       errors.genderSpecific = 'Gender must be Male, Female, or Other.';
     }
-    if (exerciseData.caloriesBurnedPerMin && (isNaN(parseFloat(exerciseData.caloriesBurnedPerMin)) || parseFloat(exerciseData.caloriesBurnedPerMin) < 0)) {
+    if (
+      exerciseData.caloriesBurnedPerMin &&
+      (isNaN(parseFloat(exerciseData.caloriesBurnedPerMin)) || parseFloat(exerciseData.caloriesBurnedPerMin) < 0)
+    ) {
       errors.caloriesBurnedPerMin = 'Calories burned per minute must be a non-negative number.';
     }
     if (exerciseData.mediaUrl && exerciseData.mediaUrl.length > 1000) {
@@ -341,7 +407,7 @@ const EditExerciseScreen = () => {
           setThumbnail(selectedAsset.uri);
           setCloudImageUrl('');
           handleInputChange('imageUrl',selectedAsset.uri);
-          showErrorFetchAPI(new Error('Base64 not available. Using local URI, which may not persist.'));
+          showErrorMessage('Base64 not available. Using local URI, which may not persist.');
         }
       }
     } catch (error) {
@@ -384,7 +450,7 @@ const EditExerciseScreen = () => {
           setThumbnail(selectedAsset.uri);
           setCloudImageUrl('');
           handleInputChange('imageUrl',selectedAsset.uri);
-          showErrorFetchAPI(new Error('Base64 not available. Using local URI, which may not persist.'));
+          showErrorMessage('Base64 not available. Using local URI, which may not persist.');
         }
       }
     } catch (error) {
@@ -449,11 +515,16 @@ const EditExerciseScreen = () => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0];
         if (ALLOWED_VIDEO_TYPES.includes(selectedAsset.type)) {
+          if (selectedAsset.fileSize && selectedAsset.fileSize > MAX_VIDEO_SIZE) {
+            showErrorMessage(`Video size exceeds ${MAX_VIDEO_SIZE / (1024 * 1024)}MB limit.`);
+            setMediaUploading(false);
+            return;
+          }
           setVideoThumbnail(selectedAsset.uri);
           setCloudVideoUrl('');
           handleInputChange('mediaUrl',selectedAsset.uri);
         } else {
-          showErrorFetchAPI(new Error(`Invalid video type. Allowed: ${ALLOWED_VIDEO_TYPES.join(', ')}`));
+          showErrorMessage(`Invalid video type. Allowed: ${ALLOWED_VIDEO_TYPES.join(', ')}`);
         }
       }
     } catch (error) {
@@ -535,13 +606,13 @@ const EditExerciseScreen = () => {
 
   const handleUpdate = async () => {
     if (!validateForm()) {
-      showErrorFetchAPI(new Error('Please fix the errors before updating the exercise.'));
+      showErrorMessage('Please fix the errors before updating the exercise.');
       return;
     }
 
     setUpdating(true);
-    let finalImageUrl = cloudImageUrl;
-    let finalVideoUrl = cloudVideoUrl;
+    let finalImageUrl = cloudImageUrl || exerciseData.imageUrl;
+    let finalVideoUrl = cloudVideoUrl || exerciseData.mediaUrl;
 
     try {
       if (thumbnail && thumbnail.startsWith('data:image') && !cloudImageUrl) {
@@ -551,7 +622,7 @@ const EditExerciseScreen = () => {
           finalImageUrl = uploadResult.imageUrl;
           setCloudImageUrl(uploadResult.imageUrl);
         } else {
-          showErrorFetchAPI(new Error('Image upload failed. Please try selecting the image again.'));
+          showErrorMessage('Image upload failed. Please try selecting the image again.');
           setUpdating(false);
           return;
         }
@@ -564,7 +635,7 @@ const EditExerciseScreen = () => {
           finalVideoUrl = uploadResult.videoUrl;
           setCloudVideoUrl(uploadResult.videoUrl);
         } else {
-          showErrorFetchAPI(new Error('Video upload failed. Please try selecting the video again.'));
+          showErrorMessage('Video upload failed. Please try selecting the video again.');
           setUpdating(false);
           return;
         }
@@ -585,6 +656,8 @@ const EditExerciseScreen = () => {
 
       if (payload.imageUrl && payload.imageUrl.length > 1000) {
         showErrorMessage('Image URL cannot exceed 1000 characters.');
+        setUpdating(false);
+        return;
       }
 
       const response = await trainerService.updateFitnessExercise(exerciseId,payload);
@@ -668,45 +741,44 @@ const EditExerciseScreen = () => {
         },
       ]}
     >
-      {
-        videoThumbnail ? (
-          <View style={styles.imageContainer} >
-            <Image source={{ uri: videoThumbnail }} style={styles.imagePreview} resizeMode="cover" />
-            <LinearGradient colors={['transparent','rgba(0,0,0,0.3)']} style={styles.imageOverlay} />
-            <TouchableOpacity style={styles.removeImageButton} onPress={handleRemoveVideo}>
-              <View style={styles.removeImageButtonInner}>
-                <Ionicons name="close" size={16} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.editImageButton} onPress={() => setShowVideoOptions(true)}>
-              <View style={styles.editImageButtonInner}>
-                <Ionicons name="pencil" size={16} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.playVideoButton} onPress={handlePreviewVideo}>
-              <View style={styles.playVideoButtonInner}>
-                <Ionicons name="play" size={24} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-            <View style={styles.imageLabel}>
-              <Ionicons name="videocam" size={14} color="#FFFFFF" />
-              <Text style={styles.imageLabelText}>Exercise Video</Text>
-            </View>
-          </View >
-        ) : (
-          <TouchableOpacity style={styles.addImageContainer} onPress={() => setShowVideoOptions(true)}>
-            <Image source={{ uri: DEFAULT_VIDEO_BACKGROUND }} style={styles.imagePreview} resizeMode="cover" />
-            <LinearGradient colors={['transparent','rgba(0,0,0,0.3)']} style={styles.imageOverlay} />
-            <View style={styles.addImageContent}>
-              <View style={styles.addImageIcon}>
-                <Ionicons name="videocam-outline" size={32} color="#0056D2" />
-              </View>
-              <Text style={styles.addImageTitle}>Add Exercise Video</Text>
-              <Text style={styles.addImageSubtitle}>Add a video or YouTube link</Text>
+      {videoThumbnail ? (
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: videoThumbnail }} style={styles.imagePreview} resizeMode="cover" />
+          <LinearGradient colors={['transparent','rgba(0,0,0,0.3)']} style={styles.imageOverlay} />
+          <TouchableOpacity style={styles.removeImageButton} onPress={handleRemoveVideo}>
+            <View style={styles.removeImageButtonInner}>
+              <Ionicons name="close" size={16} color="#FFFFFF" />
             </View>
           </TouchableOpacity>
-        )}
-    </Animated.View >
+          <TouchableOpacity style={styles.editImageButton} onPress={() => setShowVideoOptions(true)}>
+            <View style={styles.editImageButtonInner}>
+              <Ionicons name="pencil" size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.playVideoButton} onPress={handlePreviewVideo}>
+            <View style={styles.playVideoButtonInner}>
+              <Ionicons name="play" size={24} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          <View style={styles.imageLabel}>
+            <Ionicons name="videocam" size={14} color="#FFFFFF" />
+            <Text style={styles.imageLabelText}>Exercise Video</Text>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.addImageContainer} onPress={() => setShowVideoOptions(true)}>
+          <Image source={{ uri: DEFAULT_VIDEO_BACKGROUND }} style={styles.imagePreview} resizeMode="cover" />
+          <LinearGradient colors={['transparent','rgba(0,0,0,0.3)']} style={styles.imageOverlay} />
+          <View style={styles.addImageContent}>
+            <View style={styles.addImageIcon}>
+              <Ionicons name="videocam-outline" size={32} color="#0056D2" />
+            </View>
+            <Text style={styles.addImageTitle}>Add Exercise Video</Text>
+            <Text style={styles.addImageSubtitle}>Add a video or YouTube link</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+    </Animated.View>
   );
 
   const renderVideoPreviewModal = () => (
@@ -775,7 +847,7 @@ const EditExerciseScreen = () => {
           </View>
           {maxLength && (
             <Text style={styles.fieldCounter}>
-              {value.replace(/<[^>]*>/g,'').length}/{maxLength}
+              {value.length}/{maxLength}
             </Text>
           )}
         </View>
@@ -824,38 +896,26 @@ const EditExerciseScreen = () => {
         </Text>
       </View>
       <View style={[styles.richEditorContainer,errors.description && styles.inputError]}>
-        <RichToolbar
-          editor={richText}
-          actions={[
-            actions.setBold,
-            actions.setItalic,
-            actions.setUnderline,
-            actions.insertBulletsList,
-            actions.insertOrderedList,
-            actions.undo,
-            actions.redo,
-          ]}
-          iconTint="#374151"
-          selectedIconTint="#0056D2"
-          style={styles.richToolbar}
-          iconSize={18}
-        />
-        <RichEditor
-          ref={richText}
-          onChange={(text) => handleInputChange('description',text)}
-          onFocus={() => handleInputFocus('description')}
-          onBlur={() => handleInputBlur('description')}
-          placeholder="Describe the exercise..."
+        <WebView
+          ref={webViewRef}
+          originWhitelist={['*']}
+          source={{ html: editorHtml }}
           style={styles.richEditor}
-          initialContentHTML={exerciseData.description}
-          editorStyle={{
-            backgroundColor: '#FFFFFF',
-            color: '#1E293B',
-            fontSize: 16,
-            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-            lineHeight: 24,
-            padding: 16,
+          onMessage={(event) => {
+            const message = JSON.parse(event.nativeEvent.data);
+            if (message.type === 'content') {
+              handleInputChange('description',message.data);
+            }
           }}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          startInLoadingState={true}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          scrollEnabled={false}
+          scalesPageToFit={false}
+          automaticallyAdjustContentInsets={false}
+          contentInset={{ top: 0,left: 0,bottom: 0,right: 0 }}
         />
       </View>
       {errors.description && (
@@ -922,15 +982,13 @@ const EditExerciseScreen = () => {
         <Text style={styles.input}>{exerciseData.genderSpecific || 'Select Gender'}</Text>
         <Ionicons name="chevron-down" size={20} color="#6B7280" style={styles.dropdownIcon} />
       </TouchableOpacity>
-      {
-        errors.genderSpecific && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={14} color="#EF4444" />
-            <Text style={styles.errorText}>{errors.genderSpecific}</Text>
-          </View>
-        )
-      }
-    </Animated.View >
+      {errors.genderSpecific && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={14} color="#EF4444" />
+          <Text style={styles.errorText}>{errors.genderSpecific}</Text>
+        </View>
+      )}
+    </Animated.View>
   );
 
   const renderPrivacySelector = () => (
@@ -979,15 +1037,13 @@ const EditExerciseScreen = () => {
           </Text>
         </TouchableOpacity>
       </View>
-      {
-        errors.isPrivate && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={14} color="#EF4444" />
-            <Text style={styles.errorText}>{errors.isPrivate}</Text>
-          </View>
-        )
-      }
-    </Animated.View >
+      {errors.isPrivate && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={14} color="#EF4444" />
+          <Text style={styles.errorText}>{errors.isPrivate}</Text>
+        </View>
+      )}
+    </Animated.View>
   );
 
   const renderCategoryModal = () => (
@@ -1225,18 +1281,13 @@ const EditExerciseScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056D2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Edit Exercise</Text>
-            <Text style={styles.headerSubtitle}>Update your fitness exercise</Text>
-          </View>
-          <View style={styles.headerRight} />
-        </View>
-      </View>
+      <Header
+        title="Edit Exercise"
+        subtitle="Update your fitness exercise"
+        onBack={() => navigation.goBack()}
+        backIconColor="#0056D2"
+      />
+
       <View style={styles.mainContainer} ref={containerRef} {...panResponder.panHandlers}>
         <KeyboardAvoidingView
           style={styles.keyboardContainer}
@@ -1269,7 +1320,11 @@ const EditExerciseScreen = () => {
                   false,
                   'barbell-outline'
                 )}
-                {renderRichEditor()}
+                {loadingData ? (
+                  <ActivityIndicator size="large" color="#0056D2" />
+                ) : (
+                  renderRichEditor()
+                )}
                 {renderCategorySelector()}
                 {renderGenderSelector()}
                 {renderFormField(
@@ -1388,6 +1443,7 @@ const styles = StyleSheet.create({
   },
   mainContainer: {
     flex: 1,
+    marginTop: 60
   },
   keyboardContainer: {
     flex: 1,
@@ -1614,15 +1670,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  richToolbar: {
-    backgroundColor: '#F9FAFB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
   richEditor: {
-    minHeight: 140,
+    height: 180,
     backgroundColor: '#FFFFFF',
   },
   errorContainer: {

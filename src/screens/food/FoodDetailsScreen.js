@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState,useEffect,useRef } from "react"
 import {
   View,
   Text,
@@ -20,10 +20,8 @@ import IconCommunity from "react-native-vector-icons/MaterialCommunityIcons"
 import IconFeather from "react-native-vector-icons/Feather"
 import IconAntDesign from "react-native-vector-icons/AntDesign"
 import { LinearGradient } from "expo-linear-gradient"
-import { useNavigation, useRoute } from "@react-navigation/native"
+import { useNavigation,useRoute } from "@react-navigation/native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
-import { theme } from "theme/color"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { foodService } from "services/apiFoodService"
@@ -32,12 +30,11 @@ import RenderHtml from "react-native-render-html"
 import { StatusBar } from "expo-status-bar"
 import { addFoodToLog } from "utils/foodLogStorage"
 import dayjs from "dayjs"
-import Header from "components/Header";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
+import SafeImage from "./SafeImage"
 
-const { width, height } = Dimensions.get("window")
+const { width,height } = Dimensions.get("window")
 const SPACING = 16
-
 const MIN_SERVING = 1
 const MAX_SERVING = 2000
 const MIN_PORTION = 1
@@ -47,22 +44,22 @@ const FoodDetailsScreen = () => {
   const navigation = useNavigation()
   const route = useRoute()
   const { food } = route.params
-  const [isFavorite, setIsFavorite] = useState(false)
-  const [relatedFoods, setRelatedFoods] = useState([])
-  const [isLoadingRelated, setIsLoadingRelated] = useState(true)
-  const [inputModalVisible, setInputModalVisible] = useState(false)
-  const [inputValues, setInputValues] = useState({ portionSize: "1", servingSize: "1" })
-  const [pendingAddFood, setPendingAddFood] = useState(null)
-  const [foodReviews, setFoodReviews] = useState([])
-  const [loadingReviews, setLoadingReviews] = useState(true)
-  const [userNamesMap, setUserNamesMap] = useState({})
+  const [isFavorite,setIsFavorite] = useState(false)
+  const [relatedFoods,setRelatedFoods] = useState([])
+  const [isLoadingRelated,setIsLoadingRelated] = useState(true)
+  const [inputModalVisible,setInputModalVisible] = useState(false)
+  const [inputValues,setInputValues] = useState({ portionSize: "1",servingSize: "1" })
+  const [pendingAddFood,setPendingAddFood] = useState(null)
+  const [foodReviews,setFoodReviews] = useState([])
+  const [loadingReviews,setLoadingReviews] = useState(true)
+  const [userNamesMap,setUserNamesMap] = useState({})
 
   // Rating modal states
-  const [ratingModalVisible, setRatingModalVisible] = useState(false)
-  const [ratingValue, setRatingValue] = useState(0)
-  const [ratingNote, setRatingNote] = useState("")
-  const [ratingLoading, setRatingLoading] = useState(false)
-  const [existingReview, setExistingReview] = useState(null)
+  const [ratingModalVisible,setRatingModalVisible] = useState(false)
+  const [ratingValue,setRatingValue] = useState(0)
+  const [ratingNote,setRatingNote] = useState("")
+  const [ratingLoading,setRatingLoading] = useState(false)
+  const [existingReview,setExistingReview] = useState(null)
 
   // Animation refs
   const modalScale = useRef(new Animated.Value(0)).current
@@ -70,7 +67,9 @@ const FoodDetailsScreen = () => {
   const starAnimations = useRef([...Array(5)].map(() => new Animated.Value(1))).current
 
   // Filter states
-  const [starFilter, setStarFilter] = useState(0) // 0: all, 1-5: filter by star
+  const [starFilter,setStarFilter] = useState(0) // 0: all, 1-5: filter by star
+
+  const [hasErrorImage,setHasErrorImage] = useState(false);
 
   useEffect(() => {
     const checkFavorite = async () => {
@@ -79,8 +78,7 @@ const FoodDetailsScreen = () => {
         const favoriteList = favorites ? JSON.parse(favorites) : []
         const isFav = favoriteList.some((item) => item.foodName === food.foodName)
         setIsFavorite(isFav)
-      } catch (error) {
-      }
+      } catch (error) { }
     }
     checkFavorite()
 
@@ -103,19 +101,19 @@ const FoodDetailsScreen = () => {
       }
     }
     fetchFoods()
-  }, [food.foodName])
+  },[food.foodName])
 
   // Modal animation effect
   useEffect(() => {
     if (inputModalVisible) {
       Animated.parallel([
-        Animated.spring(modalScale, {
+        Animated.spring(modalScale,{
           toValue: 1,
           tension: 100,
           friction: 8,
           useNativeDriver: true,
         }),
-        Animated.timing(modalOpacity, {
+        Animated.timing(modalOpacity,{
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
@@ -123,31 +121,31 @@ const FoodDetailsScreen = () => {
       ]).start()
     } else {
       Animated.parallel([
-        Animated.timing(modalScale, {
+        Animated.timing(modalScale,{
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
         }),
-        Animated.timing(modalOpacity, {
+        Animated.timing(modalOpacity,{
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
         }),
       ]).start()
     }
-  }, [inputModalVisible])
+  },[inputModalVisible])
 
   // Rating modal animation
   useEffect(() => {
     if (ratingModalVisible) {
       Animated.parallel([
-        Animated.spring(modalScale, {
+        Animated.spring(modalScale,{
           toValue: 1,
           tension: 100,
           friction: 8,
           useNativeDriver: true,
         }),
-        Animated.timing(modalOpacity, {
+        Animated.timing(modalOpacity,{
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
@@ -155,33 +153,32 @@ const FoodDetailsScreen = () => {
       ]).start()
     } else {
       Animated.parallel([
-        Animated.timing(modalScale, {
+        Animated.timing(modalScale,{
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
         }),
-        Animated.timing(modalOpacity, {
+        Animated.timing(modalOpacity,{
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
         }),
       ]).start()
     }
-  }, [ratingModalVisible])
+  },[ratingModalVisible])
 
   const toggleFavorite = async () => {
     try {
       const favorites = await AsyncStorage.getItem("favoriteFoods")
       let favoriteList = favorites ? JSON.parse(favorites) : []
-
       if (isFavorite) {
         favoriteList = favoriteList.filter((item) => item.foodName !== food.foodName)
-        await AsyncStorage.setItem("favoriteFoods", JSON.stringify(favoriteList))
+        await AsyncStorage.setItem("favoriteFoods",JSON.stringify(favoriteList))
         setIsFavorite(false)
         showSuccessMessage("Removed from favorites successfully")
       } else {
         favoriteList.push(food)
-        await AsyncStorage.setItem("favoriteFoods", JSON.stringify(favoriteList))
+        await AsyncStorage.setItem("favoriteFoods",JSON.stringify(favoriteList))
         setIsFavorite(true)
         showSuccessMessage("Added to favorites successfully")
       }
@@ -190,41 +187,18 @@ const FoodDetailsScreen = () => {
     }
   }
 
-  const handleAddFoodToMeal = async () => {
-    const mealTypes = [
-      { label: "Breakfast", value: "Breakfast" },
-      { label: "Lunch", value: "Lunch" },
-      { label: "Dinner", value: "Dinner" },
-    ]
-
-    const mealType = await new Promise((resolve) => {
-      Alert.alert(
-        "Choose a meal",
-        "Which session do you want to add?",
-        [
-          ...mealTypes.map((m) => ({ text: m.label, onPress: () => resolve(m.value) })),
-          { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
-        ],
-        { cancelable: true },
-      )
-    })
-
-    if (!mealType) return
-
-    setPendingAddFood({ food, mealType })
-    setInputValues({ portionSize: "1", servingSize: "1" })
-    setInputModalVisible(true)
+  const handleAddFoodToMeal = () => {
+    navigation.navigate("AddFoodScreen",{ food })
   }
 
   const handleInputModalOk = async () => {
-    const { food, mealType } = pendingAddFood || {}
+    const { food,mealType } = pendingAddFood || {}
     if (!food || !mealType) {
       return
     }
-    const { portionSize, servingSize } = inputValues
+    const { portionSize,servingSize } = inputValues
     const parsedServingSize = Number.parseFloat(servingSize) || 1
     const parsedPortionSize = Number.parseFloat(portionSize) || 1
-
     if (
       parsedServingSize < MIN_SERVING ||
       parsedServingSize > MAX_SERVING ||
@@ -251,9 +225,9 @@ const FoodDetailsScreen = () => {
         satisfactionRating: 1,
         notes: "",
         consumptionDate: today,
-        image: food.image || food.foodImage || food.imageUrl || '',
+        image: food.image || food.foodImage || food.imageUrl || "",
       }
-      await addFoodToLog(today, mealType, logData)
+      await addFoodToLog(today,mealType,logData)
       showSuccessMessage(`Added ${food.foodName} to ${mealType} log with ${parsedServingSize} serving(s)!`)
       setInputModalVisible(false)
       setPendingAddFood(null)
@@ -271,7 +245,6 @@ const FoodDetailsScreen = () => {
   const handleOpenRating = () => {
     // Check if user already has a review for this food
     const userReview = foodReviews.find((review) => review.userId === "current_user_id") // Replace with actual user ID
-
     if (userReview) {
       setExistingReview(userReview)
       setRatingValue(userReview.satisfactionRating || 0)
@@ -281,18 +254,17 @@ const FoodDetailsScreen = () => {
       setRatingValue(0)
       setRatingNote("")
     }
-
     setRatingModalVisible(true)
   }
 
   const animateStar = (index) => {
     Animated.sequence([
-      Animated.timing(starAnimations[index], {
+      Animated.timing(starAnimations[index],{
         toValue: 1.3,
         duration: 120,
         useNativeDriver: true,
       }),
-      Animated.timing(starAnimations[index], {
+      Animated.timing(starAnimations[index],{
         toValue: 1,
         duration: 120,
         useNativeDriver: true,
@@ -302,16 +274,14 @@ const FoodDetailsScreen = () => {
 
   const handleSubmitRating = async () => {
     if (ratingValue === 0) {
-      Alert.alert("Error", "Please select a rating")
+      Alert.alert("Error","Please select a rating")
       return
     }
-
     setRatingLoading(true)
     try {
       // Here you would typically save to your backend
       // For now, we'll simulate the API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
+      await new Promise((resolve) => setTimeout(resolve,1000))
       const newReview = {
         userId: "current_user_id", // Replace with actual user ID
         foodId: food.foodId,
@@ -320,7 +290,6 @@ const FoodDetailsScreen = () => {
         createdAt: new Date().toISOString(),
         userName: "Current User", // Replace with actual user name
       }
-
       if (existingReview) {
         // Update existing review
         const updatedReviews = foodReviews.map((review) => (review.userId === "current_user_id" ? newReview : review))
@@ -328,10 +297,9 @@ const FoodDetailsScreen = () => {
         showSuccessMessage("Review updated successfully!")
       } else {
         // Add new review
-        setFoodReviews([newReview, ...foodReviews])
+        setFoodReviews([newReview,...foodReviews])
         showSuccessMessage("Review submitted successfully!")
       }
-
       setRatingModalVisible(false)
       setRatingValue(0)
       setRatingNote("")
@@ -343,18 +311,19 @@ const FoodDetailsScreen = () => {
     }
   }
 
+  // Updated nutrition items for the new layout
   const nutritionItems = [
-    { name: "Calories", value: `${food.calories} kcal`, icon: "local-fire-department" },
-    { name: "Protein", value: `${food.protein || 0}g`, icon: "fitness-center" },
-    { name: "Carbs", value: `${food.carbs || 0}g`, icon: "grain" },
-    { name: "Fats", value: `${food.fats || 0}g`, icon: "opacity" },
+    { name: "Calories",value: `${food.calories} kcal`,key: "calories" },
+    { name: "Carbs",value: `${food.carbs || 0} g`,key: "carbs" },
+    { name: "Protein",value: `${food.protein || 0} g`,key: "protein" },
+    { name: "Fat",value: `${food.fats || 0} g`,key: "fats" },
   ]
 
   const certifications = [
-    { name: "USDA Organic", icon: "eco", color: "#4CAF50" },
-    { name: "Non-GMO", icon: "verified", color: "#2196F3" },
-    { name: "Heart Healthy", icon: "favorite", color: "#E91E63" },
-    { name: "Gluten Free", icon: "no-meals", color: "#FF9800" },
+    { name: "USDA Organic",icon: "eco",color: "#4CAF50" },
+    { name: "Non-GMO",icon: "verified",color: "#2196F3" },
+    { name: "Heart Healthy",icon: "favorite",color: "#E91E63" },
+    { name: "Gluten Free",icon: "no-meals",color: "#FF9800" },
   ]
 
   // HTML rendering configuration
@@ -420,7 +389,6 @@ const FoodDetailsScreen = () => {
       textDecorationLine: "underline",
     },
   }
-
   const htmlTagsStyles = {
     body: htmlStyles.body,
     p: htmlStyles.p,
@@ -438,15 +406,18 @@ const FoodDetailsScreen = () => {
   }
 
   const renderCertificationBadge = ({ item }) => (
-    <View style={[styles.certificationBadge, { borderColor: item.color }]}> 
+    <View style={[styles.certificationBadge,{ borderColor: item.color }]}>
       <MaterialIcons name={item.icon} size={16} color={item.color} />
-      <Text style={[styles.certificationText, { color: item.color }]}>{item.name}</Text>
+      <Text style={[styles.certificationText,{ color: item.color }]}>{item.name}</Text>
     </View>
   )
 
   const renderRelatedFood = ({ item }) => (
-    <TouchableOpacity style={styles.relatedFoodItem} onPress={() => navigation.push("FoodDetails", { food: item })}>
-      <Image source={{ uri: item.image }} style={styles.relatedFoodImage} resizeMode="cover" />
+    <TouchableOpacity style={styles.relatedFoodItem} onPress={() => navigation.push("FoodDetails",{ food: item })}>
+      <SafeImage
+        imageUrl={item.image}
+        style={styles.relatedFoodImage}
+      />
       <View style={styles.relatedFoodContent}>
         <Text style={styles.relatedFoodCategory}>{item.categoryName}</Text>
         <Text style={styles.relatedFoodName}>{item.foodName}</Text>
@@ -471,8 +442,8 @@ const FoodDetailsScreen = () => {
       </View>
       <View style={styles.loadingContent}>
         <View style={styles.loadingTextLine} />
-        <View style={[styles.loadingTextLine, { width: "60%", marginTop: 8 }]} />
-        <View style={[styles.loadingTextLine, { width: "40%", marginTop: 8 }]} />
+        <View style={[styles.loadingTextLine,{ width: "60%",marginTop: 8 }]} />
+        <View style={[styles.loadingTextLine,{ width: "40%",marginTop: 8 }]} />
       </View>
     </View>
   )
@@ -489,9 +460,9 @@ const FoodDetailsScreen = () => {
     if (isLoadingRelated) {
       return (
         <FlatList
-          data={[1, 2]}
+          data={[1,2]}
           renderItem={renderLoadingItem}
-          keyExtractor={(item, index) => `loading-${index}`}
+          keyExtractor={(item,index) => `loading-${index}`}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.relatedFoodsContainer}
@@ -499,11 +470,9 @@ const FoodDetailsScreen = () => {
         />
       )
     }
-
     if (relatedFoods.length === 0) {
       return renderEmptyState()
     }
-
     return (
       <FlatList
         data={relatedFoods}
@@ -527,7 +496,6 @@ const FoodDetailsScreen = () => {
     const description =
       food.description ||
       `${food.foodName} is a delicious and nutritious option with ${food.calories} calories. This food is rich in antioxidants that support immune system, contains high fiber content that promotes digestive health, and provides essential vitamins and minerals. It supports heart health and circulation, and may help reduce inflammation in the body.`
-
     if (containsHTML(description)) {
       return (
         <RenderHtml
@@ -561,7 +529,7 @@ const FoodDetailsScreen = () => {
     const fetchReviews = async () => {
       try {
         setLoadingReviews(true)
-        const res = await foodService.getMyNutritionLogs({ pageNumber: 1, pageSize: 100 })
+        const res = await foodService.getMyNutritionLogs({ pageNumber: 1,pageSize: 100 })
         const reviews = (res?.nutritionLogs || res?.data?.nutritionLogs || []).filter(
           (log) => log.foodId === food.foodId && (log.satisfactionRating > 0 || (log.notes && log.notes.length > 0)),
         )
@@ -573,25 +541,25 @@ const FoodDetailsScreen = () => {
       }
     }
     fetchReviews()
-  }, [food.foodId])
+  },[food.foodId])
 
   const fetchUserInfo = async (userId) => {
-    if (!userId) return { name: "", avatar: "" }
+    if (!userId) return { name: "",avatar: "" }
     if (userNamesMap[userId] && userNamesMap[userId + "_avatar"]) {
-      return { name: userNamesMap[userId], avatar: userNamesMap[userId + "_avatar"] }
+      return { name: userNamesMap[userId],avatar: userNamesMap[userId + "_avatar"] }
     }
     try {
-      if (!userId) return;
+      if (!userId) return
       // Đảm bảo không gọi API nếu userId không hợp lệ
-      if (typeof userId !== 'number' || userId <= 0) return;
+      if (typeof userId !== "number" || userId <= 0) return
       const res = await apiUserService.getUserById(userId)
       const name = res?.data?.fullName || res?.data?.username || `User #${userId}`
       const avatar = res?.data?.avatar || ""
-      setUserNamesMap((prev) => ({ ...prev, [userId]: name, [userId + "_avatar"]: avatar }))
-      return { name, avatar }
+      setUserNamesMap((prev) => ({ ...prev,[userId]: name,[userId + "_avatar"]: avatar }))
+      return { name,avatar }
     } catch {
-      setUserNamesMap((prev) => ({ ...prev, [userId]: `User #${userId}`, [userId + "_avatar"]: "" }))
-      return { name: `User #${userId}`, avatar: "" }
+      setUserNamesMap((prev) => ({ ...prev,[userId]: `User #${userId}`,[userId + "_avatar"]: "" }))
+      return { name: `User #${userId}`,avatar: "" }
     }
   }
 
@@ -602,36 +570,47 @@ const FoodDetailsScreen = () => {
     if (missingUserIds.length > 0) {
       missingUserIds.forEach((id) => fetchUserInfo(id))
     }
-  }, [foodReviews])
+  },[foodReviews])
 
   // Calculate average rating
   const averageRating =
     foodReviews.length > 0
-      ? (foodReviews.reduce((sum, r) => sum + (r.satisfactionRating || 0), 0) / foodReviews.length).toFixed(1)
+      ? (foodReviews.reduce((sum,r) => sum + (r.satisfactionRating || 0),0) / foodReviews.length).toFixed(1)
       : 0
-
   // Filter reviews by star rating
   const filteredReviews = starFilter > 0 ? foodReviews.filter((r) => r.satisfactionRating === starFilter) : foodReviews
 
   // Enhanced Input Modal Component
   const renderEnhancedInputModal = () => {
-    const { food, mealType } = pendingAddFood || {}
-
+    const { food,mealType } = pendingAddFood || {}
     return (
       <Modal visible={inputModalVisible} transparent animationType="none" onRequestClose={handleInputModalCancel}>
-        <Animated.View style={[styles.enhancedModalOverlay, { opacity: modalOpacity }]}> 
+        <Animated.View style={[styles.enhancedModalOverlay,{ opacity: modalOpacity }]}>
           <Animated.View
-            style={[styles.enhancedModalContainer, { transform: [{ scale: modalScale }], opacity: modalOpacity }]}
+            style={[styles.enhancedModalContainer,{ transform: [{ scale: modalScale }],opacity: modalOpacity }]}
           >
             {/* Modal Header */}
-            <View style={{ backgroundColor: '#0056d2', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingVertical: 18, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}> 
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <View style={{ backgroundColor: '#fff', borderRadius: 20, marginRight: 12, padding: 6 }}> 
+            <View
+              style={{
+                backgroundColor: "#0056d2",
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                paddingVertical: 18,
+                paddingHorizontal: 20,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <View style={{ flexDirection: "row",alignItems: "center",flex: 1 }}>
+                <View style={{ backgroundColor: "#fff",borderRadius: 20,marginRight: 12,padding: 6 }}>
                   <Ionicons name="restaurant" size={22} color="#0056d2" />
                 </View>
                 <View>
-                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#fff', letterSpacing: 0.2 }}>Add Food Details</Text>
-                  <Text style={{ fontSize: 13, color: '#eaf1fb', marginTop: 2, fontWeight: '500' }}>
+                  <Text style={{ fontSize: 18,fontWeight: "bold",color: "#fff",letterSpacing: 0.2 }}>
+                    Add Food Details
+                  </Text>
+                  <Text style={{ fontSize: 13,color: "#eaf1fb",marginTop: 2,fontWeight: "500" }}>
                     {food?.foodName} → {mealType}
                   </Text>
                 </View>
@@ -640,81 +619,193 @@ const FoodDetailsScreen = () => {
                 <Ionicons name="close" size={22} color="#fff" />
               </TouchableOpacity>
             </View>
-
             {/* Food Image Preview + Input Fields */}
-            <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 0 }}>
-              <Image
-                source={{ uri: food?.image || food?.foodImage || food?.imageUrl || 'https://via.placeholder.com/80x80' }}
-                style={{ width: 80, height: 80, borderRadius: 16, marginBottom: 8, backgroundColor: '#eaf1fb' }}
+            <View style={{ alignItems: "center",marginTop: 18,marginBottom: 0 }}>
+              <SafeImage
+                imageUrl={food?.image}
+                style={{ width: 80,height: 80,borderRadius: 16,marginBottom: 8,backgroundColor: "#eaf1fb" }}
               />
-              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0056d2', marginBottom: 2 }}>{food?.foodName}</Text>
+              <Text style={{ fontSize: 16,fontWeight: "bold",color: "#0056d2",marginBottom: 2 }}>
+                {food?.foodName}
+              </Text>
               {/* Input Fields */}
-              <View style={{ width: '100%', paddingHorizontal: 20, marginTop: 10 }}>
+              <View style={{ width: "100%",paddingHorizontal: 20,marginTop: 10 }}>
                 {/* Portion Size */}
                 <View style={{ marginBottom: 16 }}>
-                  <Text style={{ fontSize: 14, color: '#1F2937', fontWeight: '600', marginBottom: 6 }}>Portion Size</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 0, borderColor: 'transparent', borderRadius: 12, backgroundColor: '#F8FAFC', padding: 6 }}>
+                  <Text style={{ fontSize: 14,color: "#1F2937",fontWeight: "600",marginBottom: 6 }}>
+                    Portion Size
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderWidth: 0,
+                      borderColor: "transparent",
+                      borderRadius: 12,
+                      backgroundColor: "#F8FAFC",
+                      padding: 6,
+                    }}
+                  >
                     <TextInput
-                      style={{ flex: 1, height: 44, borderWidth: 0, borderColor: 'transparent', borderRadius: 12, fontSize: 16, fontWeight: '600', color: '#1F2937', backgroundColor: '#fff', paddingHorizontal: 12 }}
+                      style={{
+                        flex: 1,
+                        height: 44,
+                        borderWidth: 0,
+                        borderColor: "transparent",
+                        borderRadius: 12,
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#1F2937",
+                        backgroundColor: "#fff",
+                        paddingHorizontal: 12,
+                      }}
                       placeholder="1"
                       keyboardType="numeric"
                       value={inputValues.portionSize}
-                      onChangeText={(text) => setInputValues((prev) => ({ ...prev, portionSize: text }))}
+                      onChangeText={(text) => setInputValues((prev) => ({ ...prev,portionSize: text }))}
                       placeholderTextColor="#9CA3AF"
                     />
-                    <Text style={{ fontSize: 13, color: '#64748B', marginLeft: 8 }}>portions</Text>
+                    <Text style={{ fontSize: 13,color: "#64748B",marginLeft: 8 }}>portions</Text>
                   </View>
                 </View>
-
                 {/* Serving Size */}
                 <View style={{ marginBottom: 16 }}>
-                  <Text style={{ fontSize: 14, color: '#1F2937', fontWeight: '600', marginBottom: 6 }}>Serving Size</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 0, borderColor: 'transparent', borderRadius: 12, backgroundColor: '#F8FAFC', padding: 6 }}>
+                  <Text style={{ fontSize: 14,color: "#1F2937",fontWeight: "600",marginBottom: 6 }}>
+                    Serving Size
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderWidth: 0,
+                      borderColor: "transparent",
+                      borderRadius: 12,
+                      backgroundColor: "#F8FAFC",
+                      padding: 6,
+                    }}
+                  >
                     <TextInput
-                      style={{ flex: 1, height: 44, borderWidth: 0, borderColor: 'transparent', borderRadius: 12, fontSize: 16, fontWeight: '600', color: '#1F2937', backgroundColor: '#fff', paddingHorizontal: 12 }}
+                      style={{
+                        flex: 1,
+                        height: 44,
+                        borderWidth: 0,
+                        borderColor: "transparent",
+                        borderRadius: 12,
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#1F2937",
+                        backgroundColor: "#fff",
+                        paddingHorizontal: 12,
+                      }}
                       placeholder="1"
                       keyboardType="numeric"
                       value={inputValues.servingSize}
-                      onChangeText={(text) => setInputValues((prev) => ({ ...prev, servingSize: text }))}
+                      onChangeText={(text) => setInputValues((prev) => ({ ...prev,servingSize: text }))}
                       placeholderTextColor="#9CA3AF"
                     />
-                    <Text style={{ fontSize: 13, color: '#64748B', marginLeft: 8 }}>grams</Text>
+                    <Text style={{ fontSize: 13,color: "#64748B",marginLeft: 8 }}>grams</Text>
                   </View>
                 </View>
-
                 {/* Calculated Nutrition */}
                 <View style={{ marginBottom: 0 }}>
-                  <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '600', marginBottom: 8 }}>Calculated Nutrition</Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-                    <View style={{ alignItems: 'center', flex: 1, backgroundColor: '#fff', borderRadius: 8, padding: 8, marginHorizontal: 2 }}>
-                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>{Math.round((food?.calories || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}</Text>
-                      <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>Calories</Text>
+                  <Text style={{ fontSize: 14,color: "#64748B",fontWeight: "600",marginBottom: 8 }}>
+                    Calculated Nutrition
+                  </Text>
+                  <View style={{ flexDirection: "row",justifyContent: "space-between",gap: 8 }}>
+                    <View
+                      style={{
+                        alignItems: "center",
+                        flex: 1,
+                        backgroundColor: "#fff",
+                        borderRadius: 8,
+                        padding: 8,
+                        marginHorizontal: 2,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14,color: "#0056d2",fontWeight: "bold" }}>
+                        {Math.round((food?.calories || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}
+                      </Text>
+                      <Text style={{ fontSize: 12,color: "#64748B",fontWeight: "500" }}>Calories</Text>
                     </View>
-                    <View style={{ alignItems: 'center', flex: 1, backgroundColor: '#fff', borderRadius: 8, padding: 8, marginHorizontal: 2 }}>
-                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>{Math.round((food?.protein || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g</Text>
-                      <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>Protein</Text>
+                    <View
+                      style={{
+                        alignItems: "center",
+                        flex: 1,
+                        backgroundColor: "#fff",
+                        borderRadius: 8,
+                        padding: 8,
+                        marginHorizontal: 2,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14,color: "#0056d2",fontWeight: "bold" }}>
+                        {Math.round((food?.protein || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
+                      </Text>
+                      <Text style={{ fontSize: 12,color: "#64748B",fontWeight: "500" }}>Protein</Text>
                     </View>
-                    <View style={{ alignItems: 'center', flex: 1, backgroundColor: '#fff', borderRadius: 8, padding: 8, marginHorizontal: 2 }}>
-                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>{Math.round((food?.carbs || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g</Text>
-                      <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>Carbs</Text>
+                    <View
+                      style={{
+                        alignItems: "center",
+                        flex: 1,
+                        backgroundColor: "#fff",
+                        borderRadius: 8,
+                        padding: 8,
+                        marginHorizontal: 2,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14,color: "#0056d2",fontWeight: "bold" }}>
+                        {Math.round((food?.carbs || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
+                      </Text>
+                      <Text style={{ fontSize: 12,color: "#64748B",fontWeight: "500" }}>Carbs</Text>
                     </View>
-                    <View style={{ alignItems: 'center', flex: 1, backgroundColor: '#fff', borderRadius: 8, padding: 8, marginHorizontal: 2 }}>
-                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>{Math.round((food?.fats || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g</Text>
-                      <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>Fats</Text>
+                    <View
+                      style={{
+                        alignItems: "center",
+                        flex: 1,
+                        backgroundColor: "#fff",
+                        borderRadius: 8,
+                        padding: 8,
+                        marginHorizontal: 2,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14,color: "#0056d2",fontWeight: "bold" }}>
+                        {Math.round((food?.fats || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
+                      </Text>
+                      <Text style={{ fontSize: 12,color: "#64748B",fontWeight: "500" }}>Fats</Text>
                     </View>
                   </View>
                 </View>
               </View>
             </View>
-
             {/* Modal Actions */}
-            <View style={{ flexDirection: 'row', gap: 12, padding: 20, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
-              <TouchableOpacity style={{ flex: 1, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', backgroundColor: '#F9FAFB' }} onPress={handleInputModalCancel}>
-                <Text style={{ fontSize: 16, color: '#64748B', fontWeight: '600' }}>Cancel</Text>
+            <View style={{ flexDirection: "row",gap: 12,padding: 20,borderTopWidth: 1,borderTopColor: "#F3F4F6" }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  alignItems: "center",
+                  backgroundColor: "#F9FAFB",
+                }}
+                onPress={handleInputModalCancel}
+              >
+                <Text style={{ fontSize: 16,color: "#64748B",fontWeight: "600" }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 12, backgroundColor: '#0056d2' }} onPress={handleInputModalOk}>
+              <TouchableOpacity
+                style={{
+                  flex: 2,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 16,
+                  borderRadius: 12,
+                  backgroundColor: "#0056d2",
+                }}
+                onPress={handleInputModalOk}
+              >
                 <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                <Text style={{ fontSize: 16, color: '#fff', fontWeight: '600', marginLeft: 6 }}>Add to {mealType}</Text>
+                <Text style={{ fontSize: 16,color: "#fff",fontWeight: "600",marginLeft: 6 }}>Add to {mealType}</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -731,9 +822,9 @@ const FoodDetailsScreen = () => {
       transparent={true}
       onRequestClose={() => setRatingModalVisible(false)}
     >
-      <Animated.View style={[styles.ratingOverlay, { opacity: modalOpacity }]}>
-        <Animated.View style={[styles.ratingModal, { transform: [{ scale: modalScale }] }]}>
-          <LinearGradient colors={["#FF9A56", "#FFAD56"]} style={styles.ratingHeader}>
+      <Animated.View style={[styles.ratingOverlay,{ opacity: modalOpacity }]}>
+        <Animated.View style={[styles.ratingModal,{ transform: [{ scale: modalScale }] }]}>
+          <LinearGradient colors={["#FF9A56","#FFAD56"]} style={styles.ratingHeader}>
             <View style={styles.ratingHeaderContent}>
               <View style={styles.ratingIconContainer}>
                 <IconAntDesign name="star" size={26} color="#FFFFFF" />
@@ -747,12 +838,11 @@ const FoodDetailsScreen = () => {
               </TouchableOpacity>
             </View>
           </LinearGradient>
-
           <ScrollView style={styles.ratingBody} showsVerticalScrollIndicator={false}>
             <View style={styles.starSection}>
               <Text style={styles.starLabel}>How would you rate this food?</Text>
               <View style={styles.starContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
+                {[1,2,3,4,5].map((star) => (
                   <TouchableOpacity
                     key={star}
                     onPress={() => {
@@ -763,7 +853,7 @@ const FoodDetailsScreen = () => {
                     style={styles.starButton}
                   >
                     <Animated.View style={{ transform: [{ scale: starAnimations[star - 1] }] }}>
-                      <View style={[styles.starWrapper, ratingValue >= star && styles.starWrapperActive]}>
+                      <View style={[styles.starWrapper,ratingValue >= star && styles.starWrapperActive]}>
                         <IconAntDesign
                           name={ratingValue >= star ? "star" : "staro"}
                           size={28}
@@ -774,7 +864,6 @@ const FoodDetailsScreen = () => {
                   </TouchableOpacity>
                 ))}
               </View>
-
               <View style={styles.ratingDescription}>
                 {ratingValue === 0 && (
                   <View style={styles.descriptionContent}>
@@ -785,36 +874,35 @@ const FoodDetailsScreen = () => {
                 {ratingValue === 1 && (
                   <View style={styles.descriptionContent}>
                     <IconCommunity name="emoticon-sad-outline" size={18} color="#EF4444" />
-                    <Text style={[styles.descText, { color: "#EF4444" }]}>Poor - Not satisfied</Text>
+                    <Text style={[styles.descText,{ color: "#EF4444" }]}>Poor - Not satisfied</Text>
                   </View>
                 )}
                 {ratingValue === 2 && (
                   <View style={styles.descriptionContent}>
                     <IconCommunity name="emoticon-neutral-outline" size={18} color="#F59E0B" />
-                    <Text style={[styles.descText, { color: "#F59E0B" }]}>Fair - Could be better</Text>
+                    <Text style={[styles.descText,{ color: "#F59E0B" }]}>Fair - Could be better</Text>
                   </View>
                 )}
                 {ratingValue === 3 && (
                   <View style={styles.descriptionContent}>
                     <IconCommunity name="emoticon-outline" size={18} color="#FBBF24" />
-                    <Text style={[styles.descText, { color: "#FBBF24" }]}>Good - Satisfied</Text>
+                    <Text style={[styles.descText,{ color: "#FBBF24" }]}>Good - Satisfied</Text>
                   </View>
                 )}
                 {ratingValue === 4 && (
                   <View style={styles.descriptionContent}>
                     <IconCommunity name="emoticon-happy-outline" size={18} color="#10B981" />
-                    <Text style={[styles.descText, { color: "#10B981" }]}>Very Good - Really enjoyed</Text>
+                    <Text style={[styles.descText,{ color: "#10B981" }]}>Very Good - Really enjoyed</Text>
                   </View>
                 )}
                 {ratingValue === 5 && (
                   <View style={styles.descriptionContent}>
                     <IconCommunity name="emoticon-excited-outline" size={18} color="#8B5CF6" />
-                    <Text style={[styles.descText, { color: "#8B5CF6" }]}>Excellent - Amazing!</Text>
+                    <Text style={[styles.descText,{ color: "#8B5CF6" }]}>Excellent - Amazing!</Text>
                   </View>
                 )}
               </View>
             </View>
-
             <View style={styles.notesSection}>
               <View style={styles.notesHeader}>
                 <IconFeather name="message-circle" size={18} color="#667eea" />
@@ -840,7 +928,6 @@ const FoodDetailsScreen = () => {
                 </View>
               </View>
             </View>
-
             <View style={styles.quickNotesSection}>
               <View style={styles.quickNotesHeader}>
                 <IconCommunity name="lightning-bolt" size={16} color="#667eea" />
@@ -848,16 +935,16 @@ const FoodDetailsScreen = () => {
               </View>
               <View style={styles.quickNotesGrid}>
                 {[
-                  { text: "Delicious!", icon: "emoticon-excited" },
-                  { text: "Too salty", icon: "water-off" },
-                  { text: "Perfect portion", icon: "check-circle" },
-                  { text: "Too spicy", icon: "fire" },
-                  { text: "Will order again", icon: "repeat" },
-                  { text: "Could be better", icon: "arrow-up-circle" },
-                ].map((note, index) => (
+                  { text: "Delicious!",icon: "emoticon-excited" },
+                  { text: "Too salty",icon: "water-off" },
+                  { text: "Perfect portion",icon: "check-circle" },
+                  { text: "Too spicy",icon: "fire" },
+                  { text: "Will order again",icon: "repeat" },
+                  { text: "Could be better",icon: "arrow-up-circle" },
+                ].map((note,index) => (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.quickNote, ratingNote === note.text && styles.quickNoteActive]}
+                    style={[styles.quickNote,ratingNote === note.text && styles.quickNoteActive]}
                     onPress={() => setRatingNote(note.text)}
                     disabled={ratingLoading}
                   >
@@ -866,7 +953,7 @@ const FoodDetailsScreen = () => {
                       size={12}
                       color={ratingNote === note.text ? "#FFFFFF" : "#667eea"}
                     />
-                    <Text style={[styles.quickNoteText, ratingNote === note.text && styles.quickNoteTextActive]}>
+                    <Text style={[styles.quickNoteText,ratingNote === note.text && styles.quickNoteTextActive]}>
                       {note.text}
                     </Text>
                   </TouchableOpacity>
@@ -874,14 +961,13 @@ const FoodDetailsScreen = () => {
               </View>
             </View>
           </ScrollView>
-
           <View style={styles.ratingFooter}>
             <TouchableOpacity
-              style={[styles.submitButton, { opacity: ratingLoading || ratingValue === 0 ? 0.6 : 1 }]}
+              style={[styles.submitButton,{ opacity: ratingLoading || ratingValue === 0 ? 0.6 : 1 }]}
               onPress={handleSubmitRating}
               disabled={ratingLoading || ratingValue === 0}
             >
-              <LinearGradient colors={["#FF9A56", "#FFAD56"]} style={styles.submitGradient}>
+              <LinearGradient colors={["#FF9A56","#FFAD56"]} style={styles.submitGradient}>
                 {ratingLoading ? (
                   <>
                     <IconCommunity name="loading" size={18} color="#FFFFFF" />
@@ -902,69 +988,62 @@ const FoodDetailsScreen = () => {
   )
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      <Header
-        title="Food Details"
-        subtitle="Nutrition information"
-        onBack={() => navigation.goBack()}
-        rightActions={[{
-          icon: isFavorite
-            ? <MaterialIcons name="favorite" size={24} color="#EF4444" />
-            : <MaterialIcons name="favorite-border" size={24} color="#6B7280" />,
-          onPress: toggleFavorite
-        }]}
-      />
+    <View style={{ flex: 1,backgroundColor: '#fff' }}>
+      {/* Image Container absolutely positioned at top, outside SafeAreaView */}
+      <View style={[styles.imageContainerNew,{ position: 'absolute',top: 0,left: 0,right: 0,zIndex: 2 }]}>
+        <SafeImage
+          imageUrl={food.image}
+          style={[styles.heroImageNew,{ width: '100%',height: 320 }]}
+          resizeMode="cover"
+        />
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.imageContainer}>
-      <Image source={{ uri: food.image }} style={styles.heroImage} resizeMode="cover" />
-      <View style={styles.trustBadge}>
-        <MaterialIcons name="verified" size={16} color="#10B981" />
-        <Text style={styles.trustBadgeText}>Verified</Text>
-      </View>
+        <View style={styles.imageOverlayButtons}>
+          <TouchableOpacity style={styles.overlayButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={24} color="#000" />
+          </TouchableOpacity>
         </View>
+      </View>
 
-        <View style={styles.contentContainer}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <ScrollView style={[styles.contentContainerNew,{ marginTop: 280 }]} showsVerticalScrollIndicator={false}>
           <View style={styles.titleContainer}>
             <View style={styles.titleLeft}>
-              <Text style={styles.categoryLabel}>{food.categoryName}</Text>
-              <Text style={styles.foodTitle}>{food.foodName}</Text>
+              <Text style={styles.foodTitle} numberOfLines={1} ellipsizeMode="tail">{food.foodName}</Text>
             </View>
             <View style={styles.caloriesBadge}>
               <Text style={styles.caloriesText}>{food.calories} kcal</Text>
             </View>
           </View>
 
-        
-
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Nutrition Facts</Text>
-              <View style={styles.verifiedBadge}>
-                <MaterialIcons name="verified" size={14} color="#10B981" />
-                <Text style={styles.verifiedText}>Lab Tested</Text>
-              </View>
-            </View>
-            <View style={styles.nutritionGrid}>
-              {nutritionItems.map((item, index) => (
-                <View style={styles.nutritionItem} key={`nutrition-${index}`}>
-                  <View style={styles.nutritionIconContainer}>
-                    <MaterialIcons name={item.icon} size={24} color="#374151" />
-                  </View>
-                  <Text style={styles.nutritionValue}>{item.value}</Text>
-                  <Text style={styles.nutritionName}>{item.name}</Text>
+          <View style={[styles.sectionContainer,{ marginHorizontal: 0,paddingHorizontal: 0 }]}>
+            {/* Removed Nutrition Facts title as requested */}
+            {/* Updated Nutrition Grid */}
+            <View style={{
+              backgroundColor: '#fff',
+              flexDirection: 'row',
+              justifyContent: 'space-around',
+              alignItems: 'flex-start',
+              paddingVertical: 10,
+              width: '100%',
+              borderTopWidth: 1,
+              borderBottomWidth: 1,
+              borderColor: '#F3F4F6',
+            }}>
+              {nutritionItems.map((item) => (
+                <View style={[styles.nutritionItemNew]} key={item.key}>
+                  <Text style={styles.nutritionValueNew}>{item.value}</Text>
+                  <Text style={styles.nutritionNameNew}>{item.name}</Text>
                 </View>
               ))}
             </View>
           </View>
 
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <View style={styles.descriptionContainer}>{renderDescription()}</View>
+            <View style={{ paddingHorizontal: 0,backgroundColor: 'transparent',borderWidth: 0,borderRadius: 0,paddingVertical: 0 }}>
+              {renderDescription()}
+            </View>
           </View>
-
-      
 
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Related Foods</Text>
@@ -975,15 +1054,13 @@ const FoodDetailsScreen = () => {
           <View style={styles.sectionContainer}>
             <View style={styles.reviewsHeader}>
               <Text style={styles.sectionTitle}>User Reviews</Text>
-             
             </View>
-
             {/* Rating Statistics */}
             <View style={styles.ratingStats}>
               <View style={styles.averageRatingContainer}>
                 <Text style={styles.averageRatingNumber}>{averageRating}</Text>
                 <View style={styles.averageStars}>
-                  {[1, 2, 3, 4, 5].map((star) => (
+                  {[1,2,3,4,5].map((star) => (
                     <IconAntDesign
                       key={star}
                       name={averageRating >= star ? "star" : averageRating >= star - 0.5 ? "star" : "staro"}
@@ -994,25 +1071,24 @@ const FoodDetailsScreen = () => {
                 </View>
                 <Text style={styles.totalReviews}>({foodReviews.length} reviews)</Text>
               </View>
-
               {/* Star Filter */}
               <View style={styles.starFilter}>
                 <Text style={styles.filterLabel}>Filter:</Text>
                 <View style={styles.starFilterButtons}>
                   <TouchableOpacity
-                    style={[styles.filterButton, starFilter === 0 && styles.activeFilterButton]}
+                    style={[styles.filterButton,starFilter === 0 && styles.activeFilterButton]}
                     onPress={() => setStarFilter(0)}
                   >
-                    <Text style={[styles.filterButtonText, starFilter === 0 && styles.activeFilterText]}>All</Text>
+                    <Text style={[styles.filterButtonText,starFilter === 0 && styles.activeFilterText]}>All</Text>
                   </TouchableOpacity>
-                  {[1, 2, 3, 4, 5].map((star) => (
+                  {[1,2,3,4,5].map((star) => (
                     <TouchableOpacity
                       key={star}
-                      style={[styles.filterButton, starFilter === star && styles.activeFilterButton]}
+                      style={[styles.filterButton,starFilter === star && styles.activeFilterButton]}
                       onPress={() => setStarFilter(star)}
                     >
                       <IconAntDesign name="star" size={12} color={starFilter === star ? "#FFFFFF" : "#6B7280"} />
-                      <Text style={[styles.filterButtonText, starFilter === star && styles.activeFilterText]}>
+                      <Text style={[styles.filterButtonText,starFilter === star && styles.activeFilterText]}>
                         {star}
                       </Text>
                     </TouchableOpacity>
@@ -1020,27 +1096,26 @@ const FoodDetailsScreen = () => {
                 </View>
               </View>
             </View>
-
             {/* Reviews List */}
             <View style={styles.reviewsList}>
               {filteredReviews.length > 0 ? (
-                filteredReviews.map((review, idx) => (
+                filteredReviews.map((review,idx) => (
                   <View key={idx} style={styles.reviewItem}>
                     <View style={styles.reviewHeader}>
                       <View style={styles.reviewUserInfo}>
                         {userNamesMap[review.userId + "_avatar"] ? (
                           <Image source={{ uri: userNamesMap[review.userId + "_avatar"] }} style={styles.userAvatar} />
                         ) : (
-                        <View style={styles.defaultAvatar}>
-                          <MaterialIcons name="person" size={16} color="#6B7280" />
-                        </View>
+                          <View style={styles.defaultAvatar}>
+                            <MaterialIcons name="person" size={16} color="#6B7280" />
+                          </View>
                         )}
                         <View style={styles.userDetails}>
                           <Text style={styles.userName}>
                             {userNamesMap[review.userId] || review.userName || `User #${review.userId || "N/A"}`}
                           </Text>
                           <View style={styles.reviewRating}>
-                            {[1, 2, 3, 4, 5].map((star) => (
+                            {[1,2,3,4,5].map((star) => (
                               <IconAntDesign
                                 key={star}
                                 name={review.satisfactionRating >= star ? "star" : "staro"}
@@ -1069,27 +1144,67 @@ const FoodDetailsScreen = () => {
               )}
             </View>
           </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.bottomBar}>
-        <View style={styles.bottomBarContent}>
-          <View style={styles.priceContainer}>
-            <Text style={styles.priceLabel}>Recommended by</Text>
-            <Text style={styles.priceValue}>HMS Team</Text>
-          </View>
-          <TouchableOpacity style={styles.addToCartButton} onPress={handleAddFoodToMeal}>
-            <View style={[styles.gradientButton, { backgroundColor: '#0056d2' }]}> 
-              <MaterialIcons name="add-shopping-cart" size={22} color="#FFFFFF" style={styles.buttonIcon} />
-              <Text style={[styles.buttonText, { color: '#fff' }]}>Add to Meal Plan</Text>
+        </ScrollView>
+        <View style={styles.bottomBar}>
+          <View style={[styles.bottomBarContent,{ flexDirection: 'row',alignItems: 'center',justifyContent: 'space-between' }]}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.priceLabel}>Recommended by</Text>
+              <Text style={styles.priceValue}>HMS Team</Text>
             </View>
-          </TouchableOpacity>
+            <View style={{ flexDirection: 'row',alignItems: 'center',gap: 10 }}>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#0056d2',
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  paddingHorizontal: 32,
+                  minWidth: 140,
+                  justifyContent: 'center',
+                  shadowColor: '#0056d2',
+                  shadowOffset: { width: 0,height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 2,
+                }}
+                onPress={handleAddFoodToMeal}
+              >
+                <Text style={{ color: '#fff',fontWeight: 'bold',fontSize: 16,letterSpacing: 0.5 }}>TRACK MEAL</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  marginLeft: 8,
+                  backgroundColor: '#fff',
+                  borderRadius: 16,
+                  width: 44,
+                  height: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: '#F3F4F6',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0,height: 1 },
+                  shadowOpacity: 0.06,
+                  shadowRadius: 2,
+                  elevation: 1,
+                }}
+                onPress={toggleFavorite}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons
+                  name={isFavorite ? 'favorite' : 'favorite-border'}
+                  size={28}
+                  color={isFavorite ? '#ff0000ff' : '#222'}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </View>
-
-      {renderEnhancedInputModal()}
-      {renderRatingModal()}
-    </SafeAreaView>
+        {renderEnhancedInputModal()}
+        {renderRatingModal()}
+      </SafeAreaView>
+    </View>
   )
 }
 
@@ -1098,10 +1213,85 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
+  // NEW Image Container and Overlay Buttons
+  imageContainerNew: {
+    width: "100%",
+    height: 300, // Increased height for the image
+    position: "relative",
   },
+  heroImageNew: {
+    width: "100%",
+    height: "100%",
+  },
+  imageOverlayButtons: {
+    position: "absolute",
+    top: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 50, // Adjust top based on platform status bar
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: SPACING,
+  },
+  overlayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.7)", // Semi-transparent white background
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  rightOverlayButtons: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  // NEW Content Container
+  contentContainerNew: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    // Removed borderTopLeftRadius and borderTopRightRadius
+    marginTop: -20, // Overlap the image slightly
+    paddingHorizontal: SPACING,
+    paddingTop: SPACING * 2,
+    paddingBottom: 120,
+  },
+  // Updated Nutrition Grid Styles
+  nutritionGridNew: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "flex-start",
+    paddingVertical: 10,
+    borderWidth: 0,
+    borderColor: "transparent",
+    borderRadius: 0,
+    backgroundColor: "#fff",
+    marginHorizontal: 0,
+    width: '100%',
+  },
+  nutritionItemNew: {
+
+    alignItems: "center", // Center text horizontally
+    flex: 1, // Distribute space evenly
+    paddingHorizontal: 5, // Small horizontal padding
+  },
+  nutritionValueNew: {
+    fontSize: 16,
+    fontWeight: "700", // Bold for the value
+    color: "#111827",
+    marginBottom: 4, // Space between value and name
+  },
+  nutritionNameNew: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500", // Medium weight for the name
+  },
+
+  // Existing styles (unchanged)
   header: {
     backgroundColor: "#FFFFFF",
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
@@ -1168,7 +1358,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -1266,7 +1456,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
@@ -1480,7 +1670,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-
   // Enhanced Modal Styles
   enhancedModalOverlay: {
     flex: 1,
@@ -1496,7 +1685,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     height: height * 0.85,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0,height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 10,
@@ -1650,7 +1839,7 @@ const styles = StyleSheet.create({
   nutritionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    justifyContent: "space-between",
   },
   nutritionCard: {
     flex: 1,
@@ -1660,7 +1849,7 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
@@ -1717,7 +1906,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
-
   // Rating Modal Styles
   ratingOverlay: {
     flex: 1,
@@ -1733,7 +1921,7 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     maxHeight: height * 0.8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0,height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 16,
@@ -1817,7 +2005,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF7ED",
     borderColor: "#FFD700",
     shadowColor: "#FFD700",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
@@ -1873,7 +2061,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -1931,7 +2119,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#667eea",
     borderColor: "#667eea",
     shadowColor: "#667eea",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
@@ -1955,7 +2143,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#FF9A56",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
@@ -1972,7 +2160,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
-
   // Enhanced Reviews Section Styles
   reviewsHeader: {
     flexDirection: "row",

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React,{ useEffect,useState,useRef } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,8 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
-import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
+import { Ionicons,MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { aiRecommentService } from 'services/apiAIRecommentService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,45 +23,45 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from 'theme/color';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
-import Header from 'components/Header'; // Import the Header component
+import Header from 'components/Header';
 
-const { width, height } = Dimensions.get('window');
+const { width,height } = Dimensions.get('window');
 
 const SORT_OPTIONS = [
-  { label: "Name A-Z", value: "name", icon: "text-outline" },
-  { label: "Difficulty (Easy → Hard)", value: "difficulty", icon: "trending-up-outline" },
-  { label: "Calories (High → Low)", value: "calories-high", icon: "flame-outline" },
-  { label: "Calories (Low → High)", value: "calories-low", icon: "flame-outline" },
-  { label: "Male", value: "male", icon: "man-outline" },
-  { label: "Female", value: "female", icon: "woman-outline" },
-  { label: "Duration", value: "duration", icon: "time-outline" },
+  { label: "Name A-Z",value: "name",icon: "text-outline" },
+  { label: "Difficulty (Easy → Hard)",value: "difficulty",icon: "trending-up-outline" },
+  { label: "Calories (High → Low)",value: "calories-high",icon: "flame-outline" },
+  { label: "Calories (Low → High)",value: "calories-low",icon: "flame-outline" },
+  { label: "Male",value: "male",icon: "man-outline" },
+  { label: "Female",value: "female",icon: "woman-outline" },
+  { label: "Duration",value: "duration",icon: "time-outline" },
 ];
 
 const LAYOUT_OPTIONS = [
-  { columns: 1, icon: "list-outline", label: "1 column" },
-  { columns: 2, icon: "grid-outline", label: "2 columns" },
-  { columns: 3, icon: "apps-outline", label: "3 columns" },
-  { columns: 4, icon: "keypad-outline", label: "4 columns" },
+  { columns: 1,icon: "list-outline",label: "1 column" },
+  { columns: 2,icon: "grid-outline",label: "2 columns" },
+  { columns: 3,icon: "apps-outline",label: "3 columns" },
+  { columns: 4,icon: "keypad-outline",label: "4 columns" },
 ];
 
 const AIRecommendedScreen = () => {
   const navigation = useNavigation();
-  const [aiItems, setAIItems] = useState([]);
-  const [aiLoading, setAILoading] = useState(false);
-  const [aiError, setAIError] = useState(null);
-  const [favorites, setFavorites] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
-  const [showSortModal, setShowSortModal] = useState(false);
-  const [sortBy, setSortBy] = useState("name");
-  const [layoutMode, setLayoutMode] = useState(1); // Default to 1 column when entering the screen
-  const [showLayoutModal, setShowLayoutModal] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [aiItems,setAIItems] = useState([]);
+  const [aiLoading,setAILoading] = useState(false);
+  const [aiError,setAIError] = useState(null);
+  const [favorites,setFavorites] = useState([]);
+  const [searchQuery,setSearchQuery] = useState("");
+  const [appliedSearchQuery,setAppliedSearchQuery] = useState("");
+  const [showSortModal,setShowSortModal] = useState(false);
+  const [sortBy,setSortBy] = useState("name");
+  const [layoutMode,setLayoutMode] = useState(1);
+  const [showLayoutModal,setShowLayoutModal] = useState(false);
+  const [refreshing,setRefreshing] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const [userId, setUserId] = useState(null);
+  const [userId,setUserId] = useState(null);
 
   // Load userId from AsyncStorage
   useEffect(() => {
@@ -76,9 +75,8 @@ const AIRecommendedScreen = () => {
       } catch (e) { }
     };
     loadUserId();
-  }, []);
+  },[]);
 
-  // Fetch AI recommended exercises
   const fetchAIRecommended = async () => {
     if (!userId) {
       setAILoading(false);
@@ -92,7 +90,7 @@ const AIRecommendedScreen = () => {
       const items = Array.isArray(aiExercises?.recommendedExercises) ? aiExercises.recommendedExercises : [];
       setAIItems(items);
     } catch (e) {
-      setAIError('Failed to load AI recommendations. Please try again.');
+      showErrorFetchAPI(e);
       setAIItems([]);
     } finally {
       setAILoading(false);
@@ -101,25 +99,23 @@ const AIRecommendedScreen = () => {
 
   useEffect(() => {
     fetchAIRecommended();
-  }, [userId]);
+  },[userId]);
 
-  // Animation setup
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim,{
         toValue: 1,
         duration: 600,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.timing(slideAnim,{
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  },[]);
 
-  // Load favorites
   useEffect(() => {
     const loadFavorites = async () => {
       try {
@@ -129,54 +125,49 @@ const AIRecommendedScreen = () => {
       } catch (error) { }
     };
     loadFavorites();
-  }, []);
+  },[]);
 
-  // Refresh handler
   const onRefresh = () => {
     setRefreshing(true);
     fetchAIRecommended().finally(() => setRefreshing(false));
   };
 
-  // Search handler
   const handleSearch = () => {
     setAppliedSearchQuery(searchQuery);
   };
 
-  // Clear search
   const clearSearch = () => {
     setSearchQuery("");
     setAppliedSearchQuery("");
   };
 
-  // Sort logic
-  const sortExercises = (exercises, sortType) => {
+  const sortExercises = (exercises,sortType) => {
     const sorted = [...exercises];
     switch (sortType) {
       case "name":
-        return sorted.sort((a, b) => (a.exerciseName || "").localeCompare(b.exerciseName || ""));
+        return sorted.sort((a,b) => (a.exerciseName || "").localeCompare(b.exerciseName || ""));
       case "difficulty":
-        const difficultyOrder = { beginner: 1, easy: 1, intermediate: 2, medium: 2, advanced: 3, hard: 3 };
-        return sorted.sort((a, b) => {
+        const difficultyOrder = { beginner: 1,easy: 1,intermediate: 2,medium: 2,advanced: 3,hard: 3 };
+        return sorted.sort((a,b) => {
           const aLevel = difficultyOrder[a.difficultyLevel?.toLowerCase()] || difficultyOrder[a.difficulty?.toLowerCase()] || 2;
           const bLevel = difficultyOrder[b.difficultyLevel?.toLowerCase()] || difficultyOrder[b.difficulty?.toLowerCase()] || 2;
           return aLevel - bLevel;
         });
       case "calories-high":
-        return sorted.sort((a, b) => (b.caloriesBurnedPerMin || 0) - (a.caloriesBurnedPerMin || 0));
+        return sorted.sort((a,b) => (b.caloriesBurnedPerMin || 0) - (a.caloriesBurnedPerMin || 0));
       case "calories-low":
-        return sorted.sort((a, b) => (a.caloriesBurnedPerMin || 0) - (b.caloriesBurnedPerMin || 0));
+        return sorted.sort((a,b) => (a.caloriesBurnedPerMin || 0) - (b.caloriesBurnedPerMin || 0));
       case "male":
         return sorted.filter((ex) => ex.genderSpecific === "male" || ex.genderSpecific === "unisex" || !ex.genderSpecific);
       case "female":
         return sorted.filter((ex) => ex.genderSpecific === "female" || ex.genderSpecific === "unisex" || !ex.genderSpecific);
       case "duration":
-        return sorted.sort((a, b) => (a.duration || 0) - (b.duration || 0));
+        return sorted.sort((a,b) => (a.duration || 0) - (b.duration || 0));
       default:
         return sorted;
     }
   };
 
-  // Toggle favorite
   const toggleFavorite = async (exercise) => {
     try {
       const storedFavorites = await AsyncStorage.getItem('favoriteExercises');
@@ -186,43 +177,40 @@ const AIRecommendedScreen = () => {
       if (isFavorited) {
         favoriteList = favoriteList.filter((item) => item.exerciseId !== exercise.exerciseId);
         setFavorites(favorites.filter((id) => id !== exercise.exerciseId));
-        await AsyncStorage.setItem('favoriteExercises', JSON.stringify(favoriteList));
+        await AsyncStorage.setItem('favoriteExercises',JSON.stringify(favoriteList));
         showSuccessMessage('Removed from favorites successfully');
       } else {
         favoriteList.push(exercise);
-        setFavorites([...favorites, exercise.exerciseId]);
-        await AsyncStorage.setItem('favoriteExercises', JSON.stringify(favoriteList));
+        setFavorites([...favorites,exercise.exerciseId]);
+        await AsyncStorage.setItem('favoriteExercises',JSON.stringify(favoriteList));
         showSuccessMessage('Added to favorites successfully');
       }
     } catch (error) {
-      showErrorFetchAPI(error.message || 'Failed to update favorites. Please try again.');
+      showErrorFetchAPI(error);
     }
   };
 
-  // Add to schedule
   const addToSchedule = async (exercise) => {
     try {
       const storedExercises = await AsyncStorage.getItem('scheduledExercises');
       let scheduledExercises = storedExercises ? JSON.parse(storedExercises) : [];
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
-        showErrorFetchAPI(`${exercise.exerciseName} is already in your schedule`);
+        showErrorMessage(`${exercise.exerciseName} is already in your schedule`);
         return;
       }
-      const exerciseToSave = { ...exercise, mediaUrl: exercise.mediaUrl || '' };
+      const exerciseToSave = { ...exercise,mediaUrl: exercise.mediaUrl || '' };
       scheduledExercises.push(exerciseToSave);
-      await AsyncStorage.setItem('scheduledExercises', JSON.stringify(scheduledExercises));
+      await AsyncStorage.setItem('scheduledExercises',JSON.stringify(scheduledExercises));
       showSuccessMessage(`${exercise.exerciseName} added to your workout schedule`);
     } catch (error) {
-      showErrorFetchAPI(error.message || 'Failed to add exercise to schedule. Please try again.');
+      showErrorFetchAPI(error);
     }
   };
 
-  // Get exercise image
   const getExerciseImage = (exerciseName) => {
-    return `https://source.unsplash.com/400x250/?fitness,${exerciseName.replace(/\s/g, '')}`;
+    return `https://placehold.co/400x250/?fitness,${exerciseName.replace(/\s/g,'')}`;
   };
 
-  // Get package icon
   const getPackageIcon = (exerciseName) => {
     if (!exerciseName) return "fitness";
     const name = exerciseName.toLowerCase();
@@ -243,7 +231,7 @@ const AIRecommendedScreen = () => {
       case "cardio":
         return <Ionicons name="heart" color="#EF4444" {...iconProps} />;
       default:
-        return <MaterialCommunityIcons name="dumbbell" color="#6366F1" {...iconProps} />;
+        return <MaterialCommunityIcons name="dumbbell" color="#0056D2" {...iconProps} />;
     }
   };
 
@@ -256,22 +244,20 @@ const AIRecommendedScreen = () => {
       (item.description && item.description.toLowerCase().includes(search))
     );
   });
-  const sortedItems = sortExercises(filteredItems, sortBy);
+  const sortedItems = sortExercises(filteredItems,sortBy);
 
   // Render exercise item
-  const renderExerciseItem = ({ item, index }) => {
+  const renderExerciseItem = ({ item,index }) => {
     // Debug log for exerciseId and item
-    console.log('Render Exercise Item:', { exerciseId: item.exerciseId, item });
+    console.log('Render Exercise Item:',{ exerciseId: item.exerciseId,item });
     const itemWidth = layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : "23%";
     const imageHeight = layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : 100;
     const isFavorited = favorites.includes(item.exerciseId);
     const packageType = getPackageIcon(item.exerciseName);
 
-    // Lấy thông tin ưu tiên từ exerciseDetails nếu có
     const details = item.exerciseDetails || {};
     const exerciseName = details.exerciseName || item.exerciseName || 'Unknown Exercise';
     const description = details.description || item.description || 'No description available';
-    // Ưu tiên details.imageUrl, sau đó đến item.imageUrl, cuối cùng là ảnh mặc định
     let imageUrl = details.imageUrl;
     if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
       imageUrl = item.imageUrl;
@@ -296,23 +282,21 @@ const AIRecommendedScreen = () => {
         ]}
       >
         <TouchableOpacity
-          onPress={() => navigation.navigate('ExerciseDetails', { exercise: { ...item, ...details } })}
+          onPress={() => navigation.navigate('ExerciseDetails',{ exercise: { ...item,...details } })}
           activeOpacity={0.8}
           style={styles.exerciseCard}
         >
           <View style={styles.exerciseImageContainer}>
             <Image
               source={{ uri: imageUrl }}
-              style={[styles.exerciseImage, { height: imageHeight }]}
+              style={[styles.exerciseImage,{ height: imageHeight }]}
               resizeMode="cover"
               onError={e => {
-                console.log('Image load error:', { imageUrl, exerciseId: item.exerciseId, error: e.nativeEvent });
-                // Optionally, you can set a fallback image here if needed
+
               }}
             />
-            {/* AI Recommend Badge */}
             <LinearGradient
-              colors={["#0056d2", "#296fd1ff"]}
+              colors={["#0056d2","#296fd1ff"]}
               style={styles.aiBadge}
             >
               <Ionicons name="sparkles" size={12} color="#FFFFFF" />
@@ -321,7 +305,7 @@ const AIRecommendedScreen = () => {
 
             {/* Favorite Button */}
             <TouchableOpacity
-              style={[styles.favoriteButton, {
+              style={[styles.favoriteButton,{
                 width: layoutMode > 2 ? 28 : 36,
                 height: layoutMode > 2 ? 28 : 36
               }]}
@@ -335,7 +319,7 @@ const AIRecommendedScreen = () => {
             </TouchableOpacity>
             {/* Add Button */}
             <TouchableOpacity
-              style={[styles.addButton, {
+              style={[styles.addButton,{
                 width: layoutMode > 2 ? 28 : 36,
                 height: layoutMode > 2 ? 28 : 36
               }]}
@@ -344,65 +328,65 @@ const AIRecommendedScreen = () => {
               <Ionicons name="add-circle" size={layoutMode > 2 ? 16 : 20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-          <View style={[styles.exerciseContent, { padding: layoutMode > 2 ? 12 : 16 }]}> 
+          <View style={[styles.exerciseContent,{ padding: layoutMode > 2 ? 12 : 16 }]}>
             <Text
-              style={[styles.exerciseName, { fontSize: layoutMode > 2 ? 16 : 18 }]}
+              style={[styles.exerciseName,{ fontSize: layoutMode > 2 ? 16 : 18 }]}
               numberOfLines={layoutMode > 2 ? 2 : 1}
             >
               {exerciseName}
             </Text>
             <Text
-              style={[styles.exerciseDescription, { fontSize: layoutMode > 2 ? 12 : 14 }]}
+              style={[styles.exerciseDescription,{ fontSize: layoutMode > 2 ? 12 : 14 }]}
               numberOfLines={layoutMode > 2 ? 2 : 2}
             >
               {description}
             </Text>
 
-            <View style={[styles.exerciseDetailsContainer, { gap: layoutMode > 2 ? 8 : 12 }]}> 
+            <View style={[styles.exerciseDetailsContainer,{ gap: layoutMode > 2 ? 8 : 12 }]}>
               <View style={styles.exerciseDetailItem}>
-                <View style={[styles.detailIconContainer, { backgroundColor: '#EEF2FF' }]}> 
-                  <Ionicons name="grid-outline" size={layoutMode > 2 ? 12 : 14} color="#6366F1" />
+                <View style={[styles.detailIconContainer,{ backgroundColor: '#EEF2FF' }]}>
+                  <Ionicons name="grid-outline" size={layoutMode > 2 ? 12 : 14} color="#0056D2" />
                 </View>
-                <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]} numberOfLines={1}>
+                <Text style={[styles.exerciseDetailText,{ fontSize: layoutMode > 2 ? 11 : 13 }]} numberOfLines={1}>
                   {type}
                 </Text>
               </View>
               {item.durationMinutes && (
                 <View style={styles.exerciseDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#FEF2F2' }]}> 
+                  <View style={[styles.detailIconContainer,{ backgroundColor: '#FEF2F2' }]}>
                     <Ionicons name="time-outline" size={layoutMode > 2 ? 12 : 14} color="#EF4444" />
                   </View>
-                  <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]}>
+                  <Text style={[styles.exerciseDetailText,{ fontSize: layoutMode > 2 ? 11 : 13 }]}>
                     {item.durationMinutes} min
                   </Text>
                 </View>
               )}
               {item.sets && (
                 <View style={styles.exerciseDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#FFFBEB' }]}> 
+                  <View style={[styles.detailIconContainer,{ backgroundColor: '#FFFBEB' }]}>
                     <Ionicons name="repeat-outline" size={layoutMode > 2 ? 12 : 14} color="#F59E0B" />
                   </View>
-                  <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]}>
+                  <Text style={[styles.exerciseDetailText,{ fontSize: layoutMode > 2 ? 11 : 13 }]}>
                     {item.sets} sets
                   </Text>
                 </View>
               )}
               {item.reps && (
                 <View style={styles.exerciseDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#F0FDF4' }]}> 
+                  <View style={[styles.detailIconContainer,{ backgroundColor: '#F0FDF4' }]}>
                     <Ionicons name="barbell-outline" size={layoutMode > 2 ? 12 : 14} color="#10B981" />
                   </View>
-                  <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]}>
+                  <Text style={[styles.exerciseDetailText,{ fontSize: layoutMode > 2 ? 11 : 13 }]}>
                     {item.reps} reps
                   </Text>
                 </View>
               )}
               {difficultyLevel && (
                 <View style={styles.exerciseDetailItem}>
-                  <View style={[styles.detailIconContainer, { backgroundColor: '#E0E7FF' }]}> 
-                    <Ionicons name="trending-up-outline" size={layoutMode > 2 ? 12 : 14} color="#6366F1" />
+                  <View style={[styles.detailIconContainer,{ backgroundColor: '#E0E7FF' }]}>
+                    <Ionicons name="trending-up-outline" size={layoutMode > 2 ? 12 : 14} color="#0056D2" />
                   </View>
-                  <Text style={[styles.exerciseDetailText, { fontSize: layoutMode > 2 ? 11 : 13 }]}>
+                  <Text style={[styles.exerciseDetailText,{ fontSize: layoutMode > 2 ? 11 : 13 }]}>
                     {difficultyLevel}
                   </Text>
                 </View>
@@ -434,7 +418,7 @@ const AIRecommendedScreen = () => {
             {SORT_OPTIONS.map((option) => (
               <TouchableOpacity
                 key={option.value}
-                style={[styles.sortOption, sortBy === option.value && styles.selectedSortOption]}
+                style={[styles.sortOption,sortBy === option.value && styles.selectedSortOption]}
                 onPress={() => {
                   setSortBy(option.value);
                   setShowSortModal(false);
@@ -447,13 +431,13 @@ const AIRecommendedScreen = () => {
                       { backgroundColor: sortBy === option.value ? "#EEF2FF" : "#F9FAFB" },
                     ]}
                   >
-                    <Ionicons name={option.icon} size={20} color={sortBy === option.value ? "#6366F1" : "#6B7280"} />
+                    <Ionicons name={option.icon} size={20} color={sortBy === option.value ? "#0056D2" : "#6B7280"} />
                   </View>
-                  <Text style={[styles.sortOptionText, sortBy === option.value && styles.selectedSortOptionText]}>
+                  <Text style={[styles.sortOptionText,sortBy === option.value && styles.selectedSortOptionText]}>
                     {option.label}
                   </Text>
                 </View>
-                {sortBy === option.value && <Ionicons name="checkmark" size={20} color="#6366F1" />}
+                {sortBy === option.value && <Ionicons name="checkmark" size={20} color="#0056D2" />}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -484,7 +468,7 @@ const AIRecommendedScreen = () => {
               {LAYOUT_OPTIONS.map((option) => (
                 <TouchableOpacity
                   key={option.columns}
-                  style={[styles.layoutOption, layoutMode === option.columns && styles.selectedLayoutOption]}
+                  style={[styles.layoutOption,layoutMode === option.columns && styles.selectedLayoutOption]}
                   onPress={() => {
                     setLayoutMode(option.columns);
                     setShowLayoutModal(false);
@@ -493,7 +477,7 @@ const AIRecommendedScreen = () => {
                   <View
                     style={[
                       styles.layoutIconContainer,
-                      { backgroundColor: layoutMode === option.columns ? "#6366F1" : "#F9FAFB" },
+                      { backgroundColor: layoutMode === option.columns ? "#0056D2" : "#F9FAFB" },
                     ]}
                   >
                     <Ionicons
@@ -503,13 +487,13 @@ const AIRecommendedScreen = () => {
                     />
                   </View>
                   <Text
-                    style={[styles.layoutOptionText, layoutMode === option.columns && styles.selectedLayoutOptionText]}
+                    style={[styles.layoutOptionText,layoutMode === option.columns && styles.selectedLayoutOptionText]}
                   >
                     {option.label}
                   </Text>
                   {layoutMode === option.columns && (
                     <View style={styles.layoutCheckmark}>
-                      <Ionicons name="checkmark-circle" size={20} color="#6366F1" />
+                      <Ionicons name="checkmark-circle" size={20} color="#0056D2" />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -525,7 +509,7 @@ const AIRecommendedScreen = () => {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <LinearGradient
-        colors={["#6366F1", "#8B5CF6"]}
+        colors={["#4A90E2","#0056D2","#4A90E2"]}
         style={styles.emptyIconContainer}
       >
         <Ionicons name="sparkles-outline" size={48} color="#FFFFFF" />
@@ -539,7 +523,7 @@ const AIRecommendedScreen = () => {
         onPress={() => navigation.navigate('WorkoutListScreen')}
       >
         <LinearGradient
-          colors={["#6366F1", "#8B5CF6"]}
+          colors={["#4A90E2","#0056D2","#4A90E2"]}
           style={styles.emptyButtonGradient}
         >
           <Ionicons name="fitness-outline" size={20} color="#FFFFFF" />
@@ -554,8 +538,8 @@ const AIRecommendedScreen = () => {
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
 
       {/* Header */}
-     <Header
-        title="AI Recommendations"
+      <Header
+        title="AI Exercise"
         onBack={() => navigation.goBack()}
         titleStyle={{
           fontSize: 22,
@@ -569,17 +553,11 @@ const AIRecommendedScreen = () => {
           borderBottomColor: "#E5E7EB",
           elevation: 2,
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
+          shadowOffset: { width: 0,height: 2 },
           shadowOpacity: 0.06,
           shadowRadius: 4,
         }}
         rightActions={[
-         
-          {
-            icon: LAYOUT_OPTIONS.find((opt) => opt.columns === layoutMode)?.icon || "grid-outline",
-            onPress: () => setShowLayoutModal(true),
-            color: "#000000ff",
-          },
           {
             icon: "heart-outline",
             onPress: () => navigation.navigate('WorkoutFavoriteScreen'),
@@ -594,7 +572,7 @@ const AIRecommendedScreen = () => {
       />
       {/* Search Bar */}
       <Animated.View
-        style={[styles.searchContainer, { marginTop: 50, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        style={[styles.searchContainer,{ marginTop: 55,opacity: fadeAnim,transform: [{ translateY: slideAnim }] }]}
       >
         <View style={styles.searchInputContainer}>
           <Ionicons name="search-outline" size={20} color="#6B7280" style={styles.searchIcon} />
@@ -634,7 +612,7 @@ const AIRecommendedScreen = () => {
             <FlatList
               data={sortedItems}
               renderItem={renderExerciseItem}
-              keyExtractor={(item, index) =>
+              keyExtractor={(item,index) =>
                 item.exerciseId ? `ai-exercise-${item.exerciseId}` : `ai-item-${index}`
               }
               numColumns={layoutMode}
@@ -645,8 +623,8 @@ const AIRecommendedScreen = () => {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={onRefresh}
-                  colors={["#6366F1"]}
-                  tintColor="#6366F1"
+                  colors={["#0056D2"]}
+                  tintColor="#0056D2"
                 />
               }
             />
@@ -685,7 +663,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
@@ -729,7 +707,7 @@ const styles = StyleSheet.create({
     borderRadius: 16, // Slightly smaller border radius for consistency
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 }, // Reduced shadow for a lighter feel
+    shadowOffset: { width: 0,height: 2 }, // Reduced shadow for a lighter feel
     shadowOpacity: 0.1,
     shadowRadius: 4, // Reduced shadow radius
     elevation: 3, // Reduced elevation
@@ -868,8 +846,8 @@ const styles = StyleSheet.create({
   emptyButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#0056D2',
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
@@ -895,7 +873,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#6366F1',
+    color: '#0056D2',
     fontWeight: '500',
   },
   errorContainer: {
@@ -920,7 +898,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   retryButton: {
-    backgroundColor: '#6366F1',
+    backgroundColor: '#0056D2',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -973,7 +951,7 @@ const styles = StyleSheet.create({
   selectedSortOption: {
     backgroundColor: '#EEF2FF',
     borderWidth: 1,
-    borderColor: '#6366F1',
+    borderColor: '#0056D2',
   },
   sortOptionLeft: {
     flexDirection: 'row',
@@ -993,7 +971,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   selectedSortOptionText: {
-    color: '#6366F1',
+    color: '#0056D2',
     fontWeight: '600',
   },
   layoutModal: {
@@ -1032,7 +1010,7 @@ const styles = StyleSheet.create({
   },
   selectedLayoutOption: {
     backgroundColor: '#EEF2FF',
-    borderColor: '#6366F1',
+    borderColor: '#0056D2',
   },
   layoutIconContainer: {
     width: 36,
@@ -1049,7 +1027,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   selectedLayoutOptionText: {
-    color: '#6366F1',
+    color: '#0056D2',
     fontWeight: '600',
   },
   layoutCheckmark: {

@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react"
+import { useContext,useEffect,useState } from "react"
 import {
   View,
   Text,
@@ -12,44 +12,46 @@ import {
   Modal,
   FlatList,
 } from "react-native"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
-import Loading from "components/Loading"
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import { healthyLogService } from "services/apiHealthyLogService"
-import { useNavigation, useRoute } from "@react-navigation/native"
+import { useNavigation,useRoute } from "@react-navigation/native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import Header from "components/Header"
+import { AuthContext } from "context/AuthContext"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
 
 const MOOD_OPTIONS = [
-  { label: "Select your mood", value: "" },
-  { label: "Happy", value: "Happy" },
-  { label: "Neutral", value: "Neutral" },
-  { label: "Sad", value: "Sad" },
-  { label: "Stressed", value: "Stressed" },
-  { label: "Relaxed", value: "Relaxed" },
+  { label: "Select your mood",value: "" },
+  { label: "Happy",value: "Happy" },
+  { label: "Neutral",value: "Neutral" },
+  { label: "Sad",value: "Sad" },
+  { label: "Stressed",value: "Stressed" },
+  { label: "Relaxed",value: "Relaxed" },
 ]
 
 const SLEEP_QUALITY_OPTIONS = [
-  { label: "Select sleep quality", value: "" },
-  { label: "Excellent", value: "Excellent" },
-  { label: "Good", value: "Good" },
-  { label: "Average", value: "Average" },
-  { label: "Poor", value: "Poor" },
+  { label: "Select sleep quality",value: "" },
+  { label: "Excellent",value: "Excellent" },
+  { label: "Good",value: "Good" },
+  { label: "Average",value: "Average" },
+  { label: "Poor",value: "Poor" },
 ]
 
 const STRESS_LEVEL_OPTIONS = [
-  { label: "Select stress level", value: "" },
-  { label: "Low", value: "Low" },
-  { label: "Medium", value: "Medium" },
-  { label: "High", value: "High" },
+  { label: "Select stress level",value: "" },
+  { label: "Low",value: "Low" },
+  { label: "Medium",value: "Medium" },
+  { label: "High",value: "High" },
 ]
 
 export default function HealthLogEditScreen() {
   const navigation = useNavigation()
+  const { user } = useContext(AuthContext);
   const route = useRoute()
   const logId = route?.params?.logId
 
-  const [form, setForm] = useState({
+  const [form,setForm] = useState({
     bloodPressure: "",
     heartRate: "",
     bloodOxygenLevel: "",
@@ -58,16 +60,16 @@ export default function HealthLogEditScreen() {
     stressLevel: "",
     mood: "",
   })
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState({})
-  const [modalVisible, setModalVisible] = useState(false)
-  const [currentField, setCurrentField] = useState("")
-  const [currentOptions, setCurrentOptions] = useState([])
+  const [loading,setLoading] = useState(true)
+  const [saving,setSaving] = useState(false)
+  const [errors,setErrors] = useState({})
+  const [modalVisible,setModalVisible] = useState(false)
+  const [currentField,setCurrentField] = useState("")
+  const [currentOptions,setCurrentOptions] = useState([])
 
   useEffect(() => {
     fetchLog()
-  }, [logId])
+  },[logId])
 
   const fetchLog = async () => {
     setLoading(true)
@@ -83,39 +85,31 @@ export default function HealthLogEditScreen() {
         mood: log.mood || "",
       })
     } catch (e) {
-      showErrorFetchAPI(e.message || "Unable to load health log.")
+      console.log(e)
+      showErrorFetchAPI(e);
       navigation.goBack()
     } finally {
       setLoading(false)
     }
   }
 
-  const handleChange = (key, value) => {
-    setForm({ ...form, [key]: value })
-    // Clear error when user starts typing
+  const handleChange = (key,value) => {
+    setForm({ ...form,[key]: value })
     if (errors[key]) {
-      setErrors({ ...errors, [key]: null })
+      setErrors({ ...errors,[key]: null })
     }
   }
 
-  // Validate blood pressure format systolic/diastolic
-  const isValidBloodPressure = (bp) => {
-    if (!bp) return true
-    if (bp.length > 20) return false
-    return /^\d{1,3}\/\d{1,3}$/.test(bp)
-  }
 
   const validateForm = () => {
     const newErrors = {}
 
-    // Check if at least one field is filled
     const hasData = Object.values(form).some((value) => value !== "")
     if (!hasData) {
       showErrorFetchAPI("Please enter at least one health metric!")
       return false
     }
 
-    // BloodPressure: max 20 chars, format systolic/diastolic
     if (form.bloodPressure) {
       if (form.bloodPressure.length > 20) {
         newErrors.bloodPressure = "BloodPressure cannot exceed 20 characters."
@@ -184,9 +178,8 @@ export default function HealthLogEditScreen() {
 
     setSaving(true)
     try {
-      const userId = await getUserId()
       const logDto = {
-        userId,
+        userId: user?.userId,
         bloodPressure: form.bloodPressure || undefined,
         heartRate: form.heartRate ? Number(form.heartRate) : undefined,
         bloodOxygenLevel: form.bloodOxygenLevel ? Number(form.bloodOxygenLevel) : undefined,
@@ -197,78 +190,58 @@ export default function HealthLogEditScreen() {
         recordedAt: new Date().toISOString(),
       }
 
-      await healthyLogService.updateHealthLog(logId, logDto)
+      await healthyLogService.updateHealthLog(logId,logDto)
 
       showSuccessMessage("Health log updated successfully!")
-      navigation.goBack()
+      navigation.replace("HealthLogListScreen")
     } catch (e) {
-      if (e.errors) {
-        const messages = Object.entries(e.errors)
-          .map(([k, v]) => `• ${v.join(", ")}`)
-          .join("\n")
-        showErrorFetchAPI(messages)
-      } else {
-        showErrorFetchAPI(e.message || "Unable to update health log.")
-      }
+      showErrorFetchAPI(messages)
     } finally {
       setSaving(false)
     }
   }
 
-  // Get userId from AsyncStorage
-  const getUserId = async () => {
-    try {
-      const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default
-      const userStr = await AsyncStorage.getItem("user")
-      if (userStr) {
-        const user = JSON.parse(userStr)
-        return user.userId || user.id
-      }
-    } catch (error) {
-    }
-    return undefined
-  }
 
-  const getHealthStatus = (type, value) => {
+  const getHealthStatus = (type,value) => {
     if (!value) return null
 
     switch (type) {
       case "heartRate":
         const hr = Number(value)
-        if (hr >= 60 && hr <= 100) return { color: "#10B981", icon: "checkmark-circle", text: "Normal" }
-        if (hr < 60) return { color: "#F59E0B", icon: "warning", text: "Low" }
-        return { color: "#EF4444", icon: "alert-circle", text: "High" }
+        if (hr >= 60 && hr <= 100) return { color: "#10B981",icon: "checkmark-circle",text: "Normal" }
+        if (hr < 60) return { color: "#F59E0B",icon: "warning",text: "Low" }
+        return { color: "#EF4444",icon: "alert-circle",text: "High" }
 
       case "bloodOxygen":
         const oxygen = Number(value)
-        if (oxygen >= 95) return { color: "#10B981", icon: "checkmark-circle", text: "Normal" }
-        if (oxygen >= 90) return { color: "#F59E0B", icon: "warning", text: "Low" }
-        return { color: "#EF4444", icon: "alert-circle", text: "Critical" }
+        if (oxygen >= 95) return { color: "#10B981",icon: "checkmark-circle",text: "Normal" }
+        if (oxygen >= 90) return { color: "#F59E0B",icon: "warning",text: "Low" }
+        return { color: "#EF4444",icon: "alert-circle",text: "Critical" }
 
       case "sleep":
         const sleep = Number(value)
-        if (sleep >= 7 && sleep <= 9) return { color: "#10B981", icon: "checkmark-circle", text: "Optimal" }
-        if (sleep >= 6) return { color: "#F59E0B", icon: "warning", text: "Insufficient" }
-        return { color: "#EF4444", icon: "alert-circle", text: "Poor" }
+        if (sleep >= 7 && sleep <= 9) return { color: "#10B981",icon: "checkmark-circle",text: "Optimal" }
+        if (sleep >= 6) return { color: "#F59E0B",icon: "warning",text: "Insufficient" }
+        return { color: "#EF4444",icon: "alert-circle",text: "Poor" }
 
       default:
         return null
     }
   }
 
-  const openPicker = (field, options) => {
+  const openPicker = (field,options) => {
     setCurrentField(field)
     setCurrentOptions(options)
     setModalVisible(true)
   }
 
   const selectOption = (value) => {
-    handleChange(currentField, value)
+    handleChange(currentField,value)
     setModalVisible(false)
   }
 
-  const renderInputField = (key, placeholder, icon, keyboardType = "default", unit = "", healthType = null) => {
-    const status = healthType ? getHealthStatus(healthType, form[key]) : null
+  const renderInputField = (key,placeholder,icon,keyboardType = "default",unit = "",healthType = null) => {
+    const status = healthType ? getHealthStatus(healthType,form[key]) : null
     return (
       <View style={styles.inputContainer}>
         <View style={styles.inputHeader}>
@@ -279,17 +252,17 @@ export default function HealthLogEditScreen() {
           {status && (
             <View style={styles.statusContainer}>
               <Ionicons name={status.icon} size={16} color={status.color} />
-              <Text style={[styles.statusText, { color: status.color }]}>{status.text}</Text>
+              <Text style={[styles.statusText,{ color: status.color }]}>{status.text}</Text>
             </View>
           )}
         </View>
         <View style={styles.inputWrapper}>
           <TextInput
-            style={[styles.input, errors[key] && styles.inputError]}
+            style={[styles.input,errors[key] && styles.inputError]}
             placeholder={`Enter ${placeholder.toLowerCase()}${unit ? ` (${unit})` : ""}`}
             placeholderTextColor="#9CA3AF"
             value={form[key]}
-            onChangeText={(v) => handleChange(key, v)}
+            onChangeText={(v) => handleChange(key,v)}
             keyboardType={keyboardType}
           />
           {unit && <Text style={styles.unitText}>{unit}</Text>}
@@ -304,7 +277,7 @@ export default function HealthLogEditScreen() {
     )
   }
 
-  const renderCustomPicker = (key, options, label, icon) => {
+  const renderCustomPicker = (key,options,label,icon) => {
     const selectedOption = options.find((opt) => opt.value === form[key])
     const displayText = selectedOption ? selectedOption.label : options[0].label
     const isSelected = form[key] !== ""
@@ -316,10 +289,10 @@ export default function HealthLogEditScreen() {
           <Text style={styles.inputLabel}>{label}</Text>
         </View>
         <TouchableOpacity
-          style={[styles.customPickerButton, errors[key] && styles.inputError]}
-          onPress={() => openPicker(key, options)}
+          style={[styles.customPickerButton,errors[key] && styles.inputError]}
+          onPress={() => openPicker(key,options)}
         >
-          <Text style={[styles.customPickerText, !isSelected && styles.customPickerPlaceholder]}>{displayText}</Text>
+          <Text style={[styles.customPickerText,!isSelected && styles.customPickerPlaceholder]}>{displayText}</Text>
           <Ionicons name="chevron-down" size={20} color="#6B7280" />
         </TouchableOpacity>
         {errors[key] && (
@@ -347,10 +320,10 @@ export default function HealthLogEditScreen() {
             keyExtractor={(item) => item.value}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.optionItem, form[currentField] === item.value && { ...styles.selectedOption, borderLeftWidth: 4, borderLeftColor: '#0056d2' }]}
+                style={[styles.optionItem,form[currentField] === item.value && { ...styles.selectedOption,borderLeftWidth: 4,borderLeftColor: '#0056d2' }]}
                 onPress={() => selectOption(item.value)}
               >
-                <Text style={[styles.optionText, form[currentField] === item.value && { color: '#0056d2', fontWeight: '700' }]}>
+                <Text style={[styles.optionText,form[currentField] === item.value && { color: '#0056d2',fontWeight: '700' }]}>
                   {item.label}
                 </Text>
                 {form[currentField] === item.value && <Ionicons name="checkmark" size={20} color="#0056d2" />}
@@ -365,7 +338,7 @@ export default function HealthLogEditScreen() {
 
   if (loading) {
     return (
-      <Loading backgroundColor="rgba(255,255,255,0.8)"  text="Loading health log..." />
+      <CommonSkeleton />
     )
   }
 
@@ -380,7 +353,7 @@ export default function HealthLogEditScreen() {
       />
       <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         {/* Push content below header */}
-        <View style={{ height: 90 }} />
+        <View style={{ height: 50 }} />
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {/* Vital Signs Section */}
           <View style={styles.section}>
@@ -389,9 +362,9 @@ export default function HealthLogEditScreen() {
               <Text style={styles.sectionTitle}>Vital Signs</Text>
             </View>
             <Text style={styles.sectionSubtitle}>Monitor your essential health metrics</Text>
-            {renderInputField("bloodPressure", "Blood Pressure", "fitness", "default", "mmHg")}
-            {renderInputField("heartRate", "Heart Rate", "heart", "numeric", "bpm", "heartRate")}
-            {renderInputField("bloodOxygenLevel", "Blood Oxygen", "water", "numeric", "%", "bloodOxygen")}
+            {renderInputField("bloodPressure","Blood Pressure","fitness","default","mmHg")}
+            {renderInputField("heartRate","Heart Rate","heart","numeric","bpm","heartRate")}
+            {renderInputField("bloodOxygenLevel","Blood Oxygen","water","numeric","%","bloodOxygen")}
           </View>
 
           {/* Sleep & Wellness Section */}
@@ -401,10 +374,10 @@ export default function HealthLogEditScreen() {
               <Text style={styles.sectionTitle}>Sleep & Wellness</Text>
             </View>
             <Text style={styles.sectionSubtitle}>Track your rest and mental well-being</Text>
-            {renderInputField("sleepDuration", "Sleep Duration", "moon", "numeric", "hours", "sleep")}
-            {renderCustomPicker("sleepQuality", SLEEP_QUALITY_OPTIONS, "Sleep Quality", "bed")}
-            {renderCustomPicker("stressLevel", STRESS_LEVEL_OPTIONS, "Stress Level", "pulse")}
-            {renderCustomPicker("mood", MOOD_OPTIONS, "Current Mood", "happy")}
+            {renderInputField("sleepDuration","Sleep Duration","moon","numeric","hours","sleep")}
+            {renderCustomPicker("sleepQuality",SLEEP_QUALITY_OPTIONS,"Sleep Quality","bed")}
+            {renderCustomPicker("stressLevel",STRESS_LEVEL_OPTIONS,"Stress Level","pulse")}
+            {renderCustomPicker("mood",MOOD_OPTIONS,"Current Mood","happy")}
           </View>
 
           {/* Health Tips */}
@@ -423,7 +396,7 @@ export default function HealthLogEditScreen() {
         {/* Submit Button */}
         <View style={styles.submitContainer}>
           <TouchableOpacity
-            style={[styles.submitButton, saving && styles.submitButtonDisabled, { backgroundColor: "#0056d2" }]}
+            style={[styles.submitButton,saving && styles.submitButtonDisabled,{ backgroundColor: "#0056d2" }]}
             onPress={handleSubmit}
             disabled={saving}
           >
@@ -432,7 +405,7 @@ export default function HealthLogEditScreen() {
               <Text style={styles.submitText}>Update Health Log</Text>
             </View>
           </TouchableOpacity>
-          {saving && <Loading backgroundColor="rgba(255,255,255,0.7)" logoSize={80} text="Updating..." />}
+          {saving && <CommonSkeleton />}
         </View>
 
         {renderPickerModal()}
@@ -462,6 +435,7 @@ const styles = StyleSheet.create({
   // Header styles are now handled by the shared Header component
   scrollView: {
     flex: 1,
+    marginTop: 20
   },
   section: {
     backgroundColor: "#fff",
@@ -469,7 +443,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -609,7 +583,7 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
     shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
@@ -649,7 +623,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     maxHeight: "70%",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0,height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 10,

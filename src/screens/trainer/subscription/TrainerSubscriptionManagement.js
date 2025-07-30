@@ -22,6 +22,8 @@ import { trainerService } from 'services/apiTrainerService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -144,6 +146,7 @@ const TrainerSubscriptionManagement = () => {
                 EndDate: filters.endDate ? filters.endDate.toISOString() : undefined,
                 SearchTerm: searchTerm || undefined,
             };
+            console.log(filters.packageId);
             const response = filters.packageId
                 ? await trainerService.getSubscriptionByPackageId(filters.packageId,params)
                 : await trainerService.getMySubscription(user.userId,params);
@@ -359,11 +362,15 @@ const TrainerSubscriptionManagement = () => {
                             <Text style={styles.dateText}>End: {formatDisplayDate(item.endDate)}</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.addWorkoutPlanButton} onPress={handleAddWorkoutPlan}>
-                        <Ionicons name="add-circle-outline" size={24} color="#0056D2" />
-                    </TouchableOpacity>
+                    {
+                        (item.status === "paid" || item.status === "systempaid") && (
+                            <TouchableOpacity style={styles.addWorkoutPlanButton} onPress={handleAddWorkoutPlan}>
+                                <Ionicons name="add-circle-outline" size={24} color="#0056D2" />
+                            </TouchableOpacity>
+                        )
+                    }
                 </View>
-            </Animated.View>
+            </Animated.View >
         );
     };
 
@@ -447,6 +454,7 @@ const TrainerSubscriptionManagement = () => {
                             style={styles.packageOption}
                             onPress={() => {
                                 setTempFilters({ ...tempFilters,packageId: null });
+                                setFilters(tempFilters);
                                 setShowPackageModal(false);
                             }}
                         >
@@ -459,10 +467,11 @@ const TrainerSubscriptionManagement = () => {
                                 onPress={() => {
                                     setTempFilters({ ...tempFilters,packageId: pkg.packageId });
                                     setShowPackageModal(false);
+                                    setFilters(tempFilters);
                                 }}
                             >
                                 <Text style={styles.packageOptionText}>
-                                    {pkg.packageName} ({pkg.subscriptionCount || 0} subscriptions)
+                                    {pkg.packageName}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -583,30 +592,6 @@ const TrainerSubscriptionManagement = () => {
                             </View>
                             {filterErrors.dateRange && <Text style={styles.errorText}>{filterErrors.dateRange}</Text>}
                         </View>
-                        <View style={styles.filterSection}>
-                            <Text style={styles.filterSectionTitle}>Items per Page</Text>
-                            <View style={styles.pageSizeOptions}>
-                                {[5,10,20,50].map((size) => (
-                                    <TouchableOpacity
-                                        key={size}
-                                        style={[styles.pageSizeOption,pageSize === size && styles.selectedPageSizeOption]}
-                                        onPress={() => {
-                                            setPageSize(size);
-                                            setPageNumber(1);
-                                        }}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.pageSizeOptionText,
-                                                pageSize === size && styles.selectedPageSizeOptionText,
-                                            ]}
-                                        >
-                                            {size}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
                     </ScrollView>
                     <View style={styles.modalActions}>
                         <TouchableOpacity style={styles.resetButton} onPress={resetTempFilters}>
@@ -626,28 +611,27 @@ const TrainerSubscriptionManagement = () => {
     return (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Subscription History</Text>
-                    </View>
-                    <View style={styles.headerRight}>
-                        <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-                            <Ionicons name="options-outline" size={24} color="#0056D2" />
-                            {(filters.startDate || filters.endDate || filters.packageId) && <View style={styles.filterBadge} />}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.statsButton}
-                            onPress={() => navigation.navigate('TrainerSubscriptionStatisticsScreen')}
-                        >
-                            <Ionicons name="stats-chart-outline" size={24} color="#0056D2" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
+            <Header
+                title="Subscription History"
+                onBack={() => navigation.goBack()}
+                backIconColor="#0056D2"
+                rightActions={[
+                    {
+                        icon: "options-outline",
+                        onPress: () => setShowFilterModal(true),
+                        color: "#0056D2",
+                        showBadge: filters.startDate || filters.endDate || filters.packageId,
+                        accessibilityLabel: "Open Filters"
+                    },
+                    {
+                        icon: "stats-chart-outline",
+                        onPress: () => navigation.navigate('TrainerSubscriptionStatisticsScreen'),
+                        color: "#0056D2",
+                        accessibilityLabel: "View Statistics"
+                    }
+                ]}
+            />
+
             {renderAverageRating()}
             <Animated.View
                 style={[
@@ -686,10 +670,7 @@ const TrainerSubscriptionManagement = () => {
                 </View>
             </Animated.View>
             {loading && pageNumber === 1 ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#0056D2" />
-                    <Text style={styles.loadingText}>Loading subscriptions...</Text>
-                </View>
+                <CommonSkeleton />
             ) : (
                 <FlatList
                     data={displayedSubscriptions}
@@ -785,6 +766,7 @@ const styles = StyleSheet.create({
         paddingVertical: 15,
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
+        marginTop: 70
     },
     ratingContainer: {
         backgroundColor: '#FFFFFF',
@@ -838,7 +820,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 15,
         borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
+        borderBottomColor: '#E2E8F0'
     },
     searchContainer: {
         flexDirection: 'row',

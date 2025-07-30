@@ -1,21 +1,20 @@
 
-import { useEffect, useState } from "react"
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "react-native"
+import { useEffect,useState } from "react"
+import { View,Text,StyleSheet,ScrollView,Image,TouchableOpacity } from "react-native"
 import { Video } from "expo-av"
 import { WebView } from 'react-native-webview'
-import { Ionicons } from "@expo/vector-icons" 
+import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { SafeAreaView } from "react-native-safe-area-context"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import Header from "components/Header"
 import Loading from "components/Loading"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil"
 import workoutService from "services/apiWorkoutService"
-const ExerciseDetailsScreen = ({ route, navigation }) => {
+const ExerciseDetailsScreen = ({ route,navigation }) => {
   const { exercise } = route.params
 
 
-  // Helper: check if mediaUrl là video file
   const isVideo = (url) => {
     if (!url) return false
     return url.match(/\.(mp4|mov|webm|avi|mkv)$/i)
@@ -33,16 +32,16 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
     return match && match[2].length === 11 ? match[2] : null
   }
 
-  const [categoryName, setCategoryName] = useState("")
-  const [mediaType, setMediaType] = useState(() => {
+  const [categoryName,setCategoryName] = useState("")
+  const [mediaType,setMediaType] = useState(() => {
     if (exercise && exercise.mediaUrl) {
       if (isVideo(exercise.mediaUrl)) return "video"
       if (isYouTube(exercise.mediaUrl)) return "youtube"
     }
     return "image"
   })
-  const [isFavorite, setIsFavorite] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [isFavorite,setIsFavorite] = useState(false)
+  const [loading,setLoading] = useState(false)
 
   useEffect(() => {
     const checkFavorite = async () => {
@@ -58,7 +57,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
       }
     }
     checkFavorite()
-  }, [exercise.exerciseId])
+  },[exercise.exerciseId])
 
   const toggleFavorite = async () => {
     try {
@@ -70,13 +69,13 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
       if (exists) {
         updatedList = favoriteList.filter((ex) => ex.exerciseId !== exercise.exerciseId)
       } else {
-        updatedList = [...favoriteList, exercise]
+        updatedList = [...favoriteList,exercise]
       }
-      await AsyncStorage.setItem("favoriteExercises", JSON.stringify(updatedList))
+      await AsyncStorage.setItem("favoriteExercises",JSON.stringify(updatedList))
       setIsFavorite(!exists)
       showSuccessMessage(exists ? "Removed from favorites" : "Added to favorites")
     } catch (error) {
-      showErrorFetchAPI(error.message || "Failed to update favorites. Please try again.")
+      showErrorFetchAPI(error)
     } finally {
       setLoading(false)
     }
@@ -99,10 +98,10 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
       }
     }
     fetchCategoryName()
-  }, [exercise.categoryId])
+  },[exercise.categoryId])
 
   const getExerciseImage = (exerciseName) => {
-    return `https://source.unsplash.com/600x400/?fitness,${exerciseName.replace(/\s/g, "")}`
+    return `https://source.unsplash.com/600x400/?fitness,${exerciseName.replace(/\s/g,"")}`
   }
 
   const handleAddToWorkout = async () => {
@@ -111,7 +110,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
       const storedExercises = await AsyncStorage.getItem("scheduledExercises")
       const scheduledExercises = storedExercises ? JSON.parse(storedExercises) : []
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
-        showErrorFetchAPI(`${exercise.exerciseName} is already in your workout schedule`)
+        showErrorMessage(`${exercise.exerciseName} is already in your workout schedule`)
         return
       }
       const exerciseToSave = {
@@ -119,10 +118,10 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
         mediaUrl: exercise.mediaUrl || "",
       }
       scheduledExercises.push(exerciseToSave)
-      await AsyncStorage.setItem("scheduledExercises", JSON.stringify(scheduledExercises))
+      await AsyncStorage.setItem("scheduledExercises",JSON.stringify(scheduledExercises))
       showSuccessMessage(`${exercise.exerciseName} added to your workout schedule`)
     } catch (error) {
-      showErrorFetchAPI(error.message || "Failed to add exercise to schedule. Please try again.")
+      showErrorFetchAPI(error)
     } finally {
       setLoading(false)
     }
@@ -131,16 +130,16 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       {loading ? (
-        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
+        <View style={{ flex: 1,backgroundColor: '#fff',justifyContent: 'center',alignItems: 'center',position: 'absolute',width: '100%',height: '100%',zIndex: 999 }}>
           <Loading />
         </View>
       ) : (
         <>
           <Header
-            title={exercise.exerciseName || "Exercise Details"}
+            title={"Exercise Details"}
             onBack={() => navigation.goBack()}
             backgroundColor="#fff"
-            titleStyle={{ color: "#6C63FF", fontWeight: "bold" }}
+            titleStyle={{ color: "#6C63FF",fontWeight: "bold" }}
             rightActions={[
               {
                 icon: isFavorite ? "heart" : "heart-outline",
@@ -154,7 +153,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
               },
             ]}
           />
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollViewContent, { marginTop: 55 }] }>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollViewContent,{ marginTop: 65 }]}>
             <View
               style={[
                 styles.mediaContainer,
@@ -170,7 +169,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
                   shouldPlay={true}
                   isLooping={true}
                   posterSource={{ uri: exercise.imageUrl || getExerciseImage(exercise.exerciseName) }}
-                  posterStyle={{ width: "100%", height: "100%" }}
+                  posterStyle={{ width: "100%",height: "100%" }}
                 />
               ) : mediaType === "youtube" && exercise.mediaUrl && isYouTube(exercise.mediaUrl) ? (
                 <WebView
@@ -189,16 +188,16 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
                   resizeMode="cover"
                 />
               )}
-              <LinearGradient colors={["transparent", "rgba(0,0,0,0.8)"]} style={styles.imageGradient} />
+              <LinearGradient colors={["transparent","rgba(0,0,0,0.8)"]} style={styles.imageGradient} />
             </View>
             {/* Toggle buttons for media type */}
             <View style={styles.mediaToggleContainer}>
               <TouchableOpacity
-                style={[styles.mediaToggleButton, mediaType === "image" && styles.mediaToggleButtonActive]}
+                style={[styles.mediaToggleButton,mediaType === "image" && styles.mediaToggleButtonActive]}
                 onPress={() => setMediaType("image")}
                 disabled={mediaType === "image"}
               >
-                <Text style={[styles.mediaToggleText, mediaType === "image" && styles.mediaToggleTextActive]}>Image</Text>
+                <Text style={[styles.mediaToggleText,mediaType === "image" && styles.mediaToggleTextActive]}>Image</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -239,7 +238,11 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
                 </Text>
               </TouchableOpacity>
             </View>
-
+            <View style={[styles.sectionContainer,{ backgroundColor: "#FFFFFF" }]}>
+              <Text style={[styles.exerciseName,{ color: "#2C3E50" }]} numberOfLines={2} ellipsizeMode="tail">
+                {exercise.exerciseName || "Unnamed Exercise"}
+              </Text>
+            </View>
             {/* New Key Metrics Section */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Key Metrics</Text>
@@ -256,7 +259,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
                 )}
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>
-                    {new Date(exercise.createdAt).toLocaleDateString("en-US", {
+                    {new Date(exercise.createdAt).toLocaleDateString("en-US",{
                       month: "short",
                       day: "numeric",
                       year: "numeric",
@@ -273,7 +276,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
               <TouchableOpacity
                 style={styles.categoryCard}
                 onPress={() =>
-                  navigation.navigate("ExercisesByCategoryScreen", {
+                  navigation.navigate("ExercisesByCategoryScreen",{
                     categoryId: exercise.categoryId,
                     categoryName: categoryName,
                   })
@@ -300,7 +303,7 @@ const ExerciseDetailsScreen = ({ route, navigation }) => {
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Instructions</Text>
                 <View style={styles.instructionsCard}>
-                  {exercise.instructions.map((step, index) => (
+                  {exercise.instructions.map((step,index) => (
                     <View key={index} style={styles.instructionItem}>
                       <Text style={styles.instructionNumber}>{index + 1}.</Text>
                       <Text style={styles.instructionText}>{step}</Text>
@@ -356,9 +359,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   mediaToggleButton: {
+    marginTop: 10,
     paddingVertical: 10,
     paddingHorizontal: 28,
-    borderRadius: 12,
+    borderRadius: 5,
     backgroundColor: "#E0E0E0",
     marginHorizontal: 8,
   },
@@ -385,6 +389,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 20,
   },
+  exerciseName: {
+    fontSize: 24,
+    fontWeight: "700",
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
@@ -400,19 +415,18 @@ const styles = StyleSheet.create({
     padding: 12,
     elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
   },
   metricCard: {
-    width: "31%", // Approx 3 items per row with spacing
+    width: "31%",
     backgroundColor: "#F8F8F8",
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
     borderWidth: 1,
     borderColor: "#EEE",
   },
@@ -440,7 +454,7 @@ const styles = StyleSheet.create({
     padding: 16,
     elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
   },
@@ -456,7 +470,7 @@ const styles = StyleSheet.create({
     padding: 16,
     elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
     flexDirection: "row",
@@ -474,7 +488,7 @@ const styles = StyleSheet.create({
     padding: 16,
     elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
   },

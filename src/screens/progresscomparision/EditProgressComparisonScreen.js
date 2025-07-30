@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React,{ useState,useContext } from "react";
+import { AuthContext } from "context/AuthContext";
 import {
   View,
   Text,
@@ -9,9 +10,7 @@ import {
   TextInput,
   Alert,
   Modal,
-  Pressable,
-  SafeAreaView,
-  StatusBar,
+  Pressable
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import Header from "components/Header";
@@ -19,19 +18,23 @@ import { apiProgressComparisonService } from "services/apiProgressComparisonServ
 import { apiProgressPhotoService } from "services/apiProgressPhotoService";
 import { apiUploadImageCloudService } from "services/apiUploadImageCloudService";
 import * as ImagePicker from "expo-image-picker";
+import { showErrorFetchAPI,showInfoMessage,showSuccessMessage } from "utils/toastUtil";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 
-export default function EditProgressComparisonScreen({ route, navigation }) {
+export default function EditProgressComparisonScreen({ route,navigation }) {
+  const { user } = useContext(AuthContext);
   const { comparison } = route.params;
-  const [description, setDescription] = useState(comparison.description || "");
-  const [beforePhoto, setBeforePhoto] = useState(comparison.progressPhotos?.[0]?.beforePhotoUrl || "");
-  const [afterPhoto, setAfterPhoto] = useState(comparison.progressPhotos?.[0]?.afterPhotoUrl || "");
-  const [notes, setNotes] = useState(comparison.progressPhotos?.[0]?.notes || "");
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalImage, setModalImage] = useState(null);
-  const [modalTitle, setModalTitle] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [description,setDescription] = useState(comparison.description || "");
+  const [beforePhoto,setBeforePhoto] = useState(comparison.progressPhotos?.[0]?.beforePhotoUrl || "");
+  const [afterPhoto,setAfterPhoto] = useState(comparison.progressPhotos?.[0]?.afterPhotoUrl || "");
+  const [notes,setNotes] = useState(comparison.progressPhotos?.[0]?.notes || "");
+  const [modalVisible,setModalVisible] = useState(false);
+  const [modalImage,setModalImage] = useState(null);
+  const [modalTitle,setModalTitle] = useState("");
+  const [uploading,setUploading] = useState(false);
 
-  const openImage = (uri, title) => {
+  const openImage = (uri,title) => {
     setModalImage(uri);
     setModalTitle(title);
     setModalVisible(true);
@@ -46,13 +49,13 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Please allow access to your photo library to continue.");
+        showInfoMessage("Please allow access to your photo library to continue.")
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: [4,3],
         quality: 0.8,
       });
       if (!result.canceled) {
@@ -60,7 +63,7 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
         else setAfterPhoto(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to select image. Please try again.");
+      showErrorFetchAPI(error);
     }
   };
 
@@ -68,13 +71,13 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Please allow camera access to take photos.");
+        showInfoMessage("Please allow camera access to take photos.")
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: [4,3],
         quality: 0.8,
       });
       if (!result.canceled) {
@@ -82,7 +85,7 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
         else setAfterPhoto(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to capture image. Please try again.");
+      showErrorFetchAPI(error);
     }
   };
 
@@ -91,10 +94,9 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
       setUploading(true);
       let beforePhotoUrl = beforePhoto;
       let afterPhotoUrl = afterPhoto;
-      // Nếu là ảnh mới (local uri), upload lên cloud
       if (beforePhoto && beforePhoto.startsWith("file:")) {
         const formData = new FormData();
-        formData.append("file", {
+        formData.append("file",{
           uri: beforePhoto,
           type: "image/jpeg",
           name: `before_${Date.now()}.jpg`,
@@ -105,7 +107,7 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
       }
       if (afterPhoto && afterPhoto.startsWith("file:")) {
         const formData = new FormData();
-        formData.append("file", {
+        formData.append("file",{
           uri: afterPhoto,
           type: "image/jpeg",
           name: `after_${Date.now()}.jpg`,
@@ -114,22 +116,21 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
         if (upload.isError) throw new Error(upload.message);
         afterPhotoUrl = upload.imageUrl;
       }
-      // Cập nhật comparison
-      await apiProgressComparisonService.updateComparison(comparison.comparisonId || comparison.id, {
+      await apiProgressComparisonService.updateComparison(comparison.comparisonId || comparison.id,{
         description,
+        userId: user?.userId,
       });
-      // Cập nhật progress photo (giả sử chỉ có 1 photo)
       if (comparison.progressPhotos?.[0]?.progressPhotoId) {
-        await apiProgressPhotoService.updateProgressPhoto(comparison.progressPhotos[0].progressPhotoId, {
+        await apiProgressPhotoService.updateProgressPhoto(comparison.progressPhotos[0].progressPhotoId,{
           beforePhotoUrl,
           afterPhotoUrl,
           notes,
         });
       }
-      Alert.alert("Thành công", "Cập nhật thành công!");
+      showSuccessMessage("Update successfully!")
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Lỗi", error?.response?.data?.message || error.message || "Cập nhật thất bại!");
+      showErrorFetchAPI(error);
     } finally {
       setUploading(false);
     }
@@ -159,7 +160,7 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Before Photo</Text>
           {beforePhoto ? (
-            <TouchableOpacity onPress={() => openImage(beforePhoto, "Before Photo")}> 
+            <TouchableOpacity onPress={() => openImage(beforePhoto,"Before Photo")}>
               <Image source={{ uri: beforePhoto }} style={styles.photo} />
             </TouchableOpacity>
           ) : (
@@ -169,11 +170,11 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
             </View>
           )}
           <View style={styles.photoButtons}>
-            <TouchableOpacity style={styles.photoButton} onPress={() => takePhoto("before")}> 
+            <TouchableOpacity style={styles.photoButton} onPress={() => takePhoto("before")}>
               <Ionicons name="camera" size={18} color="#FFFFFF" />
               <Text style={styles.photoButtonText}>Take Photo</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.photoButton} onPress={() => pickImage("before")}> 
+            <TouchableOpacity style={styles.photoButton} onPress={() => pickImage("before")}>
               <Ionicons name="images" size={18} color="#FFFFFF" />
               <Text style={styles.photoButtonText}>Gallery</Text>
             </TouchableOpacity>
@@ -182,7 +183,7 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>After Photo</Text>
           {afterPhoto ? (
-            <TouchableOpacity onPress={() => openImage(afterPhoto, "After Photo")}> 
+            <TouchableOpacity onPress={() => openImage(afterPhoto,"After Photo")}>
               <Image source={{ uri: afterPhoto }} style={styles.photo} />
             </TouchableOpacity>
           ) : (
@@ -192,11 +193,11 @@ export default function EditProgressComparisonScreen({ route, navigation }) {
             </View>
           )}
           <View style={styles.photoButtons}>
-            <TouchableOpacity style={styles.photoButton} onPress={() => takePhoto("after")}> 
+            <TouchableOpacity style={styles.photoButton} onPress={() => takePhoto("after")}>
               <Ionicons name="camera" size={18} color="#FFFFFF" />
               <Text style={styles.photoButtonText}>Take Photo</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.photoButton} onPress={() => pickImage("after")}> 
+            <TouchableOpacity style={styles.photoButton} onPress={() => pickImage("after")}>
               <Ionicons name="images" size={18} color="#FFFFFF" />
               <Text style={styles.photoButtonText}>Gallery</Text>
             </TouchableOpacity>

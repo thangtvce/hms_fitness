@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useContext } from "react"
+import React,{ useState,useRef,useEffect,useContext } from "react"
 import {
   View,
   Text,
@@ -12,15 +12,15 @@ import {
   Modal,
 } from "react-native"
 import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import { profileService } from "services/apiProfileService"
 import { useAuth } from "context/AuthContext"
-import { LinearGradient } from "expo-linear-gradient"
-import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter"
+import { useFonts,Inter_400Regular,Inter_600SemiBold,Inter_700Bold } from "@expo-google-fonts/inter"
 import Header from "components/Header"
 import { ThemeContext } from "components/theme/ThemeContext"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { StatusBar } from "expo-status-bar";
 
 const ACTIVITY_LEVELS = ["Sedentary","Lightly Active","Moderately Active","Very Active","Extremely Active"]
 
@@ -44,7 +44,7 @@ const FITNESS_GOALS = [
   "Athletic Performance",
 ]
 
-export default function EditProfileScreen({ navigation, route }) {
+export default function EditProfileScreen({ navigation,route }) {
   const { user } = useAuth()
   const { colors } = useContext(ThemeContext)
   const initialProfile = route.params?.profile || {}
@@ -198,7 +198,7 @@ export default function EditProfileScreen({ navigation, route }) {
         navigation.goBack();
       }
     } catch (error) {
-      showErrorFetchAPI(error.message || "Failed to update profile.");
+      showErrorFetchAPI(error);
     } finally {
       setIsLoading(false);
     }
@@ -252,14 +252,9 @@ export default function EditProfileScreen({ navigation, route }) {
     )
   }
 
-  const closeAllDropdowns = () => {
-    setShowActivityOptions(false)
-    setShowDietaryOptions(false)
-    setShowGoalOptions(false)
-  }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background || '#fff' }]}> 
+    <SafeAreaView style={[styles.safeArea,{ backgroundColor: colors.background || '#fff' }]}>
       <Header
         title="Edit Profile"
         canGoBack
@@ -268,7 +263,7 @@ export default function EditProfileScreen({ navigation, route }) {
       />
 
       <KeyboardAvoidingView
-        style={[styles.container, { backgroundColor: colors.backgroundCard || '#F8FAFC', marginTop: 32 }]}
+        style={[styles.container,{ backgroundColor: colors.backgroundCard || '#F8FAFC',marginTop: 70 }]}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
@@ -370,13 +365,13 @@ export default function EditProfileScreen({ navigation, route }) {
             {bmiValue && (
               <View style={styles.bmiContainer}>
                 <View style={styles.bmiHeader}>
-                <Ionicons name="analytics-outline" size={20} color={colors.primary} />
+                  <Ionicons name="analytics-outline" size={20} color={colors.primary} />
                   <Text style={styles.bmiTitle}>BMI Calculation</Text>
                 </View>
                 <View style={styles.bmiContent}>
                   <View style={styles.bmiValueContainer}>
                     <Text style={styles.bmiValue}>{bmiValue}</Text>
-                    <View style={[styles.bmiCategoryBadge,{ backgroundColor: `${bmiCategory.color}20` }]}> 
+                    <View style={[styles.bmiCategoryBadge,{ backgroundColor: `${bmiCategory.color}20` }]}>
                       <Text style={[styles.bmiCategoryText,{ color: bmiCategory.color }]}>{bmiCategory.text}</Text>
                     </View>
                   </View>
@@ -417,7 +412,7 @@ export default function EditProfileScreen({ navigation, route }) {
               >
                 <Animated.View style={styles.modalOverlay}>
                   <TouchableOpacity style={styles.modalBackground} onPress={() => setShowActivityOptions(false)} />
-                  <Animated.View style={[styles.modalContainer, { transform: [{ translateY: showActivityOptions ? 0 : 300 }] }] }>
+                  <Animated.View style={[styles.modalContainer,{ transform: [{ translateY: showActivityOptions ? 0 : 300 }] }]}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Select Activity Level</Text>
                       <TouchableOpacity onPress={() => setShowActivityOptions(false)}>
@@ -425,10 +420,10 @@ export default function EditProfileScreen({ navigation, route }) {
                       </TouchableOpacity>
                     </View>
                     <ScrollView style={{ maxHeight: 320 }}>
-                      {ACTIVITY_LEVELS.map((option, idx) => (
+                      {ACTIVITY_LEVELS.map((option,idx) => (
                         <React.Fragment key={option}>
-                          <TouchableOpacity style={styles.modalOption} onPress={() => { setFormData({ ...formData, activityLevel: option }); setShowActivityOptions(false); }}>
-                            <Text style={[styles.modalOptionText, { color: colors.primary }]}>{option}</Text>
+                          <TouchableOpacity style={styles.modalOption} onPress={() => { setFormData({ ...formData,activityLevel: option }); setShowActivityOptions(false); }}>
+                            <Text style={[styles.modalOptionText,{ color: colors.primary }]}>{option}</Text>
                             {formData.activityLevel === option && <Ionicons name="checkmark" size={20} color={colors.primary} />}
                           </TouchableOpacity>
                           {idx !== ACTIVITY_LEVELS.length - 1 && <View style={styles.modalDivider} />}
@@ -463,7 +458,7 @@ export default function EditProfileScreen({ navigation, route }) {
               >
                 <Animated.View style={styles.modalOverlay}>
                   <TouchableOpacity style={styles.modalBackground} onPress={() => setShowDietaryOptions(false)} />
-                  <Animated.View style={[styles.modalContainer, { transform: [{ translateY: showDietaryOptions ? 0 : 300 }] }] }>
+                  <Animated.View style={[styles.modalContainer,{ transform: [{ translateY: showDietaryOptions ? 0 : 300 }] }]}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Select Diet Preference</Text>
                       <TouchableOpacity onPress={() => setShowDietaryOptions(false)}>
@@ -471,10 +466,10 @@ export default function EditProfileScreen({ navigation, route }) {
                       </TouchableOpacity>
                     </View>
                     <ScrollView style={{ maxHeight: 320 }}>
-                      {DIETARY_PREFERENCES.map((option, idx) => (
+                      {DIETARY_PREFERENCES.map((option,idx) => (
                         <React.Fragment key={option}>
-                          <TouchableOpacity style={styles.modalOption} onPress={() => { setFormData({ ...formData, dietaryPreference: option }); setShowDietaryOptions(false); }}>
-                            <Text style={[styles.modalOptionText, { color: colors.primary }]}>{option}</Text>
+                          <TouchableOpacity style={styles.modalOption} onPress={() => { setFormData({ ...formData,dietaryPreference: option }); setShowDietaryOptions(false); }}>
+                            <Text style={[styles.modalOptionText,{ color: colors.primary }]}>{option}</Text>
                             {formData.dietaryPreference === option && <Ionicons name="checkmark" size={20} color={colors.primary} />}
                           </TouchableOpacity>
                           {idx !== DIETARY_PREFERENCES.length - 1 && <View style={styles.modalDivider} />}
@@ -509,7 +504,7 @@ export default function EditProfileScreen({ navigation, route }) {
               >
                 <Animated.View style={styles.modalOverlay}>
                   <TouchableOpacity style={styles.modalBackground} onPress={() => setShowGoalOptions(false)} />
-                  <Animated.View style={[styles.modalContainer, { transform: [{ translateY: showGoalOptions ? 0 : 300 }] }] }>
+                  <Animated.View style={[styles.modalContainer,{ transform: [{ translateY: showGoalOptions ? 0 : 300 }] }]}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Select Fitness Goal</Text>
                       <TouchableOpacity onPress={() => setShowGoalOptions(false)}>
@@ -517,10 +512,10 @@ export default function EditProfileScreen({ navigation, route }) {
                       </TouchableOpacity>
                     </View>
                     <ScrollView style={{ maxHeight: 320 }}>
-                      {FITNESS_GOALS.map((option, idx) => (
+                      {FITNESS_GOALS.map((option,idx) => (
                         <React.Fragment key={option}>
-                          <TouchableOpacity style={styles.modalOption} onPress={() => { setFormData({ ...formData, fitnessGoal: option }); setShowGoalOptions(false); }}>
-                            <Text style={[styles.modalOptionText, { color: colors.primary }]}>{option}</Text>
+                          <TouchableOpacity style={styles.modalOption} onPress={() => { setFormData({ ...formData,fitnessGoal: option }); setShowGoalOptions(false); }}>
+                            <Text style={[styles.modalOptionText,{ color: colors.primary }]}>{option}</Text>
                             {formData.fitnessGoal === option && <Ionicons name="checkmark" size={20} color={colors.primary} />}
                           </TouchableOpacity>
                           {idx !== FITNESS_GOALS.length - 1 && <View style={styles.modalDivider} />}
@@ -535,7 +530,7 @@ export default function EditProfileScreen({ navigation, route }) {
 
           <TouchableOpacity
             onPress={handleSubmit}
-            style={[styles.submitButton, { backgroundColor: '#0056d2' }, isLoading ? styles.submitButtonDisabled : null]}
+            style={[styles.submitButton,{ backgroundColor: '#0056d2' },isLoading ? styles.submitButtonDisabled : null]}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -816,7 +811,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 8,
     borderLeftWidth: 3,
-    borderLeftColor: "#4F46E5",
+    borderLeftColor: "#0056D2",
   },
   bmiHeader: {
     flexDirection: "row",
@@ -880,7 +875,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: -2 },
+        shadowOffset: { width: 0,height: -2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },

@@ -22,6 +22,7 @@ import { trainerService } from 'services/apiTrainerService';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import UserProfileContent from '../components/UserProfileContent';
+import Header from 'components/Header';
 
 const AddExerciseToPlanScreen = () => {
   const { user } = useContext(AuthContext);
@@ -164,6 +165,7 @@ const AddExerciseToPlanScreen = () => {
         navigation.goBack();
       }
     } catch (error) {
+      console.log(error);
       showErrorFetchAPI(error);
     } finally {
       setLoading(false);
@@ -254,17 +256,12 @@ const AddExerciseToPlanScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#F8FAFC" />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056D2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Add Exercise to Plan</Text>
-          </View>
-          <View style={styles.headerRight} />
-        </View>
-      </View>
+      <Header
+        title="Add Exercise to Plan"
+        onBack={() => navigation.goBack()}
+        backIconColor="#0056D2"
+      />
+
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -505,6 +502,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 50,
+    marginTop: 80
   },
   section: {
     marginBottom: 24,
@@ -596,6 +594,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+    paddingTop: 70
   },
   modalHeader: {
     paddingHorizontal: 20,

@@ -1,316 +1,373 @@
-import { useState, useEffect, useRef } from "react"
+import { useState,useEffect,useRef } from "react"
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  RefreshControl,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   Dimensions,
   ActivityIndicator,
+  Animated,
 } from "react-native"
-import Loading from "components/Loading"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
-import { Ionicons } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
-import Header from "components/Header"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import axios from "axios"
-import { GEMINI_API_KEY } from "@env"
 import { SafeAreaView } from "react-native-safe-area-context"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { Ionicons } from "@expo/vector-icons"
+import { showErrorFetchAPI,showErrorMessage } from "utils/toastUtil"
+import Header from "components/Header"
+import apiPersonalRecommendationService from "services/apiPersonalRecommendationService"
+import { useNavigation } from "@react-navigation/native"
 
-const { width, height } = Dimensions.get("window")
+const { width } = Dimensions.get("window")
 
 const HealthConsultationScreen = () => {
   const navigation = useNavigation()
   const flatListRef = useRef(null)
-  const [consultations, setConsultations] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [refreshing, setRefreshing] = useState(false)
-  const [query, setQuery] = useState("")
-  const [sendingMessage, setSendingMessage] = useState(false)
+  const [messages,setMessages] = useState([])
+  const [input,setInput] = useState("")
+  const [error,setError] = useState("")
+  const [isSessionValid,setIsSessionValid] = useState(false)
+  const [isLoading,setIsLoading] = useState(false)
+  const [sessionId,setSessionId] = useState("")
+  const [showDeleteConfirm,setShowDeleteConfirm] = useState(false)
+  const [showSuccessNotification,setShowSuccessNotification] = useState(false)
+
+  const dot1Opacity = useRef(new Animated.Value(0)).current
+  const dot2Opacity = useRef(new Animated.Value(0)).current
+  const dot3Opacity = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
-    loadConsultations()
-  }, [])
+    const initializeSession = async () => {
+      setIsLoading(true)
+      const storedSessionId = await AsyncStorage.getItem("trialSessionId")
+      if (storedSessionId) {
+        setSessionId(storedSessionId)
+        validateSession(storedSessionId)
+      } else {
+        createNewSession()
+      }
+    }
+    initializeSession()
+  },[])
 
-  const loadConsultations = async () => {
-    setLoading(true)
+  useEffect(() => {
+    if (isLoading && sessionId) {
+      const animateDots = () => {
+        Animated.sequence([
+          Animated.timing(dot1Opacity,{ toValue: 1,duration: 300,useNativeDriver: true }),
+          Animated.timing(dot2Opacity,{ toValue: 1,duration: 300,useNativeDriver: true }),
+          Animated.timing(dot3Opacity,{ toValue: 1,duration: 300,useNativeDriver: true }),
+          Animated.parallel([
+            Animated.timing(dot1Opacity,{ toValue: 0,duration: 300,useNativeDriver: true }),
+            Animated.timing(dot2Opacity,{ toValue: 0,duration: 300,useNativeDriver: true }),
+            Animated.timing(dot3Opacity,{ toValue: 0,duration: 300,useNativeDriver: true }),
+          ]),
+        ]).start(() => animateDots())
+      }
+      animateDots()
+    } else {
+      dot1Opacity.setValue(0)
+      dot2Opacity.setValue(0)
+      dot3Opacity.setValue(0)
+    }
+  },[isLoading,sessionId])
+
+  const createNewSession = async () => {
     try {
-      const storedConsultations = await AsyncStorage.getItem("healthConsultations")
-      const consultations = storedConsultations ? JSON.parse(storedConsultations) : []
-      setConsultations(Array.isArray(consultations) ? consultations : [])
-      setError(null)
+      const response = await apiPersonalRecommendationService.createRecommendation()
+      const newSessionId = response.data.data.sessionId
+      await AsyncStorage.setItem("trialSessionId",newSessionId)
+      setSessionId(newSessionId)
+      setIsSessionValid(true)
+      setMessages([])
+      await AsyncStorage.setItem("healthConsultations",JSON.stringify([]));
+      await fetchChatHistory();
     } catch (err) {
-      setError("Failed to load consultations")
       showErrorFetchAPI(err)
+      setIsSessionValid(false)
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setIsLoading(false)
     }
   }
 
-  const saveConsultations = async (newConsultations) => {
+  const validateSession = async (sessionIdToValidate) => {
+    if (!sessionIdToValidate) {
+      await createNewSession()
+      return
+    }
     try {
-      await AsyncStorage.setItem("healthConsultations", JSON.stringify(newConsultations))
+      const storedSessionId = await AsyncStorage.getItem("trialSessionId")
+      const response = await apiPersonalRecommendationService.validateSession(storedSessionId)
+      if (response.data.status === "Success") {
+        setIsSessionValid(true)
+        await fetchChatHistory()
+      } else {
+        await AsyncStorage.removeItem("trialSessionId")
+        createNewSession()
+      }
     } catch (err) {
       showErrorFetchAPI(err)
+      await AsyncStorage.removeItem("trialSessionId")
+      createNewSession()
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const onRefresh = () => {
-    setRefreshing(true)
-    loadConsultations()
+  const fetchChatHistory = async () => {
+    try {
+      const storedSessionId = await AsyncStorage.getItem("trialSessionId")
+      const response = await apiPersonalRecommendationService.getChatHistory(storedSessionId)
+      if (response.data.status === "Success" && Array.isArray(response.data.data)) {
+        const historyMessages = response.data.data.map((msg) => ({
+          sessionId: msg.sessionId,
+          role: msg.role,
+          content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
+          timestamp: msg.timestamp,
+          messageId: msg.messageId || `msg-${Date.now() + Math.random()}`,
+        }))
+        setMessages(historyMessages)
+        await AsyncStorage.setItem("healthConsultations",JSON.stringify(historyMessages))
+      } else {
+        setMessages([])
+      }
+    } catch (err) {
+      showErrorFetchAPI(err)
+      setMessages([])
+      await AsyncStorage.removeItem("trialSessionId")
+    }
   }
 
-  const handleAskQuestion = async () => {
-    if (!query.trim()) {
-      showErrorFetchAPI(err)
+  const handleSend = async () => {
+    if (!input.trim()) return
+    if (!sessionId || !isSessionValid) {
+      showErrorMessage("Session is invalid. Please try again.")
       return
     }
 
-    setSendingMessage(true)
-    const userMessage = query
-    setQuery("")
-
-    // Immediately add user's message to consultations
-    const userConsultation = {
-      consultationId: Date.now().toString(),
-      UserId: 15, // TODO: Replace with actual user ID from auth context
-      ConsultationType: "General",
-      ConsultationDetails: userMessage,
-      AiResponse: "", // Placeholder until AI responds
-      createdAt: new Date().toISOString(),
+    const userMessage = {
+      sessionId,
+      role: "user",
+      content: input,
+      timestamp: new Date().toISOString(),
+      messageId: `msg-${Date.now()}`,
     }
 
-    const updatedConsultations = [...consultations, userConsultation]
-    setConsultations(updatedConsultations)
-    await saveConsultations(updatedConsultations)
+    setInput("")
+    setMessages((prev) => [...prev,userMessage])
+    const updatedMessagesAfterUserSend = [...messages,userMessage]
+    await AsyncStorage.setItem("healthConsultations",JSON.stringify(updatedMessagesAfterUserSend))
 
-    // Scroll to bottom after new message
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true })
-    }, 100)
-
+    setIsLoading(true)
     try {
-      // Check if the query is asking about previous questions
-      const isQueryAboutHistory = userMessage.toLowerCase().includes("what did i ask") ||
-                                userMessage.toLowerCase().includes("previous questions") ||
-                                userMessage.toLowerCase().includes("past queries")
-
-      let aiResponse = ""
-      if (isQueryAboutHistory) {
-        // Generate a response listing previous questions
-        if (consultations.length === 0) {
-          aiResponse = "You haven't asked any questions yet. Feel free to ask a health-related question!"
-        } else {
-          const previousQuestions = consultations
-            .map((c, index) => `${index + 1}. ${c.ConsultationDetails}`)
-            .join("\n")
-          aiResponse = `Here are your previous questions:\n${previousQuestions}\n\nPlease ask a new health-related question or specify a question number for more details.`
-        }
-      } else {
-        // Construct conversation history for Gemini API
-        const conversationHistory = consultations.map((c) => ({
-          parts: [
-            { text: `User: ${c.ConsultationDetails}` },
-            { text: `Assistant: ${c.AiResponse}` },
-          ],
-        }))
-
-        // Add the current user message
-        conversationHistory.push({
-          parts: [{ text: `User: ${userMessage}` }],
-        })
-
-        // Construct the Gemini API request payload
-        const payload = {
-          contents: [
-            {
-              parts: [
-                {
-                  text: `You are a health assistant. You have access to the following conversation history:\n${conversationHistory.map(c => c.parts.map(p => p.text).join("\n")).join("\n")}\n\nProvide a concise and accurate response to the user's latest health-related question: "${userMessage}". Include a disclaimer that this is not professional medical advice and users should consult a doctor for medical concerns.`,
-                },
-              ],
-            },
-          ],
-        }
-
-        // Call Gemini API
-        const response = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-          payload,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          },
-        )
-
-        // Validate and parse Gemini API response
-        aiResponse = response.data?.candidates?.[0]?.content?.parts?.[0]?.text
-        if (!aiResponse) {
-          throw new Error("No valid response received from Gemini API")
-        }
+      const response = await apiPersonalRecommendationService.sendMessage(sessionId,userMessage.content)
+      const assistantMessage = {
+        sessionId,
+        role: "assistant",
+        content: response.data.data?.content?.message || "No response provided",
+        timestamp: new Date().toISOString(),
+        messageId: `msg-${Date.now() + 1}`,
       }
-
-      // Update the consultation with AI response
-      const updatedConsultationsWithAI = updatedConsultations.map((c) =>
-        c.consultationId === userConsultation.consultationId
-          ? { ...c, AiResponse: aiResponse }
-          : c
+      setMessages((prev) => [...prev,assistantMessage])
+      await AsyncStorage.setItem(
+        "healthConsultations",
+        JSON.stringify([...updatedMessagesAfterUserSend,assistantMessage]),
       )
-
-      setConsultations(updatedConsultationsWithAI)
-      await saveConsultations(updatedConsultationsWithAI)
-
-      // Scroll to bottom again after AI response
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true })
-      }, 100)
     } catch (err) {
-      let errorMessage = err.message || "Failed to process consultation"
-      if (err.response) {
-        if (err.response.status === 401) {
-          errorMessage =
-            "Error 401: Unauthorized access to Gemini API. Possible causes: invalid API key, expired key, or restricted access."
-        } else if (err.response.status === 400) {
-          errorMessage = "Error 400: Invalid request format. Please check the API request structure."
-        } else if (err.response.status === 429) {
-          errorMessage = "Error 429: Rate limit exceeded. Please try again later."
-        }
-      }
-      showErrorFetchAPI(errorMessage)
-
-      // Update the consultation to indicate an error
-      const updatedConsultationsWithError = updatedConsultations.map((c) =>
-        c.consultationId === userConsultation.consultationId
-          ? { ...c, AiResponse: "Error: Unable to get response" }
-          : c
+      showErrorFetchAPI(err)
+      setMessages((prev) => prev.filter((msg) => msg.messageId !== userMessage.messageId))
+      await AsyncStorage.setItem(
+        "healthConsultations",
+        JSON.stringify(messages.filter((msg) => msg.messageId !== userMessage.messageId)),
       )
-      setConsultations(updatedConsultationsWithError)
-      await saveConsultations(updatedConsultationsWithError)
     } finally {
-      setSendingMessage(false)
+      setIsLoading(false)
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }),100)
     }
   }
 
-  const renderChatMessage = ({ item }) => {
+  const handleDeleteSession = async () => {
+    setIsLoading(true)
+    try {
+      await apiPersonalRecommendationService.deleteSession(sessionId)
+      await AsyncStorage.removeItem("trialSessionId")
+      await AsyncStorage.removeItem("healthConsultations")
+      setSessionId("")
+      setIsSessionValid(false)
+      setMessages([])
+      setError("")
+      setInput("")
+      setShowSuccessNotification(true)
+      setTimeout(() => setShowSuccessNotification(false),3000)
+    } catch (err) {
+      showErrorFetchAPI(err)
+    } finally {
+      setIsLoading(false)
+      setShowDeleteConfirm(false)
+    }
+  }
+
+  const parseBoldText = (text) => {
+    const parts = text.split(/(\*\*[^\*]+\*\*)/g);
+
+    return parts.map((part,index) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        const boldText = part.slice(2,-2);
+        return (
+          <Text key={index} style={{ fontWeight: 'bold' }}>
+            {boldText}
+          </Text>
+        );
+      } else {
+        return <Text key={index}>{part}</Text>;
+      }
+    });
+  };
+
+
+  const renderMessage = ({ item }) => {
+
+    let displayMessage = "";
+    try {
+      const parsedContent = JSON.parse(item.content);
+      if (parsedContent?.type == "recommendations") {
+        return;
+      }
+      if (parsedContent?.content?.message) {
+        displayMessage = parsedContent.content.message;
+      } else {
+        displayMessage = item.content;
+      }
+    } catch (err) {
+      displayMessage = item.content;
+    }
     return (
       <View style={styles.messageContainer}>
-        {/* User Question */}
-        <View style={[styles.messageBubble, styles.userMessage]}>
-          <Text style={styles.userMessageText}>{item.ConsultationDetails || "N/A"}</Text>
-          <Text style={styles.messageTime}>
-            {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </Text>
-        </View>
-
-        {/* AI Response */}
-        {item.AiResponse && (
-          <View style={[styles.messageBubble, styles.aiMessage]}>
-            <View style={styles.aiHeader}>
-              <View style={styles.aiAvatar}>
-                <Ionicons name="medical" size={16} color="#FFFFFF" />
-              </View>
-              <Text style={styles.aiName}>Health Assistant</Text>
-            </View>
-            <Text style={styles.aiMessageText}>{item.AiResponse}</Text>
-            <View style={styles.messageActions}>
-              <Text style={styles.messageTime}>
-                {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </Text>
-            </View>
+        <View style={[
+          styles.messageBubble,
+          item.role === "user" ? styles.userMessage : styles.aiMessage
+        ]}>
+          <View style={[
+            styles.messageHeader,
+            item.role === "user" && styles.messageHeaderUser
+          ]}>
+            {item.role === "user" ? (
+              <>
+                <Text style={[styles.messageAuthor,{ paddingRight: 10 }]}>You</Text>
+                <View style={[styles.avatar,styles.userAvatar,{ marginRight: 0 }]}>
+                  <Ionicons name="person" size={16} color="#FFFFFF" />
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={[styles.avatar,styles.aiAvatar]}>
+                  <Ionicons name="medical" size={16} color="#FFFFFF" />
+                </View>
+                <Text style={styles.messageAuthor}>HMS 3DO</Text>
+              </>
+            )}
           </View>
-        )}
-      </View>
-    )
-  }
-
-  if (loading && !refreshing) {
-    return <Loading backgroundColor="rgba(255,255,255,0.8)" logoSize={120} text="Loading consultations..." />
-  }
-
-  return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: '#fff' }]}> 
-      <Header
-        title="Health Assistant"
-        onBack={() => navigation.goBack()}
-        backgroundColor="#fff"
-        textColor="#1E293B"
-        rightActions={[]}
-      />
-      <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
-        <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '500' }}>Ask me anything about health</Text>
-      </View>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <View style={{ flex: 1 }}>
-          {/* Chat Messages */}
-          <View style={styles.chatContainer}>
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={loadConsultations}>
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
+          <View style={styles.messageContent}>
+            {item.role === "user" ? (
+              <Text style={styles.messageText}>{displayMessage}</Text>
+            ) : (
+              <View style={styles.messageContent}>
+                {item.role === "user" ? (
+                  <Text style={styles.messageText}>{displayMessage}</Text>
+                ) : (
+                  <Text style={styles.messageText}>
+                    {parseBoldText(displayMessage)}
+                  </Text>
+                )}
               </View>
             )}
+          </View>
+        </View>
+      </View>
+    );
+  };
 
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <Header
+        title="HMS Assistant"
+        onBack={() => navigation.goBack()}
+        backgroundColor={styles.headerBackground.backgroundColor}
+        textColor={styles.headerText?.color}
+        rightActions={[
+          {
+            icon: <Ionicons name="trash" size={20} color={styles.deleteIcon?.color} />,
+            onPress: () => setShowDeleteConfirm(true),
+          },
+        ]}
+      />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={styles.chatContainer}>
+          {error && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="warning" size={20} color={styles.errorText?.color} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+          {isLoading && !sessionId ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={styles.primaryAccent?.color} />
+              <Text style={styles.loadingText}>Initializing session...</Text>
+            </View>
+          ) : (
             <FlatList
               ref={flatListRef}
-              data={consultations}
-              renderItem={renderChatMessage}
-              keyExtractor={(item) => item.consultationId}
+              data={messages}
+              renderItem={renderMessage}
+              keyExtractor={(item) => item.messageId}
               contentContainerStyle={styles.chatList}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#4F46E5"]} />}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
+                  <Ionicons name="chatbubbles-outline" size={64} color={styles.emptyIcon?.color} />
                   <Text style={styles.emptyTitle}>Start a conversation</Text>
                   <Text style={styles.emptyText}>Ask your first health question below</Text>
                 </View>
               }
-              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             />
-
-            {sendingMessage && (
-              <View style={styles.typingIndicator}>
-                <View style={styles.typingBubble}>
-                  <View style={styles.aiAvatar}>
-                    <Ionicons name="medical" size={16} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.typingDots}>
-                    <View style={[styles.dot, styles.dot1]} />
-                    <View style={[styles.dot, styles.dot2]} />
-                    <View style={[styles.dot, styles.dot3]} />
-                  </View>
+          )}
+          {isLoading && sessionId && (
+            <View style={styles.typingIndicator}>
+              <View style={styles.typingBubble}>
+                <View style={styles.aiAvatar}>
+                  <Ionicons name="medical" size={16} color="#FFFFFF" />
+                </View>
+                <View style={styles.typingDots}>
+                  <Animated.View style={[styles.dot,{ opacity: dot1Opacity }]} />
+                  <Animated.View style={[styles.dot,{ opacity: dot2Opacity }]} />
+                  <Animated.View style={[styles.dot,{ opacity: dot3Opacity }]} />
                 </View>
               </View>
-            )}
-          </View>
-
-          {/* Input Area */}
+            </View>
+          )}
           <View style={styles.inputContainer}>
             <View style={styles.inputWrapper}>
               <TextInput
                 style={styles.textInput}
-                value={query}
-                onChangeText={setQuery}
+                value={input}
+                onChangeText={setInput}
                 placeholder="Ask a health question..."
+                placeholderTextColor={styles.textSecondary?.color}
                 multiline
                 maxLength={500}
-                editable={!sendingMessage}
+                editable={!isLoading}
               />
               <TouchableOpacity
-                style={[styles.sendButton, (!query.trim() || sendingMessage) && styles.sendButtonDisabled]}
-                onPress={handleAskQuestion}
-                disabled={!query.trim() || sendingMessage}
+                style={[styles.sendButton,(!input.trim() || isLoading) && styles.sendButtonDisabled]}
+                onPress={handleSend}
+                disabled={!input.trim() || isLoading}
               >
-                {sendingMessage ? (
+                {isLoading ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <Ionicons name="send" size={20} color="#FFFFFF" />
@@ -320,93 +377,149 @@ const HealthConsultationScreen = () => {
           </View>
         </View>
       </KeyboardAvoidingView>
+      {showDeleteConfirm && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="warning" size={24} color={styles.errorText?.color} />
+              <Text style={styles.modalTitle}>Clear Chat Session</Text>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowDeleteConfirm(false)}>
+                <Ionicons name="close" size={24} color={styles.textPrimary?.color} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalContent}>
+              <Ionicons name="trash" size={32} color={styles.errorText?.color} />
+              <Text style={styles.confirmationTitle}>Are you sure?</Text>
+              <Text style={styles.confirmationMessage}>
+                This will permanently delete your current chat session, including all messages and your health profile
+                data.
+              </Text>
+              <Text style={styles.confirmationWarning}>This action cannot be undone.</Text>
+            </View>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowDeleteConfirm(false)}>
+                <Ionicons name="close" size={20} color={styles.textPrimary?.color} />
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmDeleteBtn} onPress={handleDeleteSession} disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={styles.confirmDeleteBtnText}>Clearing...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="trash" size={20} color="#FFFFFF" />
+                    <Text style={styles.confirmDeleteBtnText}>Clear Session</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+      {showSuccessNotification && (
+        <View style={styles.successNotification}>
+          <Ionicons name="checkmark-circle" size={20} color={styles.successText?.color} />
+          <Text style={styles.successNotificationText}>
+            Session cleared successfully! You can start a new health journey.
+          </Text>
+        </View>
+      )}
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
+  primaryAccent: { color: "#06B6D4" },
+  secondaryAccent: { color: "#10B981" },
+  backgroundLight: { backgroundColor: "#F8FAFC" },
+  cardBackground: { backgroundColor: "#FFFFFF" },
+  textPrimary: { color: "#1F2937" },
+  textSecondary: { color: "#6B7280" },
+  borderLight: { borderColor: "#E5E7EB" },
+  errorColor: { color: "#EF4444" },
+  successColor: { color: "#10B981" },
+  disabledColor: { backgroundColor: "#D1D5DB" },
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
   },
-  container: {
-    flex: 1,
+  headerBackground: {
+    backgroundColor: "#FFFFFF",
   },
-  // header styles removed (now handled by Header.js)
+  headerText: {
+    color: "#1F2937",
+  },
+  deleteIcon: {
+    color: "#EF4444",
+  },
   chatContainer: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F8FAFC",
+    marginTop: 70
   },
   chatList: {
     padding: 16,
     paddingBottom: 8,
   },
   messageContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   messageBubble: {
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 12,
-    marginBottom: 8,
     maxWidth: width * 0.8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   userMessage: {
-    backgroundColor: "#E6F0FA", // lighter than #0056d2
+    backgroundColor: "#E0F7FA",
     alignSelf: "flex-end",
     borderBottomRightRadius: 4,
-    borderWidth: 1,
-    borderColor: "#0056d2",
-  },
-  userMessageText: {
-    color: "#0056d2",
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: "600",
   },
   aiMessage: {
     backgroundColor: "#FFFFFF",
     alignSelf: "flex-start",
     borderBottomLeftRadius: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  aiHeader: {
+  messageHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  aiAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#10B981",
+  messageHeaderUser: {
+    justifyContent: "flex-end"
+  },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
   },
-  aiName: {
-    fontSize: 14,
+  userAvatar: {
+    backgroundColor: "#06B6D4",
+  },
+  aiAvatar: {
+    backgroundColor: "#10B981",
+  },
+  messageAuthor: {
+    fontSize: 13,
     fontWeight: "600",
-    color: "#10B981",
+    color: "#4B5563",
   },
-  aiMessageText: {
-    color: "#1F2937",
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  messageTime: {
-    fontSize: 12,
-    color: "#64748B", // đổi màu thời gian sang xám xanh đậm
+  messageContent: {
     marginTop: 4,
   },
-  messageActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
+  messageText: {
+    fontSize: 15,
+    color: "#1F2937",
+    lineHeight: 22,
   },
   inputContainer: {
     backgroundColor: "#FFFFFF",
@@ -417,9 +530,9 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 24,
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    borderRadius: 28,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
@@ -431,13 +544,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#4F46E5",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#06B6D4",
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
+    marginLeft: 10,
   },
   sendButtonDisabled: {
     backgroundColor: "#D1D5DB",
@@ -450,25 +563,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 12,
     alignSelf: "flex-start",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0,height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   typingDots: {
     flexDirection: "row",
     marginLeft: 8,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: "#D1D5DB",
-    marginHorizontal: 2,
+    marginHorizontal: 3,
   },
   emptyContainer: {
     flex: 1,
@@ -476,9 +589,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 64,
   },
+  emptyIcon: {
+    color: "#CBD5E1",
+  },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 22,
+    fontWeight: "700",
     color: "#1F2937",
     marginTop: 16,
     marginBottom: 8,
@@ -487,42 +603,140 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#6B7280",
     textAlign: "center",
+    paddingHorizontal: 20,
   },
   errorContainer: {
     alignItems: "center",
-    padding: 16,
+    padding: 12,
     backgroundColor: "#FEF2F2",
-    borderRadius: 12,
+    borderRadius: 8,
     margin: 16,
+    flexDirection: "row",
   },
   errorText: {
     fontSize: 14,
     color: "#EF4444",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  retryButton: {
-    backgroundColor: "#4F46E5",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
+    marginLeft: 8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 16,
-    backgroundColor: "#F9FAFB",
   },
   loadingText: {
     fontSize: 16,
-    color: "#4F46E5",
+    color: "#4B5563",
+    marginTop: 8,
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    width: width * 0.9,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+    flex: 1,
+    marginLeft: 8,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalContent: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  confirmationTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginTop: 12,
+  },
+  confirmationMessage: {
+    fontSize: 15,
+    color: "#6B7280",
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 22,
+  },
+  confirmationWarning: {
+    fontSize: 15,
+    color: "#EF4444",
+    marginTop: 8,
     fontWeight: "500",
+  },
+  modalFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  cancelBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingVertical: 14,
+    marginRight: 10,
+  },
+  cancelBtnText: {
+    fontSize: 16,
+    color: "#1F2937",
+    marginLeft: 8,
+    fontWeight: "500",
+  },
+  confirmDeleteBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EF4444",
+    borderRadius: 10,
+    paddingVertical: 14,
+  },
+  confirmDeleteBtnText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    marginLeft: 8,
+    fontWeight: "500",
+  },
+  successNotification: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 50 : 16,
+    left: 16,
+    right: 16,
+    backgroundColor: "#ECFDF5",
+    borderRadius: 10,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0,height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  successNotificationText: {
+    fontSize: 14,
+    color: "#10B981",
+    marginLeft: 8,
+    flexShrink: 1,
   },
 })
 

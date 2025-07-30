@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useContext } from "react"
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Dimensions } from "react-native"
+import React,{ useEffect,useState,useContext } from "react"
+import { View,Text,StyleSheet,FlatList,ActivityIndicator,TouchableOpacity,Dimensions } from "react-native"
+import ShimmerPlaceholder from "components/shimmer/ShimmerPlaceholder"
 import { BarChart } from "react-native-chart-kit"
 import dayjs from "dayjs"
 import isoWeek from "dayjs/plugin/isoWeek"
@@ -7,23 +8,24 @@ import Header from "components/Header"
 import { theme } from "theme/color"
 import { workoutService } from "services/apiWorkoutService"
 import { AuthContext } from "context/AuthContext"
+import { showErrorFetchAPI } from "utils/toastUtil"
 
 const { width: screenWidth } = Dimensions.get("window")
 
 dayjs.extend(isoWeek)
 
 const TABS = [
-  { key: "daily", label: "Daily" },
-  { key: "weekly", label: "Weekly" },
-  { key: "monthly", label: "Monthly" },
+  { key: "daily",label: "Daily" },
+  { key: "weekly",label: "Weekly" },
+  { key: "monthly",label: "Monthly" },
 ]
 
-const ActiveStaticsScreen = () => {
+const ActiveStaticsScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [tab, setTab] = useState("daily")
-  const [stats, setStats] = useState({
+  const [loading,setLoading] = useState(true)
+  const [error,setError] = useState(null)
+  const [tab,setTab] = useState("daily")
+  const [stats,setStats] = useState({
     logsByDate: [],
     logsByWeek: [],
     logsByMonth: [],
@@ -33,42 +35,38 @@ const ActiveStaticsScreen = () => {
     try {
       setLoading(true)
       setError(null)
-      const sessions = await workoutService.getMyWorkoutSessions({ pageNumber: 1, pageSize: 100 })
-      // sessions is array of session objects
+      const sessions = await workoutService.getMyWorkoutSessions({ pageNumber: 1,pageSize: 100 })
       const mappedLogs = sessions.map((item) => ({
         date: item.startTime ? dayjs(item.startTime).format("YYYY-MM-DD") : "",
         calories: item.totalCaloriesBurned || 0,
       }))
-      // Group by date
       const logsByDateMap = {}
       mappedLogs.forEach((item) => {
-        if (!logsByDateMap[item.date]) logsByDateMap[item.date] = { date: item.date, calories: 0 }
+        if (!logsByDateMap[item.date]) logsByDateMap[item.date] = { date: item.date,calories: 0 }
         logsByDateMap[item.date].calories += item.calories
       })
-      const logsByDate = Object.values(logsByDateMap).sort((a, b) => dayjs(b.date).valueOf() - dayjs(a.date).valueOf())
-      // Group by week
+      const logsByDate = Object.values(logsByDateMap).sort((a,b) => dayjs(b.date).valueOf() - dayjs(a.date).valueOf())
       const weekMap = {}
       logsByDate.forEach((item) => {
         const date = dayjs(item.date)
         const weekNum = date.isoWeek()
         const year = date.year()
         const weekKey = `${year}-W${weekNum}`
-        if (!weekMap[weekKey]) weekMap[weekKey] = { week: weekKey, calories: 0 }
+        if (!weekMap[weekKey]) weekMap[weekKey] = { week: weekKey,calories: 0 }
         weekMap[weekKey].calories += item.calories
       })
       const logsByWeek = Object.values(weekMap)
-      // Group by month
       const monthMap = {}
       logsByDate.forEach((item) => {
         const date = dayjs(item.date)
         const monthKey = date.format("YYYY-MM")
-        if (!monthMap[monthKey]) monthMap[monthKey] = { month: monthKey, calories: 0 }
+        if (!monthMap[monthKey]) monthMap[monthKey] = { month: monthKey,calories: 0 }
         monthMap[monthKey].calories += item.calories
       })
       const logsByMonth = Object.values(monthMap)
-      setStats({ logsByDate, logsByWeek, logsByMonth })
+      setStats({ logsByDate,logsByWeek,logsByMonth })
     } catch (err) {
-      setError(err.message)
+      showErrorFetchAPI(err);
     } finally {
       setLoading(false)
     }
@@ -76,7 +74,7 @@ const ActiveStaticsScreen = () => {
 
   useEffect(() => {
     fetchStatistics()
-  }, [tab])
+  },[tab])
 
   const getCurrentData = () => {
     if (tab === "daily") return stats.logsByDate
@@ -88,7 +86,7 @@ const ActiveStaticsScreen = () => {
   const chartData = getCurrentData()
 
   const getWeekLabel = (weekStr) => {
-    const [year, week] = weekStr.split("-W")
+    const [year,week] = weekStr.split("-W")
     return `Week ${week}`
   }
 
@@ -101,18 +99,34 @@ const ActiveStaticsScreen = () => {
     tab === "daily"
       ? dayjs(item.date).format("DD/MM")
       : tab === "weekly"
-      ? getWeekLabel(item.week)
-      : getMonthLabel(item.month)
+        ? getWeekLabel(item.week)
+        : getMonthLabel(item.month)
   )
   const barValues = chartData.map((item) => item.calories)
+
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <Header title="Active Statistics" onBack={() => {}} />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={theme.primaryColor} />
-          <Text style={styles.loadingText}>Loading statistics...</Text>
+        <Header title="Active Statistics" onBack={() => navigation && navigation.goBack && navigation.goBack()} />
+        <View style={{ padding: 24 }}>
+          {/* Shimmer cho Header */}
+          <ShimmerPlaceholder style={{ height: 40,borderRadius: 8,marginBottom: 24,marginTop: 20 }} />
+          {/* Shimmer cho Tabs */}
+          <View style={{ flexDirection: 'row',gap: 12,marginBottom: 24 }}>
+            <ShimmerPlaceholder style={{ flex: 1,height: 36,borderRadius: 8 }} />
+            <ShimmerPlaceholder style={{ flex: 1,height: 36,borderRadius: 8 }} />
+            <ShimmerPlaceholder style={{ flex: 1,height: 36,borderRadius: 8 }} />
+          </View>
+          {/* Shimmer cho Statistics Cards */}
+          <View style={{ flexDirection: 'row',gap: 12,marginBottom: 24 }}>
+            <ShimmerPlaceholder style={{ flex: 1,height: 80,borderRadius: 16 }} />
+            <ShimmerPlaceholder style={{ flex: 1,height: 80,borderRadius: 16 }} />
+          </View>
+          {/* Shimmer cho Chart */}
+          <ShimmerPlaceholder style={{ height: 260,borderRadius: 16,marginBottom: 24 }} />
+          {/* Shimmer cho History Card */}
+          <ShimmerPlaceholder style={{ height: 260,borderRadius: 16 }} />
         </View>
       </View>
     )
@@ -121,7 +135,7 @@ const ActiveStaticsScreen = () => {
   if (error) {
     return (
       <View style={styles.container}>
-        <Header title="Active Statistics" onBack={() => {}} />
+        <Header title="Active Statistics" onBack={() => navigation && navigation.goBack && navigation.goBack()} />
         <View style={styles.centered}>
           <Text style={styles.errorText}>Error: {error}</Text>
         </View>
@@ -131,17 +145,17 @@ const ActiveStaticsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Header title="Active Statistics" onBack={() => {}} />
+      <Header title="Active Statistics" onBack={() => navigation && navigation.goBack && navigation.goBack()} />
       <View style={styles.contentWrapper}>
         {/* Tab Selection */}
         <View style={styles.tabContainer}>
           {TABS.map((t) => (
             <TouchableOpacity
               key={t.key}
-              style={[styles.tab, tab === t.key && styles.tabActive]}
+              style={[styles.tab,tab === t.key && styles.tabActive]}
               onPress={() => setTab(t.key)}
             >
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              <Text style={[styles.tabLabel,tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -180,10 +194,10 @@ const ActiveStaticsScreen = () => {
         <View style={styles.historyContainer}>
           <Text style={styles.historyTitle}>Recent History</Text>
           <FlatList
-            data={stats.logsByDate.slice(0, 10)}
-            keyExtractor={(item, idx) => item.date + idx}
-            renderItem={({ item, index }) => (
-              <View style={[styles.historyItem, index === 0 && styles.historyItemFirst]}>
+            data={stats.logsByDate.slice(0,10)}
+            keyExtractor={(item,idx) => item.date + idx}
+            renderItem={({ item,index }) => (
+              <View style={[styles.historyItem,index === 0 && styles.historyItemFirst]}>
                 <View style={styles.historyItemLeft}>
                   <Text style={styles.historyDate}>{dayjs(item.date).format("MMM DD, YYYY")}</Text>
                 </View>
@@ -232,14 +246,14 @@ const styles = StyleSheet.create({
   contentWrapper: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 100,
+    paddingTop: 120,
   },
   tabContainer: {
     flexDirection: "row",
     backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 4,
-    marginBottom: 20,
+    marginBottom: 7,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,

@@ -1,18 +1,20 @@
-import { useEffect, useState, useRef } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Dimensions, StatusBar } from "react-native"
+import { useEffect,useState,useRef,useContext } from "react"
+import { View,Text,TouchableOpacity,StyleSheet,Modal,Dimensions } from "react-native"
 import Loading from "components/Loading"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { useNavigation, useRoute } from "@react-navigation/native"
+import { useNavigation,useRoute } from "@react-navigation/native"
 import { workoutService } from "services/apiWorkoutService"
-import { useAuth } from "context/AuthContext"
+import { AuthContext,useAuth } from "context/AuthContext"
 import { Video } from "expo-av"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as Speech from "expo-speech"
 import YouTubeIframe from "react-native-youtube-iframe"
+import { handleDailyCheckin } from "utils/checkin"
+import { StatusBar } from "expo-status-bar"
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
+const { width: screenWidth,height: screenHeight } = Dimensions.get("window")
 
 const getYouTubeVideoId = (url) => {
   if (!url) return null
@@ -25,7 +27,7 @@ const isYouTubeUrl = (url) => {
   return url && (url.includes("youtube.com") || url.includes("youtu.be"))
 }
 
-const ExerciseInfoModal = ({ visible, exercise, onClose }) => {
+const ExerciseInfoModal = ({ visible,exercise,onClose }) => {
   if (!exercise) return null
 
   return (
@@ -82,7 +84,7 @@ const ExerciseInfoModal = ({ visible, exercise, onClose }) => {
 }
 
 // Helper function to render video (YouTube hoặc mp4)
-const renderVideoPlayer = (mediaUrl, isPlaying = true) => {
+const renderVideoPlayer = (mediaUrl,isPlaying = true) => {
   const videoId = getYouTubeVideoId(mediaUrl)
   // Tính toán kích thước video 16:9
   const videoWidth = Math.round(screenWidth * 0.92)
@@ -96,9 +98,9 @@ const renderVideoPlayer = (mediaUrl, isPlaying = true) => {
           height={videoHeight}
           width={videoWidth}
           webViewStyle={styles.videoPlayer}
-          initialPlayerParams={{ controls: 0, modestbranding: 1, rel: 0, showinfo: 0, fs: 0 }}
+          initialPlayerParams={{ controls: 0,modestbranding: 1,rel: 0,showinfo: 0,fs: 0 }}
           webViewProps={{ allowsInlineMediaPlayback: true }}
-          onChangeState={() => {}}
+          onChangeState={() => { }}
         />
       </View>
     )
@@ -126,7 +128,7 @@ const renderVideoPlayer = (mediaUrl, isPlaying = true) => {
   }
   return (
     <View style={styles.videoContainer} pointerEvents="none">
-      <View style={[styles.videoPlayer, { justifyContent: "center", alignItems: "center" }]}> 
+      <View style={[styles.videoPlayer,{ justifyContent: "center",alignItems: "center" }]}>
         <Text style={{ color: "#fff" }}>No video available</Text>
       </View>
     </View>
@@ -136,34 +138,34 @@ const renderVideoPlayer = (mediaUrl, isPlaying = true) => {
 export default function WorkoutSessionActiveScreen() {
   const navigation = useNavigation()
   const route = useRoute()
-  const { exercises = [], userId: paramUserId } = route.params || {}
-  const { user } = useAuth()
+  const { exercises = [],userId: paramUserId } = route.params || {}
+  const { user } = useContext(AuthContext)
   const userId = paramUserId || user?.userId || user?.id
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [currentSet, setCurrentSet] = useState(1)
-  const [secondsLeft, setSecondsLeft] = useState(0)
-  const [isRunning, setIsRunning] = useState(false)
-  const [startTime, setStartTime] = useState(null)
-  const [endTime, setEndTime] = useState(null)
-  const [totalCalories, setTotalCalories] = useState(0)
-  const [totalDuration, setTotalDuration] = useState(0)
-  const [isWarmup, setIsWarmup] = useState(false)
-  const [warmupSeconds, setWarmupSeconds] = useState(15)
-  const [isResting, setIsResting] = useState(false)
-  const [restSeconds, setRestSeconds] = useState(0)
-  const [showPauseModal, setShowPauseModal] = useState(false)
-  const [showExerciseInfo, setShowExerciseInfo] = useState(false)
+  const [currentIndex,setCurrentIndex] = useState(0)
+  const [currentSet,setCurrentSet] = useState(1)
+  const [secondsLeft,setSecondsLeft] = useState(0)
+  const [isRunning,setIsRunning] = useState(false)
+  const [startTime,setStartTime] = useState(null)
+  const [endTime,setEndTime] = useState(null)
+  const [totalCalories,setTotalCalories] = useState(0)
+  const [totalDuration,setTotalDuration] = useState(0)
+  const [isWarmup,setIsWarmup] = useState(false)
+  const [warmupSeconds,setWarmupSeconds] = useState(15)
+  const [isResting,setIsResting] = useState(false)
+  const [restSeconds,setRestSeconds] = useState(0)
+  const [showPauseModal,setShowPauseModal] = useState(false)
+  const [showExerciseInfo,setShowExerciseInfo] = useState(false)
   const timerRef = useRef(null)
   const warmupTimerRef = useRef(null)
   const restTimerRef = useRef(null)
-  const hasSpokenRef = useRef({ 10: false, 3: false, 2: false, 1: false })
+  const hasSpokenRef = useRef({ 10: false,3: false,2: false,1: false })
 
   const currentExercise = exercises[currentIndex] || {}
   const totalSets = currentExercise.sets || 1
   const duration = (currentExercise.durationMinutes || 1) * 60
 
-  const [exerciseStartTimes, setExerciseStartTimes] = useState({})
-  const [exerciseAccumulatedTimes, setExerciseAccumulatedTimes] = useState({})
+  const [exerciseStartTimes,setExerciseStartTimes] = useState({})
+  const [exerciseAccumulatedTimes,setExerciseAccumulatedTimes] = useState({})
 
   useEffect(() => {
     let calo = 0,
@@ -174,18 +176,18 @@ export default function WorkoutSessionActiveScreen() {
     })
     setTotalCalories(calo)
     setTotalDuration(dur)
-  }, [exercises])
+  },[exercises])
 
   useEffect(() => {
     if (isRunning) {
       timerRef.current = setInterval(() => {
         setSecondsLeft((s) => s - 1)
-      }, 1000)
+      },1000)
     } else if (timerRef.current) {
       clearInterval(timerRef.current)
     }
     return () => timerRef.current && clearInterval(timerRef.current)
-  }, [isRunning])
+  },[isRunning])
 
   useEffect(() => {
     if (isWarmup) {
@@ -207,19 +209,19 @@ export default function WorkoutSessionActiveScreen() {
                 const str = AsyncStorage.getItem("userActivityStartTimes")
                 if (str) startTimes = JSON.parse(str)
                 startTimes = startTimes.filter((e) => e.exerciseId !== exId)
-              } catch {}
-              startTimes.push({ exerciseId: exId, startTime: now.toISOString() })
-              AsyncStorage.setItem("userActivityStartTimes", JSON.stringify(startTimes))
-              setExerciseStartTimes((prev) => ({ ...prev, [exId]: now }))
+              } catch { }
+              startTimes.push({ exerciseId: exId,startTime: now.toISOString() })
+              AsyncStorage.setItem("userActivityStartTimes",JSON.stringify(startTimes))
+              setExerciseStartTimes((prev) => ({ ...prev,[exId]: now }))
             }
             return 0
           }
           return s - 1
         })
-      }, 1000)
+      },1000)
       return () => clearInterval(warmupTimerRef.current)
     }
-  }, [isWarmup, duration, exercises, currentIndex])
+  },[isWarmup,duration,exercises,currentIndex])
 
   useEffect(() => {
     if (isResting) {
@@ -232,31 +234,41 @@ export default function WorkoutSessionActiveScreen() {
               setCurrentSet((s) => s + 1)
               setSecondsLeft(duration)
               setIsRunning(true)
-              hasSpokenRef.current = { 10: false, 3: false, 2: false, 1: false }
+              hasSpokenRef.current = { 10: false,3: false,2: false,1: false }
             } else if (currentIndex < exercises.length - 1) {
               setCurrentIndex((i) => i + 1)
               setCurrentSet(1)
               setSecondsLeft((exercises[currentIndex + 1]?.durationMinutes || 1) * 60)
               setIsRunning(true)
-              hasSpokenRef.current = { 10: false, 3: false, 2: false, 1: false }
+              hasSpokenRef.current = { 10: false,3: false,2: false,1: false }
             } else {
               setIsRunning(false)
               const end = new Date()
               setEndTime(end)
-              ;(async () => {
-                try {
-                  const sessionDurationSeconds = startTime && end > startTime ? Math.floor((end - startTime) / 1000) : 1
-                  const sessionDurationMinutes = Math.max(1, Math.round(sessionDurationSeconds / 60))
-                  await workoutService.createWorkoutSession({
-                    UserId: userId || 1,
-                    StartTime: startTime ? startTime.toISOString() : end.toISOString(),
-                    EndTime: end.toISOString(),
-                    TotalCaloriesBurned: totalCalories,
-                    TotalDurationMinutes: sessionDurationMinutes,
-                    Notes: `Completed workout with ${exercises.length} exercises`,
-                  })
-                } catch {}
-              })()
+                ; (async () => {
+                  try {
+                    const sessionDurationSeconds = startTime && end > startTime ? Math.floor((end - startTime) / 1000) : 1
+                    const sessionDurationMinutes = Math.max(1,Math.round(sessionDurationSeconds / 60))
+                    await workoutService.createWorkoutSession({
+                      UserId: userId || 1,
+                      StartTime: startTime ? startTime.toISOString() : end.toISOString(),
+                      EndTime: end.toISOString(),
+                      TotalCaloriesBurned: totalCalories,
+                      TotalDurationMinutes: sessionDurationMinutes,
+                      Notes: `Completed workout with ${exercises.length} exercises`,
+                    })
+
+                    try {
+                      if (user?.userId) {
+                        handleDailyCheckin(user.userId);
+                      }
+                    } catch (e) {
+                      console.log(e);
+                    }
+                  } catch {
+
+                  }
+                })()
               showSuccessMessage("You have completed your workout session.")
               navigation.goBack()
             }
@@ -264,10 +276,10 @@ export default function WorkoutSessionActiveScreen() {
           }
           return s - 1
         })
-      }, 1000)
+      },1000)
       return () => clearInterval(restTimerRef.current)
     }
-  }, [
+  },[
     isResting,
     currentSet,
     totalSets,
@@ -291,20 +303,20 @@ export default function WorkoutSessionActiveScreen() {
         setIsRunning(false)
         const end = new Date()
         setEndTime(end)
-        ;(async () => {
-          try {
-            const sessionDurationSeconds = startTime && end > startTime ? Math.floor((end - startTime) / 1000) : 1
-            const sessionDurationMinutes = Math.max(1, Math.round(sessionDurationSeconds / 60))
-            await workoutService.createWorkoutSession({
-              UserId: userId || 1,
-              StartTime: startTime ? startTime.toISOString() : end.toISOString(),
-              EndTime: end.toISOString(),
-              TotalCaloriesBurned: totalCalories,
-              TotalDurationMinutes: sessionDurationMinutes,
-              Notes: `Completed workout with ${exercises.length} exercises`,
-            })
-          } catch {}
-        })()
+          ; (async () => {
+            try {
+              const sessionDurationSeconds = startTime && end > startTime ? Math.floor((end - startTime) / 1000) : 1
+              const sessionDurationMinutes = Math.max(1,Math.round(sessionDurationSeconds / 60))
+              await workoutService.createWorkoutSession({
+                UserId: userId || 1,
+                StartTime: startTime ? startTime.toISOString() : end.toISOString(),
+                EndTime: end.toISOString(),
+                TotalCaloriesBurned: totalCalories,
+                TotalDurationMinutes: sessionDurationMinutes,
+                Notes: `Completed workout with ${exercises.length} exercises`,
+              })
+            } catch { }
+          })()
         showSuccessMessage("You have completed your workout session.")
         navigation.goBack()
       }
@@ -312,28 +324,28 @@ export default function WorkoutSessionActiveScreen() {
     if (isRunning) {
       if (secondsLeft === 10 && !hasSpokenRef.current[10]) {
         showSuccessMessage("10 seconds remaining for this set.")
-        Speech.speak("Ten seconds remaining!", {
+        Speech.speak("Ten seconds remaining!",{
           language: "en-US",
           pitch: 1.0,
           rate: 1.0,
         })
         hasSpokenRef.current[10] = true
       } else if (secondsLeft === 3 && !hasSpokenRef.current[3]) {
-        Speech.speak("Three", {
+        Speech.speak("Three",{
           language: "en-US",
           pitch: 1.0,
           rate: 1.0,
         })
         hasSpokenRef.current[3] = true
       } else if (secondsLeft === 2 && !hasSpokenRef.current[2]) {
-        Speech.speak("Two", {
+        Speech.speak("Two",{
           language: "en-US",
           pitch: 1.0,
           rate: 1.0,
         })
         hasSpokenRef.current[2] = true
       } else if (secondsLeft === 1 && !hasSpokenRef.current[1]) {
-        Speech.speak("One", {
+        Speech.speak("One",{
           language: "en-US",
           pitch: 1.0,
           rate: 1.0,
@@ -341,7 +353,7 @@ export default function WorkoutSessionActiveScreen() {
         hasSpokenRef.current[1] = true
       }
     }
-  }, [
+  },[
     secondsLeft,
     isRunning,
     currentSet,
@@ -360,14 +372,14 @@ export default function WorkoutSessionActiveScreen() {
     setIsRunning(false)
     setWarmupSeconds(15)
     setSecondsLeft((exercises[currentIndex]?.durationMinutes || 1) * 60)
-    await AsyncStorage.setItem("workoutSessionStartTime", new Date().toISOString())
+    await AsyncStorage.setItem("workoutSessionStartTime",new Date().toISOString())
   }
 
   const handlePause = () => {
     setIsRunning(false)
     accumulateCurrentExerciseTime()
     setShowPauseModal(true)
-    hasSpokenRef.current = { 10: false, 3: false, 2: false, 1: false }
+    hasSpokenRef.current = { 10: false,3: false,2: false,1: false }
   }
 
   const handleResume = async () => {
@@ -381,13 +393,13 @@ export default function WorkoutSessionActiveScreen() {
         const str = await AsyncStorage.getItem("userActivityStartTimes")
         if (str) startTimes = JSON.parse(str)
         startTimes = startTimes.filter((e) => e.exerciseId !== exId)
-      } catch {}
-      startTimes.push({ exerciseId: exId, startTime: now.toISOString() })
-      await AsyncStorage.setItem("userActivityStartTimes", JSON.stringify(startTimes))
-      setExerciseStartTimes((prev) => ({ ...prev, [exId]: now }))
+      } catch { }
+      startTimes.push({ exerciseId: exId,startTime: now.toISOString() })
+      await AsyncStorage.setItem("userActivityStartTimes",JSON.stringify(startTimes))
+      setExerciseStartTimes((prev) => ({ ...prev,[exId]: now }))
     }
     setIsRunning(true)
-    hasSpokenRef.current = { 10: false, 3: false, 2: false, 1: false }
+    hasSpokenRef.current = { 10: false,3: false,2: false,1: false }
   }
 
   const handleStop = async () => {
@@ -404,7 +416,7 @@ export default function WorkoutSessionActiveScreen() {
       try {
         const str = await AsyncStorage.getItem("userActivityStartTimes")
         if (str) startTimes = JSON.parse(str)
-      } catch {}
+      } catch { }
       let sessionDurationSeconds = 0
       const activities = []
       for (let i = 0; i < exercises.length; i++) {
@@ -415,7 +427,7 @@ export default function WorkoutSessionActiveScreen() {
         const actEndTime =
           i < exercises.length - 1 && startTimes[i + 1] ? startTimes[i + 1].startTime : end.toISOString()
         let durationSeconds =
-          i < currentIndex ? Math.max(1, Math.round((new Date(actEndTime) - new Date(actStartTime)) / 1000)) : 1
+          i < currentIndex ? Math.max(1,Math.round((new Date(actEndTime) - new Date(actStartTime)) / 1000)) : 1
         if (i === currentIndex) {
           const accTime = exerciseAccumulatedTimes[exId] || 0
           const start = exerciseStartTimes[exId]
@@ -423,7 +435,7 @@ export default function WorkoutSessionActiveScreen() {
             durationSeconds = accTime + Math.floor((new Date() - new Date(start)) / 1000)
           }
         }
-        durationSeconds = Math.max(1, durationSeconds)
+        durationSeconds = Math.max(1,durationSeconds)
         sessionDurationSeconds += durationSeconds
         const expectedDurationSeconds = (ex.durationMinutes || 1) * 60 * (ex.sets || 1)
         const calorieRatio = durationSeconds / expectedDurationSeconds
@@ -436,7 +448,7 @@ export default function WorkoutSessionActiveScreen() {
           Steps: ex.steps || undefined,
           DistanceKm: ex.distanceKm || 0,
           CaloriesBurned: adjustedCalories,
-          DurationMinutes: Math.max(1, Math.round(durationSeconds / 60)),
+          DurationMinutes: Math.max(1,Math.round(durationSeconds / 60)),
           HeartRate: ex.heartRate || undefined,
           Location: ex.location || undefined,
           GoalStatus: i <= currentIndex ? "Completed" : "NotStarted",
@@ -446,13 +458,13 @@ export default function WorkoutSessionActiveScreen() {
           EndTime: actEndTime,
         })
       }
-      const sessionDurationMinutes = Math.max(1, Math.round(sessionDurationSeconds / 60))
+      const sessionDurationMinutes = Math.max(1,Math.round(sessionDurationSeconds / 60))
       const sessionData = [
         {
           UserId: userId || 1,
           StartTime: validStart.toISOString(),
           EndTime: end.toISOString(),
-          TotalCaloriesBurned: activities.reduce((sum, a) => sum + (a.CaloriesBurned || 0), 0),
+          TotalCaloriesBurned: activities.reduce((sum,a) => sum + (a.CaloriesBurned || 0),0),
           TotalDurationMinutes: sessionDurationMinutes,
           Notes: `Stopped workout after ${currentIndex + 1} exercises`,
         },
@@ -471,14 +483,16 @@ export default function WorkoutSessionActiveScreen() {
         await workoutService.createActivitiesBulk(validActivities)
       }
       try {
-        await AsyncStorage.removeItem("scheduledExercises")
-      } catch {}
+        await AsyncStorage.removeItem("scheduledExercisesWorkout")
+      } catch {
+
+      }
       try {
         await AsyncStorage.removeItem("userActivityStartTimes")
-      } catch {}
+      } catch { }
       try {
         await AsyncStorage.removeItem("workoutSessionStartTime")
-      } catch {}
+      } catch { }
       showSuccessMessage("Your workout session has been saved successfully.")
       navigation.goBack()
     } catch (e) {
@@ -489,7 +503,7 @@ export default function WorkoutSessionActiveScreen() {
 
   const goToExercise = async (newIndex) => {
     if (exercises[currentIndex]) {
-      await logCurrentActivity(exercises[currentIndex], null, userId)
+      await logCurrentActivity(exercises[currentIndex],null,userId)
       accumulateCurrentExerciseTime()
     }
     setCurrentIndex(newIndex)
@@ -504,25 +518,25 @@ export default function WorkoutSessionActiveScreen() {
         const str = await AsyncStorage.getItem("userActivityStartTimes")
         if (str) startTimes = JSON.parse(str)
         startTimes = startTimes.filter((e) => e.exerciseId !== exId)
-      } catch {}
-      startTimes.push({ exerciseId: exId, startTime: now.toISOString() })
-      await AsyncStorage.setItem("userActivityStartTimes", JSON.stringify(startTimes))
-      setExerciseStartTimes((prev) => ({ ...prev, [exId]: now }))
+      } catch { }
+      startTimes.push({ exerciseId: exId,startTime: now.toISOString() })
+      await AsyncStorage.setItem("userActivityStartTimes",JSON.stringify(startTimes))
+      setExerciseStartTimes((prev) => ({ ...prev,[exId]: now }))
     }
     const totalTime = (ex?.durationMinutes || 1) * 60
     const accTime = exerciseAccumulatedTimes[exId] || 0
-    const left = Math.max(0, totalTime - accTime)
+    const left = Math.max(0,totalTime - accTime)
     setSecondsLeft(left)
     setIsRunning(true)
-    hasSpokenRef.current = { 10: false, 3: false, 2: false, 1: false }
+    hasSpokenRef.current = { 10: false,3: false,2: false,1: false }
   }
 
-  const logCurrentActivity = async (exercise, sessionId, userId) => {
+  const logCurrentActivity = async (exercise,sessionId,userId) => {
     let startTimes = []
     try {
       const str = await AsyncStorage.getItem("userActivityStartTimes")
       if (str) startTimes = JSON.parse(str)
-    } catch {}
+    } catch { }
     const exId = exercise.exerciseId || exercise.id || exercise.ExerciseId
     const found = startTimes.find((e) => e.exerciseId === exId)
     const startTimeStr = found ? found.startTime : new Date().toISOString()
@@ -532,7 +546,7 @@ export default function WorkoutSessionActiveScreen() {
     if (start) {
       durationSeconds += Math.floor((new Date() - new Date(start)) / 1000)
     }
-    durationSeconds = Math.max(1, durationSeconds)
+    durationSeconds = Math.max(1,durationSeconds)
     const expectedDurationSeconds = (exercise.durationMinutes || 1) * 60 * (exercise.sets || 1)
     const calorieRatio = durationSeconds / expectedDurationSeconds
     const adjustedCalories = Math.round((exercise.calories || 0) * calorieRatio)
@@ -544,7 +558,7 @@ export default function WorkoutSessionActiveScreen() {
       Steps: exercise.steps || undefined,
       DistanceKm: exercise.distanceKm || 0,
       CaloriesBurned: adjustedCalories,
-      DurationMinutes: Math.max(1, Math.round(durationSeconds / 60)),
+      DurationMinutes: Math.max(1,Math.round(durationSeconds / 60)),
       HeartRate: exercise.heartRate || undefined,
       Location: exercise.location || undefined,
       GoalStatus: "Completed",
@@ -566,15 +580,15 @@ export default function WorkoutSessionActiveScreen() {
       if (start) {
         const now = new Date()
         const diff = Math.floor((now - new Date(start)) / 1000)
-        return { ...prev, [exId]: prevAccum + diff }
+        return { ...prev,[exId]: prevAccum + diff }
       }
       return prev
     })
-    setExerciseStartTimes((prev) => ({ ...prev, [exId]: null }))
+    setExerciseStartTimes((prev) => ({ ...prev,[exId]: null }))
   }
 
   const getProgressPercent = () => {
-    const totalSetsAll = exercises.reduce((sum, ex) => sum + (ex.sets || 1), 0)
+    const totalSetsAll = exercises.reduce((sum,ex) => sum + (ex.sets || 1),0)
     let completedSets = 0
     for (let i = 0; i < currentIndex; i++) {
       completedSets += exercises[i]?.sets || 1
@@ -586,13 +600,13 @@ export default function WorkoutSessionActiveScreen() {
   const formatTime = (s) => {
     const m = Math.floor(s / 60)
     const sec = s % 60
-    return `${m}:${sec.toString().padStart(2, "0")}`
+    return `${m}:${sec.toString().padStart(2,"0")}`
   }
 
   const renderProgressBars = () => (
     <View style={styles.progressContainer}>
       <View style={styles.progressRow}>
-        {exercises.map((_, idx) => (
+        {exercises.map((_,idx) => (
           <View
             key={idx}
             style={[
@@ -616,8 +630,8 @@ export default function WorkoutSessionActiveScreen() {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <SafeAreaView style={{ flex: 1, justifyContent: "flex-start" }}>
-          {renderVideoPlayer(nextExercise.mediaUrl, true)}
+        <SafeAreaView style={{ flex: 1,justifyContent: "flex-start" }}>
+          {renderVideoPlayer(nextExercise.mediaUrl,true)}
           <View style={styles.warmupContent}>
             <Text style={styles.readyTitle}>Ready to Go!</Text>
 
@@ -641,10 +655,10 @@ export default function WorkoutSessionActiveScreen() {
                       const str = AsyncStorage.getItem("userActivityStartTimes")
                       if (str) startTimes = JSON.parse(str)
                       startTimes = startTimes.filter((e) => e.exerciseId !== exId)
-                    } catch {}
-                    startTimes.push({ exerciseId: exId, startTime: now.toISOString() })
-                    AsyncStorage.setItem("userActivityStartTimes", JSON.stringify(startTimes))
-                    setExerciseStartTimes((prev) => ({ ...prev, [exId]: now }))
+                    } catch { }
+                    startTimes.push({ exerciseId: exId,startTime: now.toISOString() })
+                    AsyncStorage.setItem("userActivityStartTimes",JSON.stringify(startTimes))
+                    setExerciseStartTimes((prev) => ({ ...prev,[exId]: now }))
                   }
                 }}
               >
@@ -676,8 +690,8 @@ export default function WorkoutSessionActiveScreen() {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <SafeAreaView style={{ flex: 1, justifyContent: "flex-start" }}>
-          {renderVideoPlayer(nextExercise?.mediaUrl, true)}
+        <SafeAreaView style={{ flex: 1,justifyContent: "flex-start" }}>
+          {renderVideoPlayer(nextExercise?.mediaUrl,true)}
           <View style={styles.restContent}>
             <Text style={styles.restTitle}>Rest Time</Text>
 
@@ -692,17 +706,17 @@ export default function WorkoutSessionActiveScreen() {
                     setCurrentSet((s) => s + 1)
                     setSecondsLeft(duration)
                     setIsRunning(true)
-                    hasSpokenRef.current = { 10: false, 3: false, 2: false, 1: false }
+                    hasSpokenRef.current = { 10: false,3: false,2: false,1: false }
                   } else if (currentIndex < exercises.length - 1) {
                     setCurrentIndex((i) => i + 1)
                     setCurrentSet(1)
                     setSecondsLeft((exercises[currentIndex + 1]?.durationMinutes || 1) * 60)
                     setIsRunning(true)
-                    hasSpokenRef.current = { 10: false, 3: false, 2: false, 1: false }
+                    hasSpokenRef.current = { 10: false,3: false,2: false,1: false }
                   } else {
                     setIsRunning(false)
-                    Alert.alert("Workout Complete!", "You have completed your workout session.", [
-                      { text: "OK", onPress: () => navigation.goBack() },
+                    Alert.alert("Workout Complete!","You have completed your workout session.",[
+                      { text: "OK",onPress: () => navigation.goBack() },
                     ])
                   }
                 }}
@@ -737,8 +751,8 @@ export default function WorkoutSessionActiveScreen() {
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <SafeAreaView>{renderProgressBars()}</SafeAreaView>
-        <SafeAreaView style={{ flex: 1, justifyContent: "flex-start" }}>
-          {renderVideoPlayer(currentExercise.mediaUrl, isRunning)}
+        <SafeAreaView style={{ flex: 1,justifyContent: "flex-start" }}>
+          {renderVideoPlayer(currentExercise.mediaUrl,isRunning)}
           <View style={styles.exerciseBottomContent}>
             <View style={styles.exerciseInfo}>
               <View style={styles.exerciseNameContainer}>
@@ -756,7 +770,7 @@ export default function WorkoutSessionActiveScreen() {
             <View style={styles.exerciseControls}>
               <TouchableOpacity
                 disabled={currentIndex === 0}
-                style={[styles.navButton, { opacity: currentIndex === 0 ? 0.3 : 1 }]}
+                style={[styles.navButton,{ opacity: currentIndex === 0 ? 0.3 : 1 }]}
                 onPress={() => {
                   if (currentIndex > 0) {
                     goToExercise(currentIndex - 1)
@@ -772,7 +786,7 @@ export default function WorkoutSessionActiveScreen() {
 
               <TouchableOpacity
                 disabled={currentIndex === exercises.length - 1}
-                style={[styles.navButton, { opacity: currentIndex === exercises.length - 1 ? 0.3 : 1 }]}
+                style={[styles.navButton,{ opacity: currentIndex === exercises.length - 1 ? 0.3 : 1 }]}
                 onPress={() => {
                   if (currentIndex < exercises.length - 1) {
                     goToExercise(currentIndex + 1)
@@ -799,7 +813,7 @@ export default function WorkoutSessionActiveScreen() {
     if (secondsLeft === 0 && exercises.length > 0) {
       setSecondsLeft((exercises[0]?.durationMinutes || 1) * 60)
     }
-  }, [exercises])
+  },[exercises])
 
   return (
     <>
@@ -1292,19 +1306,19 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     elevation: 6,
   },
 })
 
 function sanitizeActivity(activity) {
   const clean = {}
-  Object.entries(activity).forEach(([k, v]) => {
+  Object.entries(activity).forEach(([k,v]) => {
     if (v !== undefined && v !== null && !(typeof v === "number" && isNaN(v))) {
       clean[k] = v
     }
   })
-  const metrics = ["Steps", "DistanceKm", "CaloriesBurned", "DurationMinutes", "HeartRate"]
+  const metrics = ["Steps","DistanceKm","CaloriesBurned","DurationMinutes","HeartRate"]
   let hasMetric = false
   for (const m of metrics) {
     if (clean[m] && Number(clean[m]) > 0) {

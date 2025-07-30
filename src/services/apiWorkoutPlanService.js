@@ -31,16 +31,16 @@ apiWorkoutPlanClient.interceptors.response.use(
         if (!refreshToken) {
           throw new Error('No refresh token available');
         }
-        const response = await apiWorkoutPlanClient.post('/Auth/refresh-token', { refreshToken });
+        const response = await apiWorkoutPlanClient.post('/Auth/refresh-token',{ refreshToken });
         if (response.data.statusCode === 200 && response.data.data) {
-          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
-          await AsyncStorage.setItem('accessToken', newAccessToken);
-          await AsyncStorage.setItem('refreshToken', newRefreshToken);
+          const { accessToken: newAccessToken,refreshToken: newRefreshToken } = response.data.data;
+          await AsyncStorage.setItem('accessToken',newAccessToken);
+          await AsyncStorage.setItem('refreshToken',newRefreshToken);
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiWorkoutPlanClient(originalRequest);
         }
       } catch (refreshError) {
-        await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+        await AsyncStorage.multiRemove(['accessToken','refreshToken','user']);
         throw refreshError;
       }
     }
@@ -49,13 +49,11 @@ apiWorkoutPlanClient.interceptors.response.use(
 );
 
 
-export async function getPlansByUserId(userId, queryParams = {}) {
+export async function getPlansByUserId(userId,queryParams = {}) {
   try {
-    const params = { ...queryParams };
-    const response = await apiWorkoutPlanClient.get(`/WorkoutPlan/user/${userId}`, { params });
+    const response = await apiWorkoutPlanClient.get(`/WorkoutPlan/user/${userId}`,{ params: queryParams });
     return response.data;
   } catch (error) {
-    // Log lỗi chi tiết để debug
     throw error?.response?.data || error;
   }
 }
@@ -71,10 +69,10 @@ export async function getPlanById(planId) {
 }
 
 
-export async function getExercisesByPlanId(planId, queryParams = {}) {
+export async function getExercisesByPlanId(planId,queryParams = {}) {
   try {
     const params = { ...queryParams };
-    const response = await apiWorkoutPlanClient.get(`/WorkoutPlanExercise/plan/${planId}`, { params });
+    const response = await apiWorkoutPlanClient.get(`/WorkoutPlanExercise/plan/${planId}`,{ params });
     return response.data;
   } catch (error) {
     throw error?.response?.data || error;
@@ -92,10 +90,10 @@ export async function getPlanExerciseById(planExerciseId) {
 }
 
 
-export async function getSubscriptionsByUserId(userId, queryParams = {}) {
+export async function getSubscriptionsByUserId(userId,queryParams = {}) {
   try {
     const params = { ...queryParams };
-    const response = await apiWorkoutPlanClient.get(`/Subscription/user/${userId}`, { params });
+    const response = await apiWorkoutPlanClient.get(`/Subscription/user/${userId}`,{ params });
     return response.data;
   } catch (error) {
     throw error?.response?.data || error;
@@ -105,7 +103,7 @@ export async function getSubscriptionsByUserId(userId, queryParams = {}) {
 
 export async function addTrainerRating(ratingDto) {
   try {
-    const response = await apiWorkoutPlanClient.post('/TrainerRating', ratingDto);
+    const response = await apiWorkoutPlanClient.post('/TrainerRating',ratingDto);
     return response.data;
   } catch (error) {
     throw error?.response?.data || error;

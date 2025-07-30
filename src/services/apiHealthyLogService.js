@@ -31,16 +31,16 @@ apiHealthyLogClient.interceptors.response.use(
         if (!refreshToken) {
           throw new Error('No refresh token available');
         }
-        const response = await apiHealthyLogClient.post('/Auth/refresh-token', { refreshToken });
+        const response = await apiHealthyLogClient.post('/Auth/refresh-token',{ refreshToken });
         if (response.data.statusCode === 200 && response.data.data) {
-          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
-          await AsyncStorage.setItem('accessToken', newAccessToken);
-          await AsyncStorage.setItem('refreshToken', newRefreshToken);
+          const { accessToken: newAccessToken,refreshToken: newRefreshToken } = response.data.data;
+          await AsyncStorage.setItem('accessToken',newAccessToken);
+          await AsyncStorage.setItem('refreshToken',newRefreshToken);
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiHealthyLogClient(originalRequest);
         }
       } catch (refreshError) {
-        await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+        await AsyncStorage.multiRemove(['accessToken','refreshToken','user']);
         throw refreshError;
       }
     }
@@ -51,11 +51,10 @@ apiHealthyLogClient.interceptors.response.use(
 export const healthyLogService = {
   async getMyHealthLogs(params = {}) {
     try {
-      const response = await apiHealthyLogClient.get('/HealthLog/me', { params });
-      // Chuẩn hóa trả về đúng structure backend
+      const response = await apiHealthyLogClient.get('/HealthLog/me',{ params });
       return response.data.data;
     } catch (error) {
-      throw new Error(error.message || 'Failed to fetch health logs');
+      throw error;
     }
   },
 
@@ -65,42 +64,38 @@ export const healthyLogService = {
       const response = await apiHealthyLogClient.get(`/HealthLog/${id}`);
       return response.data.data; // Trả về object chi tiết log
     } catch (error) {
-      throw new Error(error.message || 'Failed to fetch health log by id');
+      throw error;
     }
   },
 
   async createHealthLog(logDto) {
     if (!logDto || typeof logDto !== 'object') throw new Error('Log payload is required.');
     try {
-      const response = await apiHealthyLogClient.post('/HealthLog', logDto);
-      return response.data.data; // Trả về object log vừa tạo
+      const response = await apiHealthyLogClient.post('/HealthLog',logDto);
+      return response.data.data;
     } catch (error) {
-      // Nếu có lỗi validation, trả về luôn lỗi từ backend
-      if (error.response?.data) throw error.response.data;
-      throw new Error(error.message || 'Failed to create health log');
+      throw error;
     }
   },
 
   async createHealthLogsBulk(logDtos) {
     if (!Array.isArray(logDtos) || logDtos.length === 0) throw new Error('Log list cannot be empty.');
     try {
-      const response = await apiHealthyLogClient.post('/HealthLog/bulk', logDtos);
-      return response.data.data; // Trả về object chứa createdLogs, failedLogs, ...
+      const response = await apiHealthyLogClient.post('/HealthLog/bulk',logDtos);
+      return response.data.data;
     } catch (error) {
-      if (error.response?.data) throw error.response.data;
-      throw new Error(error.message || 'Failed to create health logs in bulk');
+      throw error;
     }
   },
 
-  async updateHealthLog(id, logDto) {
+  async updateHealthLog(id,logDto) {
     if (!id || id <= 0) throw new Error('Valid log id is required.');
     if (!logDto || typeof logDto !== 'object') throw new Error('Log payload is required.');
     try {
-      const response = await apiHealthyLogClient.put(`/HealthLog/${id}`, logDto);
-      return response.data.data; // Trả về object log đã cập nhật
+      const response = await apiHealthyLogClient.put(`/HealthLog/${id}`,logDto);
+      return response.data.data;
     } catch (error) {
-      if (error.response?.data) throw error.response.data;
-      throw new Error(error.message || 'Failed to update health log');
+      throw error;
     }
   },
 
@@ -108,10 +103,9 @@ export const healthyLogService = {
     if (!id || id <= 0) throw new Error('Valid log id is required.');
     try {
       const response = await apiHealthyLogClient.delete(`/HealthLog/${id}`);
-      return response.data; // Trả về object response từ backend (status, message, ...)
+      return response.data;
     } catch (error) {
-      if (error.response?.data) throw error.response.data;
-      throw new Error(error.message || 'Failed to delete health log');
+      throw error;
     }
   },
 
@@ -120,11 +114,11 @@ export const healthyLogService = {
       throw new Error('StartDate must be earlier than or equal to EndDate.');
     }
     try {
-      const response = await apiHealthyLogClient.get('/HealthLog/statistics/me', { params });
-      return response.data.data; // Trả về object thống kê
+      const response = await apiHealthyLogClient.get('/HealthLog/statistics/me',{ params });
+      return response.data.data;
     } catch (error) {
       if (error.response?.data) throw error.response.data;
-      throw new Error(error.message || 'Failed to fetch health log statistics');
+      throw error;
     }
   },
 };

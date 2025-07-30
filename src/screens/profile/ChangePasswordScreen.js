@@ -11,7 +11,7 @@ import {
   Animated,
 } from "react-native"
 import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import { authService } from "services/apiAuthService"
 import { AuthContext,useAuth } from "context/AuthContext"
@@ -26,7 +26,7 @@ import Header from "components/Header"
 export default function ChangePasswordScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const [formData,setFormData] = useState({
-    email: user?.email || "",
+    email: user?.email || user?.username || "",
     otpCode: "",
     newPassword: "",
     confirmPassword: "",
@@ -243,7 +243,7 @@ export default function ChangePasswordScreen({ navigation }) {
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={[styles.container, { marginTop: 40 }]}> 
+          <View style={[styles.container,{ marginTop: 70 }]}>
             <View style={styles.iconContainer}>
               <Ionicons name="lock-closed" size={40} color="#0056d2" />
             </View>
@@ -292,7 +292,7 @@ export default function ChangePasswordScreen({ navigation }) {
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>OTP Code</Text>
                     <View style={[styles.inputContainer,errors.otpCode ? styles.inputError : null]}>
-                    <Ionicons name="key-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                      <Ionicons name="key-outline" size={20} color="#64748B" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Enter OTP code"
@@ -327,7 +327,7 @@ export default function ChangePasswordScreen({ navigation }) {
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>New Password</Text>
                     <View style={[styles.inputContainer,errors.newPassword ? styles.inputError : null]}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#0056d2" style={styles.inputIcon} />
+                      <Ionicons name="lock-closed-outline" size={20} color="#0056d2" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Create new password"
@@ -373,7 +373,7 @@ export default function ChangePasswordScreen({ navigation }) {
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Confirm Password</Text>
                     <View style={[styles.inputContainer,errors.confirmPassword ? styles.inputError : null]}>
-                    <Ionicons name="shield-checkmark-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                      <Ionicons name="shield-checkmark-outline" size={20} color="#64748B" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Confirm new password"

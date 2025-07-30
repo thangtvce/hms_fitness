@@ -27,7 +27,7 @@ import { apiUploadImageCloudService } from "services/apiUploadImageCloudService"
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { RichEditor,RichToolbar,actions } from "react-native-pell-rich-editor";
+import { WebView } from "react-native-webview";
 import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
 
 const { width,height } = Dimensions.get("window");
@@ -64,7 +64,7 @@ const validateContent = (html) => {
 const validateStatus = (status) => {
   if (!status) return null;
   if (status.length > 20) return "Status cannot exceed 20 characters.";
-  if (!/^(active|inactive)$/.test(status)) return "Status must be 'active', 'inactive'.";
+  if (!/^(active|inactive)$/.test(status)) return "Status must be 'active' or 'inactive'.";
   return null;
 };
 
@@ -95,7 +95,7 @@ const EditPostScreen = ({ route,navigation }) => {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const richText = useRef(null);
+  const webViewRef = useRef(null);
   const containerRef = useRef();
 
   const DEFAULT_IMAGE = "DEFAULT_IMAGE";
@@ -111,6 +111,76 @@ const EditPostScreen = ({ route,navigation }) => {
       },
     })
   ).current;
+
+  const ckEditorHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <script src="https://cdn.ckeditor.com/ckeditor5/39.0.0/classic/ckeditor.js"></script>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: #FFFFFF;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        }
+        #editor-container {
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .ck-editor__top {
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          background: #F9FAFB;
+          border-bottom: 1px solid #E5E7EB;
+        }
+        .ck-editor__editable {
+          min-height: 140px;
+          padding: 16px;
+          background: #FFFFFF;
+        }
+        .ck-content {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+          font-size: 16px;
+          color: #000000;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="editor-container">
+        <div id="editor"></div>
+      </div>
+      <script>
+        ClassicEditor
+          .create( document.querySelector( '#editor' ), {
+            toolbar: {
+              items: [
+                'undo', 'redo',
+                '|',
+                'bold', 'italic', 'underline',
+                '|',
+                'bulletedList', 'numberedList',
+                '|',
+                'sourceEditing'
+              ]
+            },
+            language: 'en',
+            initialData: '${(post.content || "").replace(/'/g,"\\'")}'
+          } )
+          .then( editor => {
+            editor.model.document.on( 'change:data', () => {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content', data: editor.getData() }));
+            } );
+          } )
+          .catch( error => {
+            console.error( error );
+          } );
+      </script>
+    </body>
+    </html>
+  `;
 
   useEffect(() => {
     Animated.parallel([
@@ -400,7 +470,7 @@ const EditPostScreen = ({ route,navigation }) => {
     setLoading(true);
     setError("");
 
-    let finalImageUrl = cloudImageUrl;
+    let finalImageUrl = cloudImageUrl || thumbnail;
 
     try {
       if (thumbnail && typeof thumbnail === "string" && thumbnail.startsWith("data:image") && !cloudImageUrl) {
@@ -487,7 +557,6 @@ const EditPostScreen = ({ route,navigation }) => {
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Edit Post</Text>
-            <Text style={styles.headerSubtitle}>Update your community story</Text>
           </View>
           <TouchableOpacity
             style={[styles.publishButton,!canPublish && styles.publishButtonDisabled]}
@@ -583,38 +652,26 @@ const EditPostScreen = ({ route,navigation }) => {
                     </Text>
                   </View>
                   <View style={[styles.inputSection,error && styles.inputError]}>
-                    <RichToolbar
-                      editor={richText}
-                      actions={[
-                        actions.setBold,
-                        actions.setItalic,
-                        actions.setUnderline,
-                        actions.insertBulletsList,
-                        actions.insertOrderedList,
-                        actions.undo,
-                        actions.redo,
-                      ]}
-                      iconTint="#374151"
-                      selectedIconTint="#0056d2"
-                      style={styles.richToolbar}
-                      iconSize={18}
-                    />
-                    <RichEditor
-                      ref={richText}
-                      onChange={handleContentChange}
-                      placeholder="Update your health journey, tips, or questions..."
-                      initialContentHTML={content}
+                    <WebView
+                      ref={webViewRef}
+                      originWhitelist={["*"]}
+                      source={{ html: ckEditorHtml }}
                       style={styles.richEditor}
-                      editorStyle={{
-                        backgroundColor: "#FFFFFF",
-                        color: "#000000",
-                        fontSize: 16,
-                        fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
-                        lineHeight: 24,
-                        padding: 16,
+                      onMessage={(event) => {
+                        const message = JSON.parse(event.nativeEvent.data);
+                        if (message.type === "content") {
+                          handleContentChange(message.data);
+                        }
                       }}
-                      useContainer={true}
-                      initialHeight={140}
+                      javaScriptEnabled={true}
+                      domStorageEnabled={true}
+                      startInLoadingState={true}
+                      showsVerticalScrollIndicator={false}
+                      showsHorizontalScrollIndicator={false}
+                      scrollEnabled={false}
+                      scalesPageToFit={false}
+                      automaticallyAdjustContentInsets={false}
+                      contentInset={{ top: 0,left: 0,bottom: 0,right: 0 }}
                     />
                     <View style={styles.progressSection}>
                       <View style={styles.progressBarContainer}>
@@ -746,7 +803,10 @@ const EditPostScreen = ({ route,navigation }) => {
                             {selectedTags.length > 0 ? `${selectedTags.length} Tags Selected` : "Add Tags"}
                           </Text>
                           <Text
-                            style={[styles.actionCardSubtitle,selectedTags.length > 0 && styles.actionCardSubtitleActive]}
+                            style={[
+                              styles.actionCardSubtitle,
+                              selectedTags.length > 0 && styles.actionCardSubtitleActive,
+                            ]}
                           >
                             {selectedTags.length > 0 ? "Help others find your post" : "Categorize your post"}
                           </Text>
@@ -1084,8 +1144,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 20
   },
   headerCenter: {
     flex: 1,
@@ -1093,9 +1152,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#000000",
+    fontWeight: "600",
+    textAlign: "center",
+    letterSpacing: 0.3,
+    fontSize: 16
   },
   headerSubtitle: {
     fontSize: 14,
@@ -1251,15 +1311,8 @@ const styles = StyleSheet.create({
   inputError: {
     borderColor: "#EF4444",
   },
-  richToolbar: {
-    backgroundColor: "#F9FAFB",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
   richEditor: {
-    minHeight: 140,
+    height: 180,
     backgroundColor: "#FFFFFF",
   },
   progressSection: {

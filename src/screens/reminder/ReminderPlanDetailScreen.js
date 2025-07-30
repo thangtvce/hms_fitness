@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React,{ useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,39 +10,40 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation,useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiReminderService } from 'services/apiReminderService';
 import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import Header from 'components/Header';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
 
 const TYPE_CONFIG = {
   drink: {
     icon: 'water',
     color: '#222',
-    gradient: ['#fff', '#fff'],
+    gradient: ['#fff','#fff'],
     label: 'Water Reminder',
     bgColor: '#fff',
   },
   meal: {
     icon: 'restaurant',
     color: '#222',
-    gradient: ['#fff', '#fff'],
+    gradient: ['#fff','#fff'],
     label: 'Meal Reminder',
     bgColor: '#fff',
   },
   exercise: {
     icon: 'fitness',
     color: '#222',
-    gradient: ['#fff', '#fff'],
+    gradient: ['#fff','#fff'],
     label: 'Exercise Reminder',
     bgColor: '#fff',
   },
   sleep: {
     icon: 'moon',
     color: '#222',
-    gradient: ['#fff', '#fff'],
+    gradient: ['#fff','#fff'],
     label: 'Sleep Reminder',
     bgColor: '#fff',
   },
@@ -51,35 +52,38 @@ const TYPE_CONFIG = {
 export default function ReminderPlanDetailScreen({ route }) {
   const { planId } = route.params;
   const navigation = useNavigation();
-  const [plan, setPlan] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [updating, setUpdating] = useState(false);
+  const [plan,setPlan] = React.useState(null);
+  const [loading,setLoading] = React.useState(true);
+  const [error,setError] = React.useState('');
+  const [updating,setUpdating] = React.useState(false);
 
-  useEffect(() => {
-    fetchPlan();
-  }, [planId]);
-
-  const fetchPlan = async () => {
+  const fetchPlan = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const res = await apiReminderService.getReminderPlanById(planId);
       setPlan(res?.data || null);
     } catch (err) {
-      setError(err.message || 'Failed to load plan details');
-      showErrorFetchAPI(err.message || 'Failed to load reminder plan.');
+      setError(err?.response?.data?.message || 'Failed to load plan details');
+      showErrorFetchAPI(err);
+      console.log(err?.response?.data?.message);
     } finally {
       setLoading(false);
     }
-  };
+  },[planId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchPlan();
+    },[fetchPlan])
+  );
 
   const handleToggleActive = async () => {
     if (!plan) return;
     setUpdating(true);
     try {
-      const updatedPlan = { ...plan, isActive: !plan.isActive };
-      await apiReminderService.updateReminderPlan(plan.planId, updatedPlan);
+      const updatedPlan = { ...plan,isActive: !plan.isActive };
+      await apiReminderService.updateReminderPlan(plan.planId,updatedPlan);
       setPlan(updatedPlan);
       showSuccessMessage(`Reminder ${updatedPlan.isActive ? 'enabled' : 'disabled'} successfully!`);
     } catch (err) {
@@ -90,11 +94,10 @@ export default function ReminderPlanDetailScreen({ route }) {
   };
 
   const handleEdit = () => {
-    navigation.navigate('EditReminderPlanScreen', { planId: plan.planId });
+    navigation.navigate('EditReminderPlanScreen',{ planId: plan.planId });
   };
 
   const handleDelete = () => {
-    // Confirm delete with a custom modal or just proceed for now (no Alert)
     const doDelete = async () => {
       try {
         await apiReminderService.deleteReminderPlan(plan.planId);
@@ -104,7 +107,6 @@ export default function ReminderPlanDetailScreen({ route }) {
         showErrorFetchAPI(err.message || 'Failed to delete reminder plan.');
       }
     };
-    // For now, just delete directly (no Alert popup)
     doDelete();
   };
 
@@ -112,7 +114,7 @@ export default function ReminderPlanDetailScreen({ route }) {
     return TYPE_CONFIG[type] || {
       icon: 'notifications',
       color: '#6B7280',
-      gradient: ['#6B7280', '#9CA3AF'],
+      gradient: ['#6B7280','#9CA3AF'],
       label: 'Reminder',
       bgColor: '#F9FAFB',
     };
@@ -120,26 +122,26 @@ export default function ReminderPlanDetailScreen({ route }) {
 
   const formatDaysOfWeek = (daysString) => {
     if (!daysString) return 'Not specified';
-    
+
     const days = daysString.split(',').map(day => day.trim());
     const dayNames = {
       'Mon': 'Monday',
-      'Tue': 'Tuesday', 
+      'Tue': 'Tuesday',
       'Wed': 'Wednesday',
       'Thu': 'Thursday',
       'Fri': 'Friday',
       'Sat': 'Saturday',
       'Sun': 'Sunday'
     };
-    
+
     return days.map(day => dayNames[day] || day).join(', ');
   };
 
   const formatTime = (timeString) => {
     if (!timeString) return 'Not specified';
-    
+
     try {
-      const [hours, minutes] = timeString.split(':');
+      const [hours,minutes] = timeString.split(':');
       const hour = parseInt(hours);
       const ampm = hour >= 12 ? 'PM' : 'AM';
       const displayHour = hour % 12 || 12;
@@ -155,10 +157,7 @@ export default function ReminderPlanDetailScreen({ route }) {
     return (
       <Header
         title={
-          <View>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: '#1F2937', textAlign: 'center' }}>Reminder Details</Text>
-            <Text style={{ fontSize: 14, color: '#64748B', marginTop: 2, textAlign: 'center' }}>{typeConfig.label}</Text>
-          </View>
+          "Reminder Details"
         }
         onBack={() => navigation.goBack()}
         rightActions={[{
@@ -167,7 +166,7 @@ export default function ReminderPlanDetailScreen({ route }) {
           color: '#222',
         }]}
         backgroundColor="#fff"
-        containerStyle={{ position: 'relative', zIndex: 10 }}
+        containerStyle={{ position: 'relative',zIndex: 10 }}
       />
     );
   };
@@ -177,16 +176,16 @@ export default function ReminderPlanDetailScreen({ route }) {
     const typeConfig = getTypeConfig(plan.type);
     return (
       <View style={styles.reminderCard}>
-        <View style={[styles.reminderCardHeader, { backgroundColor: '#fff' }]}> 
+        <View style={[styles.reminderCardHeader,{ backgroundColor: '#fff' }]}>
           <View style={styles.reminderIconContainer}>
             <Ionicons name={typeConfig.icon} size={32} color="#0056d2" />
           </View>
           <View style={styles.reminderHeaderInfo}>
-            <Text style={[styles.reminderTitle, { color: '#0056d2' }]}>{plan.title}</Text>
-            <Text style={[styles.reminderSubtitle, { color: '#0056d2' }]}>{typeConfig.label}</Text>
+            <Text style={[styles.reminderTitle,{ color: '#0056d2' }]}>{plan.title}</Text>
+            <Text style={[styles.reminderSubtitle,{ color: '#0056d2' }]}>{typeConfig.label}</Text>
           </View>
           <View style={styles.statusContainer}>
-            <View style={[ 
+            <View style={[
               styles.statusBadge,
               { backgroundColor: plan.isActive ? '#10B981' : '#EF4444' }
             ]}>
@@ -200,7 +199,7 @@ export default function ReminderPlanDetailScreen({ route }) {
     );
   };
 
-  const renderDetailSection = (title, children) => (
+  const renderDetailSection = (title,children) => (
     <View style={styles.detailSection}>
       <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.sectionContent}>
@@ -209,10 +208,10 @@ export default function ReminderPlanDetailScreen({ route }) {
     </View>
   );
 
-  const renderDetailItem = (icon, label, value, color = '#1F2937') => (
+  const renderDetailItem = (icon,label,value,color = '#1F2937') => (
     <View style={styles.detailItem}>
       <View style={styles.detailItemLeft}>
-        <View style={[styles.detailIcon, { backgroundColor: `${color}15` }]}>
+        <View style={[styles.detailIcon,{ backgroundColor: `${color}15` }]}>
           <Ionicons name={icon} size={20} color={color} />
         </View>
         <Text style={styles.detailLabel}>{label}</Text>
@@ -227,7 +226,7 @@ export default function ReminderPlanDetailScreen({ route }) {
         <View style={styles.toggleInfo}>
           <Text style={styles.toggleTitle}>Enable Reminder</Text>
           <Text style={styles.toggleDescription}>
-            {plan.isActive 
+            {plan.isActive
               ? 'This reminder is currently active and will send notifications'
               : 'This reminder is disabled and will not send notifications'
             }
@@ -237,7 +236,7 @@ export default function ReminderPlanDetailScreen({ route }) {
           value={plan.isActive}
           onValueChange={handleToggleActive}
           disabled={updating}
-          trackColor={{ false: '#E5E7EB', true: '#10B981' }}
+          trackColor={{ false: '#E5E7EB',true: '#10B981' }}
           thumbColor={plan.isActive ? '#FFFFFF' : '#F3F4F6'}
           ios_backgroundColor="#E5E7EB"
           style={styles.toggle}
@@ -249,19 +248,19 @@ export default function ReminderPlanDetailScreen({ route }) {
   const renderActionButtons = () => (
     <View style={styles.actionButtons}>
       <TouchableOpacity
-        style={[styles.editActionButton, { marginRight: 4 }]}
+        style={[styles.editActionButton,{ marginRight: 4 }]}
         onPress={handleEdit}
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={["#0056d2", "#0056d2"]}
-          style={[styles.editActionButtonGradient, { paddingHorizontal: 18 }]}
+          colors={["#0056d2","#0056d2"]}
+          style={[styles.editActionButtonGradient,{ paddingHorizontal: 18 }]}
         >
           <Ionicons name="create" size={20} color="#FFFFFF" />
           <Text style={styles.editActionButtonText}>Edit Reminder</Text>
         </LinearGradient>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={styles.deleteActionButton}
         onPress={handleDelete}
@@ -277,7 +276,7 @@ export default function ReminderPlanDetailScreen({ route }) {
     return (
       <View style={styles.container}>
         {renderHeader()}
-        <Loading />
+        <CommonSkeleton />
       </View>
     );
   }
@@ -327,23 +326,23 @@ export default function ReminderPlanDetailScreen({ route }) {
       {renderHeader()}
       {(updating) && <Loading />}
       {!updating && (
-        <ScrollView 
+        <ScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
           {renderReminderCard()}
-          {renderDetailSection('Schedule Information', (
+          {renderDetailSection('Schedule Information',(
             <>
-              {renderDetailItem('time', 'Time', formatTime(plan.time), typeConfig.color)}
-              {renderDetailItem('repeat', 'Frequency', plan.frequency, typeConfig.color)}
-              {renderDetailItem('calendar', 'Days of Week', formatDaysOfWeek(plan.daysOfWeek), typeConfig.color)}
+              {renderDetailItem('time','Time',formatTime(plan.time),typeConfig.color)}
+              {renderDetailItem('repeat','Frequency',plan.frequency,typeConfig.color)}
+              {renderDetailItem('calendar','Days of Week',formatDaysOfWeek(plan.daysOfWeek),typeConfig.color)}
             </>
           ))}
-          {plan.amount && renderDetailSection('Amount/Duration', (
-            renderDetailItem('speedometer', 'Amount', plan.amount, typeConfig.color)
+          {plan.amount && renderDetailSection('Amount/Duration',(
+            renderDetailItem('speedometer','Amount',plan.amount,typeConfig.color)
           ))}
-          {plan.notes && renderDetailSection('Additional Notes', (
+          {plan.notes && renderDetailSection('Additional Notes',(
             <View style={styles.notesContainer}>
               <Text style={styles.notesText}>{plan.notes}</Text>
             </View>
@@ -416,7 +415,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 12,
       },
@@ -473,7 +472,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
@@ -548,7 +547,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
@@ -578,7 +577,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   toggle: {
-    transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }],
+    transform: [{ scaleX: 1.1 },{ scaleY: 1.1 }],
   },
   actionButtons: {
     flexDirection: 'row',
@@ -591,7 +590,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
       },
@@ -628,7 +627,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#EF4444',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
@@ -641,18 +640,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#EF4444',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 16,
-    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,

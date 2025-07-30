@@ -1,4 +1,4 @@
-import { useEffect,useState,useRef } from "react";
+import { useEffect,useState,useRef,useContext } from "react";
 import {
   View,
   Text,
@@ -35,11 +35,13 @@ import {
 } from "services/apiCommunityService";
 import { Ionicons,Feather,MaterialCommunityIcons } from "@expo/vector-icons";
 import RenderHtml from "react-native-render-html";
-import { useAuth } from "context/AuthContext";
+import { AuthContext,useAuth } from "context/AuthContext";
 import FlashMessage,{ showMessage } from "react-native-flash-message";
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
 import { theme } from "theme/color";
 import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
+import Header from "components/Header";
+import { handleDailyCheckin } from "utils/checkin";
 
 const { width,height } = Dimensions.get("window");
 
@@ -78,7 +80,7 @@ function normalizePost(freshPost,initialPost) {
 
 const PostDetailScreen = ({ route,navigation }) => {
   const { post: initialPost } = route.params;
-  const { user } = useAuth();
+  const { user } = useContext(AuthContext);
   const [post,setPost] = useState(normalizePost(initialPost,initialPost));
   const [comments,setComments] = useState([]);
   const [loading,setLoading] = useState(true);
@@ -206,6 +208,11 @@ const PostDetailScreen = ({ route,navigation }) => {
       setCommentText("");
       fetchComments();
       showSuccessMessage("Comment successfully!");
+      try {
+        await handleDailyCheckin(user?.userId,"comment_post");
+      } catch (e) {
+        console.log(e);
+      }
     } catch (e) {
       showErrorFetchAPI(e);
     }
@@ -705,12 +712,10 @@ const PostDetailScreen = ({ route,navigation }) => {
     <GestureHandlerRootView style={styles.container}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
       <Animated.View style={[styles.header]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#0056d2" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          View #POST{post?.postId}
-        </Text>
+        <Header
+          title="Post detail"
+          onBack={() => navigation.goBack()}
+        />
       </Animated.View>
 
       <View style={styles.contentContainer}>
@@ -1144,6 +1149,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
+    marginTop: 20
   },
   overlay: {
     position: "absolute",

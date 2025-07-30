@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React,{ useState,useEffect,useCallback } from "react";
 import {
     View,
     Text,
@@ -8,18 +8,18 @@ import {
     Image,
     Platform,
 } from "react-native";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
-import Loading from "components/Loading";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons";
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
 import { theme } from "theme/color";
 import { Dimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Header from "components/Header";
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
 
 const { width,height } = Dimensions.get("window");
 
@@ -39,10 +39,10 @@ const SavedPackagesScreen = ({ navigation }) => {
     };
 
     const renderPackageIcon = (type,size = 24) => {
-        const iconProps = { size, color: "#FFFFFF" };
+        const iconProps = { size,color: "#FFFFFF" };
         // All icons will have a #0056d2 background
         return (
-            <View style={{ backgroundColor: "#0056d2", borderRadius: size / 2, padding: 6, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: "#0056d2",borderRadius: size / 2,padding: 6,justifyContent: 'center',alignItems: 'center' }}>
                 {(() => {
                     switch (type) {
                         case "yoga":
@@ -91,7 +91,7 @@ const SavedPackagesScreen = ({ navigation }) => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    },[]);
 
     useEffect(() => {
         fetchSavedPackages();
@@ -104,7 +104,7 @@ const SavedPackagesScreen = ({ navigation }) => {
             const savedPackages = await AsyncStorage.getItem("@SavedPackages");
             let packages = savedPackages ? JSON.parse(savedPackages) : [];
             packages = packages.filter((pkg) => pkg.packageId !== packageId);
-            await AsyncStorage.setItem("@SavedPackages", JSON.stringify(packages));
+            await AsyncStorage.setItem("@SavedPackages",JSON.stringify(packages));
             setSavedPackages(packages);
             showSuccessMessage("Package removed from saved list.");
         } catch (error) {
@@ -117,12 +117,12 @@ const SavedPackagesScreen = ({ navigation }) => {
         return (
             <TouchableOpacity
                 style={styles.packageCard}
-                onPress={() => navigation.navigate("PackageDetail", { package: item })}
+                onPress={() => navigation.navigate("PackageDetail",{ package: item })}
                 activeOpacity={0.8}
             >
                 <View style={styles.cardContent}>
                     <View style={styles.iconContainer}>
-                        {renderPackageIcon(packageType, 24)}
+                        {renderPackageIcon(packageType,24)}
                     </View>
                     <View style={styles.packageInfo}>
                         <Text style={styles.packageName} numberOfLines={2}>
@@ -169,7 +169,7 @@ const SavedPackagesScreen = ({ navigation }) => {
     );
 
     if (loading) {
-        return <Loading />;
+        return <CommonSkeleton />;
     }
 
     return (
@@ -180,7 +180,7 @@ const SavedPackagesScreen = ({ navigation }) => {
                 onBack={() => navigation.goBack()}
                 subtitle="Your favorite fitness services"
             />
-            <View style={{ marginTop: 50 }} />
+            <View style={{ marginTop: 60 }} />
             <FlatList
                 data={savedPackages}
                 renderItem={renderPackageItem}

@@ -2,6 +2,12 @@
   "expo": {
     "name": "hms_3do",
     "slug": "hms_3do",
+    "scheme": "hmsapp",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -24,16 +30,24 @@
           "microphonePermission": false
         }
       ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.1005255181896-s070api6cavp9uhgjvblusmbs1hpms8u"
+        }
+      ],
       "expo-video",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser",
+      "expo-file-system\\"
     ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hms3do.app",
       "infoPlist": {
         "NSMotionUsageDescription": "This app uses the pedometer to count your steps.",
-        "NSHealthShareUsageDescription": "Ứng dụng cần truy cập Health để lấy dữ liệu bước chân",
-        "NSHealthUpdateUsageDescription": "Ứng dụng cần ghi dữ liệu vào Health",
+        "NSHealthShareUsageDescription": "The app needs access to Health to read step data.",
+        "NSHealthUpdateUsageDescription": "The app needs permission to write data to Health.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -55,7 +69,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "b514b7d2-35fb-402a-9f6b-b7e1c04d0e10"
+        "projectId": "7cee2fa1-bc62-4c22-9f76-12fe0d0b04d5"
       }
     },
     "owner": "letankim2003"

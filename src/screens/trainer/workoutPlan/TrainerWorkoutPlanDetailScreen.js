@@ -20,6 +20,7 @@ import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import HTML from 'react-native-render-html';
 import UserProfileContent from '../components/UserProfileContent';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -123,14 +124,10 @@ const StatusBadge = React.memo(({ status }) => {
     );
 });
 
-// Loading Screen Component
 const LoadingScreen = React.memo(() => (
     <SafeAreaView style={styles.container}>
         <DynamicStatusBar backgroundColor={COLORS.background} />
-        <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Loading workout plan...</Text>
-        </View>
+        <CommonSkeleton />
     </SafeAreaView>
 ));
 

@@ -22,6 +22,8 @@ import { trainerService } from 'services/apiTrainerService';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import UserProfileContent from '../components/UserProfileContent';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
 const EditExerciseToPlanScreen = () => {
     const { user } = useContext(AuthContext);
@@ -285,21 +287,16 @@ const EditExerciseToPlanScreen = () => {
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#0056D2" />
-                    <Text style={styles.loadingText}>Loading exercise details...</Text>
+                    <CommonSkeleton />
                 </View>
             ) : (
                 <>
-                    <View style={styles.header}>
-                        <View style={styles.headerContent}>
-                            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                                <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                            </TouchableOpacity>
-                            <View style={styles.headerCenter}>
-                                <Text style={styles.headerTitle}>Edit Exercise</Text>
-                            </View>
-                            <View style={styles.headerRight} />
-                        </View>
-                    </View>
+                    <Header
+                        title="Edit Exercise"
+                        onBack={() => navigation.goBack()}
+                        backIconColor="#0056D2"
+                    />
+
                     <KeyboardAvoidingView
                         style={styles.keyboardAvoidingContainer}
                         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -542,6 +539,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: 20,
         paddingBottom: 50,
+        marginTop: 80
     },
     loadingContainer: {
         flex: 1,

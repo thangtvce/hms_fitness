@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react"
+import { useEffect,useState } from "react"
 import Loading from "components/Loading"
 import {
   View,
@@ -17,57 +17,56 @@ import {
   Animated,
   Keyboard,
 } from "react-native"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { useNavigation } from "@react-navigation/native"
 import Header from "components/Header"
 import dayjs from "dayjs"
 
-// Icon imports - using react-native-vector-icons
 import Icon from "react-native-vector-icons/MaterialIcons"
 import IconCommunity from "react-native-vector-icons/MaterialCommunityIcons"
 import IconFeather from "react-native-vector-icons/Feather"
 
-import { getFoodLogByDate, clearFoodLogByDate, addFoodToLog } from "utils/foodLogStorage"
+import { getFoodLogByDate,clearFoodLogByDate,addFoodToLog } from "utils/foodLogStorage"
 import apiUserService from "services/apiUserService"
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { foodService } from "services/apiFoodService"
 import { useAuth } from "context/AuthContext"
+import { handleDailyCheckin } from "utils/checkin"
 
 const { width } = Dimensions.get("window")
-const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner"]
+const MEAL_TYPES = ["Breakfast","Lunch","Dinner"]
 
 const sumNutrition = (foods) => {
   return foods.reduce(
-    (acc, food) => {
+    (acc,food) => {
       acc.calories += food.calories || 0
       acc.protein += food.protein || 0
       acc.carbs += food.carbs || 0
       acc.fats += food.fats || 0
       return acc
     },
-    { calories: 0, protein: 0, carbs: 0, fats: 0 },
+    { calories: 0,protein: 0,carbs: 0,fats: 0 },
   )
 }
 
 const FoodDailyLogScreen = () => {
-  const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"))
-  const [log, setLog] = useState({ Breakfast: [], Lunch: [], Dinner: [] })
-  const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState("daily")
-  const [editModalVisible, setEditModalVisible] = useState(false)
-  const [editingFood, setEditingFood] = useState(null)
-  const [calendarData, setCalendarData] = useState([])
-  const [selectedHistoryDate, setSelectedHistoryDate] = useState(null)
-  const [historyDetailModal, setHistoryDetailModal] = useState(false)
-  const [expandedMeals, setExpandedMeals] = useState({})
+  const [date,setDate] = useState(dayjs().format("YYYY-MM-DD"))
+  const [log,setLog] = useState({ Breakfast: [],Lunch: [],Dinner: [] })
+  const [loading,setLoading] = useState(false)
+  const [activeTab,setActiveTab] = useState("calendar")
+  const [editModalVisible,setEditModalVisible] = useState(false)
+  const [editingFood,setEditingFood] = useState(null)
+  const [calendarData,setCalendarData] = useState([])
+  const [selectedHistoryDate,setSelectedHistoryDate] = useState(null)
+  const [historyDetailModal,setHistoryDetailModal] = useState(false)
+  const [expandedMeals,setExpandedMeals] = useState({})
   const [fadeAnim] = useState(new Animated.Value(0))
-  const { user, loading: authLoading } = useAuth()
+  const { user,loading: authLoading } = useAuth()
   const navigation = useNavigation()
 
-  // Filter states
-  const [filters, setFilters] = useState({
+  const [filters,setFilters] = useState({
     pageNumber: 1,
     pageSize: 10,
     startDate: "",
@@ -77,17 +76,17 @@ const FoodDailyLogScreen = () => {
   })
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
+    Animated.timing(fadeAnim,{
       toValue: 1,
       duration: 500,
       useNativeDriver: true,
     }).start()
-  }, [])
+  },[])
 
   const loadLog = async () => {
     try {
       const data = await getFoodLogByDate(date)
-      console.log('Food log data for date', date, data)
+      console.log('Food log data for date',date,data)
       setLog(data)
     } catch (error) {
       showErrorFetchAPI("Unable to load food log: " + error.message)
@@ -133,7 +132,7 @@ const FoodDailyLogScreen = () => {
 
         const calendarData = Object.keys(grouped)
           .map((date) => {
-            const allFoods = [...grouped[date].Breakfast, ...grouped[date].Lunch, ...grouped[date].Dinner]
+            const allFoods = [...grouped[date].Breakfast,...grouped[date].Lunch,...grouped[date].Dinner]
             return {
               date,
               meals: grouped[date],
@@ -141,7 +140,7 @@ const FoodDailyLogScreen = () => {
               totalCalories: sumNutrition(allFoods).calories,
             }
           })
-          .sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix())
+          .sort((a,b) => dayjs(b.date).unix() - dayjs(a.date).unix())
         setCalendarData(calendarData)
       } else {
         setCalendarData([])
@@ -158,7 +157,7 @@ const FoodDailyLogScreen = () => {
       loadLog()
       loadCalendarData()
     }
-  }, [date, authLoading, user, filters])
+  },[date,authLoading,user,filters])
 
   const handleSaveToServer = async () => {
     setLoading(true)
@@ -198,18 +197,13 @@ const FoodDailyLogScreen = () => {
         return
       }
 
-      const res = await foodService.createNutritionLogsBulk(foodsToSave, userId)
+      const res = await foodService.createNutritionLogsBulk(foodsToSave,userId)
+      console.log(res)
+      console.log(res.statusCode)
       if (res.statusCode === 201) {
         try {
-          const today = new Date();
-          const year = today.getFullYear();
-          const month = String(today.getMonth() + 1).padStart(2, '0');
-          const day = String(today.getDate()).padStart(2, '0');
-          const todayKey = `@Checkin_${year}-${month}-${day}`;
-          const alreadyCheckedIn = await AsyncStorage.getItem(todayKey);
-          if (!alreadyCheckedIn) {
-            await apiUserService.checkInUser('checkin');
-            await AsyncStorage.setItem(todayKey, '1');
+          if (user?.id) {
+            handleDailyCheckin(user.id);
           }
         } catch (e) {
         }
@@ -227,19 +221,19 @@ const FoodDailyLogScreen = () => {
     }
   }
 
-  const handleDeleteFoodLog = async (mealType, idx) => {
-    Alert.alert("Confirm Delete", "Are you sure you want to delete this food item?", [
-      { text: "Cancel", style: "cancel" },
+  const handleDeleteFoodLog = async (mealType,idx) => {
+    Alert.alert("Confirm Delete","Are you sure you want to delete this food item?",[
+      { text: "Cancel",style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
           try {
             const updatedLog = { ...log }
-            updatedLog[mealType] = updatedLog[mealType].filter((_, i) => i !== idx)
+            updatedLog[mealType] = updatedLog[mealType].filter((_,i) => i !== idx)
             setLog(updatedLog)
             await clearFoodLogByDate(date)
-            await addFoodToLog(date, mealType, updatedLog[mealType])
+            await addFoodToLog(date,mealType,updatedLog[mealType])
             showSuccessMessage("Food item deleted!")
           } catch (error) {
             showErrorFetchAPI("Unable to delete food item: " + error.message)
@@ -249,9 +243,9 @@ const FoodDailyLogScreen = () => {
     ])
   }
 
-  const handleEditFood = (food, mealType, index) => {
+  const handleEditFood = (food,mealType,index) => {
     setEditingFood({
-      food: { ...food, quantity: food.quantity || 1 },
+      food: { ...food,quantity: food.quantity || 1 },
       mealType,
       index,
     })
@@ -282,7 +276,7 @@ const FoodDailyLogScreen = () => {
       setLog(updatedLog);
 
       await clearFoodLogByDate(date);
-      await addFoodToLog(date, editingFood.mealType, updatedLog[editingFood.mealType]);
+      await addFoodToLog(date,editingFood.mealType,updatedLog[editingFood.mealType]);
 
       setEditModalVisible(false);
       setEditingFood(null);
@@ -290,10 +284,10 @@ const FoodDailyLogScreen = () => {
     } catch (error) {
       showErrorFetchAPI("Unable to update food item: " + error.message);
     }
-  }  
+  }
 
   const handleAddFood = (mealType) => {
-    navigation.navigate("Food", { mealType, date })
+    navigation.navigate("Food",{ mealType,date })
   }
 
   const handleViewHistoryDetail = (historyItem) => {
@@ -302,11 +296,11 @@ const FoodDailyLogScreen = () => {
   }
 
   const handleOpenCalendar = () => {
-    navigation.navigate("CalendarScreen", {
+    navigation.navigate("CalendarScreen",{
       calendarData,
       onDateSelect: (selectedDate) => {
         setDate(selectedDate)
-        setActiveTab("daily")
+        setActiveTab("calendar")
       },
     })
   }
@@ -344,121 +338,90 @@ const FoodDailyLogScreen = () => {
     }
   }
 
-  const renderTabButton = (tabName, title, iconName, iconFamily = "MaterialIcons") => {
+  const renderTabButton = (tabName,title,iconName,iconFamily = "MaterialIcons") => {
     const IconComponent =
       iconFamily === "MaterialCommunityIcons" ? IconCommunity : iconFamily === "Feather" ? IconFeather : Icon
 
     return (
       <TouchableOpacity
-        style={[styles.tabButton, activeTab === tabName && styles.activeTab]}
+        style={[styles.tabButton,activeTab === tabName && styles.activeTab]}
         onPress={() => setActiveTab(tabName)}
       >
         <IconComponent name={iconName} size={20} color={activeTab === tabName ? "#0056d2" : "#64748B"} />
-        <Text style={[styles.tabText, { color: activeTab === tabName ? "#0056d2" : "#64748B" }, activeTab === tabName && styles.activeTabText]}>{title}</Text>
+        <Text style={[styles.tabText,{ color: activeTab === tabName ? "#0056d2" : "#64748B" },activeTab === tabName && styles.activeTabText]}>{title}</Text>
       </TouchableOpacity>
     )
   }
 
-  const renderNutritionSummary = () => {
-    const totalNutrition = sumNutrition([...log.Breakfast, ...log.Lunch, ...log.Dinner])
 
-    return (
-      <View style={styles.summaryContainer}>
-        <View style={styles.summaryHeader}>
-          <Icon name="analytics" size={24} color="#0056d2" />
-          <Text style={styles.summaryTitle}>Daily Nutrition Overview</Text>
+  const renderFoodItem = (food,mealType,index) => (
+    <View key={index} style={styles.foodItem}>
+      <View style={styles.foodImageContainer}>
+        <Image
+          source={{ uri: food.image || food.foodImage || food.imageUrl || "https://via.placeholder.com/50x50" }}
+          style={styles.foodImage}
+        />
+        <View style={styles.caloriesBadge}>
+          <Text style={styles.caloriesBadgeText}>{Math.round(food.calories) || 0}</Text>
         </View>
-        <View style={styles.nutritionGrid}>
-          <View style={[styles.nutritionCard, styles.caloriesCard]}>
-            <Text style={[styles.nutritionValue, { color: "#0056d2" }]}>{Math.round(totalNutrition.calories)}</Text>
-            <Text style={styles.nutritionLabel}>Calories</Text>
+      </View>
+      <View style={styles.foodInfo}>
+        <Text style={{ fontSize: 16,fontWeight: '600',color: '#1F2937',marginBottom: 4 }}>{food.foodName}</Text>
+        {food.quantity && food.quantity > 1 && <Text style={{ fontSize: 14,color: '#64748B',marginBottom: 6 }}>Quantity: {food.quantity}</Text>}
+        <View style={styles.nutritionRow}>
+          <View style={styles.nutritionBadge}>
+            <IconCommunity name="dumbbell" size={10} color="#4ECDC4" />
+            <Text style={{ fontSize: 12,color: '#374151',fontWeight: '500',marginLeft: 2 }}>{Math.round(food.protein) || 0}g</Text>
           </View>
-          <View style={[styles.nutritionCard, styles.proteinCard]}>
-            <Text style={[styles.nutritionValue, { color: "#0056d2" }]}>{Math.round(totalNutrition.protein)}g</Text>
-            <Text style={styles.nutritionLabel}>Protein</Text>
+          <View style={styles.nutritionBadge}>
+            <IconCommunity name="grain" size={10} color="#45B7D1" />
+            <Text style={{ fontSize: 12,color: '#374151',fontWeight: '500',marginLeft: 2 }}>{Math.round(food.carbs) || 0}g</Text>
           </View>
-          <View style={[styles.nutritionCard, styles.carbsCard]}>
-            <Text style={[styles.nutritionValue, { color: "#0056d2" }]}>{Math.round(totalNutrition.carbs)}g</Text>
-            <Text style={styles.nutritionLabel}>Carbs</Text>
-          </View>
-          <View style={[styles.nutritionCard, styles.fatsCard]}>
-            <Text style={[styles.nutritionValue, { color: "#0056d2" }]}>{Math.round(totalNutrition.fats)}g</Text>
-            <Text style={styles.nutritionLabel}>Fats</Text>
+          <View style={styles.nutritionBadge}>
+            <IconCommunity name="oil" size={10} color="#96CEB4" />
+            <Text style={{ fontSize: 12,color: '#374151',fontWeight: '500',marginLeft: 2 }}>{Math.round(food.fats) || 0}g</Text>
           </View>
         </View>
       </View>
-    )
-  }
-
-  const renderFoodItem = (food, mealType, index) => (
-  <View key={index} style={styles.foodItem}>
-    <View style={styles.foodImageContainer}>
-      <Image
-        source={{ uri: food.image || food.foodImage || food.imageUrl || "https://via.placeholder.com/50x50" }}
-        style={styles.foodImage}
-      />
-      <View style={styles.caloriesBadge}>
-        <Text style={styles.caloriesBadgeText}>{Math.round(food.calories) || 0}</Text>
+      <View style={styles.foodActions}>
+        <TouchableOpacity style={styles.editButton} onPress={() => handleEditFood(food,mealType,index)}>
+          <IconFeather name="edit-2" size={16} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteFoodLog(mealType,index)}>
+          <IconFeather name="trash-2" size={16} color="#fff" />
+        </TouchableOpacity>
       </View>
     </View>
-    <View style={styles.foodInfo}>
-      <Text style={{ fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 4 }}>{food.foodName}</Text>
-      {food.quantity && food.quantity > 1 && <Text style={{ fontSize: 14, color: '#64748B', marginBottom: 6 }}>Quantity: {food.quantity}</Text>}
-      <View style={styles.nutritionRow}>
-        <View style={styles.nutritionBadge}>
-          <IconCommunity name="dumbbell" size={10} color="#4ECDC4" />
-          <Text style={{ fontSize: 12, color: '#374151', fontWeight: '500', marginLeft: 2 }}>{Math.round(food.protein) || 0}g</Text>
-        </View>
-        <View style={styles.nutritionBadge}>
-          <IconCommunity name="grain" size={10} color="#45B7D1" />
-          <Text style={{ fontSize: 12, color: '#374151', fontWeight: '500', marginLeft: 2 }}>{Math.round(food.carbs) || 0}g</Text>
-        </View>
-        <View style={styles.nutritionBadge}>
-          <IconCommunity name="oil" size={10} color="#96CEB4" />
-          <Text style={{ fontSize: 12, color: '#374151', fontWeight: '500', marginLeft: 2 }}>{Math.round(food.fats) || 0}g</Text>
-        </View>
-      </View>
-    </View>
-    <View style={styles.foodActions}>
-      <TouchableOpacity style={styles.editButton} onPress={() => handleEditFood(food, mealType, index)}>
-        <IconFeather name="edit-2" size={16} color="#fff" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteFoodLog(mealType, index)}>
-        <IconFeather name="trash-2" size={16} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  </View>
   )
 
   const renderMealSection = (meal) => {
     const foods = log[meal] || []
     const sum = sumNutrition(foods)
     const mealColor = getMealColor(meal)
-    // Đơn giản hóa giao diện: bỏ icon, giảm padding, chỉ hiện tên bữa, số lượng, nút thêm, danh sách món ăn, tổng dinh dưỡng
     return (
-      <View key={meal} style={[styles.mealSection, { padding: 0, marginBottom: 16, borderRadius: 12, shadowOpacity: 0.02 }]}> 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingHorizontal: 16, paddingVertical: 10 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0056d2' }}>{meal} {foods.length > 0 ? `(${foods.length})` : ''}</Text>
-          <TouchableOpacity style={{ backgroundColor: '#eaf1fb', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 }} onPress={() => handleAddFood(meal)}>
-            <Text style={{ color: '#0056d2', fontWeight: 'bold', fontSize: 14 }}>+</Text>
+      <View key={meal} style={[styles.mealSection,{ padding: 0,marginBottom: 16,borderRadius: 12,shadowOpacity: 0.02 }]}>
+        <View style={{ flexDirection: 'row',alignItems: 'center',justifyContent: 'space-between',backgroundColor: '#fff',borderBottomWidth: 1,borderBottomColor: '#F3F4F6',paddingHorizontal: 16,paddingVertical: 10 }}>
+          <Text style={{ fontSize: 18,fontWeight: 'bold',color: '#0056d2' }}>{meal} {foods.length > 0 ? `(${foods.length})` : ''}</Text>
+          <TouchableOpacity style={{ backgroundColor: '#eaf1fb',borderRadius: 16,paddingHorizontal: 14,paddingVertical: 6 }} onPress={() => handleAddFood(meal)}>
+            <Text style={{ color: '#0056d2',fontWeight: 'bold',fontSize: 14 }}>+</Text>
           </TouchableOpacity>
         </View>
         <View style={{ padding: 12 }}>
           {foods.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-              <Text style={{ fontSize: 15, color: '#64748B', fontWeight: '500' }}>No food logged yet</Text>
-              <Text style={{ fontSize: 13, color: '#A0AEC0', marginTop: 2 }}>Tap "Add" to track your {meal.toLowerCase()}</Text>
+            <View style={{ alignItems: 'center',paddingVertical: 24 }}>
+              <Text style={{ fontSize: 15,color: '#64748B',fontWeight: '500' }}>No food logged yet</Text>
+              <Text style={{ fontSize: 13,color: '#A0AEC0',marginTop: 2 }}>Tap "Add" to track your {meal.toLowerCase()}</Text>
             </View>
           ) : (
             <>
-              {foods.map((food, idx) => renderFoodItem(food, meal, idx))}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
-                <Text style={{ fontSize: 13, color: '#64748B', fontWeight: 'bold' }}>Meal Total</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <Text style={{ fontSize: 13, color: '#0056d2', fontWeight: 'bold' }}>{Math.round(sum.calories)} kcal</Text>
-                  <Text style={{ fontSize: 13, color: '#0056d2', fontWeight: 'bold' }}>{Math.round(sum.protein)}g</Text>
-                  <Text style={{ fontSize: 13, color: '#0056d2', fontWeight: 'bold' }}>{Math.round(sum.carbs)}g</Text>
-                  <Text style={{ fontSize: 13, color: '#0056d2', fontWeight: 'bold' }}>{Math.round(sum.fats)}g</Text>
+              {foods.map((food,idx) => renderFoodItem(food,meal,idx))}
+              <View style={{ flexDirection: 'row',justifyContent: 'space-between',alignItems: 'center',backgroundColor: '#F8FAFC',borderRadius: 8,padding: 10,marginTop: 8,borderWidth: 1,borderColor: '#E5E7EB' }}>
+                <Text style={{ fontSize: 13,color: '#64748B',fontWeight: 'bold' }}>Meal Total</Text>
+                <View style={{ flexDirection: 'row',alignItems: 'center',gap: 12 }}>
+                  <Text style={{ fontSize: 13,color: '#0056d2',fontWeight: 'bold' }}>{Math.round(sum.calories)} kcal</Text>
+                  <Text style={{ fontSize: 13,color: '#0056d2',fontWeight: 'bold' }}>{Math.round(sum.protein)}g</Text>
+                  <Text style={{ fontSize: 13,color: '#0056d2',fontWeight: 'bold' }}>{Math.round(sum.carbs)}g</Text>
+                  <Text style={{ fontSize: 13,color: '#0056d2',fontWeight: 'bold' }}>{Math.round(sum.fats)}g</Text>
                 </View>
               </View>
             </>
@@ -485,7 +448,7 @@ const FoodDailyLogScreen = () => {
         <IconFeather name="chevron-right" size={20} color="#9CA3AF" />
       </View>
       <View style={styles.calendarFoods}>
-        {item.foods.slice(0, 2).map((food, idx) => (
+        {item.foods.slice(0,2).map((food,idx) => (
           <View key={idx} style={styles.calendarFoodItem}>
             <Image
               source={{ uri: food.image || food.foodImage || food.imageUrl || "https://via.placeholder.com/40x40" }}
@@ -532,12 +495,12 @@ const FoodDailyLogScreen = () => {
                 return (
                   <View key={mealType} style={styles.historyMealSection}>
                     <View style={styles.historyMealHeader}>
-                      <View style={[styles.mealIconContainer, { backgroundColor: getMealColor(mealType) }]}>
+                      <View style={[styles.mealIconContainer,{ backgroundColor: getMealColor(mealType) }]}>
                         <Icon name={getMealIcon(mealType)} size={16} color="#fff" />
                       </View>
                       <Text style={styles.historyMealTitle}>{mealType}</Text>
                     </View>
-                    {mealFoods.map((food, idx) => (
+                    {mealFoods.map((food,idx) => (
                       <View key={idx} style={styles.historyFoodItem}>
                         <Image
                           source={{ uri: food.image || food.foodImage || food.imageUrl || "https://via.placeholder.com/50x50" }}
@@ -595,7 +558,7 @@ const FoodDailyLogScreen = () => {
             style={styles.filterInput}
             placeholder="Enter food name..."
             value={filters.searchTerm}
-            onChangeText={(text) => setFilters((prev) => ({ ...prev, searchTerm: text }))}
+            onChangeText={(text) => setFilters((prev) => ({ ...prev,searchTerm: text }))}
             placeholderTextColor="#9CA3AF"
           />
         </View>
@@ -610,7 +573,7 @@ const FoodDailyLogScreen = () => {
               style={styles.filterInput}
               placeholder="YYYY-MM-DD"
               value={filters.startDate}
-              onChangeText={(text) => setFilters((prev) => ({ ...prev, startDate: text }))}
+              onChangeText={(text) => setFilters((prev) => ({ ...prev,startDate: text }))}
               placeholderTextColor="#9CA3AF"
             />
           </View>
@@ -623,7 +586,7 @@ const FoodDailyLogScreen = () => {
               style={styles.filterInput}
               placeholder="YYYY-MM-DD"
               value={filters.endDate}
-              onChangeText={(text) => setFilters((prev) => ({ ...prev, endDate: text }))}
+              onChangeText={(text) => setFilters((prev) => ({ ...prev,endDate: text }))}
               placeholderTextColor="#9CA3AF"
             />
           </View>
@@ -635,13 +598,13 @@ const FoodDailyLogScreen = () => {
             <Text style={styles.filterLabel}>Meal Type</Text>
           </View>
           <View style={styles.mealTypeButtons}>
-            {["", ...MEAL_TYPES].map((mealType) => (
+            {["",...MEAL_TYPES].map((mealType) => (
               <TouchableOpacity
                 key={mealType}
-                style={[styles.mealTypeButton, filters.mealType === mealType && styles.activeMealType]}
-                onPress={() => setFilters((prev) => ({ ...prev, mealType }))}
+                style={[styles.mealTypeButton,filters.mealType === mealType && styles.activeMealType]}
+                onPress={() => setFilters((prev) => ({ ...prev,mealType }))}
               >
-                <Text style={[styles.mealTypeButtonText, filters.mealType === mealType && styles.activeMealTypeText]}>
+                <Text style={[styles.mealTypeButtonText,filters.mealType === mealType && styles.activeMealTypeText]}>
                   {mealType || "All"}
                 </Text>
               </TouchableOpacity>
@@ -667,161 +630,161 @@ const FoodDailyLogScreen = () => {
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <View style={styles.modalTitleContainer}>
-              <Text style={styles.modalTitle}>Edit Food Log</Text>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>Edit Food Log</Text>
+              </View>
+              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setEditModalVisible(false)}>
+                <Icon name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setEditModalVisible(false)}>
-              <Icon name="close" size={20} color="#64748B" />
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.modalBody}>
-            {editingFood && (
-              <>
-                <View style={styles.foodPreview}>
-                  <Image
-                    source={{
-                      uri: editingFood.food.image || editingFood.food.foodImage || editingFood.food.imageUrl || "https://via.placeholder.com/80x80",
-                    }}
-                    style={styles.previewImage}
-                  />
-                  <Text style={styles.previewFoodName}>{editingFood.food.foodName}</Text>
-                </View>
-
-                {/* Portion Size input - giống chỉnh quantity */}
-                <View style={styles.quantityContainer}>
-                  <Text style={styles.quantityLabel}>Portion Size</Text>
-                  <View style={[styles.quantityControls, { borderWidth: 0, borderColor: 'transparent', borderRadius: 12, padding: 4 }]}> 
-                    <TouchableOpacity
-                      style={[styles.quantityButton, { backgroundColor: '#fff', borderColor: 'transparent', borderWidth: 0 }]}
-                      onPress={() => {
-                        const newPortion = Math.max(0.5, (Number.parseFloat(editingFood.food.portionSize) || 1) - 0.5)
-                        setEditingFood((prev) => ({
-                          ...prev,
-                          food: { ...prev.food, portionSize: newPortion },
-                        }))
+            <View style={styles.modalBody}>
+              {editingFood && (
+                <>
+                  <View style={styles.foodPreview}>
+                    <Image
+                      source={{
+                        uri: editingFood.food.image || editingFood.food.foodImage || editingFood.food.imageUrl || "https://via.placeholder.com/80x80",
                       }}
-                    >
-                      <Text style={{ fontSize: 22, color: '#0056d2', fontWeight: 'bold' }}>-</Text>
-                    </TouchableOpacity>
-
-                    <TextInput
-                      style={[styles.quantityInput, { borderColor: 'transparent', color: '#1F2937', fontSize: 18, fontWeight: '600' }]}
-                      value={editingFood.food.portionSize?.toString() || "1"}
-                      onChangeText={(text) => {
-                        const portionSize = Number.parseFloat(text) || 1
-                        setEditingFood((prev) => ({
-                          ...prev,
-                          food: { ...prev.food, portionSize },
-                        }))
-                      }}
-                      keyboardType="numeric"
-                      textAlign="center"
-                      blurOnSubmit={true}
-                      returnKeyType="done"
+                      style={styles.previewImage}
                     />
-
-                    <TouchableOpacity
-                      style={[styles.quantityButton, { backgroundColor: '#fff', borderColor: 'transparent', borderWidth: 0 }]}
-                      onPress={() => {
-                        const newPortion = (Number.parseFloat(editingFood.food.portionSize) || 1) + 0.5
-                        setEditingFood((prev) => ({
-                          ...prev,
-                          food: { ...prev.food, portionSize: newPortion },
-                        }))
-                      }}
-                    >
-                      <Text style={{ fontSize: 22, color: '#0056d2', fontWeight: 'bold' }}>+</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.previewFoodName}>{editingFood.food.foodName}</Text>
                   </View>
-                </View>
-                {/* Serving Size input - giống chỉnh quantity */}
-                <View style={styles.quantityContainer}>
-                  <Text style={styles.quantityLabel}>Serving Size</Text>
-                  <View style={[styles.quantityControls, { borderWidth: 0, borderColor: 'transparent', borderRadius: 12, padding: 4 }]}> 
-                    <TouchableOpacity
-                      style={[styles.quantityButton, { backgroundColor: '#fff', borderColor: 'transparent', borderWidth: 0 }]}
-                      onPress={() => {
-                        const newServing = Math.max(0.5, (Number.parseFloat(editingFood.food.servingSize) || 1) - 0.5)
-                        setEditingFood((prev) => ({
-                          ...prev,
-                          food: { ...prev.food, servingSize: newServing },
-                        }))
-                      }}
-                    >
-                      <Text style={{ fontSize: 22, color: '#0056d2', fontWeight: 'bold' }}>-</Text>
-                    </TouchableOpacity>
 
-                    <TextInput
-                      style={[styles.quantityInput, { borderColor: 'transparent', color: '#1F2937', fontSize: 18, fontWeight: '600' }]}
-                      value={editingFood.food.servingSize?.toString() || "1"}
-                      onChangeText={(text) => {
-                        const servingSize = Number.parseFloat(text) || 1
-                        setEditingFood((prev) => ({
-                          ...prev,
-                          food: { ...prev.food, servingSize },
-                        }))
-                      }}
-                      keyboardType="numeric"
-                      textAlign="center"
-                      blurOnSubmit={true}
-                      returnKeyType="done"
-                    />
+                  {/* Portion Size input - giống chỉnh quantity */}
+                  <View style={styles.quantityContainer}>
+                    <Text style={styles.quantityLabel}>Portion Size</Text>
+                    <View style={[styles.quantityControls,{ borderWidth: 0,borderColor: 'transparent',borderRadius: 12,padding: 4 }]}>
+                      <TouchableOpacity
+                        style={[styles.quantityButton,{ backgroundColor: '#fff',borderColor: 'transparent',borderWidth: 0 }]}
+                        onPress={() => {
+                          const newPortion = Math.max(0.5,(Number.parseFloat(editingFood.food.portionSize) || 1) - 0.5)
+                          setEditingFood((prev) => ({
+                            ...prev,
+                            food: { ...prev.food,portionSize: newPortion },
+                          }))
+                        }}
+                      >
+                        <Text style={{ fontSize: 22,color: '#0056d2',fontWeight: 'bold' }}>-</Text>
+                      </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={[styles.quantityButton, { backgroundColor: '#fff', borderColor: 'transparent', borderWidth: 0 }]}
-                      onPress={() => {
-                        const newServing = (Number.parseFloat(editingFood.food.servingSize) || 1) + 0.5
-                        setEditingFood((prev) => ({
-                          ...prev,
-                          food: { ...prev.food, servingSize: newServing },
-                        }))
-                      }}
-                    >
-                      <Text style={{ fontSize: 22, color: '#0056d2', fontWeight: 'bold' }}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                      <TextInput
+                        style={[styles.quantityInput,{ borderColor: 'transparent',color: '#1F2937',fontSize: 18,fontWeight: '600' }]}
+                        value={editingFood.food.portionSize?.toString() || "1"}
+                        onChangeText={(text) => {
+                          const portionSize = Number.parseFloat(text) || 1
+                          setEditingFood((prev) => ({
+                            ...prev,
+                            food: { ...prev.food,portionSize },
+                          }))
+                        }}
+                        keyboardType="numeric"
+                        textAlign="center"
+                        blurOnSubmit={true}
+                        returnKeyType="done"
+                      />
 
-                <View style={styles.nutritionPreview}>
-                  <Text style={styles.nutritionPreviewTitle}>Nutrition per serving:</Text>
-                  <View style={styles.nutritionPreviewGrid}>
-                    <View style={styles.nutritionPreviewItem}>
-                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>
-                        {Math.round((editingFood.food.calories || 0) * (editingFood.food.quantity || 1))} cal
-                      </Text>
-                    </View>
-                    <View style={styles.nutritionPreviewItem}>
-                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>
-                        {Math.round((editingFood.food.protein || 0) * (editingFood.food.quantity || 1))}g
-                      </Text>
-                    </View>
-                    <View style={styles.nutritionPreviewItem}>
-                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>
-                        {Math.round((editingFood.food.carbs || 0) * (editingFood.food.quantity || 1))}g
-                      </Text>
-                    </View>
-                    <View style={styles.nutritionPreviewItem}>
-                      <Text style={{ fontSize: 14, color: '#0056d2', fontWeight: 'bold' }}>
-                        {Math.round((editingFood.food.fats || 0) * (editingFood.food.quantity || 1))}g
-                      </Text>
+                      <TouchableOpacity
+                        style={[styles.quantityButton,{ backgroundColor: '#fff',borderColor: 'transparent',borderWidth: 0 }]}
+                        onPress={() => {
+                          const newPortion = (Number.parseFloat(editingFood.food.portionSize) || 1) + 0.5
+                          setEditingFood((prev) => ({
+                            ...prev,
+                            food: { ...prev.food,portionSize: newPortion },
+                          }))
+                        }}
+                      >
+                        <Text style={{ fontSize: 22,color: '#0056d2',fontWeight: 'bold' }}>+</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
-                </View>
-              </>
-            )}
+                  {/* Serving Size input - giống chỉnh quantity */}
+                  <View style={styles.quantityContainer}>
+                    <Text style={styles.quantityLabel}>Serving Size</Text>
+                    <View style={[styles.quantityControls,{ borderWidth: 0,borderColor: 'transparent',borderRadius: 12,padding: 4 }]}>
+                      <TouchableOpacity
+                        style={[styles.quantityButton,{ backgroundColor: '#fff',borderColor: 'transparent',borderWidth: 0 }]}
+                        onPress={() => {
+                          const newServing = Math.max(0.5,(Number.parseFloat(editingFood.food.servingSize) || 1) - 0.5)
+                          setEditingFood((prev) => ({
+                            ...prev,
+                            food: { ...prev.food,servingSize: newServing },
+                          }))
+                        }}
+                      >
+                        <Text style={{ fontSize: 22,color: '#0056d2',fontWeight: 'bold' }}>-</Text>
+                      </TouchableOpacity>
+
+                      <TextInput
+                        style={[styles.quantityInput,{ borderColor: 'transparent',color: '#1F2937',fontSize: 18,fontWeight: '600' }]}
+                        value={editingFood.food.servingSize?.toString() || "1"}
+                        onChangeText={(text) => {
+                          const servingSize = Number.parseFloat(text) || 1
+                          setEditingFood((prev) => ({
+                            ...prev,
+                            food: { ...prev.food,servingSize },
+                          }))
+                        }}
+                        keyboardType="numeric"
+                        textAlign="center"
+                        blurOnSubmit={true}
+                        returnKeyType="done"
+                      />
+
+                      <TouchableOpacity
+                        style={[styles.quantityButton,{ backgroundColor: '#fff',borderColor: 'transparent',borderWidth: 0 }]}
+                        onPress={() => {
+                          const newServing = (Number.parseFloat(editingFood.food.servingSize) || 1) + 0.5
+                          setEditingFood((prev) => ({
+                            ...prev,
+                            food: { ...prev.food,servingSize: newServing },
+                          }))
+                        }}
+                      >
+                        <Text style={{ fontSize: 22,color: '#0056d2',fontWeight: 'bold' }}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.nutritionPreview}>
+                    <Text style={styles.nutritionPreviewTitle}>Nutrition per serving:</Text>
+                    <View style={styles.nutritionPreviewGrid}>
+                      <View style={styles.nutritionPreviewItem}>
+                        <Text style={{ fontSize: 14,color: '#0056d2',fontWeight: 'bold' }}>
+                          {Math.round((editingFood.food.calories || 0) * (editingFood.food.quantity || 1))} cal
+                        </Text>
+                      </View>
+                      <View style={styles.nutritionPreviewItem}>
+                        <Text style={{ fontSize: 14,color: '#0056d2',fontWeight: 'bold' }}>
+                          {Math.round((editingFood.food.protein || 0) * (editingFood.food.quantity || 1))}g
+                        </Text>
+                      </View>
+                      <View style={styles.nutritionPreviewItem}>
+                        <Text style={{ fontSize: 14,color: '#0056d2',fontWeight: 'bold' }}>
+                          {Math.round((editingFood.food.carbs || 0) * (editingFood.food.quantity || 1))}g
+                        </Text>
+                      </View>
+                      <View style={styles.nutritionPreviewItem}>
+                        <Text style={{ fontSize: 14,color: '#0056d2',fontWeight: 'bold' }}>
+                          {Math.round((editingFood.food.fats || 0) * (editingFood.food.quantity || 1))}g
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalSaveButton,{ backgroundColor: '#0056d2' }]} onPress={handleSaveEdit}>
+                <Text style={styles.modalSaveText}>Save Changes</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.modalCancelButton} onPress={() => setEditModalVisible(false)}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.modalSaveButton, { backgroundColor: '#0056d2' }]} onPress={handleSaveEdit}>
-              <Text style={styles.modalSaveText}>Save Changes</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
         </View>
       </TouchableWithoutFeedback>
     </Modal>
@@ -859,29 +822,13 @@ const FoodDailyLogScreen = () => {
       />
 
       {/* Tabs */}
-      <View style={[styles.tabContainer, { marginTop: 45 }]}> 
-        {renderTabButton("daily", "Daily", "today")}
-        {renderTabButton("calendar", "History", "history")}
-        {renderTabButton("filters", "Filters", "filter-list")}
+      <View style={[styles.tabContainer,{ marginTop: 45 }]}>
+        {renderTabButton("calendar","History","history")}
+        {renderTabButton("filters","Filters","filter-list")}
       </View>
 
       {/* Content */}
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}> 
-        {activeTab === "daily" && (
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {renderNutritionSummary()}
-            {MEAL_TYPES.map((meal) => renderMealSection(meal))}
-            <TouchableOpacity
-              style={[styles.saveButton, { opacity: loading ? 0.6 : 1 }]}
-              onPress={handleSaveToServer}
-              disabled={loading}
-            >
-              <Icon name={loading ? "hourglass-empty" : "cloud-upload"} size={18} color="#fff" />
-              <Text style={styles.saveButtonText}>{loading ? "Saving..." : "Save to Server"}</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        )}
-
+      <Animated.View style={[styles.content,{ opacity: fadeAnim }]}>
         {activeTab === "calendar" && (
           <FlatList
             data={calendarData}
@@ -897,8 +844,6 @@ const FoodDailyLogScreen = () => {
 
       {renderEditModal()}
       {renderHistoryDetailModal()}
-
-      {/* Loading overlay for save-to-server and other loading states */}
       {loading && (
         <Loading backgroundColor="rgba(255,255,255,0.7)" logoSize={100} text="Saving food log..." />
       )}
@@ -918,7 +863,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#4F46E5",
     paddingTop: 10,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
@@ -958,7 +903,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingHorizontal: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
@@ -1016,7 +961,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
@@ -1027,7 +972,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -1055,7 +1000,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -1089,7 +1034,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
@@ -1292,7 +1237,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -1386,7 +1331,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
@@ -1472,7 +1417,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,

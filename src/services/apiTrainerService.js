@@ -69,10 +69,18 @@ export const trainerService = {
       throw error.response?.data || error;
     }
   },
-    // Get all active service packages (public)
+  canApplyNewApplication: async () => {
+    try {
+      const response = await apiClient.get('/TrainerApplication/can-apply');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch my application.' };
+    }
+  },
+  // Get all active service packages (public)
   async getAllActivePackages(queryParams = {}) {
     try {
-      const response = await apiClient.get('/ServicePackage/all-active-package', { params: queryParams });
+      const response = await apiClient.get('/ServicePackage/all-active-package',{ params: queryParams });
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

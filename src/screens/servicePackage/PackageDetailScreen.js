@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState,useEffect,useRef } from "react"
 import {
   View,
   Text,
@@ -10,51 +10,51 @@ import {
   Animated,
   Platform,
 } from "react-native"
-import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
 import HTML from "react-native-render-html"
 import { LinearGradient } from "expo-linear-gradient"
 import { useAuth } from "context/AuthContext"
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
+import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons"
 import Header from "components/Header"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { Share } from "react-native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { SafeAreaView } from "react-native-safe-area-context"
 import apiTrainerService from "services/apiTrainerService"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
 
-const { width, height } = Dimensions.get("window")
+const { width,height } = Dimensions.get("window")
 
-const PackageDetailScreen = ({ route, navigation }) => {
+const PackageDetailScreen = ({ route,navigation }) => {
   const { package: initialPackage } = route.params || {}
   const { user } = useAuth()
-  const [packageData, setPackageData] = useState(initialPackage || null)
-  const [relatedPackages, setRelatedPackages] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadingRelated, setLoadingRelated] = useState(false)
-  const [error, setError] = useState(null)
-  const [showFullDescription, setShowFullDescription] = useState(false)
-  const [isSaved, setIsSaved] = useState(false)
-  const [trainerRatingData, setTrainerRatingData] = useState(null)
-  const [trainerExperience, setTrainerExperience] = useState(null)
+  const [packageData,setPackageData] = useState(initialPackage || null)
+  const [relatedPackages,setRelatedPackages] = useState([])
+  const [loading,setLoading] = useState(true)
+  const [loadingRelated,setLoadingRelated] = useState(false)
+  const [error,setError] = useState(null)
+  const [showFullDescription,setShowFullDescription] = useState(false)
+  const [isSaved,setIsSaved] = useState(false)
+  const [trainerRatingData,setTrainerRatingData] = useState(null)
+  const [trainerExperience,setTrainerExperience] = useState(null)
 
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim,{
         toValue: 1,
         duration: 800,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.timing(slideAnim,{
         toValue: 0,
         duration: 800,
         useNativeDriver: true,
       }),
     ]).start()
-  }, [])
+  },[])
 
   useEffect(() => {
     const checkSavedStatus = async () => {
@@ -64,16 +64,14 @@ const PackageDetailScreen = ({ route, navigation }) => {
         const packages = savedPackages ? JSON.parse(savedPackages) : []
         setIsSaved(packages.some((pkg) => pkg.packageId === packageData.packageId))
       } catch (error) {
-        // Silent catch
       }
     }
     checkSavedStatus()
-  }, [packageData])
+  },[packageData])
 
   useEffect(() => {
     const fetchTrainerData = async () => {
       if (!initialPackage?.packageId || !initialPackage?.trainerId) {
-        setError("Invalid package or trainer data provided.")
         setLoading(false)
         showErrorFetchAPI("Invalid package data provided.");
         navigation.goBack();
@@ -92,15 +90,14 @@ const PackageDetailScreen = ({ route, navigation }) => {
         setLoading(false)
         setLoadingRelated(false)
       } catch (error) {
-        setError("Failed to fetch trainer data.")
         setLoading(false)
-        showErrorFetchAPI(error.message || "Failed to fetch trainer data.");
+        showErrorFetchAPI(error);
         navigation.goBack();
       }
     }
 
     fetchTrainerData()
-  }, [initialPackage])
+  },[initialPackage])
 
   const getPackageIcon = (packageName) => {
     if (!packageName) return "fitness"
@@ -120,8 +117,8 @@ const PackageDetailScreen = ({ route, navigation }) => {
     }
   }
 
-  const renderPackageIcon = (type, size = 24) => {
-    const iconProps = { size, color: "#FFFFFF" }
+  const renderPackageIcon = (type,size = 24) => {
+    const iconProps = { size,color: "#FFFFFF" }
     switch (type) {
       case "yoga":
         return <MaterialCommunityIcons name="yoga" {...iconProps} />
@@ -138,14 +135,14 @@ const PackageDetailScreen = ({ route, navigation }) => {
     }
   }
 
-  const stripHtmlAndTruncate = (text, maxLength = 150) => {
+  const stripHtmlAndTruncate = (text,maxLength = 150) => {
     if (!text || typeof text !== "string") return ""
     const plainText = text
-      .replace(/<[^>]+>/g, "")
-      .replace(/\s+/g, " ")
+      .replace(/<[^>]+>/g,"")
+      .replace(/\s+/g," ")
       .trim()
     if (plainText.length > maxLength) {
-      return plainText.substring(0, maxLength - 3) + "..."
+      return plainText.substring(0,maxLength - 3) + "..."
     }
     return plainText
   }
@@ -156,14 +153,11 @@ const PackageDetailScreen = ({ route, navigation }) => {
         throw new Error("Invalid or missing service data")
       }
 
-      const message = `Check out the "${packageData.packageName}" fitness service${
-        packageData.trainerFullName ? ` with ${packageData.trainerFullName}` : ""
-      } on HMS 3DO!${packageData.description ? `\n${stripHtmlAndTruncate(packageData.description, 150)}` : ""}${
-        packageData.price ? `\nPrice: $${packageData.price}` : ""
-      }${packageData.durationDays ? `\nDuration: ${packageData.durationDays} days` : ""}
-Join me on the fitness journey! Download HMS 3DO: ${
-        Platform.OS === "ios" ? "https://apple.co/hms-3do" : "https://play.google.com/store/apps/details?id=com.hms3do"
-      }`.trim()
+      const message = `Check out the "${packageData.packageName}" fitness service${packageData.trainerFullName ? ` with ${packageData.trainerFullName}` : ""
+        } on HMS 3DO!${packageData.description ? `\n${stripHtmlAndTruncate(packageData.description,150)}` : ""}${packageData.price ? `\nPrice: $${packageData.price}` : ""
+        }${packageData.durationDays ? `\nDuration: ${packageData.durationDays} days` : ""}
+Join me on the fitness journey! Download HMS 3DO: ${Platform.OS === "ios" ? "https://apple.co/hms-3do" : "https://play.google.com/store/apps/details?id=com.hms3do"
+        }`.trim()
 
       const shareOptions = {
         title: "HMS 3DO Fitness Service",
@@ -213,7 +207,7 @@ Join me on the fitness journey! Download HMS 3DO: ${
         showSuccessMessage("Package saved successfully!");
       }
 
-      await AsyncStorage.setItem("@SavedPackages", JSON.stringify(packages))
+      await AsyncStorage.setItem("@SavedPackages",JSON.stringify(packages))
     } catch (error) {
       showErrorFetchAPI("Unable to save package: " + error.message);
     }
@@ -231,7 +225,7 @@ Join me on the fitness journey! Download HMS 3DO: ${
       return;
     }
 
-    navigation.navigate("Payment", {
+    navigation.navigate("Payment",{
       packageId: packageData.packageId,
       packageName: packageData.packageName,
       price: packageData.price,
@@ -253,7 +247,7 @@ Join me on the fitness journey! Download HMS 3DO: ${
 
     const description = packageData.description
     const isLongText = description.length > 200
-    const displayText = showFullDescription || !isLongText ? description : description.substring(0, 200) + "..."
+    const displayText = showFullDescription || !isLongText ? description : description.substring(0,200) + "..."
 
     return (
       <View>
@@ -261,14 +255,14 @@ Join me on the fitness journey! Download HMS 3DO: ${
           source={{ html: displayText }}
           contentWidth={width - 64}
           tagsStyles={{
-            p: { marginBottom: 8, color: "#64748B", fontSize: 14, lineHeight: 20 },
-            li: { color: "#64748B", fontSize: 14, marginBottom: 4, lineHeight: 20 },
-            h1: { color: "#1F2937", fontSize: 18, fontWeight: "bold", marginVertical: 8 },
-            h2: { color: "#1F2937", fontSize: 16, fontWeight: "bold", marginVertical: 6 },
-            h3: { color: "#1F2937", fontSize: 14, fontWeight: "bold", marginVertical: 4 },
-            a: { color: "#0056d2", textDecorationLine: "underline" },
+            p: { marginBottom: 8,color: "#64748B",fontSize: 14,lineHeight: 20 },
+            li: { color: "#64748B",fontSize: 14,marginBottom: 4,lineHeight: 20 },
+            h1: { color: "#1F2937",fontSize: 18,fontWeight: "bold",marginVertical: 8 },
+            h2: { color: "#1F2937",fontSize: 16,fontWeight: "bold",marginVertical: 6 },
+            h3: { color: "#1F2937",fontSize: 14,fontWeight: "bold",marginVertical: 4 },
+            a: { color: "#0056d2",textDecorationLine: "underline" },
           }}
-          ignoredTags={["script", "style"]}
+          ignoredTags={["script","style"]}
         />
         {isLongText && (
           <TouchableOpacity style={styles.readMoreButton} onPress={() => setShowFullDescription(!showFullDescription)}>
@@ -283,7 +277,7 @@ Join me on the fitness journey! Download HMS 3DO: ${
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Loading />
+        <CommonSkeleton />
       </SafeAreaView>
     );
   }
@@ -325,7 +319,7 @@ Join me on the fitness journey! Download HMS 3DO: ${
         textColor="#2D3748"
       />
 
-      <ScrollView style={[styles.container, { marginTop: 55 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.container,{ marginTop: 65 }]} showsVerticalScrollIndicator={false}>
         {/* Compact Hero Section */}
         <Animated.View
           style={[
@@ -340,12 +334,12 @@ Join me on the fitness journey! Download HMS 3DO: ${
             <View style={styles.packageInfo}>
               <View style={styles.packageIconContainer}>
                 <LinearGradient
-                  colors={["#0056d2", "#0041a3"]}
+                  colors={["#0056d2","#0041a3"]}
                   style={styles.packageIcon}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                  start={{ x: 0,y: 0 }}
+                  end={{ x: 1,y: 1 }}
                 >
-                  {renderPackageIcon(packageType, 28)}
+                  {renderPackageIcon(packageType,28)}
                 </LinearGradient>
               </View>
 
@@ -397,7 +391,7 @@ Join me on the fitness journey! Download HMS 3DO: ${
             style={styles.trainerCard}
             onPress={() => {
               if (packageData?.trainerId) {
-                navigation.navigate("TrainerDetailScreen", { trainerId: packageData.trainerId })
+                navigation.navigate("TrainerDetailScreen",{ trainerId: packageData.trainerId })
               }
             }}
           >
@@ -420,9 +414,9 @@ Join me on the fitness journey! Download HMS 3DO: ${
                   <Ionicons name="star" size={14} color="#F59E0B" />
                   <Text style={styles.statText}>
                     {trainerRatingData &&
-                    typeof trainerRatingData === "object" &&
-                    typeof trainerRatingData.averageRating === "number" &&
-                    !isNaN(trainerRatingData.averageRating)
+                      typeof trainerRatingData === "object" &&
+                      typeof trainerRatingData.averageRating === "number" &&
+                      !isNaN(trainerRatingData.averageRating)
                       ? trainerRatingData.averageRating.toFixed(1)
                       : typeof trainerRatingData === "number" && !isNaN(trainerRatingData)
                         ? trainerRatingData.toFixed(1)
@@ -476,11 +470,11 @@ Join me on the fitness journey! Download HMS 3DO: ${
               <Text style={styles.infoLabelModern}>Created</Text>
               <Text style={styles.infoValueModern}>
                 {packageData.createdAt
-                  ? new Date(packageData.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })
+                  ? new Date(packageData.createdAt).toLocaleDateString("en-US",{
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
                   : "N/A"}
               </Text>
             </View>
@@ -537,12 +531,12 @@ Join me on the fitness journey! Download HMS 3DO: ${
             <LinearGradient
               colors={
                 packageData.currentSubscribers >= packageData.maxSubscribers
-                  ? ["#94A3B8", "#94A3B8"]
-                  : ["#0056d2", "#0041a3"]
+                  ? ["#94A3B8","#94A3B8"]
+                  : ["#0056d2","#0041a3"]
               }
               style={styles.primaryButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+              start={{ x: 0,y: 0 }}
+              end={{ x: 1,y: 1 }}
             >
               <Ionicons name="card-outline" size={20} color="#FFFFFF" />
               <Text style={styles.primaryButtonText}>
@@ -631,7 +625,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
@@ -739,7 +733,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
@@ -830,7 +824,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
@@ -864,7 +858,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
@@ -899,7 +893,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 12,
     shadowColor: "#0056d2",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 6,
@@ -948,7 +942,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 4,
     elevation: 1,
@@ -973,7 +967,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,

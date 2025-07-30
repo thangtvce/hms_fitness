@@ -14,10 +14,6 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons,MaterialCommunityIcons } from "@expo/vector-icons"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { CommonActions } from "@react-navigation/native"
-import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
-import { safeNavigate } from "components/SafeNavigate"
 import { safeReset } from "components/SafeReset"
 
 const { width,height } = Dimensions.get("window")
@@ -185,22 +181,11 @@ const PaymentSuccessCelebrationScreen = ({ route,navigation }) => {
     }
 
     const handleGoHome = () => {
-        navigation.dispatch(
-            CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Main' }],
-            })
-        );
+        navigation.navigate("Main");
     };
 
     const handleViewDetails = () => {
-        safeReset(navigation,'SubscriptionDetail',{
-            paymentCode,
-            packageId,
-            subscriptionId,
-            amount,
-            packageName,
-        });
+        navigation.navigate('MySubscriptionScreen');
     };
 
     return (
@@ -348,7 +333,7 @@ const PaymentSuccessCelebrationScreen = ({ route,navigation }) => {
                         <View style={styles.supportContainer}>
                             <Ionicons name="information-circle-outline" size={16} color="rgba(255, 255, 255, 0.8)" />
                             <Text style={styles.supportText}>
-                                If you have any questions, please contact hotline: 1900-xxxx or email: support@3docorp.com
+                                If you have any questions, please contact hotline: 1900-xxxx or email: support@3docorp.com1
                             </Text>
                         </View>
                     </Animated.View>

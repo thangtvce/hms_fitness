@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React,{ useCallback,useState } from "react";
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -8,15 +8,16 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
-  ScrollView,
   Dimensions,
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { Alert } from "react-native";
 import { useAuth } from "context/AuthContext";
 import trainerService from "services/apiTrainerService";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { showErrorFetchAPI,showErrorMessage } from "utils/toastUtil";
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
+import Header from "components/Header";
 
 const { width } = Dimensions.get('window');
 
@@ -50,17 +51,17 @@ const StatusBadge = ({ status }) => {
   };
 
   return (
-    <View style={[styles.statusBadge, { backgroundColor: config.backgroundColor }]}>
+    <View style={[styles.statusBadge,{ backgroundColor: config.backgroundColor }]}>
       <Ionicons name={config.icon} size={16} color={config.color} />
-      <Text style={[styles.statusText, { color: config.color }]}>
+      <Text style={[styles.statusText,{ color: config.color }]}>
         {config.text}
       </Text>
     </View>
   );
 };
 
-const InfoRow = ({ icon, label, value, isLast = false }) => (
-  <View style={[styles.infoRow, !isLast && styles.infoRowBorder]}>
+const InfoRow = ({ icon,label,value,isLast = false }) => (
+  <View style={[styles.infoRow,!isLast && styles.infoRowBorder]}>
     <View style={styles.infoLeft}>
       <Ionicons name={icon} size={18} color="#6B7280" style={styles.infoIcon} />
       <Text style={styles.infoLabel}>{label}</Text>
@@ -69,10 +70,10 @@ const InfoRow = ({ icon, label, value, isLast = false }) => (
   </View>
 );
 
-const ApplicationCard = ({ item, index }) => {
+const ApplicationCard = ({ item,index }) => {
   const formatDate = (dateString) => {
     if (!dateString) return "Not specified";
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('en-US',{
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -82,8 +83,7 @@ const ApplicationCard = ({ item, index }) => {
   };
 
   return (
-    <View style={[styles.card, { marginTop: index === 0 ? 0 : 16 }]}>
-      {/* Header */}
+    <View style={[styles.card,{ marginTop: index === 0 ? 0 : 16 }]}>
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
           <View style={styles.avatarContainer}>
@@ -101,49 +101,48 @@ const ApplicationCard = ({ item, index }) => {
         <StatusBadge status={item.status} />
       </View>
 
-      {/* Content */}
       <View style={styles.cardContent}>
-        <InfoRow 
-          icon="mail-outline" 
-          label="Email" 
-          value={item.email} 
+        <InfoRow
+          icon="mail-outline"
+          label="Email"
+          value={item.email}
         />
-        <InfoRow 
-          icon="call-outline" 
-          label="Phone" 
-          value={item.phoneNumber} 
+        <InfoRow
+          icon="call-outline"
+          label="Phone"
+          value={item.phoneNumber}
         />
-        <InfoRow 
-          icon="calendar-outline" 
-          label="Date of Birth" 
-          value={item.dateOfBirth} 
+        <InfoRow
+          icon="calendar-outline"
+          label="Date of Birth"
+          value={item.dateOfBirth}
         />
-        <InfoRow 
-          icon="person-outline" 
-          label="Gender" 
-          value={item.gender} 
+        <InfoRow
+          icon="person-outline"
+          label="Gender"
+          value={item.gender}
         />
-        <InfoRow 
-          icon="barbell-outline" 
-          label="Specialties" 
-          value={item.specialties} 
+        <InfoRow
+          icon="barbell-outline"
+          label="Specialties"
+          value={item.specialties}
         />
-        <InfoRow 
-          icon="ribbon-outline" 
-          label="Certifications" 
-          value={item.certifications} 
+        <InfoRow
+          icon="ribbon-outline"
+          label="Certifications"
+          value={item.certifications}
         />
-        <InfoRow 
-          icon="time-outline" 
-          label="Submitted" 
-          value={formatDate(item.submittedAt)} 
+        <InfoRow
+          icon="time-outline"
+          label="Submitted"
+          value={formatDate(item.submittedAt)}
           isLast={!item.notes}
         />
         {item.notes && (
-          <InfoRow 
-            icon="document-text-outline" 
-            label="Notes" 
-            value={item.notes} 
+          <InfoRow
+            icon="document-text-outline"
+            label="Notes"
+            value={item.notes}
             isLast={true}
           />
         )}
@@ -163,10 +162,10 @@ const EmptyState = ({ onPress }) => (
     </Text>
     <TouchableOpacity style={styles.emptyButton} onPress={onPress}>
       <LinearGradient
-        colors={["#1F2937", "#374151"]}
+        colors={["#4A90E2","#0056D2","#4A90E2"]}
         style={styles.emptyButtonGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        start={{ x: 0,y: 0 }}
+        end={{ x: 1,y: 0 }}
       >
         <Ionicons name="add" size={20} color="#FFFFFF" />
         <Text style={styles.emptyButtonText}>Create Application</Text>
@@ -177,108 +176,90 @@ const EmptyState = ({ onPress }) => (
 
 const TrainerApplicationListScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [applications,setApplications] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [refreshing,setRefreshing] = useState(false);
+  const [error,setError] = useState(null);
+  const [page,setPage] = useState(1);
+  const [totalPages,setTotalPages] = useState(1);
 
-  const fetchApplications = async (pageNumber = 1) => {
+  const fetchApplications = useCallback(async (pageNumber = 1) => {
     setError(null);
     if (pageNumber === 1) setLoading(true);
     try {
-      const res = await trainerService.getMyTrainerApplications({ 
-        pageNumber, 
-        pageSize: 10 
+      const res = await trainerService.getMyTrainerApplications({
+        pageNumber,
+        pageSize: 10
       });
       if (res.statusCode === 200 && res.data) {
         setApplications(res.data.applications || []);
         setTotalPages(res.data.totalPages || 1);
         setPage(res.data.pageNumber || 1);
       } else {
-        setError(res.message || "Could not fetch applications.");
+        showErrorMessage(res.message || "Could not fetch applications.");
       }
     } catch (err) {
       setError(err?.message || "Failed to load applications.");
+      showErrorFetchAPI(err);
+      console.log(err)
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  },[]);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       fetchApplications(1);
-    }, [])
+    },[fetchApplications])
   );
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchApplications(1);
+  },[fetchApplications]);
+
+  const canSubmitNew = async () => {
+    try {
+      const dataIsApply = await trainerService.canApplyNewApplication();
+      return dataIsApply?.data;
+    } catch (e) {
+      console.log(e)
+      showErrorFetchAPI(e);
+    }
   };
 
-  const canSubmitNew = () => {
-    if (!applications || applications.length === 0) return true;
-    const sorted = [...applications].sort((a, b) => 
-      new Date(b.submittedAt) - new Date(a.submittedAt)
-    );
-    const latest = sorted[0];
-    return latest.status === 'rejected';
-  };
-
-  const handleAddPress = () => {
-    if (canSubmitNew()) {
+  const handleAddPress = async () => {
+    const isApply = await canSubmitNew();
+    if (isApply) {
       navigation.navigate('TrainerApplicationScreen');
     } else {
-      const sorted = [...applications].sort((a, b) => 
+      const sorted = [...applications].sort((a,b) =>
         new Date(b.submittedAt) - new Date(a.submittedAt)
       );
-      const latest = sorted[0];
-      let title = 'Application Status';
-      let message = 'You have already submitted an application. Please wait for review.';
-      
-      if (latest.status === 'approved') {
-        title = 'Application Approved';
-        message = 'Congratulations! Your trainer application has been approved.';
-      } else if (latest.status === 'pending') {
-        title = 'Application Under Review';
-        message = 'Your application is currently being reviewed. We\'ll notify you once a decision is made.';
-      }
-      
-      Alert.alert(title, message);
+      let message = 'You cannot create a new application right now';
+      showErrorMessage(message);
     }
   };
 
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <View style={styles.headerGradient}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>My Applications</Text>
-            <Text style={styles.headerSubtitle}>
-              {applications.length} application{applications.length !== 1 ? 's' : ''}
-            </Text>
+    <><Header
+      title="My Applications"
+      onBack={() => navigation.goBack()}
+      backgroundType="gradient"
+    />
+      <View style={styles.headerContainer}>
+        {applications.length > 0 && (
+          <View style={styles.actionContainer}>
+            <TouchableOpacity style={styles.newApplicationButton} onPress={handleAddPress}>
+              <Ionicons name="add-circle-outline" size={20} color="#4A90E2" />
+              <Text style={styles.newApplicationText}>New Application</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.headerRight} />
-        </View>
+        )}
       </View>
-      
-      {applications.length > 0 && (
-        <View style={styles.actionContainer}>
-          <TouchableOpacity style={styles.newApplicationButton} onPress={handleAddPress}>
-            <Ionicons name="add-circle-outline" size={20} color="#1F2937" />
-            <Text style={styles.newApplicationText}>New Application</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+    </>
+
   );
 
   if (loading) {
@@ -286,8 +267,8 @@ const TrainerApplicationListScreen = ({ navigation }) => {
       <SafeAreaView style={styles.container}>
         {renderHeader()}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1F2937" />
-          <Text style={styles.loadingText}>Loading applications...</Text>
+          <ActivityIndicator size="large" color="#4A90E2" />
+          <CommonSkeleton />
         </View>
       </SafeAreaView>
     );
@@ -312,20 +293,19 @@ const TrainerApplicationListScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
-      
       {applications.length === 0 ? (
         <EmptyState onPress={handleAddPress} />
       ) : (
         <FlatList
           data={applications}
           keyExtractor={(item) => item.trainerApplicationId?.toString()}
-          renderItem={({ item, index }) => <ApplicationCard item={item} index={index} />}
+          renderItem={({ item,index }) => <ApplicationCard item={item} index={index} />}
           refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
+            <RefreshControl
+              refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={["#1F2937"]}
-              tintColor="#1F2937"
+              colors={["#4A90E2"]}
+              tintColor="#4A90E2"
             />
           }
           contentContainerStyle={styles.listContainer}
@@ -343,11 +323,12 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     marginBottom: 20,
+    marginTop: 70
   },
   headerGradient: {
     paddingTop: 20,
     paddingBottom: 24,
-    backgroundColor: "#FFFFFF", // Changed to white
+    backgroundColor: "#FFFFFF",
   },
   headerContent: {
     flexDirection: "row",
@@ -372,11 +353,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1F2937", // Changed to black
+    color: "#1F2937",
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#6B7280", // Changed to dark gray for contrast
+    color: "#6B7280",
     marginTop: 2,
   },
   headerRight: {
@@ -395,9 +376,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#1F2937", // Changed to black border
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    borderColor: "#4A90E2",
+    shadowColor: "#4A90E2",
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -405,7 +386,7 @@ const styles = StyleSheet.create({
   newApplicationText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937", // Changed to black
+    color: "#4A90E2",
     marginLeft: 8,
   },
   listContainer: {
@@ -416,7 +397,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -440,7 +421,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#1F2937", // Changed to black for consistency
+    backgroundColor: "#4A90E2",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -540,7 +521,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: "#1F2937", // Changed to black
+    backgroundColor: "#4A90E2",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -581,8 +562,8 @@ const styles = StyleSheet.create({
   emptyButton: {
     borderRadius: 12,
     overflow: "hidden",
-    shadowColor: "#1F2937", // Changed to black
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: "#4A90E2",
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React,{ useState,useEffect,useRef } from "react";
 import {
   View,
   Text,
@@ -13,11 +13,10 @@ import {
   Modal,
   ScrollView,
   RefreshControl,
-  Alert, 
+  Alert,
 } from "react-native";
-import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
-import { Ionicons, Feather } from "@expo/vector-icons"; 
+import { showErrorFetchAPI,showErrorMessage,showInfoMessage,showSuccessMessage } from "utils/toastUtil";
+import { Ionicons,Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -26,20 +25,22 @@ import { theme } from "theme/color";
 import { StatusBar } from "expo-status-bar";
 import Header from "components/Header";
 import workoutService from "services/apiWorkoutService";
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
+import SafeImage from "screens/food/SafeImage";
 
-const { width, height } = Dimensions.get("window");
-const SPACING = 20; 
+const { width,height } = Dimensions.get("window");
+const SPACING = 20;
 
 const CATEGORIES_COLORS = {
-  1: ["#4F46E5", "#818CF8"],
-  2: ["#10B981", "#34D399"],
-  3: ["#F59E0B", "#FBBF24"],
-  4: ["#EF4444", "#F87171"],
-  5: ["#8B5CF6", "#A78BFA"],
-  6: ["#EC4899", "#F472B6"],
-  7: ["#06B6D4", "#22D3EE"],
-  8: ["#0EA5E9", "#38BDF8"],
-  default: ["#6B7280", "#9CA3AF"],
+  1: ["#4F46E5","#818CF8"],
+  2: ["#10B981","#34D399"],
+  3: ["#F59E0B","#FBBF24"],
+  4: ["#EF4444","#F87171"],
+  5: ["#8B5CF6","#A78BFA"],
+  6: ["#EC4899","#F472B6"],
+  7: ["#06B6D4","#22D3EE"],
+  8: ["#0EA5E9","#38BDF8"],
+  default: ["#6B7280","#9CA3AF"],
 };
 
 const WorkoutAIRecommendBanner = ({ navigation }) => {
@@ -50,15 +51,15 @@ const WorkoutAIRecommendBanner = ({ navigation }) => {
       activeOpacity={0.9}
     >
       <LinearGradient
-        colors={["#0056d2", "#6366F1"]} 
+        colors={["#0056d2","#6366F1"]}
         style={styles.aiRecommendBannerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        start={{ x: 0,y: 0 }}
+        end={{ x: 1,y: 0 }}
       >
         <View style={styles.aiRecommendBannerContent}>
           <View style={styles.aiRecommendBannerLeft}>
             <View style={styles.aiRecommendBannerIcon}>
-              <Feather name="cpu" size={20} color="#FFFFFF" /> 
+              <Feather name="cpu" size={20} color="#FFFFFF" />
             </View>
             <View style={styles.aiRecommendBannerText}>
               <Text style={styles.aiRecommendBannerTitle}>Workout AI Recommend</Text>
@@ -76,16 +77,18 @@ const WorkoutAIRecommendBanner = ({ navigation }) => {
 
 export default function WorkoutListScreen() {
   const navigation = useNavigation();
-  const [showFilter, setShowFilter] = useState(false);
-  const [exercises, setExercises] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [categories, setCategories] = useState({}); // { [id]: name }
-  const [favorites, setFavorites] = useState([]); // array of exerciseId
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [categoryList, setCategoryList] = useState([]);
-  const [filters, setFilters] = useState({
+  const [showFilter,setShowFilter] = useState(false);
+  const [exercises,setExercises] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [loadingMore,setLoadingMore] = useState(false);
+  const [error,setError] = useState(null);
+  const [categories,setCategories] = useState({});
+  const [favorites,setFavorites] = useState([]);
+  const [refreshing,setRefreshing] = useState(false);
+  const [selectedCategory,setSelectedCategory] = useState(null);
+  const [categoryList,setCategoryList] = useState([]);
+  const [hasMore,setHasMore] = useState(true);
+  const [filters,setFilters] = useState({
     PageNumber: 1,
     PageSize: 20,
     StartDate: '',
@@ -95,8 +98,7 @@ export default function WorkoutListScreen() {
     Status: '',
   });
 
-  // State for filter modal
-  const [filterDraft, setFilterDraft] = useState({
+  const [filterDraft,setFilterDraft] = useState({
     PageNumber: 1,
     PageSize: 20,
     StartDate: '',
@@ -109,24 +111,21 @@ export default function WorkoutListScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  // Animation effect
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim,{
         toValue: 1,
         duration: 600,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.timing(slideAnim,{
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  },[]);
 
-  // Load favorites from AsyncStorage
-  // Reload data when screen is focused
   useEffect(() => {
     const loadAll = async () => {
       try {
@@ -134,24 +133,24 @@ export default function WorkoutListScreen() {
         const favoriteList = storedFavorites ? JSON.parse(storedFavorites) : [];
         setFavorites(favoriteList.map(item => item.exerciseId));
       } catch (error) {
-        // console.error("Failed to load favorites:", error);
       }
       fetchCategories();
-      fetchExercises();
+      fetchExercises(true);
     };
 
-    const unsubscribe = navigation.addListener('focus', loadAll);
-
-    // Initial load
+    const unsubscribe = navigation.addListener('focus',loadAll);
     loadAll();
 
     return unsubscribe;
-  }, [navigation]);
+  },[navigation]);
 
-  // Fetch categories
   const fetchCategories = async () => {
     try {
-      const apiCategories = await workoutService.getAllCategories();
+      const queryParams = {
+        PageNumber: 1,
+        PageSize: 1000,
+      };
+      const apiCategories = await workoutService.getAllCategories(queryParams);
       if (Array.isArray(apiCategories)) {
         setCategoryList(apiCategories);
         const categoriesObj = {};
@@ -164,13 +163,12 @@ export default function WorkoutListScreen() {
         setCategories({});
       }
     } catch (error) {
-      // console.error("Failed to fetch categories:", error);
+      showErrorFetchAPI(error);
       setCategoryList([]);
       setCategories({});
     }
   };
 
-  // Toggle favorite
   const toggleFavorite = async (exercise) => {
     try {
       const storedFavorites = await AsyncStorage.getItem('favoriteExercises');
@@ -181,110 +179,111 @@ export default function WorkoutListScreen() {
       if (exists) {
         updatedList = favoriteList.filter((ex) => ex.exerciseId !== exercise.exerciseId);
       } else {
-        updatedList = [...favoriteList, exercise];
+        updatedList = [...favoriteList,exercise];
       }
 
-      await AsyncStorage.setItem('favoriteExercises', JSON.stringify(updatedList));
+      await AsyncStorage.setItem('favoriteExercises',JSON.stringify(updatedList));
       setFavorites(updatedList.map(item => item.exerciseId));
 
-      // Show a small toast-like message instead of an alert
-      Alert.alert('Success', exists ? 'Removed from favorites' : 'Added to favorites');
+      showInfoMessage(exists ? 'Removed from favorites' : 'Added to favorites');
     } catch (error) {
-      Alert.alert("Error", "Failed to update favorites.")
+      showErrorFetchAPI(error);
     }
-  }
+  };
 
-  // Add to workout schedule
   const addToSchedule = async (exercise) => {
     try {
       const storedExercises = await AsyncStorage.getItem('scheduledExercises');
       let scheduledExercises = storedExercises ? JSON.parse(storedExercises) : [];
       if (scheduledExercises.some((ex) => ex.exerciseId === exercise.exerciseId)) {
-        showErrorFetchAPI(`${exercise.exerciseName} is already in your schedule`);
+        showErrorMessage(`${exercise.exerciseName} is already in your schedule`);
         return;
       }
-      const exerciseToSave = { ...exercise, mediaUrl: exercise.mediaUrl || '' };
+      const exerciseToSave = { ...exercise,mediaUrl: exercise.mediaUrl || '' };
       scheduledExercises.push(exerciseToSave);
-      await AsyncStorage.setItem('scheduledExercises', JSON.stringify(scheduledExercises));
+      await AsyncStorage.setItem('scheduledExercises',JSON.stringify(scheduledExercises));
       showSuccessMessage(`${exercise.exerciseName} added to your workout schedule`);
     } catch (error) {
-      showErrorFetchAPI(error.message || "Failed to add exercise to schedule. Please try again.");
-    }
-  }
-
-  // Fetch category name by ID
-  const getCategoryName = async (id) => {
-    if (!id || id <= 0 || categories[id]) return;
-
-    try {
-      // Assuming workoutService.getCategoryById exists
-      const data = await workoutService.getCategoryById(id);
-      setCategories(prev => ({ ...prev, [id]: data?.categoryName || `Category ${id}` }));
-    } catch (error) {
-      setCategories(prev => ({ ...prev, [id]: `Category ${id}` }));
+      showErrorFetchAPI(error);
     }
   };
 
-  // Fetch exercises with filters
-  const fetchExercises = async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
+  const fetchExercises = async (isInitial = false) => {
+    if (isInitial) {
       setLoading(true);
+      setExercises([]);
+      setFilters(prev => ({ ...prev,PageNumber: 1 }));
+    } else {
+      setLoadingMore(true);
     }
     setError(null);
     try {
       let response;
       if (selectedCategory && selectedCategory > 0) {
-        // Use getExercisesByCategory if a category is selected
-        response = await workoutService.getExercisesByCategory(selectedCategory, filters);
+        response = await workoutService.getExercisesByCategory(selectedCategory,filters);
       } else {
-        // Otherwise, fetch all exercises
         response = await workoutService.getAllExercises(filters);
       }
+      let newExercises = [];
       if (Array.isArray(response)) {
-        setExercises(response);
+        newExercises = response;
       } else if (response && Array.isArray(response.exercises)) {
-        setExercises(response.exercises);
-      } else {
-        setExercises([]);
+        newExercises = response.exercises;
+      }
+      setExercises(prev => {
+        const allExercises = isInitial ? newExercises : [...prev,...newExercises];
+
+        const uniqueExercisesMap = new Map();
+        allExercises.forEach(ex => {
+          if (ex.exerciseId) uniqueExercisesMap.set(ex.exerciseId,ex);
+        });
+
+        return Array.from(uniqueExercisesMap.values());
+      });
+
+      setHasMore(newExercises.length === filters.PageSize);
+      if (!isInitial) {
+        setFilters(prev => ({ ...prev,PageNumber: prev.PageNumber + 1 }));
       }
     } catch (err) {
-      setError(err.message || 'Failed to fetch exercises');
+      showErrorFetchAPI(err);
+      setError(err.message || 'An error occurred while fetching exercises');
     } finally {
       setLoading(false);
-      setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
-  // Handle refresh
   const handleRefresh = () => {
-    fetchExercises(true);
+    setRefreshing(true);
+    fetchExercises(true).then(() => setRefreshing(false));
   };
 
-  // Filter by category
+  const loadMoreExercises = () => {
+    if (!loadingMore && hasMore && !loading) {
+      fetchExercises();
+    }
+  };
+
   const filterByCategory = (categoryId) => {
     setSelectedCategory(categoryId === selectedCategory ? null : categoryId);
+    setExercises([]);
+    setFilters(prev => ({ ...prev,PageNumber: 1 }));
   };
 
-  useEffect(() => {
-    fetchExercises();
-  }, [filters, selectedCategory]);
-
-  // When opening modal, sync filterDraft with filters
   useEffect(() => {
     if (showFilter) {
       setFilterDraft(filters);
     }
-  }, [showFilter]);
+  },[showFilter]);
 
-  // Apply filters
   const applyFilters = () => {
     setFilters(filterDraft);
     setShowFilter(false);
+    setExercises([]);
+    fetchExercises(true);
   };
 
-  // Reset filters
   const resetFilters = () => {
     const resetState = {
       PageNumber: 1,
@@ -295,22 +294,19 @@ export default function WorkoutListScreen() {
       SearchTerm: '',
       Status: '',
     };
-
     setFilterDraft(resetState);
   };
 
-  // Loading state
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
-          <Loading />
+        <View style={{ flex: 1,backgroundColor: '#fff',justifyContent: 'center',alignItems: 'center',position: 'absolute',width: '100%',height: '100%',zIndex: 999 }}>
+          <CommonSkeleton />
         </View>
       </SafeAreaView>
     );
   }
 
-  // Error state
   if (error) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -318,14 +314,14 @@ export default function WorkoutListScreen() {
           title="Workout Library"
           onBack={() => navigation.goBack()}
           backgroundColor="#fff"
-          titleStyle={{ color: "#0056d2", fontWeight: "bold" }}
+          titleStyle={{ color: "#0056d2",fontWeight: "bold" }}
         />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={() => fetchExercises()}
+            onPress={() => fetchExercises(true)}
           >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
@@ -337,12 +333,11 @@ export default function WorkoutListScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
-      {/* Header */}
       <Header
         title="Workout Library"
         onBack={() => navigation.goBack()}
         backgroundColor="#fff"
-        titleStyle={{ color: "#0056d2", fontWeight: "bold" }}
+        titleStyle={{ color: "#0056d2",fontWeight: "bold" }}
         rightActions={[
           {
             icon: 'options-outline',
@@ -356,7 +351,6 @@ export default function WorkoutListScreen() {
           },
         ]}
       />
-      {/* Search Bar */}
       <Animated.View
         style={[
           styles.searchContainer,
@@ -372,14 +366,14 @@ export default function WorkoutListScreen() {
             style={styles.searchInput}
             placeholder="Search exercises..."
             value={filters.SearchTerm}
-            onChangeText={(text) => setFilters(prev => ({ ...prev, SearchTerm: text }))}
+            onChangeText={(text) => setFilters(prev => ({ ...prev,SearchTerm: text }))}
             returnKeyType="search"
             autoCapitalize="none"
             placeholderTextColor="#94A3B8"
           />
           {filters.SearchTerm ? (
             <TouchableOpacity
-              onPress={() => setFilters(prev => ({ ...prev, SearchTerm: '' }))}
+              onPress={() => setFilters(prev => ({ ...prev,SearchTerm: '' }))}
               style={styles.clearButton}
             >
               <Ionicons name="close-circle" size={20} color="#94A3B8" />
@@ -390,8 +384,8 @@ export default function WorkoutListScreen() {
 
       <Animated.View
         style={[
-          styles.sectionContainer, 
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          styles.sectionContainer,
+          { opacity: fadeAnim,transform: [{ translateY: slideAnim }] },
         ]}
       >
         <WorkoutAIRecommendBanner navigation={navigation} />
@@ -431,15 +425,10 @@ export default function WorkoutListScreen() {
           </ScrollView>
         </View>
       )}
-      {/* Exercise List */}
       <FlatList
         data={exercises}
-        keyExtractor={(item, index) => item.exerciseId ? `exercise-${item.exerciseId}` : `item-${index}`}
+        keyExtractor={(item,index) => `${item.exerciseId}-${index}`}
         renderItem={({ item }) => {
-          // Log dữ liệu item để debug ảnh
-          if (typeof item.categoryId === 'number' && !categories[item.categoryId]) {
-            getCategoryName(item.categoryId);
-          }
           const isFavorite = favorites.includes(item.exerciseId);
           const categoryId = item.categoryId || 'default';
           const colors = CATEGORIES_COLORS[categoryId] || CATEGORIES_COLORS.default;
@@ -455,22 +444,17 @@ export default function WorkoutListScreen() {
             >
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => navigation.navigate('ExerciseDetails', { exercise: item })}
+                onPress={() => navigation.navigate('ExerciseDetails',{ exercise: item })}
                 style={styles.exerciseCard}
               >
                 <View style={styles.exerciseImageContainer}>
-                  <Image
-                    source={{
-                      uri:
-                        item.imageUrl && item.imageUrl.startsWith('http')
-                          ? item.imageUrl
-                          : `https://source.unsplash.com/400x250/?fitness,${item.exerciseName?.replace(/\s/g, "")}`
-                    }}
-                    style={styles.exerciseImage}
-                    resizeMode="cover"
+                  <SafeImage
+                    imageUrl={item.imageUrl}
+                    style={[styles.exerciseImage]}
+                    fallbackSource={require('../../../assets/images/default-exercise.png')}
                   />
                   <LinearGradient
-                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']}
+                    colors={['rgba(0,0,0,0)','rgba(0,0,0,0.7)']}
                     style={styles.imageGradient}
                   >
                     <View style={styles.exerciseCardFooter}>
@@ -484,23 +468,19 @@ export default function WorkoutListScreen() {
                       </View>
                     </View>
                   </LinearGradient>
-                  {/* Category Badge */}
                   <LinearGradient
-                    colors={['#0056d2', '#0056d2']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+                    colors={["#4A90E2","#0056D2","#4A90E2"]}
+                    start={{ x: 0,y: 0 }}
+                    end={{ x: 1,y: 0 }}
                     style={styles.categoryBadge}
                   >
                     <Text style={styles.categoryBadgeText}>
-                      {typeof item.categoryId === 'number'
-                        ? (categories[item.categoryId] || 'Loading...')
-                        : (item.categoryId || 'General')}
+                      {(item.categoryName || 'General')}
                     </Text>
                   </LinearGradient>
-                  {/* Action Buttons */}
                   <View style={styles.actionButtons}>
                     <TouchableOpacity
-                      style={[styles.actionButton, isFavorite && styles.favoriteButton]}
+                      style={[styles.actionButton,isFavorite && styles.favoriteButton]}
                       onPress={() => toggleFavorite(item)}
                     >
                       <Ionicons
@@ -563,6 +543,15 @@ export default function WorkoutListScreen() {
             tintColor="#0056d2"
           />
         }
+        onEndReached={loadMoreExercises}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.loadingMoreContainer}>
+              <CommonSkeleton />
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="barbell-outline" size={64} color="#D1D5DB" />
@@ -595,27 +584,24 @@ export default function WorkoutListScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.filterContent}>
-              {/* Search Term */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Search Term</Text>
                 <TextInput
                   style={styles.filterInput}
                   placeholder="Enter search term..."
                   value={filterDraft.SearchTerm}
-                  onChangeText={(value) => setFilterDraft(prev => ({ ...prev, SearchTerm: value }))}
+                  onChangeText={(value) => setFilterDraft(prev => ({ ...prev,SearchTerm: value }))}
                 />
               </View>
-              {/* Status */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Status</Text>
                 <TextInput
                   style={styles.filterInput}
                   placeholder="Enter status (e.g., active, draft)..."
                   value={filterDraft.Status}
-                  onChangeText={(value) => setFilterDraft(prev => ({ ...prev, Status: value }))}
+                  onChangeText={(value) => setFilterDraft(prev => ({ ...prev,Status: value }))}
                 />
               </View>
-              {/* Date Range */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Date Range</Text>
                 <View style={styles.dateRow}>
@@ -625,7 +611,7 @@ export default function WorkoutListScreen() {
                       style={styles.dateInput}
                       placeholder="YYYY-MM-DD"
                       value={filterDraft.StartDate}
-                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev, StartDate: value }))}
+                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev,StartDate: value }))}
                     />
                   </View>
                   <View style={styles.dateInputContainer}>
@@ -634,12 +620,11 @@ export default function WorkoutListScreen() {
                       style={styles.dateInput}
                       placeholder="YYYY-MM-DD"
                       value={filterDraft.EndDate}
-                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev, EndDate: value }))}
+                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev,EndEnd: value }))}
                     />
                   </View>
                 </View>
               </View>
-              {/* Pagination */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Pagination</Text>
                 <View style={styles.paginationRow}>
@@ -649,7 +634,7 @@ export default function WorkoutListScreen() {
                       style={styles.paginationInput}
                       placeholder="1"
                       value={filterDraft.PageNumber.toString()}
-                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev, PageNumber: parseInt(value) || 1 }))}
+                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev,PageNumber: parseInt(value) || 1 }))}
                       keyboardType="numeric"
                     />
                   </View>
@@ -659,7 +644,7 @@ export default function WorkoutListScreen() {
                       style={styles.paginationInput}
                       placeholder="20"
                       value={filterDraft.PageSize.toString()}
-                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev, PageSize: parseInt(value) || 20 }))}
+                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev,PageSize: parseInt(value) || 20 }))}
                       keyboardType="numeric"
                     />
                   </View>
@@ -669,7 +654,7 @@ export default function WorkoutListScreen() {
                       style={styles.paginationInput}
                       placeholder="20"
                       value={filterDraft.ValidPageSize.toString()}
-                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev, ValidPageSize: parseInt(value) || 20 }))}
+                      onChangeText={(value) => setFilterDraft(prev => ({ ...prev,ValidPageSize: parseInt(value) || 20 }))}
                       keyboardType="numeric"
                     />
                   </View>
@@ -737,6 +722,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: "#F8FAFC",
+    marginTop: 65
   },
   searchInputContainer: {
     flexDirection: "row",
@@ -746,7 +732,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 48,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -820,7 +806,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -944,6 +930,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#64748B",
     textAlign: "center",
+  },
+  loadingMoreContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -1082,7 +1072,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     zIndex: 100,
@@ -1091,7 +1081,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,

@@ -1,19 +1,20 @@
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import React,{ useEffect,useState } from 'react';
+import { View,Text,FlatList,TouchableOpacity,Image,StyleSheet,Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Header from 'components/Header';
 import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
 
 export default function WorkoutFavoriteScreen({ navigation }) {
 
-  const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState({});
+  const [favorites,setFavorites] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [categories,setCategories] = useState({});
 
   // Toggle favorite
   const toggleFavorite = async (exercise) => {
@@ -24,12 +25,12 @@ export default function WorkoutFavoriteScreen({ navigation }) {
       let updatedList;
       if (exists) {
         updatedList = favoriteList.filter((ex) => ex.exerciseId !== exercise.exerciseId);
-        await AsyncStorage.setItem('favoriteExercises', JSON.stringify(updatedList));
+        await AsyncStorage.setItem('favoriteExercises',JSON.stringify(updatedList));
         setFavorites((prev) => prev.filter((ex) => ex.exerciseId !== exercise.exerciseId));
         showSuccessMessage('Removed from favorite workouts successfully.');
       } else {
-        updatedList = [...favoriteList, exercise];
-        await AsyncStorage.setItem('favoriteExercises', JSON.stringify(updatedList));
+        updatedList = [...favoriteList,exercise];
+        await AsyncStorage.setItem('favoriteExercises',JSON.stringify(updatedList));
         setFavorites(updatedList);
         showSuccessMessage('Added to favorite workouts successfully.');
       }
@@ -68,110 +69,90 @@ export default function WorkoutFavoriteScreen({ navigation }) {
         showErrorFetchAPI(error.message || 'Failed to load workout categories.');
       }
     };
-    const unsubscribe = navigation?.addListener('focus', () => {
+    const unsubscribe = navigation?.addListener('focus',() => {
       loadFavorites();
       fetchCategories();
     });
     loadFavorites();
     fetchCategories();
     return unsubscribe;
-  }, [navigation]);
+  },[navigation]);
 
   const renderItem = ({ item }) => {
-    const categoryId = item.categoryId || 'default';
     const isFavorite = favorites.some((ex) => ex.exerciseId === item.exerciseId);
+    const imageUrl = item.mediaUrl || item.imageUrl || `https://source.unsplash.com/400x250/?fitness,${item.exerciseName?.replace(/\s/g,'')}`;
     return (
-      <View style={styles.card}>
-        <View style={styles.imageContainer}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('ExerciseDetails',{ exercise: item })}
+      >
+        <View style={styles.cardHorizontal}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.imageHorizontal} />
+          ) : (
+            <View style={styles.imagePlaceholderHorizontal} />
+          )}
+          <View style={styles.infoContainerHorizontal}>
+            <Text style={styles.nameHorizontal}>{item.exerciseName || 'Unknown Exercise'}</Text>
+            <Text style={styles.descHorizontal} numberOfLines={2}>{item.description || 'No description available'}</Text>
+            <Text style={styles.caloriesHorizontal}>Calories: {item.caloriesBurnedPerMin || '0'} cal/min</Text>
+            <View style={styles.exerciseTagsHorizontal}>
+              {item.genderSpecific && (
+                <View style={styles.tagContainerHorizontal}>
+                  <Ionicons
+                    name={item.genderSpecific.toLowerCase() === 'female' ? 'female' : 'male'}
+                    size={12}
+                    color="#6366F1"
+                  />
+                  <Text style={styles.tagTextHorizontal}>{item.genderSpecific}</Text>
+                </View>
+              )}
+              {item.difficultyLevel && (
+                <View style={styles.tagContainerHorizontal}>
+                  <Ionicons name="barbell-outline" size={12} color="#F59E0B" />
+                  <Text style={styles.tagTextHorizontal}>{item.difficultyLevel}</Text>
+                </View>
+              )}
+              {item.status && (
+                <View style={styles.tagContainerHorizontal}>
+                  <Ionicons name="checkmark-circle-outline" size={12} color="#10B981" />
+                  <Text style={styles.tagTextHorizontal}>{item.status}</Text>
+                </View>
+              )}
+            </View>
+          </View>
           <TouchableOpacity
-            style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
+            style={[
+              styles.favoriteBtnHorizontal,
+              isFavorite ? styles.favoriteBtnActiveHorizontal : styles.favoriteBtnInactiveHorizontal
+            ]}
             onPress={() => toggleFavorite(item)}
+            hitSlop={{ top: 10,bottom: 10,left: 10,right: 10 }}
             activeOpacity={0.7}
           >
             <Ionicons
               name={isFavorite ? 'heart' : 'heart-outline'}
-              size={22}
-              color={isFavorite ? '#fff' : '#fff'}
+              size={20}
+              color={isFavorite ? '#fff' : '#EF4444'}
             />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('ExerciseDetails', { exercise: item })}
-          >
-            <Image
-              source={{
-                uri: item.mediaUrl || item.imageUrl || `https://source.unsplash.com/400x250/?fitness,${item.exerciseName?.replace(/\s/g, '')}`
-              }}
-              style={styles.image}
-              resizeMode="cover"
-            />
-            {/* Category Badge */}
-            <LinearGradient
-              colors={['#0056d2', '#0056d2']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.categoryBadge}
-            >
-              <Text style={styles.categoryBadgeText}>
-                {typeof item.categoryId === 'number'
-                  ? (categories[item.categoryId] || 'Loading...')
-                  : (item.categoryId || 'General')}
-              </Text>
-            </LinearGradient>
-            {/* Calories */}
-            <View style={styles.caloriesBadge}>
-              <Ionicons name="flame-outline" size={14} color="#fff" />
-              <Text style={styles.caloriesText}>{item.caloriesBurnedPerMin || '0'} cal/min</Text>
-            </View>
-          </TouchableOpacity>
         </View>
-        <View style={styles.content}>
-          <Text style={styles.name}>{item.exerciseName || 'Unknown Exercise'}</Text>
-          <Text style={styles.desc} numberOfLines={2}>{item.description || 'No description available'}</Text>
-          <View style={styles.exerciseTags}>
-            {item.genderSpecific && (
-              <View style={styles.tagContainer}>
-                <Ionicons
-                  name={item.genderSpecific.toLowerCase() === 'female' ? 'female' : 'male'}
-                  size={12}
-                  color="#6366F1"
-                />
-                <Text style={styles.tagText}>{item.genderSpecific}</Text>
-              </View>
-            )}
-            {item.difficultyLevel && (
-              <View style={styles.tagContainer}>
-                <Ionicons name="barbell-outline" size={12} color="#F59E0B" />
-                <Text style={styles.tagText}>{item.difficultyLevel}</Text>
-              </View>
-            )}
-            {item.status && (
-              <View style={styles.tagContainer}>
-                <Ionicons name="checkmark-circle-outline" size={12} color="#10B981" />
-                <Text style={styles.tagText}>{item.status}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
+      </TouchableOpacity>
     );
   };
- 
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
       {loading ? (
-        <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'absolute', width: '100%', height: '100%', zIndex: 999 }}>
-          <Loading />
-        </View>
+        <CommonSkeleton />
       ) : (
         <>
           <Header
             title="Favorite Workouts"
             onBack={() => navigation.goBack()}
             backgroundColor="#fff"
-            titleStyle={{ color: '#0056d2', fontWeight: 'bold' }}
+            titleStyle={{ color: '#0056d2',fontWeight: 'bold' }}
           />
           {favorites.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -182,7 +163,7 @@ export default function WorkoutFavoriteScreen({ navigation }) {
           ) : (
             <FlatList
               data={favorites}
-              keyExtractor={(item, index) => item.exerciseId ? `exercise-${item.exerciseId}` : `item-${index}`}
+              keyExtractor={(item,index) => item.exerciseId ? `exercise-${item.exerciseId}` : `item-${index}`}
               renderItem={renderItem}
               contentContainerStyle={styles.list}
               showsVerticalScrollIndicator={false}
@@ -194,95 +175,69 @@ export default function WorkoutFavoriteScreen({ navigation }) {
   );
 }
 
+const { height,width } = Dimensions.get("window");
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   list: {
     padding: 16,
     paddingBottom: 24,
-    marginTop: 40,
+    marginTop: 60,
   },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  imageContainer: {
-    height: 160,
-    width: '100%',
-    backgroundColor: '#E5E7EB',
-    position: 'relative',
-    justifyContent: 'flex-end',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  categoryBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 2,
-  },
-  categoryBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  caloriesBadge: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 10,
+  cardHorizontal: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    zIndex: 2,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 16,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  caloriesText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
+  imageHorizontal: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#e5e7eb',
   },
-  content: {
-    padding: 16,
+  imagePlaceholderHorizontal: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#e5e7eb',
   },
-  name: {
-    fontSize: 18,
-    fontWeight: '700',
+  infoContainerHorizontal: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  nameHorizontal: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
     color: '#1E293B',
-    marginBottom: 6,
   },
-  desc: {
-    fontSize: 14,
+  descHorizontal: {
+    fontSize: 13,
+    marginBottom: 4,
     color: '#64748B',
-    lineHeight: 20,
-    marginBottom: 10,
   },
-  exerciseTags: {
+  caloriesHorizontal: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#F59E0B',
+    marginBottom: 4,
+  },
+  exerciseTagsHorizontal: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  tagContainer: {
+  tagContainerHorizontal: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F1F5F9',
@@ -292,10 +247,24 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 4,
   },
-  tagText: {
+  tagTextHorizontal: {
     fontSize: 12,
     color: '#64748B',
     marginLeft: 4,
+  },
+  favoriteBtnHorizontal: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  favoriteBtnActiveHorizontal: {
+    backgroundColor: '#EF4444',
+  },
+  favoriteBtnInactiveHorizontal: {
+    backgroundColor: '#F1F5F9',
   },
   emptyContainer: {
     flex: 1,
@@ -315,20 +284,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748B',
     textAlign: 'center',
-  },
-   favoriteButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 3,
-  },
-  favoriteButtonActive: {
-    backgroundColor: '#EF4444',
   },
 });

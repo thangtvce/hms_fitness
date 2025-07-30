@@ -17,9 +17,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from 'context/AuthContext';
 import { useNavigation,useRoute } from '@react-navigation/native';
 import { trainerService } from 'services/apiTrainerService';
-import { showErrorFetchAPI } from 'utils/toastUtil';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import UserProfileContent from '../components/UserProfileContent';
+import * as Notifications from 'expo-notifications';
+import CallWaitingPopup from 'components/calling/CallWaitingPopup';
+import apiChatSupportService from 'services/apiChatSupport';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import { StatusBar } from 'expo-status-bar';
 
 const { width,height } = Dimensions.get('window');
 
@@ -37,11 +42,15 @@ const TraineeDetailScreen = () => {
     const [selectedImage,setSelectedImage] = useState(null);
     const [imageLoading,setImageLoading] = useState(false);
     const [imageLoadError,setImageLoadError] = useState(false);
+    const [showCallWaitingPopup,setShowCallWaitingPopup] = useState(false);
+    const [currentRoomId,setCurrentRoomId] = useState(null);
     const imageTimeoutRef = useRef(null);
+    const notificationListener = useRef();
+    const responseListener = useRef();
 
     // Animation values
-    const fadeAnim = React.useRef(new Animated.Value(0)).current;
-    const slideAnim = React.useRef(new Animated.Value(30)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(30)).current;
 
     useEffect(() => {
         if (authLoading) return;
@@ -72,7 +81,6 @@ const TraineeDetailScreen = () => {
                     console.log('No progress comparisons found');
                 }
 
-                // Start animations
                 Animated.parallel([
                     Animated.timing(fadeAnim,{
                         toValue: 1,
@@ -96,6 +104,37 @@ const TraineeDetailScreen = () => {
         fetchUserDetails();
     },[authLoading,userId,navigation]);
 
+    useEffect(() => {
+        notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+            const data = notification.request.content.data;
+            if (data.type === 'call-accepted' && data.roomId && data.roomId === currentRoomId) {
+                setShowCallWaitingPopup(false);
+                setCurrentRoomId(null);
+                navigation.navigate('VideoCallSupport',{ roomId: data.roomId });
+            } else if (data.type === 'call-rejected' && data.roomId && data.roomId === currentRoomId) {
+                setShowCallWaitingPopup(false);
+                setCurrentRoomId(null);
+                showErrorFetchAPI(`Call was rejected by ${data.rejectorId}`);
+            }
+        });
+
+        responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+            const data = response.notification.request.content.data;
+            if (data.type === 'call-incoming' && data.roomId) {
+                navigation.navigate('VideoCallSupport',{ roomId: data.roomId });
+            }
+        });
+
+        return () => {
+            if (notificationListener.current) {
+                Notifications.removeNotificationSubscription(notificationListener.current);
+            }
+            if (responseListener.current) {
+                Notifications.removeNotificationSubscription(responseListener.current);
+            }
+        };
+    },[navigation,currentRoomId]);
+
     const formatDate = (dateString) => {
         if (!dateString || dateString === '0001-01-01T00:00:00') return 'Unknown';
         try {
@@ -117,34 +156,62 @@ const TraineeDetailScreen = () => {
             setImageLoadError(false);
             setShowImagePreview(true);
 
-            // Tạo timeout và lưu vào biến ref
             const timeoutId = setTimeout(() => {
                 setImageLoading(false);
                 setImageLoadError(true);
                 showErrorFetchAPI(new Error('Image loading timed out.'));
-                setShowImagePreview(false); // Ẩn modal
+                setShowImagePreview(false);
             },10000);
 
-            // Lưu lại timeoutId để clear sau
             imageTimeoutRef.current = timeoutId;
         } else {
             showErrorFetchAPI(new Error('Invalid or empty image URL'));
         }
     };
 
+    const handleContactTrainee = async () => {
+        try {
+            setLoading(true);
+            if (!user?.userId || !userId) {
+                throw new Error('User data not found');
+            }
+            console.log({
+                userId: userId,
+                trainerId: user.userId
+            })
+            const response = await apiChatSupportService.createCallRoomFromTrainer({
+                userId: userId,
+                trainerId: user.userId
+            });
 
+            if (response.statusCode === 200 && response.data) {
+                setCurrentRoomId(response.data.roomId);
+                setShowCallWaitingPopup(true);
+                showSuccessMessage("Call request sent to trainee. Waiting for response...");
+            } else {
+                throw new Error(response.message || 'Failed to create call room');
+            }
+        } catch (error) {
+            showErrorFetchAPI(error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleCloseImagePreview = () => {
         setShowImagePreview(false);
         setSelectedImage(null);
         setImageLoading(false);
         setImageLoadError(false);
+        if (imageTimeoutRef.current) {
+            clearTimeout(imageTimeoutRef.current);
+        }
     };
 
     const getProgressChangeColor = (value) => {
-        if (value > 0) return '#10B981'; // Green for positive
-        if (value < 0) return '#EF4444'; // Red for negative
-        return '#64748B'; // Gray for neutral
+        if (value > 0) return '#10B981';
+        if (value < 0) return '#EF4444';
+        return '#64748B';
     };
 
     const getProgressChangeIcon = (value) => {
@@ -156,15 +223,7 @@ const TraineeDetailScreen = () => {
     const renderLoadingScreen = () => (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.loadingContainer}>
-                <View style={styles.loadingCard}>
-                    <View style={styles.loadingIconContainer}>
-                        <ActivityIndicator size="large" color="#0056D2" />
-                    </View>
-                    <Text style={styles.loadingTitle}>Loading Trainee Details</Text>
-                    <Text style={styles.loadingSubtext}>Fetching profile and progress data...</Text>
-                </View>
-            </View>
+            <CommonSkeleton />
         </SafeAreaView>
     );
 
@@ -295,8 +354,8 @@ const TraineeDetailScreen = () => {
                                             <View style={styles.photosContainer}>
                                                 <TouchableOpacity
                                                     style={styles.photoCard}
-
                                                     activeOpacity={0.8}
+                                                    onPress={() => handleImagePress(comparison.progressPhotos[0]?.beforePhotoUrl)}
                                                 >
                                                     <View style={styles.photoHeader}>
                                                         <Text style={styles.photoLabel}>Before</Text>
@@ -315,6 +374,7 @@ const TraineeDetailScreen = () => {
                                                 <TouchableOpacity
                                                     style={styles.photoCard}
                                                     activeOpacity={0.8}
+                                                    onPress={() => handleImagePress(comparison.progressPhotos[0]?.afterPhotoUrl)}
                                                 >
                                                     <View style={styles.photoHeader}>
                                                         <Text style={styles.photoLabel}>After</Text>
@@ -357,6 +417,59 @@ const TraineeDetailScreen = () => {
                         )}
                         <View style={{ height: 20 }} />
                     </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    );
+
+    const renderImagePreview = () => (
+        <Modal
+            visible={showImagePreview}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={handleCloseImagePreview}
+        >
+            <View style={styles.imagePreviewOverlay}>
+                <TouchableOpacity
+                    style={styles.imagePreviewCloseButton}
+                    onPress={handleCloseImagePreview}
+                >
+                    <View style={styles.closeButtonContainer}>
+                        <Ionicons name="close" size={24} color="#FFFFFF" />
+                    </View>
+                </TouchableOpacity>
+                <View style={styles.imageContainer}>
+                    {imageLoading && (
+                        <View style={styles.imageLoadingContainer}>
+                            <ActivityIndicator size="large" color="#FFFFFF" />
+                            <Text style={styles.imageLoadingText}>Loading image...</Text>
+                        </View>
+                    )}
+                    {imageLoadError ? (
+                        <View style={styles.imageErrorContainer}>
+                            <Ionicons name="alert-circle-outline" size={64} color="#FFFFFF" />
+                            <Text style={styles.imageErrorText}>Failed to load image</Text>
+                        </View>
+                    ) : (
+                        <Image
+                            source={{ uri: selectedImage,cache: 'force-cache' }}
+                            style={styles.fullScreenImage}
+                            resizeMode="contain"
+                            onLoad={() => {
+                                setImageLoading(false);
+                                if (imageTimeoutRef.current) {
+                                    clearTimeout(imageTimeoutRef.current);
+                                }
+                            }}
+                            onError={() => {
+                                setImageLoading(false);
+                                setImageLoadError(true);
+                                if (imageTimeoutRef.current) {
+                                    clearTimeout(imageTimeoutRef.current);
+                                }
+                            }}
+                        />
+                    )}
                 </View>
             </View>
         </Modal>
@@ -413,8 +526,26 @@ const TraineeDetailScreen = () => {
                     formatDate={formatDate}
                     onClose={() => navigation.goBack()}
                 />
+                <View style={styles.actionsSection}>
+                    <TouchableOpacity
+                        style={styles.contactButton}
+                        onPress={handleContactTrainee}
+                        disabled={showCallWaitingPopup || loading}
+                    >
+                        <Ionicons name="chatbubble-outline" size={20} color="#0056D2" />
+                        <Text style={styles.contactButtonText}>Contact Trainee</Text>
+                    </TouchableOpacity>
+                </View>
             </Animated.View>
             {renderProgressModal()}
+            {renderImagePreview()}
+            <CallWaitingPopup
+                visible={showCallWaitingPopup}
+                setVisible={setShowCallWaitingPopup}
+                roomId={currentRoomId}
+                userId={user?.userId}
+                setRoomId={setCurrentRoomId}
+            />
         </SafeAreaView>
     );
 };
@@ -492,6 +623,27 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
+    },
+    actionsSection: {
+        marginHorizontal: 20,
+        marginTop: 16,
+        marginBottom: 24,
+    },
+    contactButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        paddingVertical: 16,
+        borderWidth: 2,
+        borderColor: '#0056D2',
+        gap: 8,
+    },
+    contactButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#0056D2',
     },
     loadingContainer: {
         flex: 1,
@@ -617,13 +769,6 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         marginBottom: 20,
     },
-    progressMessage: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#1E293B',
-        textAlign: 'center',
-        marginTop: 8,
-    },
     progressTitleContainer: {
         flex: 1,
         marginRight: 12,
@@ -727,14 +872,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
-    },
-    photoIndicator: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: '#FFFFFF',
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     progressImage: {
         width: '100%',

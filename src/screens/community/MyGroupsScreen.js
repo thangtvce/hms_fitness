@@ -28,6 +28,8 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { ScrollView } from "react-native-gesture-handler"
 import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+import Header from "components/Header"
 
 const { width } = Dimensions.get("window")
 
@@ -650,25 +652,35 @@ const MyGroupsScreen = () => {
       <DynamicStatusBar backgroundColor="#3B82F6" />
 
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056d2" />
-          </TouchableOpacity>
-
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Your groups</Text>
-          </View>
-          <View style={{ flexDirection: 'row',alignItems: 'center' }}>
-            <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-              <Ionicons name="options-outline" size={24} color="#0056d2" />
-              {(searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) && (
-                <View style={styles.filterBadge} />
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
+      <Header
+        title="Your groups"
+        onBack={() => navigation.goBack()}
+        showAvatar={false}
+        rightActions={[
+          {
+            icon: (
+              <View>
+                <Ionicons name="options-outline" size={24} color="#0056d2" />
+                {(searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -2,
+                      right: -2,
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: 'red',
+                    }}
+                  />
+                )}
+              </View>
+            ),
+            onPress: () => setShowFilterModal(true),
+            backgroundColor: 'transparent',
+          },
+        ]}
+      />
 
       {/* Search Bar */}
       <Animated.View
@@ -699,19 +711,14 @@ const MyGroupsScreen = () => {
 
       {/* Content */}
       {loading && pageNumber === 1 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading your groups...</Text>
-        </View>
+        <CommonSkeleton />
       ) : (
         <FlatList
           data={groups}
           onEndReached={loadMoreGroups}
           ListFooterComponent={
             loading && pageNumber > 1 ? (
-              <View style={{ padding: 20,alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#3B82F6" />
-              </View>
+              <CommonSkeleton />
             ) : null
           }
           onEndReachedThreshold={0.2}
@@ -797,6 +804,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
+    marginTop: 65
   },
   searchContainer: {
     flexDirection: "row",

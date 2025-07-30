@@ -1,0 +1,1427 @@
+import { useState,useEffect,useRef } from "react"
+import {
+    View,
+    Text,
+    FlatList,
+    ActivityIndicator,
+    TouchableOpacity,
+    StyleSheet,
+    TextInput,
+    Image,
+    Dimensions,
+    Animated,
+    Platform,
+    Modal,
+    ScrollView,
+    RefreshControl,
+    Alert,
+} from "react-native"
+import Header from "components/Header"
+import { Ionicons,Feather } from "@expo/vector-icons"
+import { useNavigation } from "@react-navigation/native"
+import { foodService } from "services/apiFoodService"
+import { LinearGradient } from "expo-linear-gradient"
+import { theme } from "theme/color"
+import { SafeAreaView } from "react-native-safe-area-context"
+import { StatusBar } from "expo-status-bar"
+import { addFoodToLog } from "utils/foodLogStorage"
+import dayjs from "dayjs"
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
+import ShimmerCard from "components/shimmer/ShimmerCard"
+import FoodImage from "./FoodImage"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+
+const { width,height } = Dimensions.get("window")
+
+const STATUS_OPTIONS = [
+    { label: "All Status",value: "" },
+    { label: "Active",value: "active" },
+    { label: "Inactive",value: "inactive" },
+    { label: "Draft",value: "draft" },
+]
+
+const PAGE_SIZE_OPTIONS = [5,10,15,20,25,50]
+
+const SORT_OPTIONS = [
+    { label: "Name A-Z",value: "name",icon: "text-outline" },
+    { label: "Calories (High → Low)",value: "calories-high",icon: "flame-outline" },
+    { label: "Calories (Low → High)",value: "calories-low",icon: "flame-outline" },
+    { label: "Protein (High → Low)",value: "protein-high",icon: "fitness-outline" },
+    { label: "Carbs (High → Low)",value: "carbs-high",icon: "nutrition-outline" },
+    { label: "Fats (High → Low)",value: "fats-high",icon: "water-outline" },
+]
+
+const LAYOUT_OPTIONS = [
+    { columns: 1,icon: "list-outline",label: "1 col" },
+    { columns: 2,icon: "grid-outline",label: "2 cols" }
+]
+
+const MIN_SERVING = 1
+const MAX_SERVING = 2000
+const MIN_PORTION = 1
+const MAX_PORTION = 10
+
+const FoodAIRecommendBanner = () => {
+    const navigation = useNavigation();
+    return (
+        <TouchableOpacity
+            style={styles.aiRecommendBanner}
+            onPress={() => navigation.navigate("AIRecommendedFoodScreen")}
+            activeOpacity={0.9}
+        >
+            <LinearGradient
+                colors={["#0056d2","#38BDF8"]}
+                style={styles.aiRecommendBannerGradient}
+                start={{ x: 0,y: 0 }}
+                end={{ x: 1,y: 0 }}
+            >
+                <View style={styles.aiRecommendBannerContent}>
+                    <View style={styles.aiRecommendBannerLeft}>
+                        <View style={styles.aiRecommendBannerIcon}>
+                            <Feather name="book-open" size={20} color="#FFFFFF" />
+                        </View>
+                        <View style={styles.aiRecommendBannerText}>
+                            <Text style={styles.aiRecommendBannerTitle}>Food AI Recommend</Text>
+                            <Text style={styles.aiRecommendBannerSubtitle}>Discover personalized meal ideas</Text>
+                        </View>
+                    </View>
+                    <View style={styles.aiRecommendBannerRight}>
+                        <Feather name="arrow-right" size={18} color="#FFFFFF" />
+                    </View>
+                </View>
+            </LinearGradient>
+        </TouchableOpacity>
+    )
+}
+
+const RecipesScreen = () => {
+    const navigation = useNavigation()
+    const [foods,setFoods] = useState([])
+    const [categories,setCategories] = useState([])
+    const [categoryMap,setCategoryMap] = useState({})
+    const [loading,setLoading] = useState(true)
+    const [error,setError] = useState(null)
+    const [refreshing,setRefreshing] = useState(false)
+    const [showSortModal,setShowSortModal] = useState(false)
+    const [selectedCategory,setSelectedCategory] = useState("")
+    const [sortBy,setSortBy] = useState("name")
+    const [layoutMode,setLayoutMode] = useState(1)
+    const [showLayoutModal,setShowLayoutModal] = useState(false)
+    const [selectedFoods,setSelectedFoods] = useState([])
+
+    const [searchQuery,setSearchQuery] = useState("")
+    const [filters,setFilters] = useState({
+        pageNumber: 1,
+        pageSize: 10,
+        startDate: "",
+        endDate: "",
+        validPageSize: 10,
+        searchTerm: "",
+        status: "",
+        categoryId: "",
+        minCalories: "",
+        maxCalories: "",
+    })
+    const [appliedFilters,setAppliedFilters] = useState({
+        pageNumber: 1,
+        pageSize: 10,
+        startDate: "",
+        endDate: "",
+        validPageSize: 10,
+        searchTerm: "",
+        status: "",
+        categoryId: "",
+        minCalories: "",
+        maxCalories: "",
+    })
+    const [appliedSearchQuery,setAppliedSearchQuery] = useState("")
+
+    const fadeAnim = useRef(new Animated.Value(0)).current
+    const slideAnim = useRef(new Animated.Value(30)).current
+
+    const [inputModalVisible,setInputModalVisible] = useState(false)
+    const [inputValues,setInputValues] = useState({ portionSize: "1",servingSize: "1" })
+    const [pendingAddFood,setPendingAddFood] = useState(null)
+    const [imageError,setImageError] = useState(false);
+    const modalScale = useRef(new Animated.Value(0)).current
+    const modalOpacity = useRef(new Animated.Value(0)).current
+
+    const [activeTab,setActiveTab] = useState('Discover')
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim,{
+                toValue: 1,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim,{
+                toValue: 0,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+        ]).start()
+    },[])
+
+    // Modal animation effect
+    useEffect(() => {
+        if (inputModalVisible) {
+            Animated.parallel([
+                Animated.spring(modalScale,{
+                    toValue: 1,
+                    tension: 100,
+                    friction: 8,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(modalOpacity,{
+                    toValue: 1,
+                    duration: 300,
+                    useNativeDriver: true,
+                }),
+            ]).start()
+        } else {
+            Animated.parallel([
+                Animated.timing(modalScale,{
+                    toValue: 0,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(modalOpacity,{
+                    toValue: 0,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+            ]).start()
+        }
+    },[inputModalVisible])
+
+    const fetchCategories = async () => {
+        try {
+            const response = await foodService.getAllActiveCategories({ pageNumber: 1,pageSize: 100 })
+            if (response.statusCode === 200) {
+                const categoriesData = response.data.categories || []
+                setCategories(categoriesData)
+                const map = categoriesData.reduce((acc,category) => {
+                    acc[category.categoryId] = category.categoryName
+                    return acc
+                },{})
+                setCategoryMap(map)
+                return categoriesData
+            } else {
+                return []
+            }
+        } catch (err) {
+            showErrorFetchAPI(err);
+            return []
+        }
+    }
+
+    const fetchFoods = async (isRefresh = false) => {
+        if (isRefresh) {
+            setRefreshing(true);
+        } else {
+            setLoading(true);
+        }
+        setError(null)
+        try {
+            let params = {}
+            if (appliedSearchQuery.trim()) params.searchTerm = appliedSearchQuery.trim()
+            if (appliedFilters.searchTerm.trim()) params.searchTerm = appliedFilters.searchTerm.trim()
+            if (appliedFilters.status) params.status = appliedFilters.status
+            if (appliedFilters.categoryId || selectedCategory)
+                params.categoryId = appliedFilters.categoryId || selectedCategory
+            if (appliedFilters.startDate) params.startDate = appliedFilters.startDate
+            if (appliedFilters.endDate) params.endDate = appliedFilters.endDate
+            if (appliedFilters.minCalories) params.minCalories = appliedFilters.minCalories
+            if (appliedFilters.maxCalories) params.maxCalories = appliedFilters.maxCalories
+            params.pageSize = 10000
+            params.pageNumber = 1
+
+            // Filter for category "Recipes" - assume we find the ID
+            const allCategories = await fetchCategories()
+            const recipesCategory = allCategories.find(cat => cat.categoryName === "Recipes")
+            if (recipesCategory) {
+                params.categoryId = recipesCategory.categoryId
+            }
+
+            const response = await foodService.getAllActiveFoods(params)
+            if (categories.length === 0) await fetchCategories()
+
+            if (response && response.statusCode === 200) {
+                let foodsData = Array.isArray(response.data.foods)
+                    ? response.data.foods
+                    : Array.isArray(response.data)
+                        ? response.data
+                        : []
+                foodsData = sortFoods(foodsData,sortBy)
+                setFoods([...foodsData])
+            } else {
+                setFoods([])
+            }
+        } catch (err) {
+            setFoods([])
+            showErrorFetchAPI(err);
+        } finally {
+            setLoading(false)
+            if (isRefresh) setRefreshing(false)
+        }
+    }
+
+    const sortFoods = (foods,sortType) => {
+        const sorted = [...foods]
+        switch (sortType) {
+            case "name":
+                return sorted.sort((a,b) => (a.foodName || "").localeCompare(b.foodName || ""))
+            case "calories-high":
+                return sorted.sort((a,b) => (b.calories || 0) - (a.calories || 0))
+            case "calories-low":
+                return sorted.sort((a,b) => (a.calories || 0) - (b.calories || 0))
+            case "protein-high":
+                return sorted.sort((a,b) => (b.protein || 0) - (a.protein || 0))
+            case "carbs-high":
+                return sorted.sort((a,b) => (b.carbs || 0) - (a.carbs || 0))
+            case "fats-high":
+                return sorted.sort((a,b) => (b.fats || 0) - (a.fats || 0))
+            default:
+                return sorted
+        }
+    }
+
+    useEffect(() => {
+        fetchFoods()
+    },[])
+
+    useEffect(() => {
+        if (selectedCategory || sortBy !== "name") {
+            fetchFoods()
+        }
+    },[selectedCategory,sortBy])
+
+    const onRefresh = () => {
+        setRefreshing(true)
+        fetchFoods(true)
+    }
+
+    const handleSearch = () => {
+        setAppliedSearchQuery(searchQuery)
+        fetchFoods()
+    }
+
+    const resetFilters = () => {
+        const resetState = {
+            pageNumber: 1,
+            pageSize: 10,
+            startDate: "",
+            endDate: "",
+            validPageSize: 10,
+            searchTerm: "",
+            status: "",
+            categoryId: "",
+            minCalories: "",
+            maxCalories: "",
+        }
+        setFilters(resetState)
+        setAppliedFilters(resetState)
+        setSearchQuery("")
+        setAppliedSearchQuery("")
+        setSelectedCategory("")
+        setSortBy("name")
+        setTimeout(() => fetchFoods(),100)
+    }
+
+    const clearSearch = () => {
+        setSearchQuery("")
+        setAppliedSearchQuery("")
+        fetchFoods()
+    }
+
+    const handleSelectFood = (food) => {
+        setSelectedFoods((prev) => {
+            const exists = prev.find((f) => f.foodId === food.foodId)
+            if (exists) {
+                return prev.filter((f) => f.foodId !== food.foodId)
+            } else {
+                return [...prev,food]
+            }
+        })
+    }
+
+    const handleAddFoodToMeal = async (food,skipModal = false) => {
+        const mealTypes = [
+            { label: "Breakfast",value: "Breakfast" },
+            { label: "Lunch",value: "Lunch" },
+            { label: "Dinner",value: "Dinner" },
+        ]
+
+        const mealType = await new Promise((resolve) => {
+            Alert.alert(
+                "Choose a meal",
+                "Which session do you want to add?",
+                [
+                    ...mealTypes.map((m) => ({ text: m.label,onPress: () => resolve(m.value) })),
+                    { text: "Cancel",style: "cancel",onPress: () => resolve(null) },
+                ],
+                { cancelable: true },
+            )
+        })
+
+        if (!mealType) return
+
+        if (skipModal) {
+            const parsedServingSize = 1
+            const parsedPortionSize = 1
+            const today = dayjs().format("YYYY-MM-DD")
+
+            let image = ""
+            if (food.image) image = food.image
+            else if (food.foodImage) image = food.foodImage
+            else if (food.imageUrl) image = food.imageUrl
+            if (!image && food.foodName) image = getFoodImage(food.foodName)
+
+            const logData = {
+                foodId: food.foodId,
+                foodName: food.foodName || "Unknown Food",
+                calories: (food.calories || 0) * parsedServingSize,
+                protein: (food.protein || 0) * parsedServingSize,
+                carbs: (food.carbs || 0) * parsedServingSize,
+                fats: (food.fats || 0) * parsedServingSize,
+                portionSize: parsedPortionSize,
+                servingSize: parsedServingSize,
+                satisfactionRating: 1,
+                notes: "",
+                consumptionDate: today,
+                image,
+            }
+
+            try {
+                await addFoodToLog(today,mealType,logData)
+                showSuccessMessage(`Added ${food.foodName} to ${mealType} log!`);
+                setSelectedFoods((prev) => prev.filter((f) => f.foodId !== food.foodId))
+            } catch (error) {
+                showErrorFetchAPI(error);
+            }
+        } else {
+            setPendingAddFood({ food,mealType })
+            setInputValues({ portionSize: "1",servingSize: "1" })
+            setInputModalVisible(true)
+        }
+    }
+
+    const handleInputModalOk = async () => {
+        const { food,mealType } = pendingAddFood || {}
+        if (!food || !mealType) {
+            return
+        }
+
+        const { portionSize,servingSize } = inputValues
+        const parsedServingSize = Number.parseFloat(servingSize) || 1
+        const parsedPortionSize = Number.parseFloat(portionSize) || 1
+
+        if (
+            parsedServingSize < MIN_SERVING ||
+            parsedServingSize > MAX_SERVING ||
+            parsedPortionSize < MIN_PORTION ||
+            parsedPortionSize > MAX_PORTION
+        ) {
+            Alert.alert(
+                "Invalid input",
+                `Please enter realistic values:\n- Portion size: 1-${MAX_PORTION}\n- Serving size: 1-${MAX_SERVING} (grams/unit)`,
+            )
+            return
+        }
+
+        try {
+            const today = dayjs().format("YYYY-MM-DD")
+
+            let image = ""
+            if (food.image) image = food.image
+            else if (food.foodImage) image = food.foodImage
+            else if (food.imageUrl) image = food.imageUrl
+            if (!image && food.foodName) image = getFoodImage(food.foodName)
+
+            const logData = {
+                foodId: food.foodId,
+                foodName: food.foodName || "Unknown Food",
+                calories: (food.calories || 0) * parsedServingSize,
+                protein: (food.protein || 0) * parsedServingSize,
+                carbs: (food.carbs || 0) * parsedServingSize,
+                fats: (food.fats || 0) * parsedServingSize,
+                portionSize: parsedPortionSize,
+                servingSize: parsedServingSize,
+                satisfactionRating: 1,
+                notes: "",
+                consumptionDate: today,
+                image,
+            }
+
+            await addFoodToLog(today,mealType,logData)
+            showSuccessMessage(`Added ${food.foodName} to ${mealType} log with ${parsedServingSize} serving(s)!`);
+            setSelectedFoods((prev) => prev.filter((f) => f.foodId !== food.foodId))
+            setInputModalVisible(false)
+            setPendingAddFood(null)
+        } catch (error) {
+            showErrorFetchAPI(error);
+        }
+    }
+
+    const handleInputModalCancel = () => {
+        setInputModalVisible(false)
+        setPendingAddFood(null)
+    }
+
+    const getFoodImage = (foodName) => {
+        return `https://placehold.co/400x250?text=${foodName.replace(/\s/g,"")}`
+    }
+
+    const collections = [
+        {
+            title: "Around the World",
+            icon: "globe-outline",
+        },
+        {
+            title: "Special Occasions",
+            icon: "tree-outline",
+        },
+    ];
+
+    const renderRecipeCard = ({ item }) => (
+        <TouchableOpacity
+            style={styles.subCollectionCard}
+            onPress={() => navigation.navigate("FoodDetails",{ food: item })}
+            activeOpacity={0.8}
+        >
+            <Image source={{ uri: item.image }} style={styles.subCollectionImage} resizeMode="cover" />
+            <Text style={styles.subCollectionTitle}>{item.foodName}</Text>
+            <Text style={styles.subCollectionDescription} numberOfLines={3}>{item.description}</Text>
+        </TouchableOpacity>
+    )
+
+    const renderSection = ({ item }) => {
+        let data = [];
+        if (item.title === "Around the World") {
+            data = foods.slice(0,5);
+        } else {
+            data = foods.slice(5);
+        }
+        return (
+            <View style={styles.groupContainer}>
+                <View style={styles.groupTitleContainer}>
+                    <Ionicons name={item.icon} size={20} color="#333" />
+                    <Text style={styles.groupTitle}>{item.title}</Text>
+                </View>
+                <FlatList
+                    data={data}
+                    renderItem={renderRecipeCard}
+                    keyExtractor={(sub) => sub.foodId.toString()}
+                    horizontal={false}
+                    numColumns={2}
+                    columnWrapperStyle={styles.subCollectionRow}
+                    scrollEnabled={false}
+                />
+            </View>
+        )
+    }
+
+    const renderDiscover = () => {
+        if (loading) {
+            return <CommonSkeleton />
+        }
+        return (
+            <FlatList
+                data={collections}
+                renderItem={renderSection}
+                keyExtractor={(item) => item.title}
+                contentContainerStyle={styles.discoverContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            />
+        )
+    }
+
+    const renderFavorites = () => (
+        <View style={styles.favoritesContainer}>
+            <Text style={styles.emptyTitle}>No favorites yet</Text>
+            <Text style={styles.emptyText}>Favorite recipes will appear here.</Text>
+        </View>
+    )
+
+    const renderSortModal = () => (
+        <Modal
+            visible={showSortModal}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowSortModal(false)}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.sortModal}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Sort Recipes</Text>
+                        <TouchableOpacity onPress={() => setShowSortModal(false)}>
+                            <Ionicons name="close" size={24} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView style={styles.sortContent}>
+                        {SORT_OPTIONS.map((option) => (
+                            <TouchableOpacity
+                                key={option.value}
+                                style={[styles.sortOption,sortBy === option.value && styles.selectedSortOption]}
+                                onPress={() => {
+                                    setSortBy(option.value)
+                                    setShowSortModal(false)
+                                }}
+                            >
+                                <View style={styles.sortOptionLeft}>
+                                    <View
+                                        style={[
+                                            styles.sortIconContainer,
+                                            { backgroundColor: sortBy === option.value ? "#0056d2" : "#F9FAFB" },
+                                        ]}
+                                    >
+                                        <Ionicons name={option.icon} size={20} color={sortBy === option.value ? "#fff" : "#6B7280"} />
+                                    </View>
+                                    <Text
+                                        style={[styles.sortOptionText,sortBy === option.value && { color: "#0056d2",fontWeight: "bold" }]}
+                                    >
+                                        {option.label}
+                                    </Text>
+                                </View>
+                                {sortBy === option.value && <Ionicons name="checkmark" size={20} color="#0056d2" />}
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    )
+
+    const renderLayoutModal = () => (
+        <Modal
+            visible={showLayoutModal}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowLayoutModal(false)}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.layoutModal}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Choose Display Layout</Text>
+                        <TouchableOpacity onPress={() => setShowLayoutModal(false)}>
+                            <Ionicons name="close" size={24} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+                    <View style={styles.layoutContent}>
+                        <Text style={styles.layoutDescription}>Select number of columns to display recipes</Text>
+                        <View style={styles.layoutGrid}>
+                            {LAYOUT_OPTIONS.map((option) => {
+                                const isActive = layoutMode === option.columns
+                                return (
+                                    <TouchableOpacity
+                                        key={option.columns}
+                                        style={[
+                                            styles.layoutOption,
+                                            isActive && styles.selectedLayoutOption,
+                                            isActive && { borderColor: "#0056d2",borderWidth: 2,backgroundColor: "#eaf1fb" },
+                                        ]}
+                                        onPress={() => {
+                                            setLayoutMode(option.columns)
+                                            setShowLayoutModal(false)
+                                        }}
+                                    >
+                                        <View style={[styles.layoutIconContainer,{ backgroundColor: isActive ? "#0056d2" : "#F9FAFB" }]}>
+                                            <Ionicons name={option.icon} size={24} color={isActive ? "#fff" : "#6B7280"} />
+                                        </View>
+                                        <Text style={[styles.layoutOptionText,isActive && { color: "#0056d2",fontWeight: "bold" }]}>
+                                            {option.label}
+                                        </Text>
+                                        {isActive && (
+                                            <View style={styles.layoutCheckmark}>
+                                                <Ionicons name="checkmark-circle" size={20} color="#0056d2" />
+                                            </View>
+                                        )}
+                                    </TouchableOpacity>
+                                )
+                            })}
+                        </View>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    )
+
+    const renderFoodItem = ({ item,index }) => {
+        const isSelected = selectedFoods.some((f) => f.foodId === item.foodId)
+
+        if (layoutMode === "quick") {
+            return (
+                <TouchableOpacity
+                    key={index}
+                    style={styles.quickFoodCard}
+                    onPress={() => navigation.navigate("FoodDetails",{ food: item })}
+                    activeOpacity={0.8}
+                >
+                    <View style={styles.quickFoodInfo}>
+                        <View style={styles.quickFoodNameRow}>
+                            <Text style={styles.quickFoodName}>{item.foodName || "Unknown Recipe"}</Text>
+                            {isSelected && (
+                                <Ionicons name="checkmark-circle" size={16} color="#22C55E" style={styles.quickCheckmark} />
+                            )}
+                        </View>
+                        <Text style={styles.quickFoodDetails}>
+                            {item.calories || 0} cal, {item.servingSize || 1} {item.servingUnit || "unit"}
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.quickAddButton}
+                        onPress={(e) => {
+                            e.stopPropagation()
+                            handleAddFoodToMeal(item,true)
+                        }}
+                    >
+                        <Ionicons name="add" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            )
+        }
+
+        const itemWidth =
+            layoutMode === 1 ? "100%" : layoutMode === 2 ? "48%" : layoutMode === 3 ? "31%" : layoutMode === 4 ? "23%" : "23%"
+        const imageHeight =
+            layoutMode === 1 ? 180 : layoutMode === 2 ? 140 : layoutMode === 3 ? 120 : layoutMode === 4 ? 100 : 100
+
+        return (
+            <Animated.View
+                style={[
+                    styles.foodItem,
+                    {
+                        width: itemWidth,
+                        marginRight: layoutMode > 1 ? "2%" : 0,
+                        opacity: fadeAnim,
+                        transform: [{ translateY: slideAnim }],
+                    },
+                ]}
+            >
+                <TouchableOpacity
+                    onPress={() => navigation.navigate("FoodDetails",{ food: item })}
+                    activeOpacity={0.8}
+                    style={[styles.foodCard,isSelected && styles.selectedFoodCard]}
+                >
+                    <View style={styles.foodImageContainer}>
+                        <FoodImage
+                            imageUrl={item.image}
+                            style={[styles.foodImage,{ height: imageHeight }]}
+                        />
+
+                        <LinearGradient colors={["rgba(0,0,0,0)","rgba(0,0,0,0.7)"]} style={styles.foodGradient}>
+                            <Text
+                                style={[styles.foodName,{ fontSize: layoutMode > 2 ? 16 : 20 }]}
+                                numberOfLines={layoutMode > 2 ? 2 : 1}
+                            >
+                                {item.foodName || "Unknown Recipe"}
+                            </Text>
+                        </LinearGradient>
+                        <View style={styles.caloriesBadge}>
+                            <Text style={[styles.caloriesText,{ fontSize: layoutMode > 2 ? 10 : 12 }]}>
+                                {item.calories || 0} kcal
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            style={[
+                                styles.selectionButton,
+                                { width: layoutMode > 2 ? 28 : 36,height: layoutMode > 2 ? 28 : 36 },
+                                isSelected && styles.selectedButton,
+                            ]}
+                            onPress={(e) => {
+                                e.stopPropagation();
+                                navigation.navigate("AddFoodScreen",{ food: item });
+                            }}
+                        >
+                            <Ionicons
+                                name={isSelected ? "checkmark-circle" : "add-circle-outline"}
+                                size={layoutMode > 2 ? 16 : 20}
+                                color={isSelected ? "#FFFFFF" : "#0056d2"}
+                            />
+                        </TouchableOpacity>
+                    </View>
+                    <View style={[styles.foodContent,{ padding: layoutMode > 2 ? 12 : 20 }]}>
+                        <Text style={[styles.foodCategory,{ fontSize: layoutMode > 2 ? 11 : 13 }]} numberOfLines={1}>
+                            {categoryMap[item.categoryId] || `Category ${item.categoryId || "Unknown"}`}
+                        </Text>
+                        <View style={[styles.macrosContainer,{ gap: layoutMode > 2 ? 8 : 12 }]}>
+                            {layoutMode <= 2 && (
+                                <View style={styles.macroItem}>
+                                    <View style={[styles.macroIconContainer,{ backgroundColor: "#DBF4FF" }]}>
+                                        <Ionicons name="fitness-outline" size={14} color="#0EA5E9" />
+                                    </View>
+                                    <Text style={styles.macroText}>{item.protein || 0}g protein</Text>
+                                </View>
+                            )}
+                            {layoutMode <= 2 && (
+                                <View style={styles.macroItem}>
+                                    <View style={[styles.macroIconContainer,{ backgroundColor: "#FEF2F2" }]}>
+                                        <Ionicons name="nutrition-outline" size={14} color="#EF4444" />
+                                    </View>
+                                    <Text style={styles.macroText}>{item.carbs || 0}g carbs</Text>
+                                </View>
+                            )}
+                            {layoutMode <= 2 && (
+                                <View style={styles.macroItem}>
+                                    <View style={[styles.macroIconContainer,{ backgroundColor: "#FFFBEB" }]}>
+                                        <Ionicons name="water-outline" size={14} color="#F59E0B" />
+                                    </View>
+                                    <Text style={styles.macroText}>{item.fats || 0}g fats</Text>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Animated.View>
+        )
+    }
+
+    // Enhanced Input Modal Component
+    const renderEnhancedInputModal = () => {
+        const { food,mealType } = pendingAddFood || {}
+        return (
+            <Modal visible={inputModalVisible} transparent animationType="none" onRequestClose={handleInputModalCancel}>
+                <Animated.View style={[styles.enhancedModalOverlay,{ opacity: modalOpacity }]}>
+                    <Animated.View
+                        style={[
+                            styles.enhancedModalContainer,
+                            {
+                                transform: [{ scale: modalScale }],
+                                opacity: modalOpacity,
+                            },
+                        ]}
+                    >
+                        {/* Modal Header */}
+                        <View
+                            style={[
+                                styles.enhancedModalHeader,
+                                {
+                                    backgroundColor: "#0056d2",
+                                    borderTopLeftRadius: 16,
+                                    borderTopRightRadius: 16,
+                                    paddingVertical: 18,
+                                    paddingHorizontal: 20,
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                },
+                            ]}
+                        >
+                            <View style={{ flexDirection: "row",alignItems: "center",flex: 1 }}>
+                                <View
+                                    style={[
+                                        styles.modalIconContainer,
+                                        { backgroundColor: "#fff",borderRadius: 20,marginRight: 12,padding: 6 },
+                                    ]}
+                                >
+                                    <Ionicons name="restaurant" size={22} color="#0056d2" />
+                                </View>
+                                <View style={styles.modalHeaderText}>
+                                    <Text style={{ fontSize: 18,fontWeight: "bold",color: "#fff",letterSpacing: 0.2 }}>
+                                        Add Recipe Details
+                                    </Text>
+                                    <Text style={{ fontSize: 13,color: "#eaf1fb",marginTop: 2,fontWeight: "500" }}>
+                                        {food?.foodName} → {mealType}
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity style={styles.modalCloseButton} onPress={handleInputModalCancel}>
+                                <Ionicons name="close" size={22} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+                        {/* Input Fields */}
+                        <View style={styles.enhancedModalContentWrapper}>
+                            <ScrollView
+                                style={styles.enhancedModalContent}
+                                contentContainerStyle={styles.enhancedModalContentContainer}
+                                showsVerticalScrollIndicator={false}
+                                bounces={true}
+                            >
+                                <View style={styles.inputFieldsContainer}>
+                                    {/* Portion Size */}
+                                    <View style={styles.inputGroup}>
+                                        <View style={styles.inputLabelContainer}>
+                                            <Ionicons name="layers-outline" size={20} color="#4F46E5" />
+                                            <Text style={styles.inputLabel}>Portion Size</Text>
+                                        </View>
+                                        <Text style={styles.inputDescription}>Number of portions (1-{MAX_PORTION})</Text>
+                                        <View style={styles.inputContainer}>
+                                            <TextInput
+                                                style={styles.enhancedInput}
+                                                placeholder="1"
+                                                keyboardType="numeric"
+                                                value={inputValues.portionSize}
+                                                onChangeText={(text) => setInputValues((prev) => ({ ...prev,portionSize: text }))}
+                                                placeholderTextColor="#9CA3AF"
+                                            />
+                                            <View style={styles.inputUnit}>
+                                                <Text style={styles.inputUnitText}>portions</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                    {/* Serving Size */}
+                                    <View style={styles.inputGroup}>
+                                        <View style={styles.inputLabelContainer}>
+                                            <Ionicons name="scale-outline" size={20} color="#10B981" />
+                                            <Text style={styles.inputLabel}>Serving Size</Text>
+                                        </View>
+                                        <Text style={styles.inputDescription}>Weight or units (1-{MAX_SERVING}g)</Text>
+                                        <View style={styles.inputContainer}>
+                                            <TextInput
+                                                style={styles.enhancedInput}
+                                                placeholder="1"
+                                                keyboardType="numeric"
+                                                value={inputValues.servingSize}
+                                                onChangeText={(text) => setInputValues((prev) => ({ ...prev,servingSize: text }))}
+                                                placeholderTextColor="#9CA3AF"
+                                            />
+                                            <View style={styles.inputUnit}>
+                                                <Text style={styles.inputUnitText}>grams</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                    {/* Calculated Nutrition */}
+                                    <View style={styles.calculatedNutrition}>
+                                        <Text style={styles.calculatedTitle}>Calculated Nutrition</Text>
+                                        <View style={styles.nutritionGrid}>
+                                            <View style={styles.nutritionCard}>
+                                                <Text style={styles.nutritionValue}>
+                                                    {Math.round((food?.calories || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}
+                                                </Text>
+                                                <Text style={styles.nutritionLabel}>Calories</Text>
+                                            </View>
+                                            <View style={styles.nutritionCard}>
+                                                <Text style={styles.nutritionValue}>
+                                                    {Math.round((food?.protein || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
+                                                </Text>
+                                                <Text style={styles.nutritionLabel}>Protein</Text>
+                                            </View>
+                                            <View style={styles.nutritionCard}>
+                                                <Text style={styles.nutritionValue}>
+                                                    {Math.round((food?.carbs || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
+                                                </Text>
+                                                <Text style={styles.nutritionLabel}>Carbs</Text>
+                                            </View>
+                                            <View style={styles.nutritionCard}>
+                                                <Text style={styles.nutritionValue}>
+                                                    {Math.round((food?.fats || 0) * (Number.parseFloat(inputValues.servingSize) || 1))}g
+                                                </Text>
+                                                <Text style={styles.nutritionLabel}>Fats</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </View>
+                            </ScrollView>
+                        </View>
+                        {/* Modal Actions */}
+                        <View style={styles.enhancedModalActions}>
+                            <TouchableOpacity style={styles.cancelButton} onPress={handleInputModalCancel}>
+                                <Ionicons name="close-circle-outline" size={20} color="#6B7280" />
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.confirmButton} onPress={handleInputModalOk}>
+                                <Ionicons name="checkmark-circle" size={20} color="#6B7280" />
+                                <Text style={[styles.confirmButtonText,{ color: "#fff" }]}>Add to {mealType}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </Animated.View>
+                </Animated.View>
+            </Modal>
+        )
+    }
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <Header
+                title="Recipes"
+                rightActions={[
+                    {
+                        icon: "search-outline",
+                        onPress: () => { }, // Implement search if needed
+                    },
+                    {
+                        icon: "ellipsis-horizontal",
+                        onPress: () => { }, // Menu
+                    },
+                ]}
+            />
+            <View style={styles.tabBar}>
+                <TouchableOpacity
+                    style={[styles.tab,activeTab === 'Discover' && styles.activeTab]}
+                    onPress={() => setActiveTab('Discover')}
+                >
+                    <Text style={[styles.tabText,activeTab === 'Discover' && styles.activeTabText]}>Discover</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab,activeTab === 'Favorites' && styles.activeTab]}
+                    onPress={() => setActiveTab('Favorites')}
+                >
+                    <Text style={[styles.tabText,activeTab === 'Favorites' && styles.activeTabText]}>Favorites</Text>
+                </TouchableOpacity>
+            </View>
+            {activeTab === 'Discover' ? renderDiscover() : renderFavorites()}
+            {renderEnhancedInputModal()}
+        </SafeAreaView>
+    )
+}
+
+const styles = StyleSheet.create({
+    safeArea: { flex: 1,backgroundColor: "#fff" },
+    tabBar: {
+        flexDirection: "row",
+        borderBottomWidth: 1,
+        borderBottomColor: "#eee",
+        backgroundColor: "#fff",
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: "center",
+    },
+    activeTab: {
+        borderBottomWidth: 2,
+        borderBottomColor: "#0056d2",
+    },
+    tabText: {
+        fontSize: 16,
+        color: "#6B7280",
+        fontWeight: "500",
+    },
+    activeTabText: {
+        color: "#0056d2",
+        fontWeight: "bold",
+    },
+    discoverContent: {
+        paddingBottom: 100,
+    },
+    groupContainer: { marginBottom: 24 },
+    groupTitleContainer: { flexDirection: "row",alignItems: "center",marginBottom: 12,paddingHorizontal: 16 },
+    groupTitle: { fontSize: 18,fontWeight: "bold",color: "#333",marginLeft: 8 },
+    subCollectionRow: { justifyContent: "space-between",paddingHorizontal: 16,marginBottom: 16 },
+    subCollectionCard: {
+        width: (width - 48) / 2,
+        backgroundColor: "#f8f8f8",
+        borderRadius: 12,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0,height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    subCollectionImage: {
+        height: 120,
+        width: "100%",
+    },
+    subCollectionTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#333",
+        paddingHorizontal: 12,
+        paddingTop: 12,
+    },
+    subCollectionDescription: {
+        fontSize: 12,
+        color: "#666",
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+    },
+    favoritesContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    emptyTitle: { fontSize: 18,fontWeight: "600",color: "#374151",marginBottom: 8 },
+    emptyText: { fontSize: 14,color: "#6B7280",textAlign: "center" },
+    // Other styles remain the same
+    aiRecommendBanner: {
+        borderRadius: 12,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0,height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    aiRecommendBannerGradient: {
+        padding: 20,
+    },
+    aiRecommendBannerContent: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    aiRecommendBannerLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    aiRecommendBannerIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "rgba(255,255,255,0.2)",
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 10,
+    },
+    aiRecommendBannerText: {},
+    aiRecommendBannerTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#FFFFFF",
+    },
+    aiRecommendBannerSubtitle: {
+        fontSize: 12,
+        color: "rgba(255,255,255,0.8)",
+    },
+    aiRecommendBannerRight: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    quickFoodCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        backgroundColor: "#FFFFFF",
+        borderRadius: 12,
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        marginBottom: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0,height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    quickFoodInfo: {
+        flex: 1,
+        marginRight: 16,
+    },
+    quickFoodNameRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 4,
+    },
+    quickFoodName: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: "#1F2937",
+        marginRight: 8,
+    },
+    quickFoodDetails: {
+        fontSize: 14,
+        color: "#6B7280",
+    },
+    quickAddButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "#0056d2",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    foodItem: { marginBottom: 20 },
+    foodCard: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 20,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0,height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 4,
+    },
+    selectedFoodCard: { borderWidth: 2,borderColor: "#0056d2" },
+    foodImageContainer: { position: "relative" },
+    foodImage: { width: "100%",height: 180 },
+    foodGradient: {
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 80,
+        justifyContent: "flex-end",
+        paddingHorizontal: 20,
+        paddingBottom: 16,
+    },
+    foodName: { fontSize: 20,fontWeight: "700",color: "#FFFFFF" },
+    caloriesBadge: {
+        position: "absolute",
+        top: 16,
+        left: 16,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        backgroundColor: "#10B981",
+    },
+    caloriesText: { fontSize: 12,color: "#FFFFFF",fontWeight: "600" },
+    selectionButton: {
+        position: "absolute",
+        top: 16,
+        right: 16,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: "rgba(0,86,210,0.1)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    selectedButton: { backgroundColor: "#0056d2" },
+    foodContent: { padding: 20 },
+    foodCategory: { fontSize: 13,color: "#64748B",fontWeight: "500",marginBottom: 12 },
+    macrosContainer: { flexDirection: "row",flexWrap: "wrap",gap: 12 },
+    macroItem: { flexDirection: "row",alignItems: "center" },
+    macroIconContainer: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 8,
+    },
+    macroText: { fontSize: 12,color: "#64748B",fontWeight: "500" },
+    emptyContainer: { alignItems: "center",justifyContent: "center",paddingVertical: 80,minHeight: height * 0.4 },
+    emptyTitle: { fontSize: 18,fontWeight: "600",color: "#374151",marginTop: 16,marginBottom: 8 },
+    emptyText: {
+        fontSize: 14,
+        color: "#6B7280",
+        textAlign: "center",
+        lineHeight: 20,
+        marginBottom: 16,
+        paddingHorizontal: 32,
+    },
+    listContainer: { paddingHorizontal: 16,paddingTop: 16,paddingBottom: 16,backgroundColor: "#F9FAFB" },
+    modalOverlay: { flex: 1,backgroundColor: "rgba(0, 0, 0, 0.5)",justifyContent: "flex-end" },
+    sortModal: { backgroundColor: "#FFFFFF",borderTopLeftRadius: 24,borderTopRightRadius: 24,maxHeight: height * 0.6 },
+    sortContent: { paddingHorizontal: 20,paddingVertical: 16 },
+    sortOption: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        marginBottom: 8,
+        backgroundColor: "#F9FAFB",
+    },
+    selectedSortOption: { backgroundColor: "#EEF2FF",borderWidth: 1,borderColor: "#0056d2" },
+    sortOptionLeft: { flexDirection: "row",alignItems: "center" },
+    sortIconContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 12,
+    },
+    sortOptionText: { fontSize: 16,color: "#6B7280",fontWeight: "500" },
+    layoutModal: {
+        backgroundColor: "#FFFFFF",
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        maxHeight: height * 0.4,
+    },
+    layoutContent: { paddingHorizontal: 20,paddingVertical: 16 },
+    layoutDescription: { fontSize: 16,color: "#6B7280",textAlign: "center",marginBottom: 16 },
+    layoutGrid: { flexDirection: "row",justifyContent: "space-around",alignItems: "center",gap: 12 },
+    layoutOption: {
+        flex: 1,
+        maxWidth: (width - 80) / 4,
+        alignItems: "center",
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderRadius: 12,
+        backgroundColor: "#F9FAFB",
+        borderWidth: 2,
+        borderColor: "transparent",
+        position: "relative",
+    },
+    selectedLayoutOption: { backgroundColor: "#EEF2FF",borderColor: "#0056d2" },
+    layoutIconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    layoutOptionText: { fontSize: 12,color: "#6B7280",fontWeight: "500",textAlign: "center" },
+    layoutCheckmark: { position: "absolute",top: 4,right: 4 },
+    enhancedModalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 20,
+    },
+    enhancedModalContainer: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 24,
+        width: "100%",
+        maxWidth: 400,
+        height: height * 0.85,
+        shadowColor: "#000",
+        shadowOffset: { width: 0,height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    enhancedModalContentWrapper: {
+        flex: 1,
+    },
+    enhancedModalContent: {
+        flex: 1,
+    },
+    enhancedModalContentContainer: {
+        paddingHorizontal: 24,
+        paddingTop: 20,
+        paddingBottom: 20,
+    },
+    inputFieldsContainer: {
+        gap: 24,
+    },
+    inputGroup: {
+        marginBottom: 8,
+    },
+    inputLabelContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 8,
+        gap: 8,
+    },
+    inputLabel: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#374151",
+    },
+    inputDescription: {
+        fontSize: 14,
+        color: "#6B7280",
+        marginBottom: 12,
+        lineHeight: 20,
+    },
+    inputContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#F9FAFB",
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        overflow: "hidden",
+    },
+    enhancedInput: {
+        flex: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        fontSize: 16,
+        color: "#1F2937",
+    },
+    inputUnit: {
+        backgroundColor: "#E5E7EB",
+        paddingHorizontal: 12,
+        paddingVertical: 14,
+    },
+    inputUnitText: {
+        fontSize: 14,
+        color: "#6B7280",
+        fontWeight: "500",
+    },
+    calculatedNutrition: {
+        backgroundColor: "#F0F9FF",
+        borderRadius: 16,
+        padding: 20,
+        marginTop: 8,
+    },
+    calculatedTitle: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#1E40AF",
+        marginBottom: 16,
+        textAlign: "center",
+    },
+    nutritionGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
+    },
+    nutritionCard: {
+        flex: 1,
+        minWidth: "45%",
+        backgroundColor: "#FFFFFF",
+        borderRadius: 12,
+        padding: 12,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0,height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    nutritionValue: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: "#1F2937",
+        marginTop: 4,
+        marginBottom: 2,
+    },
+    nutritionLabel: {
+        fontSize: 12,
+        color: "#6B7280",
+        fontWeight: "500",
+    },
+    enhancedModalActions: {
+        flexDirection: "row",
+        paddingHorizontal: 24,
+        paddingVertical: 20,
+        borderTopWidth: 1,
+        borderTopColor: "#F3F4F6",
+        gap: 12,
+    },
+    cancelButton: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#F9FAFB",
+        paddingVertical: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        gap: 6,
+    },
+    cancelButtonText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#6B7280",
+    },
+    confirmButton: {
+        flex: 2,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#0056d2",
+        paddingVertical: 14,
+        borderRadius: 12,
+        gap: 6,
+    },
+    confirmButtonText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#FFFFFF",
+    },
+    modalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: "#F3F4F6",
+    },
+    modalTitle: { fontSize: 18,fontWeight: "700",color: "#1F2937" },
+})
+
+export default RecipesScreen

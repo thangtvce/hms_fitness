@@ -17,6 +17,8 @@ import { getGroupJoinRequests,updateMemberStatus } from "services/apiCommunitySe
 import { Ionicons } from "@expo/vector-icons"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+import Header from "components/Header"
 
 const PendingMembersScreen = () => {
   const navigation = useNavigation()
@@ -312,10 +314,7 @@ const PendingMembersScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0056d2" />
-          <Text style={styles.loadingText}>Loading pending requests...</Text>
-        </View>
+        <CommonSkeleton />
       </SafeAreaView>
     )
   }
@@ -323,20 +322,20 @@ const PendingMembersScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056d2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Join Requests</Text>
-            <Text style={styles.headerSubtitle}>{filteredMembers.length} pending</Text>
-          </View>
-          <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
-            <Ionicons name="options-outline" size={24} color="#0056d2" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Join Requests"
+        subtitle={`${filteredMembers.length} pending`}
+        onBack={() => navigation.goBack()}
+        showAvatar={false}
+        rightActions={[
+          {
+            icon: <Ionicons name="options-outline" size={24} color="#0056d2" />,
+            onPress: () => setShowSortModal(true),
+            backgroundColor: 'transparent',
+          },
+        ]}
+      />
+
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -445,6 +444,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
+    marginTop: 70
   },
   searchInputContainer: {
     flexDirection: "row",

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useCallback } from 'react';
+import React,{ useEffect,useState,useContext,useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,20 +17,21 @@ import ticketService from 'services/apiTicketService';
 import apiUserService from 'services/apiUserService';
 import { AuthContext } from 'context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import RenderHTML from 'react-native-render-html';
 
 const TicketDetailScreen = ({ route }) => {
   const { ticketId } = route.params;
   const navigation = useNavigation();
-  const { token, user } = useContext(AuthContext);
-  const [ticket, setTicket] = useState(null);
-  const [responses, setResponses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [responseText, setResponseText] = useState('');
-  const [posting, setPosting] = useState(false);
-  const [error, setError] = useState(null);
-  const [userMap, setUserMap] = useState({});
+  const { token,user } = useContext(AuthContext);
+  const [ticket,setTicket] = useState(null);
+  const [responses,setResponses] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [responseText,setResponseText] = useState('');
+  const [posting,setPosting] = useState(false);
+  const [error,setError] = useState(null);
+  const [userMap,setUserMap] = useState({});
 
   const fetchTicket = useCallback(async () => {
     setLoading(true);
@@ -50,9 +51,8 @@ const TicketDetailScreen = ({ route }) => {
       } else if (r && r.data && Array.isArray(r.data.responses)) {
         arr = r.data.responses;
       }
-      
-      // Sort responses by date
-      arr.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+      arr.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
       setResponses(arr);
 
       const uniqueUserIds = Array.from(new Set(arr.map(resp => resp.userId).filter(Boolean)));
@@ -63,26 +63,27 @@ const TicketDetailScreen = ({ route }) => {
           if (userRes && userRes.data) {
             userMapTemp[uid] = userRes.data;
           }
-        } catch {}
+        } catch { }
       }));
       setUserMap(userMapTemp);
     } catch (err) {
       setError(err.message || 'Failed to load ticket');
+      showErrorFetchAPI(err);
     } finally {
       setLoading(false);
     }
-  }, [ticketId]);
+  },[ticketId]);
 
   useEffect(() => {
     fetchTicket();
-  }, [fetchTicket]);
+  },[fetchTicket]);
 
   const handleSendResponse = async () => {
     if (!responseText.trim()) return;
     setPosting(true);
     setError(null);
     try {
-      await ticketService.addTicketResponse(ticketId, { responseText: responseText });
+      await ticketService.addTicketResponse(ticketId,{ responseText: responseText });
       setResponseText('');
       await fetchTicket();
       showSuccessMessage('Response sent successfully!');
@@ -96,52 +97,57 @@ const TicketDetailScreen = ({ route }) => {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    const fixed = dateStr.replace(/\.(\d{1,2})(?!\d)/, (m, g1) => `.${g1.padEnd(3, '0')}`);
+
+    const fixed = dateStr.replace(/\.(\d{1,2})(?!\d)/,(m,g1) => `.${g1.padEnd(3,'0')}`);
     const d = new Date(fixed);
     if (isNaN(d.getTime())) return '';
-    
+
     const now = new Date();
-    const diffTime = Math.abs(now - d);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
+    const dDate = new Date(d.getFullYear(),d.getMonth(),d.getDate());
+    const nowDate = new Date(now.getFullYear(),now.getMonth(),now.getDate());
+
+    const diffTime = nowDate - dDate;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+    if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
-    
-    return d.toLocaleDateString('en-US', { 
-      month: 'short', 
+
+    return d.toLocaleDateString('en-US',{
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
   const getStatusConfig = (status) => {
     const configs = {
-      Open: { color: '#10B981', bgColor: '#ECFDF5', icon: 'radio-button-on' },
-      Pending: { color: '#F59E0B', bgColor: '#FFFBEB', icon: 'time' },
-      Closed: { color: '#EF4444', bgColor: '#FEF2F2', icon: 'close-circle' },
-      Resolved: { color: '#E5E7EB', bgColor: '#E5E7EB', icon: 'checkmark-circle' },
-      InProgress: { color: '#3B82F6', bgColor: '#EFF6FF', icon: 'play-circle' },
+      Open: { color: '#10B981',bgColor: '#ECFDF5',icon: 'radio-button-on' },
+      Pending: { color: '#F59E0B',bgColor: '#FFFBEB',icon: 'time' },
+      Closed: { color: '#EF4444',bgColor: '#FEF2F2',icon: 'close-circle' },
+      Resolved: { color: '#E5E7EB',bgColor: '#E5E7EB',icon: 'checkmark-circle' },
+      InProgress: { color: '#3B82F6',bgColor: '#EFF6FF',icon: 'play-circle' },
     };
     return configs[status] || configs.Open;
   };
 
   const getPriorityConfig = (priority) => {
     const configs = {
-      High: { color: '#EF4444', bgColor: '#FEF2F2', icon: 'alert-circle' },
-      Medium: { color: '#F59E0B', bgColor: '#FFFBEB', icon: 'warning' },
-      Low: { color: '#10B981', bgColor: '#ECFDF5', icon: 'checkmark-circle' },
+      High: { color: '#EF4444',bgColor: '#FEF2F2',icon: 'alert-circle' },
+      Medium: { color: '#F59E0B',bgColor: '#FFFBEB',icon: 'warning' },
+      Low: { color: '#10B981',bgColor: '#ECFDF5',icon: 'checkmark-circle' },
     };
-    return configs[priority] || { color: '#6B7280', bgColor: '#F9FAFB', icon: 'help-circle' };
+    return configs[priority] || { color: '#6B7280',bgColor: '#F9FAFB',icon: 'help-circle' };
   };
 
-  const renderResponse = ({ item, index }) => {
+  const renderResponse = ({ item,index }) => {
     const userInfo = item.userId ? userMap[item.userId] : null;
     const displayName = userInfo?.fullName || userInfo?.username || userInfo?.email || 'User';
     const isAdmin = userInfo?.roles && userInfo.roles.includes('Admin');
     const dateStr = formatDate(item.createdAt);
 
-    // Check if there is any admin response after this user's message
     const hasAdminAfter = responses.some(r => {
       const u = r.userId ? userMap[r.userId] : null;
       const rIsAdmin = u?.roles && u.roles.includes('Admin');
@@ -158,13 +164,12 @@ const TicketDetailScreen = ({ route }) => {
 
     return (
       <View style={styles.messageContainer}>
-        {/* Date and Status Row */}
         <View style={styles.dateStatusRow}>
           <View style={styles.statusIndicator}>
-            <Icon 
-              name={isAdmin ? 'shield-checkmark' : 'person'} 
-              size={14} 
-              color={isAdmin ? '#4F46E5' : '#10B981'} 
+            <Icon
+              name={isAdmin ? 'shield-checkmark' : 'person'}
+              size={14}
+              color={isAdmin ? '#4F46E5' : '#10B981'}
             />
             <Text style={[
               styles.statusText,
@@ -198,24 +203,40 @@ const TicketDetailScreen = ({ route }) => {
             <View style={styles.senderInfo}>
               <View style={[
                 styles.avatarCircle,
-                { backgroundColor: isAdmin ? '#E5E7EB' : '#10B981' }
+                { backgroundColor: isAdmin ? '#E5E7EB' : '#e9f1efff' }
               ]}>
-                <Icon 
-                  name={isAdmin ? 'shield-checkmark' : 'person'} 
-                  size={16} 
-                  color="#FFFFFF" 
+                <Icon
+                  name={isAdmin ? 'shield-checkmark' : 'person-circle'}
+                  size={16}
+                  color="#10B981"
                 />
               </View>
               <Text style={[
                 styles.senderName,
                 { color: isAdmin ? '#111' : '#10B981' }
               ]}>
-                {isAdmin ? 'Support Team' : displayName}
+                {isAdmin ? 'HMS SUPPORT' : displayName}
               </Text>
             </View>
             <Text style={styles.messageTime}>{dateStr}</Text>
           </View>
-          <Text style={styles.messageText}>{item.responseText}</Text>
+          <Text style={styles.messageText}>
+            <RenderHTML
+              source={{
+                html:
+                  item.responseText || "N/A"
+              }}
+              tagsStyles={{
+                p: {
+                  fontSize: 14,
+                  color: "#64748B",
+                  margin: 0,
+                  lineHeight: 20,
+                  fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
+                },
+              }}
+            />
+          </Text>
         </View>
       </View>
     );
@@ -230,8 +251,8 @@ const TicketDetailScreen = ({ route }) => {
           onBack={() => navigation.goBack()}
           absolute
         />
-        <View style={{ height: 90 }} />
-        <Loading />
+        <View style={{ height: 60 }} />
+        <CommonSkeleton />
       </SafeAreaView>
     );
   }
@@ -245,7 +266,7 @@ const TicketDetailScreen = ({ route }) => {
           onBack={() => navigation.goBack()}
           absolute
         />
-        <View style={{ height: 90 }} />
+        <View style={{ height: 60 }} />
         <View style={styles.centered}>
           <Icon name="alert-circle" size={64} color="#EF4444" />
           <Text style={styles.errorText}>{error || 'Ticket not found'}</Text>
@@ -269,7 +290,7 @@ const TicketDetailScreen = ({ route }) => {
         onBack={() => navigation.goBack()}
         absolute
       />
-      <View style={{ height: 90 }} />
+      <View style={{ height: 50 }} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -282,15 +303,15 @@ const TicketDetailScreen = ({ route }) => {
             <View style={styles.ticketHeader}>
               <Text style={styles.ticketTitle} numberOfLines={2}>{ticket.title}</Text>
               <View style={styles.statusRow}>
-                <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
+                <View style={[styles.statusBadge,{ backgroundColor: statusConfig.bgColor }]}>
                   <Icon name={statusConfig.icon} size={14} color={statusConfig.color} />
-                  <Text style={[styles.statusText, { color: statusConfig.color }]}>
+                  <Text style={[styles.statusText,{ color: statusConfig.color }]}>
                     {ticket.status}
                   </Text>
                 </View>
-                <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.bgColor }]}>
+                <View style={[styles.priorityBadge,{ backgroundColor: priorityConfig.bgColor }]}>
                   <Icon name={priorityConfig.icon} size={14} color={priorityConfig.color} />
-                  <Text style={[styles.priorityText, { color: priorityConfig.color }]}>
+                  <Text style={[styles.priorityText,{ color: priorityConfig.color }]}>
                     {ticket.priority || 'Normal'}
                   </Text>
                 </View>
@@ -303,13 +324,13 @@ const TicketDetailScreen = ({ route }) => {
                 <Text style={styles.detailLabel}>Created by:</Text>
                 <Text style={styles.detailValue}>{ticket.userFullName || 'Unknown'}</Text>
               </View>
-              
+
               <View style={styles.detailRow}>
                 <Icon name="calendar-outline" size={16} color="#6B7280" />
                 <Text style={styles.detailLabel}>Created:</Text>
                 <Text style={styles.detailValue}>{formatDate(ticket.createdAt)}</Text>
               </View>
-              
+
               {ticket.category && (
                 <View style={styles.detailRow}>
                   <Icon name="folder-outline" size={16} color="#6B7280" />
@@ -330,7 +351,7 @@ const TicketDetailScreen = ({ route }) => {
           {/* Conversation Section */}
           <View style={styles.conversationSection}>
             <View style={styles.conversationHeader}>
-            <Icon name="chatbubbles-outline" size={20} color="#E5E7EB" />
+              <Icon name="chatbubbles-outline" size={20} color="#E5E7EB" />
               <Text style={styles.conversationTitle}>Conversation</Text>
               <Text style={styles.messageCount}>({responses.length})</Text>
             </View>
@@ -344,7 +365,7 @@ const TicketDetailScreen = ({ route }) => {
             ) : (
               <FlatList
                 data={responses}
-                keyExtractor={(item, index) =>
+                keyExtractor={(item,index) =>
                   item && item.responseId !== undefined && item.responseId !== null
                     ? item.responseId.toString()
                     : index.toString()
@@ -360,9 +381,9 @@ const TicketDetailScreen = ({ route }) => {
         {/* Input Section */}
         {isResolved ? (
           <View style={styles.resolvedContainer}>
-            <View style={[styles.resolvedBanner, { backgroundColor: '#E5E7EB' }]}> 
+            <View style={[styles.resolvedBanner,{ backgroundColor: '#E5E7EB' }]}>
               <Icon name="checkmark-circle" size={24} color="#E5E7EB" />
-              <Text style={[styles.resolvedText, { color: '#111' }]}>This ticket has been resolved. No further responses can be added.</Text>
+              <Text style={[styles.resolvedText,{ color: '#111' }]}>This ticket has been resolved. No further responses can be added.</Text>
             </View>
           </View>
         ) : (
@@ -476,7 +497,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     borderWidth: 1,
@@ -563,7 +584,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     borderWidth: 1,
@@ -656,7 +677,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
@@ -740,7 +761,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },

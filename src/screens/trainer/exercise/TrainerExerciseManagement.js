@@ -23,6 +23,9 @@ import { trainerService } from 'services/apiTrainerService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import { StatusBar } from 'expo-status-bar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -146,9 +149,9 @@ const TrainerExerciseManagement = () => {
       const params = {
         PageNumber: pageNumber,
         PageSize: pageSize,
-        ValidPageSize: [5,10,20,50],
+        ValidPageSize: 10,
         SearchTerm: searchTerm || undefined,
-        IsPrivate: activeTab === 'all' ? undefined : activeTab === 'public' ? 0 : 1,
+        Status: activeTab === 'all' ? undefined : activeTab === 'public' ? "public" : "private",
         Category: filters.category === 'all' ? undefined : filters.category,
         StartDate: filters.startDate ? filters.startDate.toISOString() : undefined,
         EndDate: filters.endDate ? filters.endDate.toISOString() : undefined,
@@ -243,12 +246,14 @@ const TrainerExerciseManagement = () => {
     setFilterErrors({});
   };
 
-  const handleToggleStatus = (exerciseId,currentIsPrivate) => {
+  const handleToggleStatus = (exercise,currentIsPrivate) => {
     setConfirmMessage(`Are you sure you want to make this exercise ${currentIsPrivate === 0 ? 'private' : 'public'}?`);
     setConfirmAction(() => async () => {
       try {
         const newIsPrivate = currentIsPrivate === 0 ? 1 : 0;
-        const response = await trainerService.toggleExerciseStatus(exerciseId,newIsPrivate);
+        exercise.isPrivate = newIsPrivate;
+        console.log(exercise)
+        const response = await trainerService.updateFitnessExercise(exercise.exerciseId,exercise);
         if (response.statusCode === 200) {
           showSuccessMessage(`Exercise made ${newIsPrivate === 0 ? 'public' : 'private'} successfully.`);
           setPageNumber(1);
@@ -377,7 +382,7 @@ const TrainerExerciseManagement = () => {
               <View style={styles.headerRight}>
                 <TouchableOpacity
                   style={[styles.joinBtn,{ backgroundColor: item.isPrivate === 0 ? '#EF4444' : '#22C55E' }]}
-                  onPress={() => handleToggleStatus(item.exerciseId,item.isPrivate)}
+                  onPress={() => handleToggleStatus(item,item.isPrivate)}
                 >
                   <Ionicons
                     name={item.isPrivate === 0 ? 'lock-closed-outline' : 'globe-outline'}
@@ -572,39 +577,6 @@ const TrainerExerciseManagement = () => {
               {filterErrors.maxCalories && <Text style={styles.errorText}>{filterErrors.maxCalories}</Text>}
             </View>
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Privacy</Text>
-              <View style={styles.statusOptions}>
-                {[
-                  { key: 'all',label: 'All',icon: 'filter',color: '#0056D2' },
-                  { key: 'public',label: 'Public',icon: 'globe-outline',color: '#22C55E' },
-                  { key: 'private',label: 'Private',icon: 'lock-closed-outline',color: '#EF4444' },
-                ].map((option) => (
-                  <TouchableOpacity
-                    key={option.key}
-                    style={[
-                      styles.statusOption,
-                      tempFilters.isPrivate === option.key && styles.selectedStatusOption,
-                    ]}
-                    onPress={() => setTempFilters({ ...tempFilters,isPrivate: option.key })}
-                  >
-                    <Ionicons
-                      name={option.icon}
-                      size={18}
-                      color={tempFilters.isPrivate === option.key ? '#FFFFFF' : option.color}
-                    />
-                    <Text
-                      style={[
-                        styles.statusOptionText,
-                        tempFilters.isPrivate === option.key && styles.selectedStatusOptionText,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Category</Text>
               <View style={styles.statusOptions}>
                 {[{ categoryId: 'all',categoryName: 'All' },...categories].map((category) => (
@@ -736,22 +708,21 @@ const TrainerExerciseManagement = () => {
   return (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#F8FAFC" />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} accessibilityLabel="Go Back">
-            <Ionicons name="arrow-back" size={24} color="#0056D2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Fitness Exercises</Text>
-          </View>
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)} accessibilityLabel="Open Filters">
-            <Ionicons name="options-outline" size={24} color="#0056D2" />
-            {(searchTerm || filters.isPrivate !== 'all' || filters.category !== 'all' || filters.startDate || filters.endDate) && (
-              <View style={styles.filterBadge} />
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Fitness Exercises"
+        onBack={() => navigation.goBack()}
+        backIconColor="#0056D2"
+        rightActions={[
+          {
+            icon: "options-outline",
+            onPress: () => setShowFilterModal(true),
+            color: "#0056D2",
+            accessibilityLabel: "Open Filters",
+            showBadge: searchTerm || filters.isPrivate !== 'all' || filters.category !== 'all' || filters.startDate || filters.endDate,
+          }
+        ]}
+      />
+
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tabItem,activeTab === 'all' && styles.tabItemActive]}
@@ -819,7 +790,7 @@ const TrainerExerciseManagement = () => {
       {loading && pageNumber === 1 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0056D2" />
-          <Text style={styles.loadingText}>Loading exercises...</Text>
+          <CommonSkeleton />
         </View>
       ) : (
         <FlatList
@@ -931,6 +902,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     marginBottom: 2,
+    marginTop: 70
   },
   tabItem: {
     flex: 1,

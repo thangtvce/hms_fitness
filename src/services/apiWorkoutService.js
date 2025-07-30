@@ -47,10 +47,10 @@ apiClient.interceptors.response.use(
 );
 
 export const workoutService = {
-  async getExercisesByCategory(categoryId, queryParams = {}) {
+  async getExercisesByCategory(categoryId,queryParams = {}) {
     if (!categoryId || categoryId <= 0) throw new Error('Valid category id is required.');
     try {
-      const response = await apiClient.get(`/FitnessExercise/category/${categoryId}`, {
+      const response = await apiClient.get(`/FitnessExercise/category/${categoryId}`,{
         params: {
           PageNumber: queryParams.PageNumber,
           PageSize: queryParams.PageSize,
@@ -66,9 +66,9 @@ export const workoutService = {
       throw new Error(error.message || 'Failed to fetch exercises by category');
     }
   },
-  async getAllActiveActivities({ pageNumber = 1, pageSize = 10 } = {}) {
+  async getAllActiveActivities({ pageNumber = 1,pageSize = 10 } = {}) {
     try {
-      const response = await apiClient.get('/UserActivity/all-active-activities', {
+      const response = await apiClient.get('/UserActivity/all-active-activities',{
         params: {
           pageNumber,
           pageSize,
@@ -82,7 +82,7 @@ export const workoutService = {
 
   async getAllExercises(queryParams) {
     try {
-      const response = await apiClient.get('/FitnessExercise', {
+      const response = await apiClient.get('/FitnessExercise/view/0',{
         params: {
           PageNumber: queryParams.PageNumber,
           pageSize: queryParams.PageSize,
@@ -96,9 +96,9 @@ export const workoutService = {
     }
   },
 
-  async getAllActiveCategories({ pageNumber = 1, pageSize = 10 } = {}) {
+  async getAllActiveCategories({ pageNumber = 1,pageSize = 10 } = {}) {
     try {
-      const response = await apiClient.get('/ExerciseCategory/all-active-categories', {
+      const response = await apiClient.get('/ExerciseCategory/all-active-categories',{
         params: {
           pageNumber,
           pageSize,
@@ -110,18 +110,25 @@ export const workoutService = {
     }
   },
 
-  async getAllCategories() {
+  async getAllCategories(queryParams) {
     try {
-      const response = await apiClient.get('/ExerciseCategory/all-active-categories');
+      const response = await apiClient.get('/ExerciseCategory/all-active-categories',
+        {
+          params: {
+            PageNumber: queryParams.PageNumber,
+            pageSize: queryParams.PageSize
+          },
+        }
+      );
       return response.data.data.categories;
     } catch (error) {
       throw new Error(error.message || 'Failed to fetch categories');
     }
   },
 
-  async getAllActiveActivityTypes({ pageNumber = 1, pageSize = 10 } = {}) {
+  async getAllActiveActivityTypes({ pageNumber = 1,pageSize = 10 } = {}) {
     try {
-      const response = await apiClient.get('/ActivityType/all-active-types', {
+      const response = await apiClient.get('/ActivityType/all-active-types',{
         params: {
           pageNumber,
           pageSize,
@@ -132,10 +139,10 @@ export const workoutService = {
       throw new Error(error.message || 'Failed to fetch activity types');
     }
   },
-  async getExercisesByCategory(categoryId, queryParams = {}) {
+  async getExercisesByCategory(categoryId,queryParams = {}) {
     if (!categoryId || categoryId <= 0) throw new Error('Valid category id is required.');
     try {
-      const response = await apiClient.get(`/FitnessExercise/category/${categoryId}`, {
+      const response = await apiClient.get(`/FitnessExercise/category/${categoryId}`,{
         params: {
           PageNumber: queryParams.PageNumber,
           PageSize: queryParams.PageSize,
@@ -151,9 +158,9 @@ export const workoutService = {
       throw new Error(error.message || 'Failed to fetch exercises by category');
     }
   },
-  async getMyActivities({ pageNumber = 1, pageSize = 10, ...restParams } = {}) {
+  async getMyActivities({ pageNumber = 1,pageSize = 10,...restParams } = {}) {
     try {
-      const response = await apiClient.get('/UserActivity/me', {
+      const response = await apiClient.get('/UserActivity/me',{
         params: {
           pageNumber,
           pageSize,
@@ -186,7 +193,7 @@ export const workoutService = {
       throw new Error('At least one metric (Steps, DistanceKm, CaloriesBurned, DurationMinutes, HeartRate) must be provided.');
     }
     try {
-      const response = await apiClient.post('/UserActivity', activity);
+      const response = await apiClient.post('/UserActivity',activity);
       return response.data;
     } catch (error) {
       throw new Error(error.message || 'Failed to create activity');
@@ -211,14 +218,14 @@ export const workoutService = {
       }
     }
     try {
-      const response = await apiClient.post('/UserActivity/bulk', activities);
+      const response = await apiClient.post('/UserActivity/bulk',activities);
       return response.data;
     } catch (error) {
       throw new Error(error.message || 'Failed to create activities in bulk');
     }
   },
 
-  async updateActivity(id, activity) {
+  async updateActivity(id,activity) {
     if (!id || id <= 0) throw new Error('Valid activity id is required.');
     if (!activity || typeof activity !== 'object') throw new Error('Activity payload is required.');
     if (!activity.UserId) throw new Error('UserId is required.');
@@ -233,7 +240,7 @@ export const workoutService = {
       throw new Error('At least one metric (Steps, DistanceKm, CaloriesBurned, DurationMinutes, HeartRate) must be provided.');
     }
     try {
-      const response = await apiClient.put(`/UserActivity/${id}`, activity);
+      const response = await apiClient.put(`/UserActivity/${id}`,activity);
       return response.data;
     } catch (error) {
       throw new Error(error.message || 'Failed to update activity');
@@ -259,7 +266,7 @@ export const workoutService = {
       throw new Error('StartDate must be earlier than or equal to EndDate.');
     }
     try {
-      const response = await apiClient.get('/UserActivity/statistics/me', { params });
+      const response = await apiClient.get('/UserActivity/statistics/me',{ params });
       return response.data;
     } catch (error) {
       throw new Error(error.message || 'Failed to fetch activity statistics');
@@ -268,7 +275,7 @@ export const workoutService = {
 
   async getMyWorkoutSessions(params = {}) {
     try {
-      const response = await apiClient.get('/WorkoutSessionLog/me', { params });
+      const response = await apiClient.get('/WorkoutSessionLog/me',{ params });
       return response.data.data.sessions;
     } catch (error) {
       throw new Error(error.message || 'Failed to fetch workout sessions');
@@ -293,7 +300,7 @@ export const workoutService = {
       throw new Error('EndTime must be later than StartTime.');
     }
     try {
-      const response = await apiClient.post('/WorkoutSessionLog', session);
+      const response = await apiClient.post('/WorkoutSessionLog',session);
       return response.data;
     } catch (error) {
       throw new Error(error.message || 'Failed to create workout session');
@@ -312,14 +319,14 @@ export const workoutService = {
       }
     }
     try {
-      const response = await apiClient.post('/WorkoutSessionLog/bulk', sessions);
+      const response = await apiClient.post('/WorkoutSessionLog/bulk',sessions);
       return response.data;
     } catch (error) {
       throw new Error(error.message || 'Failed to create workout sessions in bulk');
     }
   },
 
-  async updateWorkoutSession(id, session) {
+  async updateWorkoutSession(id,session) {
     if (!id || id <= 0) throw new Error('Valid session id is required.');
     if (!session || typeof session !== 'object') throw new Error('Session payload is required.');
     if (!session.UserId) throw new Error('UserId is required.');
@@ -328,7 +335,7 @@ export const workoutService = {
       throw new Error('EndTime must be later than StartTime.');
     }
     try {
-      const response = await apiClient.put(`/WorkoutSessionLog/${id}`, session);
+      const response = await apiClient.put(`/WorkoutSessionLog/${id}`,session);
       return response.data;
     } catch (error) {
       throw new Error(error.message || 'Failed to update workout session');
@@ -354,7 +361,7 @@ export const workoutService = {
       throw new Error('StartDate must be earlier than or equal to EndDate.');
     }
     try {
-      const response = await apiClient.get('/WorkoutSessionLog/statistics/me', { params });
+      const response = await apiClient.get('/WorkoutSessionLog/statistics/me',{ params });
       return response.data;
     } catch (error) {
       throw new Error(error.message || 'Failed to fetch workout session statistics');

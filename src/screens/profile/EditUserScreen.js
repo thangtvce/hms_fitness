@@ -16,7 +16,7 @@ import {
   Linking,
 } from "react-native"
 import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
 import { LinearGradient } from "expo-linear-gradient"
@@ -29,6 +29,7 @@ import { ThemeContext } from "components/theme/ThemeContext"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { AuthContext } from "context/AuthContext"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
 
 const { width,height } = Dimensions.get("window")
 const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/bmp'];
@@ -71,7 +72,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
   const [showUrlInput,setShowUrlInput] = useState(false)
   const [showGenderOptions,setShowGenderOptions] = useState(false)
   const [showDatePicker,setShowDatePicker] = useState(false)
-  const [tempBirthDate, setTempBirthDate] = useState(null); // State for temporary birth date selection
+  const [tempBirthDate,setTempBirthDate] = useState(null);
   const [imageUrl,setImageUrl] = useState("")
   const [errors,setErrors] = useState({
     fullName: "",
@@ -175,7 +176,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
   useEffect(() => {
     if (showDatePicker) {
-      setTempBirthDate(formData.birthDate || new Date()); // Set temp date when opening
+      setTempBirthDate(formData.birthDate || new Date());
       Animated.timing(datePickerAnimation,{
         toValue: 1,
         duration: 300,
@@ -191,7 +192,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
   },[showDatePicker])
 
   if (!fontsLoaded || loading) {
-    return <Loading />;
+    return <CommonSkeleton />;
   }
 
   const handleInputChange = (field,value) => {
@@ -261,7 +262,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
       if (status !== 'granted') {
         setHasGalleryPermission(false);
-        showErrorFetchAPI('To select images, please grant access to your photo library in your device settings.');
+        showErrorMessage('To select images, please grant access to your photo library in your device settings.');
         return;
       }
 
@@ -281,7 +282,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
         const imageType = selectedAsset.type === 'image' ? 'image/jpeg' : (selectedAsset.type || 'image/jpeg');
 
         if (!ALLOWED_TYPES.includes(imageType)) {
-          showErrorFetchAPI(`Invalid image type. Only ${ALLOWED_TYPES.join(', ')} are allowed.`);
+          showErrorMessage(`Invalid image type. Only ${ALLOWED_TYPES.join(', ')} are allowed.`);
           return;
         }
 
@@ -293,7 +294,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
         }
       }
     } catch (error) {
-      showErrorFetchAPI('Failed to pick image.');
+      showErrorFetchAPI(error);
     } finally {
       setImageUploading(false);
       setShowImageOptions(false);
@@ -306,7 +307,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
       if (status !== 'granted') {
         setHasCameraPermission(false);
-        showErrorFetchAPI('To take photos, please grant access to your camera in your device settings.');
+        showErrorMessage('To take photos, please grant access to your camera in your device settings.');
         return;
       }
 
@@ -325,7 +326,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
         const imageType = selectedAsset.type === 'image' ? 'image/jpeg' : (selectedAsset.type || 'image/jpeg');
 
         if (!ALLOWED_TYPES.includes(imageType)) {
-          showErrorFetchAPI(`Invalid image type. Only ${ALLOWED_TYPES.join(', ')} are allowed.`);
+          showErrorMessage(`Invalid image type. Only ${ALLOWED_TYPES.join(', ')} are allowed.`);
           return;
         }
 
@@ -337,7 +338,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
         }
       }
     } catch (error) {
-      showErrorFetchAPI('Failed to take photo.');
+      showErrorFetchAPI(error);
     } finally {
       setImageUploading(false);
       setShowImageOptions(false);
@@ -380,7 +381,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
   }
 
   const handleConfirmBirthDate = () => {
-    setFormData((prev) => ({ ...prev, birthDate: tempBirthDate }));
+    setFormData((prev) => ({ ...prev,birthDate: tempBirthDate }));
     setShowDatePicker(false);
   }
 
@@ -432,23 +433,23 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
         throw new Error(response.message || 'Failed to update profile');
       }
     } catch (error) {
-      showErrorFetchAPI(error.message || 'Failed to update profile.');
+      showErrorFetchAPI(error);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background || '#fff' }]}> 
+    <SafeAreaView style={[styles.safeArea,{ backgroundColor: colors.background || '#fff' }]}>
       <Header
-        title="Edit User Information"
+        title="Edit Information"
         canGoBack
         onBack={() => navigation.goBack()}
         rightActions={[]}
       />
 
       <KeyboardAvoidingView
-        style={[styles.container, { backgroundColor: colors.backgroundCard || '#F8FAFC', marginTop: 32 }]}
+        style={[styles.container,{ backgroundColor: colors.backgroundCard || '#F8FAFC',marginTop: 80 }]}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
@@ -460,7 +461,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
           <View style={styles.avatarSection}>
             <View style={styles.avatarContainer}>
               {imageUploading ? (
-                <Loading />
+                <CommonSkeleton />
               ) : (
                 <Image
                   source={{ uri: formData.avatar || "https://via.placeholder.com/150?text=User" }}
@@ -471,7 +472,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
                 />
               )}
               <TouchableOpacity
-                style={[styles.changeAvatarButton, { backgroundColor: '#0056d2' }]}
+                style={[styles.changeAvatarButton,{ backgroundColor: '#0056d2' }]}
                 onPress={() => setShowImageOptions(true)}
                 disabled={imageUploading}
               >
@@ -594,20 +595,20 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
             </View>
           </View>
 
-              <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: '#0056d2' }, loading ? styles.saveButtonDisabled : null]}
-                onPress={handleSave}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="save-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-                    <Text style={styles.saveButtonText}>Save Changes</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveButton,{ backgroundColor: '#0056d2' },loading ? styles.saveButtonDisabled : null]}
+            onPress={handleSave}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="save-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              </>
+            )}
+          </TouchableOpacity>
 
           <View style={styles.tipContainer}>
             <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
@@ -659,17 +660,17 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
             <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
               <Ionicons name="camera-outline" size={24} color={colors.primary} style={styles.modalOptionIcon} />
-              <Text style={[styles.modalOptionText, { color: colors.primary }]}>Take Photo</Text>
+              <Text style={[styles.modalOptionText,{ color: colors.primary }]}>Take Photo</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.modalOption} onPress={handlePickImage}>
               <Ionicons name="image-outline" size={24} color={colors.primary} style={styles.modalOptionIcon} />
-              <Text style={[styles.modalOptionText, { color: colors.primary }]}>Choose from Gallery</Text>
+              <Text style={[styles.modalOptionText,{ color: colors.primary }]}>Choose from Gallery</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.modalOption} onPress={handleUrlImage}>
               <Ionicons name="link-outline" size={24} color={colors.primary} style={styles.modalOptionIcon} />
-              <Text style={[styles.modalOptionText, { color: colors.primary }]}>Enter Image URL</Text>
+              <Text style={[styles.modalOptionText,{ color: colors.primary }]}>Enter Image URL</Text>
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
@@ -740,7 +741,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
                 ) : null}
               </View>
 
-              <TouchableOpacity style={[styles.urlConfirmButton, { backgroundColor: colors.primary }]} onPress={confirmUrlImage}>
+              <TouchableOpacity style={[styles.urlConfirmButton,{ backgroundColor: colors.primary }]} onPress={confirmUrlImage}>
                 <Text style={styles.urlConfirmButtonText}>Confirm</Text>
               </TouchableOpacity>
             </Animated.View>
@@ -788,7 +789,7 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
 
             {GENDER_OPTIONS.map((gender) => (
               <TouchableOpacity key={gender} style={styles.modalOption} onPress={() => handleGenderSelect(gender)}>
-                <Text style={[styles.modalOptionText, { color: colors.primary }]}>{gender}</Text>
+                <Text style={[styles.modalOptionText,{ color: colors.primary }]}>{gender}</Text>
                 {formData.gender === gender && <Ionicons name="checkmark" size={20} color={colors.primary} />}
               </TouchableOpacity>
             ))}
@@ -853,11 +854,11 @@ export default function EditUserScreen({ navigation = { goBack: () => { } },rout
               />
             </View>
 
-            <View style={[styles.datePickerActions, { marginBottom: 10 }]}> 
-              <TouchableOpacity style={[styles.datePickerCancelButton, { backgroundColor: colors.card || '#F1F5F9' }]} onPress={() => setShowDatePicker(false)}>
-                <Text style={[styles.datePickerCancelText, { color: colors.textSecondary || '#64748B' }]}>Cancel</Text>
+            <View style={[styles.datePickerActions,{ marginBottom: 10 }]}>
+              <TouchableOpacity style={[styles.datePickerCancelButton,{ backgroundColor: colors.card || '#F1F5F9' }]} onPress={() => setShowDatePicker(false)}>
+                <Text style={[styles.datePickerCancelText,{ color: colors.textSecondary || '#64748B' }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.datePickerConfirmButton, { backgroundColor: '#0056d2' }]} onPress={handleConfirmBirthDate}>
+              <TouchableOpacity style={[styles.datePickerConfirmButton,{ backgroundColor: '#0056d2' }]} onPress={handleConfirmBirthDate}>
                 <Text style={styles.datePickerConfirmText}>Confirm</Text>
               </TouchableOpacity>
             </View>

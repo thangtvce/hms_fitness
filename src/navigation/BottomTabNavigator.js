@@ -17,6 +17,7 @@ import HomeScreen from "screens/home/HomeScreen"
 import SettingsScreen from "screens/setting/SettingsScreen"
 import ServicePackageScreen from "screens/servicePackage/ServicePackageScreen"
 import ActiveGroupsScreen from "screens/community/ActiveGroupsScreen"
+import FoodListScreen from "screens/food/FoodListScreen"
 
 const Tab = createBottomTabNavigator()
 const { width } = Dimensions.get("window")
@@ -84,10 +85,11 @@ function CustomTabBar({ state,descriptors,navigation }) {
     },
     {
       icon: "nutrition-outline",
-      label: "Log Meal",
+      label: "Food",
       color: "#F59E0B",
       onPress: () => {
         setModalVisible(false)
+        navigation.navigate("Food")
       },
     },
     {
@@ -100,25 +102,39 @@ function CustomTabBar({ state,descriptors,navigation }) {
       },
     },
     {
-      icon: "medkit-outline",
-      label: "Log Medication",
+      icon: "bar-chart",
+      label: "Nutrition Target",
       color: "#EC4899",
       onPress: () => {
-        setModalVisible(false)
-        // Navigate to medication logging screen
+        setModalVisible(false);
+        navigation.navigate("NutritionTargetScreen");
       },
     },
     {
-      icon: "bed-outline",
-      label: "Log Sleep",
-      color: "#8B5CF6",
+      icon: "book",
+      label: "Food Log",
+      color: "#10B981",
       onPress: () => {
-        setModalVisible(false)
-        // Navigate to sleep logging screen
+        setModalVisible(false);
+        navigation.navigate("FoodLogHistoryScreen");
+      },
+    },
+    {
+      icon: "book",
+      label: "Recipes",
+      color: "#0e5d7aff",
+      onPress: () => {
+        setModalVisible(false);
+        navigation.navigate("RecipesScreen");
       },
     },
   ]
 
+  const visibleTabNames = ["Home","Services","Community","Settings"]
+
+  const visibleRoutes = state.routes.filter((route) =>
+    visibleTabNames.includes(route.name)
+  )
   return (
     <>
       <View style={[styles.tabBarContainer,{ paddingBottom: Math.max(insets.bottom,10) }]}>
@@ -126,7 +142,7 @@ function CustomTabBar({ state,descriptors,navigation }) {
         <View style={styles.curvedBackground} />
 
         <View style={styles.tabsRow}>
-          {state.routes.slice(0,2).map((route,index) => {
+          {visibleRoutes.slice(0,2).map((route,index) => {
             const { options } = descriptors[route.key]
             const label = options.tabBarLabel || options.title || route.name
             const isFocused = state.index === index
@@ -179,7 +195,7 @@ function CustomTabBar({ state,descriptors,navigation }) {
 
           <View style={styles.centerSpace} />
 
-          {state.routes.slice(3,5).map((route,index) => {
+          {visibleRoutes.slice(2).map((route,index) => {
             const actualIndex = index + 3
             const { options } = descriptors[route.key]
             const label = options.tabBarLabel || options.title || route.name
@@ -307,6 +323,10 @@ export default function BottomTabNavigator() {
       <Tab.Screen name="Actions" component={HomeScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="Community" component={ActiveGroupsScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
+      {/* <Tab.Screen name="Food" component={FoodListScreen}
+        options={{
+          tabBarButton: () => null,
+        }} /> */}
     </Tab.Navigator>
   )
 }
@@ -384,7 +404,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...Platform.select({
       ios: {
-        shadowColor: "#FF5722",
+        shadowColor: "#0056d2",
         shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,

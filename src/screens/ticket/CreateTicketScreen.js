@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState,useContext } from "react";
 import {
   Keyboard,
   TouchableWithoutFeedback,
@@ -16,37 +16,37 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Header from "components/Header";
 import SelectModal from "components/SelectModal";
 import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
 
 const categoryOptions = [
-  { value: "Technical", label: "Technical Issue" },
-  { value: "Billing", label: "Billing or Payment Issue" },
-  { value: "WorkoutPlan", label: "Workout Plan Inquiry" },
-  { value: "Account", label: "Account Problem" },
-  { value: "MobileApp", label: "Mobile App Error" },
-  { value: "FeatureRequest", label: "Feature Request" },
-  { value: "Feedback", label: "General Feedback" },
-  { value: "Other", label: "Other / Not Listed" },
+  { value: "Technical",label: "Technical Issue" },
+  { value: "Billing",label: "Billing or Payment Issue" },
+  { value: "WorkoutPlan",label: "Workout Plan Inquiry" },
+  { value: "Account",label: "Account Problem" },
+  { value: "MobileApp",label: "Mobile App Error" },
+  { value: "FeatureRequest",label: "Feature Request" },
+  { value: "Feedback",label: "General Feedback" },
+  { value: "Other",label: "Other / Not Listed" },
 ]
 
 const priorityOptions = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
+  { value: "low",label: "Low" },
+  { value: "medium",label: "Medium" },
+  { value: "high",label: "High" },
 ]
 
 const CreateTicketScreen = () => {
   const navigation = useNavigation()
   const { token } = useContext(AuthContext)
 
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [priority, setPriority] = useState("medium")
-  const [category, setCategory] = useState("Technical")
-  const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState({})
-  const [showPriorityModal, setShowPriorityModal] = useState(false)
-  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [title,setTitle] = useState("")
+  const [description,setDescription] = useState("")
+  const [priority,setPriority] = useState("medium")
+  const [category,setCategory] = useState("Technical")
+  const [loading,setLoading] = useState(false)
+  const [errors,setErrors] = useState({})
+  const [showPriorityModal,setShowPriorityModal] = useState(false)
+  const [showCategoryModal,setShowCategoryModal] = useState(false)
 
   const validateForm = () => {
     const newErrors = {}
@@ -66,7 +66,7 @@ const CreateTicketScreen = () => {
     }
 
     // Priority
-    const validPriorities = ["low", "medium", "high"]
+    const validPriorities = ["low","medium","high"]
     if (!priority) {
       newErrors.priority = "Priority is required."
     } else if (priority.length > 20) {
@@ -76,7 +76,7 @@ const CreateTicketScreen = () => {
     }
 
     // Status (always 'open' here, but validate length and value)
-    const validStatuses = ["open", "inprogress", "resolved"]
+    const validStatuses = ["open","inprogress","resolved"]
     const status = "open"
     if (status && status.length > 20) {
       newErrors.status = "Status cannot exceed 20 characters."
@@ -134,8 +134,6 @@ const CreateTicketScreen = () => {
     return null
   }
 
-  // Use SelectModal component instead of custom renderSelectModal
-
   const getPriorityLabel = () => priorityOptions.find((opt) => opt.value === priority)?.label || "Select Priority"
   const getCategoryLabel = () => categoryOptions.find((opt) => opt.value === category)?.label || "Select Category"
 
@@ -146,7 +144,7 @@ const CreateTicketScreen = () => {
         onBack={() => navigation.goBack()}
         absolute
       />
-      <View style={{ height: 90 }} />
+      <View style={{ height: 60 }} />
 
       {loading && <Loading />}
 
@@ -158,7 +156,7 @@ const CreateTicketScreen = () => {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Title *</Text>
                 <TextInput
-                  style={[styles.input, errors.title && styles.inputError]}
+                  style={[styles.input,errors.title && styles.inputError]}
                   value={title}
                   onChangeText={setTitle}
                   placeholder="Brief description of your issue"
@@ -173,7 +171,7 @@ const CreateTicketScreen = () => {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Description *</Text>
                 <TextInput
-                  style={[styles.textArea, errors.description && styles.inputError]}
+                  style={[styles.textArea,errors.description && styles.inputError]}
                   value={description}
                   onChangeText={setDescription}
                   placeholder="Please provide detailed information about your issue..."
@@ -191,7 +189,7 @@ const CreateTicketScreen = () => {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Priority *</Text>
                 <TouchableOpacity
-                  style={[styles.selectButton, errors.priority && styles.inputError]}
+                  style={[styles.selectButton,errors.priority && styles.inputError]}
                   onPress={() => setShowPriorityModal(true)}
                 >
                   <Text style={styles.selectButtonText}>{getPriorityLabel()}</Text>
@@ -200,7 +198,7 @@ const CreateTicketScreen = () => {
                 <SelectModal
                   visible={showPriorityModal}
                   title="Select Priority"
-                  options={priorityOptions.map(opt => ({ label: opt.label, value: opt.value }))}
+                  options={priorityOptions.map(opt => ({ label: opt.label,value: opt.value }))}
                   selectedValue={priority}
                   onSelect={val => setPriority(val)}
                   onClose={() => setShowPriorityModal(false)}
@@ -212,7 +210,7 @@ const CreateTicketScreen = () => {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Category</Text>
                 <TouchableOpacity
-                  style={[styles.selectButton, errors.category && styles.inputError]}
+                  style={[styles.selectButton,errors.category && styles.inputError]}
                   onPress={() => setShowCategoryModal(true)}
                 >
                   <Text style={styles.selectButtonText}>{getCategoryLabel()}</Text>
@@ -221,7 +219,7 @@ const CreateTicketScreen = () => {
                 <SelectModal
                   visible={showCategoryModal}
                   title="Select Category"
-                  options={categoryOptions.map(opt => ({ label: opt.label, value: opt.value }))}
+                  options={categoryOptions.map(opt => ({ label: opt.label,value: opt.value }))}
                   selectedValue={category}
                   onSelect={val => setCategory(val)}
                   onClose={() => setShowCategoryModal(false)}
@@ -233,14 +231,14 @@ const CreateTicketScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.submitButton,
-                  { backgroundColor: '#fff', borderWidth: 1, borderColor: '#111', shadowColor: 'transparent', elevation: 0 },
+                  { backgroundColor: '#fff',borderWidth: 1,borderColor: '#111',shadowColor: 'transparent',elevation: 0 },
                   loading && styles.submitButtonDisabled
                 ]}
                 onPress={handleSubmit}
                 disabled={loading}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.submitButtonText, { color: '#111' }]}>Submit Ticket</Text>
+                <Text style={[styles.submitButtonText,{ color: '#111' }]}>Submit Ticket</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>

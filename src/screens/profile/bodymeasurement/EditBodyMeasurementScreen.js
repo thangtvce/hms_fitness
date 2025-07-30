@@ -15,13 +15,14 @@ import { bodyMeasurementService } from 'services/apiBodyMeasurementService';
 import { useAuth } from 'context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import { theme } from 'theme/color';
 import FloatingMenuButton from 'components/FloatingMenuButton';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from 'components/Header';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
 
 const { width,height } = Dimensions.get("window")
 
@@ -59,7 +60,7 @@ export default function EditBodyMeasurementScreen({ navigation,route }) {
                 navigation.replace('Login');
                 return;
             }
-            const userId = parseInt(user.userId, 10);
+            const userId = parseInt(user.userId,10);
             if (isNaN(userId) || userId <= 0) {
                 showErrorFetchAPI('UserId không hợp lệ.');
                 return;
@@ -169,7 +170,7 @@ export default function EditBodyMeasurementScreen({ navigation,route }) {
             };
 
             setIsSubmitting(true);
-            const response = await bodyMeasurementService.updateMeasurement(measurement.measurementId, payload);
+            const response = await bodyMeasurementService.updateMeasurement(measurement.measurementId,payload);
 
             if (response.statusCode === 200) {
                 showSuccessMessage('Cập nhật đo chỉ số thành công.');
@@ -219,7 +220,7 @@ export default function EditBodyMeasurementScreen({ navigation,route }) {
     };
 
     if (isSubmitting) {
-        return <Loading />;
+        return <CommonSkeleton />;
     }
 
     return (
@@ -237,7 +238,7 @@ export default function EditBodyMeasurementScreen({ navigation,route }) {
             >
                 <ScrollView
                     style={styles.form}
-                    contentContainerStyle={[styles.formContent, { marginTop: 50 }]}
+                    contentContainerStyle={[styles.formContent,{ marginTop: 50 }]}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
@@ -323,6 +324,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F8FAFC',
+        marginTop: 15
     },
     header: {
         paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,

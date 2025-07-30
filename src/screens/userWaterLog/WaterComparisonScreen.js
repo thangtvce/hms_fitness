@@ -12,7 +12,7 @@ import {
     Animated,
 } from 'react-native';
 import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from 'utils/toastUtil';
 import { Ionicons } from '@expo/vector-icons';
 import { apiUserWaterLogService } from 'services/apiUserWaterLogService';
 import { useAuth } from 'context/AuthContext';
@@ -23,6 +23,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from 'components/Header';
 import { LineChart,BarChart } from 'react-native-chart-kit';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
 
 const { width,height } = Dimensions.get('window');
 
@@ -68,7 +69,6 @@ export default function WaterComparisonScreen({ navigation }) {
                 return;
             }
 
-            // Fetch last 30 days of data
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(endDate.getDate() - 30);
@@ -91,7 +91,7 @@ export default function WaterComparisonScreen({ navigation }) {
                 processAvailableDates(logs);
             }
         } catch (error) {
-            showErrorFetchAPI(error.message || "Failed to fetch water logs.");
+            showErrorFetchAPI(error);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -99,17 +99,15 @@ export default function WaterComparisonScreen({ navigation }) {
     };
 
     const processAvailableDates = (logs) => {
-        // Group logs by date and calculate daily totals
         const dateGroups = {};
 
         logs.forEach(log => {
-            // Parse yyyy-mm-dd as local time to avoid UTC shift
             let dateKey = '';
             let dateObj = null;
             if (log.consumptionDate && typeof log.consumptionDate === 'string' && log.consumptionDate.length >= 10) {
-                const [y, m, d] = log.consumptionDate.slice(0, 10).split('-').map(Number);
-                dateObj = new Date(y, m - 1, d);
-                dateKey = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const [y,m,d] = log.consumptionDate.slice(0,10).split('-').map(Number);
+                dateObj = new Date(y,m - 1,d);
+                dateKey = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             } else {
                 dateObj = new Date(log.consumptionDate);
                 dateKey = dateObj.toISOString().split('T')[0];
@@ -154,7 +152,7 @@ export default function WaterComparisonScreen({ navigation }) {
             : [...selectedDates,dateKey];
 
         if (newSelectedDates.length > 10) {
-            showErrorFetchAPI('You can select maximum 10 dates for comparison.');
+            showErrorMessage('You can select maximum 10 dates for comparison.');
             return;
         }
 
@@ -468,21 +466,21 @@ export default function WaterComparisonScreen({ navigation }) {
         const intakeStatus = getIntakeStatus(item.totalAmount);
         return (
             <TouchableOpacity
-                style={[styles.dateItem, isSelected && styles.dateItemSelected]}
+                style={[styles.dateItem,isSelected && styles.dateItemSelected]}
                 onPress={() => toggleDateSelection(item.date)}
                 activeOpacity={0.7}
             >
                 <View style={styles.dateItemHeader}>
                     <View style={styles.dateInfo}>
-                        <Text style={[styles.dateText, isSelected && styles.dateTextSelected]}>
+                        <Text style={[styles.dateText,isSelected && styles.dateTextSelected]}>
                             {item.displayDate}
                         </Text>
-                        <Text style={[styles.dateSubtext, isSelected && styles.dateSubtextSelected]}>
+                        <Text style={[styles.dateSubtext,isSelected && styles.dateSubtextSelected]}>
                             {item.logCount} log{item.logCount !== 1 ? 's' : ''}
                         </Text>
                     </View>
                     {/* Show both status icon and checkmark side by side if selected */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <View style={{ flexDirection: 'row',alignItems: 'center',gap: 4 }}>
                         <View style={styles.dateStatus}>
                             <Ionicons
                                 name={intakeStatus.icon}
@@ -499,14 +497,14 @@ export default function WaterComparisonScreen({ navigation }) {
                 </View>
 
                 <View style={styles.dateItemContent}>
-                    <View style={[styles.amountContainer, { alignItems: 'center', flexDirection: 'row', gap: 2 }]}> 
-                        <Text style={[styles.amountValue, isSelected && styles.amountValueSelected]}>
+                    <View style={[styles.amountContainer,{ alignItems: 'center',flexDirection: 'row',gap: 2 }]}>
+                        <Text style={[styles.amountValue,isSelected && styles.amountValueSelected]}>
                             {item.totalAmount}
                         </Text>
                         <Text style={[
                             styles.amountUnit,
                             isSelected && styles.amountUnitSelected,
-                            { marginLeft: 2, fontSize: 16, fontWeight: '500', paddingBottom: 1 }
+                            { marginLeft: 2,fontSize: 16,fontWeight: '500',paddingBottom: 1 }
                         ]}>ml</Text>
                     </View>
 
@@ -516,13 +514,13 @@ export default function WaterComparisonScreen({ navigation }) {
                                 style={[
                                     styles.progressBarFill,
                                     {
-                                        width: `${Math.min((item.totalAmount / RECOMMENDED_DAILY_INTAKE) * 100, 100)}%`,
+                                        width: `${Math.min((item.totalAmount / RECOMMENDED_DAILY_INTAKE) * 100,100)}%`,
                                         backgroundColor: isSelected ? '#FFFFFF' : intakeStatus.color
                                     }
                                 ]}
                             />
                         </View>
-                        <Text style={[styles.progressText, isSelected && styles.progressTextSelected]}>
+                        <Text style={[styles.progressText,isSelected && styles.progressTextSelected]}>
                             {Math.round((item.totalAmount / RECOMMENDED_DAILY_INTAKE) * 100)}%
                         </Text>
                     </View>
@@ -535,7 +533,7 @@ export default function WaterComparisonScreen({ navigation }) {
         return (
             <SafeAreaView style={styles.loadingContainer}>
                 <DynamicStatusBar backgroundColor={theme.primaryColor} />
-                <Loading backgroundColor="#fff" logoSize={180} />
+                <CommonSkeleton />
             </SafeAreaView>
         );
     }
@@ -550,7 +548,7 @@ export default function WaterComparisonScreen({ navigation }) {
                     <Text style={styles.selectionCount}>{selectedDates.length}/10</Text>
                 }
                 subtitle={`${selectedDates.length} day${selectedDates.length !== 1 ? 's' : ''} selected`}
-                style={{ backgroundColor: '#4F46E5', marginTop: 40 }}
+                style={{ backgroundColor: '#4F46E5',marginTop: 40 }}
             />
 
             <ScrollView

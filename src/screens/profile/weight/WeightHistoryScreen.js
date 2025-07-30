@@ -1,36 +1,35 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState,useEffect,useCallback } from "react"
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Dimensions,
-  RefreshControl,
-  Platform,
-  Modal,
-  ScrollView,
+    View,
+    Text,
+    StyleSheet,
+    FlatList,
+    TouchableOpacity,
+    Dimensions,
+    RefreshControl,
+    Platform,
+    Modal,
+    ScrollView,
 } from "react-native"
 import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import { weightHistoryService } from "services/apiWeightHistoryService"
 import { useAuth } from "context/AuthContext"
 import { LineChart } from "react-native-chart-kit"
 import { useFocusEffect } from "@react-navigation/native"
-import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import Header from "components/Header"
 import { useContext } from "react"
 import { ThemeContext } from "components/theme/ThemeContext"
 import { theme } from "theme/color"
 import { SafeAreaView } from "react-native-safe-area-context"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
 
 const screenWidth = Dimensions.get("window").width
 
-// Warning thresholds for weight changes
 const WEIGHT_WARNING_THRESHOLDS = {
-    moderate: 1.5, // kg per week
-    severe: 3.0, // kg per week
+    moderate: 1.5,
+    severe: 3.0,
 }
 
 export default function WeightHistoryScreen({ navigation }) {
@@ -39,14 +38,14 @@ export default function WeightHistoryScreen({ navigation }) {
     const [history,setHistory] = useState([])
     const [loading,setLoading] = useState(true)
     const [refreshing,setRefreshing] = useState(false)
-    const [timeFrame, setTimeFrame] = useState("all")
+    const [timeFrame,setTimeFrame] = useState("all")
     const timeFrameOptions = [
-      { key: "all", label: "All" },
-      { key: "7days", label: "7D" },
-      { key: "1m", label: "1M" },
-      { key: "3m", label: "3M" },
-      { key: "6m", label: "6M" },
-      { key: "1y", label: "1Y" },
+        { key: "all",label: "All" },
+        { key: "7days",label: "7D" },
+        { key: "1m",label: "1M" },
+        { key: "3m",label: "3M" },
+        { key: "6m",label: "6M" },
+        { key: "1y",label: "1Y" },
     ]
     const [warningModalVisible,setWarningModalVisible] = useState(false)
     const [selectedWarning,setSelectedWarning] = useState(null)
@@ -57,16 +56,15 @@ export default function WeightHistoryScreen({ navigation }) {
         average: 0,
         change: 0,
     })
-    // ...existing code...
 
     const fetchWeightHistory = async (showLoading = true) => {
         try {
             if (showLoading) setLoading(true)
             if (user && authToken) {
-                const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1, pageSize: 100 })
+                const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1,pageSize: 100 })
                 if (response.statusCode === 200 && response.data) {
                     const sortedRecords = (response.data.records || []).sort(
-                        (a, b) => new Date(b.recordedAt) - new Date(a.recordedAt),
+                        (a,b) => new Date(b.recordedAt) - new Date(a.recordedAt),
                     )
                     setHistory(sortedRecords)
                     calculateStats(sortedRecords)
@@ -154,37 +152,37 @@ export default function WeightHistoryScreen({ navigation }) {
     }
 
     const filterHistoryByTimeFrame = (data) => {
-      const now = new Date()
-      switch (timeFrame) {
-        case "7days":
-          return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt)
-            return now - itemDate <= 7 * 24 * 60 * 60 * 1000
-          })
-        case "1m":
-          return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt)
-            return now - itemDate <= 30 * 24 * 60 * 60 * 1000
-          })
-        case "3m":
-          return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt)
-            return now - itemDate <= 90 * 24 * 60 * 60 * 1000
-          })
-        case "6m":
-          return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt)
-            return now - itemDate <= 180 * 24 * 60 * 60 * 1000
-          })
-        case "1y":
-          return data.filter((item) => {
-            const itemDate = new Date(item.recordedAt)
-            return now - itemDate <= 365 * 24 * 60 * 60 * 1000
-          })
-        case "all":
-        default:
-          return data
-      }
+        const now = new Date()
+        switch (timeFrame) {
+            case "7days":
+                return data.filter((item) => {
+                    const itemDate = new Date(item.recordedAt)
+                    return now - itemDate <= 7 * 24 * 60 * 60 * 1000
+                })
+            case "1m":
+                return data.filter((item) => {
+                    const itemDate = new Date(item.recordedAt)
+                    return now - itemDate <= 30 * 24 * 60 * 60 * 1000
+                })
+            case "3m":
+                return data.filter((item) => {
+                    const itemDate = new Date(item.recordedAt)
+                    return now - itemDate <= 90 * 24 * 60 * 60 * 1000
+                })
+            case "6m":
+                return data.filter((item) => {
+                    const itemDate = new Date(item.recordedAt)
+                    return now - itemDate <= 180 * 24 * 60 * 60 * 1000
+                })
+            case "1y":
+                return data.filter((item) => {
+                    const itemDate = new Date(item.recordedAt)
+                    return now - itemDate <= 365 * 24 * 60 * 60 * 1000
+                })
+            case "all":
+            default:
+                return data
+        }
     }
 
     const getDaysBetweenDates = (date1,date2) => {
@@ -490,42 +488,42 @@ export default function WeightHistoryScreen({ navigation }) {
     const filteredHistory = filterHistoryByTimeFrame(history)
 
     const chartData = {
-      labels: filteredHistory
-        .slice(0, 10)
-        .reverse()
-        .map((item) => new Date(item.recordedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })),
-      datasets: [
-        {
-          data:
-            filteredHistory.length > 0
-              ? filteredHistory
-                  .slice(0, 10)
-                  .reverse()
-                  .map((item) => item.weight)
-              : [0],
-        },
-      ],
+        labels: filteredHistory
+            .slice(0,10)
+            .reverse()
+            .map((item) => new Date(item.recordedAt).toLocaleDateString("en-US",{ month: "short",day: "numeric" })),
+        datasets: [
+            {
+                data:
+                    filteredHistory.length > 0
+                        ? filteredHistory
+                            .slice(0,10)
+                            .reverse()
+                            .map((item) => item.weight)
+                        : [0],
+            },
+        ],
     }
 
     if (loading && !refreshing) {
-        return <Loading />;
+        return <CommonSkeleton />;
     }
 
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <Header
-          title="Weight History"
-          onBack={() => navigation.goBack()}
-          rightActions={[{
-            icon: "add",
-            onPress: handleAddWeight,
-            color: colors.primary || "#0056d2",
-          }]}
-          backgroundColor={colors.headerBackground || "#FFFFFF"}
-          textColor={colors.headerText || colors.primary || "#0056d2"}
-        />
-        <View style={[styles.container, { paddingTop: 80 }]}> 
-          <FlatList
+        <SafeAreaView style={styles.safeArea}>
+            <Header
+                title="Weight History"
+                onBack={() => navigation.goBack()}
+                rightActions={[{
+                    icon: "add",
+                    onPress: handleAddWeight,
+                    color: colors.primary || "#0056d2",
+                }]}
+                backgroundColor={colors.headerBackground || "#FFFFFF"}
+                textColor={colors.headerText || colors.primary || "#0056d2"}
+            />
+            <View style={[styles.container,{ paddingTop: 80 }]}>
+                <FlatList
                     data={filteredHistory}
                     renderItem={renderItem}
                     keyExtractor={(item) => item.historyId.toString()}
@@ -557,35 +555,35 @@ export default function WeightHistoryScreen({ navigation }) {
 
                             <View style={styles.chartContainer}>
                                 {filteredHistory.length > 0 ? (
-                                  <LineChart
-                                    data={chartData}
-                                    width={screenWidth - 48}
-                                    height={220}
-                                    yAxisLabel=""
-                                    yAxisSuffix=" kg"
-                                    chartConfig={{
-                                      backgroundColor: "#FFFFFF",
-                                      backgroundGradientFrom: "#FFFFFF",
-                                      backgroundGradientTo: "#FFFFFF",
-                                      decimalPlaces: 1,
-                                      color: (opacity = 1) => `#0056d2`,
-                                      labelColor: (opacity = 1) => `rgba(31, 41, 55, ${opacity})`,
-                                      style: {
-                                        borderRadius: 16,
-                                      },
-                                      propsForDots: {
-                                        r: "3",
-                                        strokeWidth: "1",
-                                        stroke: "#0056d2",
-                                      },
-                                      propsForLabels: {
-                                        fontSize: 10,
-                                      },
-                                      strokeWidth: 1.5,
-                                    }}
-                                    bezier
-                                    style={[styles.chart, { marginRight: 0 }]}
-                                  />
+                                    <LineChart
+                                        data={chartData}
+                                        width={screenWidth - 48}
+                                        height={220}
+                                        yAxisLabel=""
+                                        yAxisSuffix=" kg"
+                                        chartConfig={{
+                                            backgroundColor: "#FFFFFF",
+                                            backgroundGradientFrom: "#FFFFFF",
+                                            backgroundGradientTo: "#FFFFFF",
+                                            decimalPlaces: 1,
+                                            color: (opacity = 1) => `#0056d2`,
+                                            labelColor: (opacity = 1) => `rgba(31, 41, 55, ${opacity})`,
+                                            style: {
+                                                borderRadius: 16,
+                                            },
+                                            propsForDots: {
+                                                r: "3",
+                                                strokeWidth: "1",
+                                                stroke: "#0056d2",
+                                            },
+                                            propsForLabels: {
+                                                fontSize: 10,
+                                            },
+                                            strokeWidth: 1.5,
+                                        }}
+                                        bezier
+                                        style={[styles.chart,{ marginRight: 0 }]}
+                                    />
                                 ) : (
                                     <View style={styles.noChartDataContainer}>
                                         <Ionicons name="analytics-outline" size={48} color="#CBD5E1" />
@@ -595,17 +593,17 @@ export default function WeightHistoryScreen({ navigation }) {
                             </View>
 
                             <View style={styles.filterContainer}>
-                              {timeFrameOptions.map((option) => (
-                                <TouchableOpacity
-                                  key={option.key}
-                                  style={[styles.filterButton, timeFrame === option.key && styles.filterButtonActive]}
-                                  onPress={() => setTimeFrame(option.key)}
-                                >
-                                  <Text style={[styles.filterButtonText, timeFrame === option.key && styles.filterButtonTextActive]}>
-                                    {option.label}
-                                  </Text>
-                                </TouchableOpacity>
-                              ))}
+                                {timeFrameOptions.map((option) => (
+                                    <TouchableOpacity
+                                        key={option.key}
+                                        style={[styles.filterButton,timeFrame === option.key && styles.filterButtonActive]}
+                                        onPress={() => setTimeFrame(option.key)}
+                                    >
+                                        <Text style={[styles.filterButtonText,timeFrame === option.key && styles.filterButtonTextActive]}>
+                                            {option.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
                             </View>
 
                             {filteredHistory.length > 0 ? <Text style={styles.historyTitle}>Weight Entries</Text> : null}

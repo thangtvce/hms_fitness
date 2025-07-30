@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from "react"
+import { useEffect,useState,useContext } from "react"
 import {
   View,
   Text,
@@ -12,13 +12,14 @@ import {
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
-import { useNavigation, useRoute } from "@react-navigation/native"
+import { useNavigation,useRoute } from "@react-navigation/native"
 import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from 'utils/toastUtil';
 import Header from 'components/Header';
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { apiReminderService } from "services/apiReminderService"
 import { AuthContext } from "context/AuthContext"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
 
 const { width } = Dimensions.get("window")
 
@@ -28,7 +29,7 @@ const TYPE_OPTIONS = [
     value: "drink",
     icon: "water",
     color: "#06B6D4",
-    gradient: ["#06B6D4", "#0EA5E9"],
+    gradient: ["#06B6D4","#0EA5E9"],
     description: "Stay hydrated throughout the day",
   },
   {
@@ -36,7 +37,7 @@ const TYPE_OPTIONS = [
     value: "meal",
     icon: "restaurant",
     color: "#F59E0B",
-    gradient: ["#F59E0B", "#EAB308"],
+    gradient: ["#F59E0B","#EAB308"],
     description: "Never miss your meals",
   },
   {
@@ -44,7 +45,7 @@ const TYPE_OPTIONS = [
     value: "exercise",
     icon: "fitness",
     color: "#10B981",
-    gradient: ["#10B981", "#059669"],
+    gradient: ["#10B981","#059669"],
     description: "Keep your body active",
   },
   {
@@ -52,7 +53,7 @@ const TYPE_OPTIONS = [
     value: "sleep",
     icon: "moon",
     color: "#8B5CF6",
-    gradient: ["#8B5CF6", "#7C3AED"],
+    gradient: ["#8B5CF6","#7C3AED"],
     description: "Get quality rest",
   },
 ]
@@ -82,20 +83,20 @@ const FREQUENCY_OPTIONS = [
 ]
 
 const DAYS_OF_WEEK = [
-  { label: "Mon", value: "Mon", full: "Monday", color: "#EF4444" },
-  { label: "Tue", value: "Tue", full: "Tuesday", color: "#F59E0B" },
-  { label: "Wed", value: "Wed", full: "Wednesday", color: "#10B981" },
-  { label: "Thu", value: "Thu", full: "Thursday", color: "#06B6D4" },
-  { label: "Fri", value: "Fri", full: "Friday", color: "#8B5CF6" },
-  { label: "Sat", value: "Sat", full: "Saturday", color: "#EC4899" },
-  { label: "Sun", value: "Sun", full: "Sunday", color: "#F97316" },
+  { label: "Mon",value: "Mon",full: "Monday",color: "#EF4444" },
+  { label: "Tue",value: "Tue",full: "Tuesday",color: "#F59E0B" },
+  { label: "Wed",value: "Wed",full: "Wednesday",color: "#10B981" },
+  { label: "Thu",value: "Thu",full: "Thursday",color: "#06B6D4" },
+  { label: "Fri",value: "Fri",full: "Friday",color: "#8B5CF6" },
+  { label: "Sat",value: "Sat",full: "Saturday",color: "#EC4899" },
+  { label: "Sun",value: "Sun",full: "Sunday",color: "#F97316" },
 ]
 
 const QUICK_AMOUNTS = {
-  drink: ["250ml", "500ml", "750ml", "1L"],
-  meal: ["Breakfast", "Lunch", "Dinner", "Snack"],
-  exercise: ["15 min", "30 min", "45 min", "1 hour"],
-  sleep: ["7 hours", "8 hours", "9 hours", "Custom"],
+  drink: ["250ml","500ml","750ml","1L"],
+  meal: ["Breakfast","Lunch","Dinner","Snack"],
+  exercise: ["15 min","30 min","45 min","1 hour"],
+  sleep: ["7 hours","8 hours","9 hours","Custom"],
 }
 
 export default function EditReminderPlanScreen() {
@@ -105,13 +106,13 @@ export default function EditReminderPlanScreen() {
   const userId = user?.userId
   const { planId } = route.params || {}
 
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState("")
-  const [showTimePicker, setShowTimePicker] = useState(false)
-  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false)
+  const [loading,setLoading] = useState(true)
+  const [saving,setSaving] = useState(false)
+  const [error,setError] = useState("")
+  const [showTimePicker,setShowTimePicker] = useState(false)
+  const [showFrequencyPicker,setShowFrequencyPicker] = useState(false)
 
-  const [plan, setPlan] = useState({
+  const [plan,setPlan] = useState({
     title: "",
     type: "drink",
     time: "08:00",
@@ -122,13 +123,21 @@ export default function EditReminderPlanScreen() {
     isActive: true,
   })
 
-  const [pendingFrequency, setPendingFrequency] = useState(plan.frequency)
+  const [pendingFrequency,setPendingFrequency] = useState(plan.frequency)
 
   useEffect(() => {
     if (planId) {
       fetchPlan()
     }
-  }, [planId])
+  },[planId])
+
+  const getLocalTimeAsDate = (timeStr) => {
+    const [h,m,s] = timeStr.split(':').map(Number);
+    const now = new Date();
+    now.setHours(h,m,s || 0,0);
+    return now;
+  };
+
 
   const fetchPlan = async () => {
     setLoading(true)
@@ -136,10 +145,8 @@ export default function EditReminderPlanScreen() {
     try {
       const res = await apiReminderService.getReminderPlanById(planId)
       const planData = res.data || res
-
-      // Ensure frequency is one of the allowed values
       let validFrequency = planData.frequency
-      if (!["Daily", "Weekly", "Monthly"].includes(validFrequency)) {
+      if (!["Daily","Weekly","Monthly"].includes(validFrequency)) {
         validFrequency = "Daily"
       }
 
@@ -153,7 +160,7 @@ export default function EditReminderPlanScreen() {
       setPendingFrequency(validFrequency)
     } catch (err) {
       setError("Failed to load reminder plan")
-      showErrorFetchAPI(err.message || "Unable to load reminder plan.")
+      showErrorFetchAPI(err);
     } finally {
       setLoading(false)
     }
@@ -161,37 +168,38 @@ export default function EditReminderPlanScreen() {
 
   const handleSave = async () => {
     if (!plan.title?.trim()) {
-      showErrorFetchAPI(error.message || "Please enter a title for your reminder.");
+      showErrorMessage(error.message || "Please enter a title for your reminder.");
       return;
     }
     if (!plan.time) {
-      showErrorFetchAPI(error.message || "Please select a time for your reminder.");
+      showErrorMessage(error.message || "Please select a time for your reminder.");
       return;
     }
     if (plan.frequency === "Weekly" && !plan.daysOfWeek) {
-      showErrorFetchAPI(error.message || "Please select at least one day of the week.");
+      showErrorMessage(error.message || "Please select at least one day of the week.");
       return;
     }
 
     setSaving(true);
     try {
-      await apiReminderService.updateReminderPlan(plan.planId, plan);
+      await apiReminderService.updateReminderPlan(plan.planId,plan);
       showSuccessMessage("Reminder updated successfully!");
       navigation.goBack();
     } catch (err) {
-      showErrorFetchAPI(err.message || "Failed to update reminder plan.");
+      showErrorFetchAPI(err);
+      console.log(err?.response?.data?.message)
     } finally {
       setSaving(false);
     }
   }
 
-  const handleTimeChange = (event, selectedDate) => {
+  const handleTimeChange = (event,selectedDate) => {
     setShowTimePicker(false)
     if (selectedDate) {
-      const h = selectedDate.getHours().toString().padStart(2, "0")
-      const m = selectedDate.getMinutes().toString().padStart(2, "0")
-      const s = selectedDate.getSeconds().toString().padStart(2, "0")
-      setPlan((prev) => ({ ...prev, time: `${h}:${m}:${s}` }))
+      const h = selectedDate.getHours().toString().padStart(2,"0")
+      const m = selectedDate.getMinutes().toString().padStart(2,"0")
+      const s = selectedDate.getSeconds().toString().padStart(2,"0")
+      setPlan((prev) => ({ ...prev,time: `${h}:${m}:${s}` }))
     }
   }
 
@@ -200,7 +208,7 @@ export default function EditReminderPlanScreen() {
     if (plan.frequency !== "Weekly" && plan.frequency !== "Daily") return
 
     // Only allow valid days
-    const validDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    const validDays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
     if (!validDays.includes(day)) return
 
     const currentDays = plan.daysOfWeek ? plan.daysOfWeek.split(",").map((d) => d.trim()) : []
@@ -208,9 +216,9 @@ export default function EditReminderPlanScreen() {
     if (currentDays.includes(day)) {
       updatedDays = currentDays.filter((d) => d !== day)
     } else {
-      updatedDays = [...currentDays, day]
+      updatedDays = [...currentDays,day]
     }
-    setPlan((prev) => ({ ...prev, daysOfWeek: updatedDays.join(", ") }))
+    setPlan((prev) => ({ ...prev,daysOfWeek: updatedDays.join(", ") }))
   }
 
   const getSelectedDays = () => {
@@ -227,7 +235,7 @@ export default function EditReminderPlanScreen() {
 
   const renderHeader = () => (
     <Header
-      title={<Text style={{ fontSize: 20, fontWeight: '700', color: '#1F2937', textAlign: 'center' }}>Edit Reminder</Text>}
+      title={"Edit Reminder"}
       onBack={() => navigation.goBack()}
       rightActions={[{
         icon: saving ? undefined : 'checkmark',
@@ -236,7 +244,7 @@ export default function EditReminderPlanScreen() {
         loading: !!saving,
       }]}
       backgroundColor="#fff"
-      containerStyle={{ position: 'relative', zIndex: 10 }}
+      containerStyle={{ position: 'relative',zIndex: 10 }}
     />
   )
 
@@ -247,11 +255,11 @@ export default function EditReminderPlanScreen() {
       <View style={styles.selectedTypeContainer}>
         <Text style={styles.sectionTitle}>Reminder Type</Text>
         <View style={styles.selectedTypeCard}>
-          <LinearGradient colors={["#0056d2", "#0056d2"]} style={styles.selectedTypeIcon}>
+          <LinearGradient colors={["#0056d2","#0056d2"]} style={styles.selectedTypeIcon}>
             <Ionicons name={selectedType.icon} size={24} color="#FFFFFF" />
           </LinearGradient>
           <View style={styles.selectedTypeInfo}>
-            <Text style={[styles.selectedTypeLabel, { color: '#0056d2' }]}>{selectedType.label}</Text>
+            <Text style={[styles.selectedTypeLabel,{ color: '#0056d2' }]}>{selectedType.label}</Text>
             <Text style={styles.selectedTypeDesc}>{selectedType.description}</Text>
           </View>
           <View style={styles.typeLockedBadge}>
@@ -302,7 +310,7 @@ export default function EditReminderPlanScreen() {
                 paddingVertical: 6,
               }}
             >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Done</Text>
+              <Text style={{ color: '#fff',fontSize: 16,fontWeight: '700' }}>Done</Text>
             </TouchableOpacity>
           </View>
 
@@ -341,7 +349,7 @@ export default function EditReminderPlanScreen() {
                       <Text
                         style={[
                           styles.frequencyOptionText,
-                          pendingFrequency === freq.value && { color: '#fff', fontWeight: '700' },
+                          pendingFrequency === freq.value && { color: '#fff',fontWeight: '700' },
                         ]}
                       >
                         {freq.label}
@@ -379,7 +387,7 @@ export default function EditReminderPlanScreen() {
     return (
       <View style={styles.formGroup}>
         <Text style={styles.label}>Select Days of Week</Text>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 12 }}>
+        <View style={{ flexDirection: 'row',justifyContent: 'space-between',marginVertical: 12 }}>
           {DAYS_OF_WEEK.map((day) => {
             const isSelected = selectedDays.includes(day.value);
             return (
@@ -399,12 +407,12 @@ export default function EditReminderPlanScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={{ color: isSelected ? '#fff' : '#1F2937', fontWeight: '700' }}>{day.label}</Text>
+                <Text style={{ color: isSelected ? '#fff' : '#1F2937',fontWeight: '700' }}>{day.label}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
-        <Text style={{ color: '#6B7280', fontSize: 13, marginTop: 4, marginBottom: 0 }}>
+        <Text style={{ color: '#6B7280',fontSize: 13,marginTop: 4,marginBottom: 0 }}>
           {selectedDays.length > 0
             ? selectedDays.map((d) => DAYS_OF_WEEK.find((dayObj) => dayObj.value === d)?.full || d).join(', ')
             : 'No days selected'}
@@ -423,7 +431,7 @@ export default function EditReminderPlanScreen() {
     return (
       <View style={styles.container}>
         {renderHeader()}
-        <Loading />
+        <CommonSkeleton />
       </View>
     );
   }
@@ -466,7 +474,7 @@ export default function EditReminderPlanScreen() {
             <TextInput
               style={styles.modernInput}
               value={plan.title}
-              onChangeText={(text) => setPlan((prev) => ({ ...prev, title: text }))}
+              onChangeText={(text) => setPlan((prev) => ({ ...prev,title: text }))}
               placeholder="Enter reminder title"
               placeholderTextColor="#9CA3AF"
               maxLength={100}
@@ -480,19 +488,19 @@ export default function EditReminderPlanScreen() {
                 {QUICK_AMOUNTS[plan.type].map((amount) => (
                   <TouchableOpacity
                     key={amount}
-                    style={[styles.quickAmountChip, plan.amount === amount && { backgroundColor: '#0056d2', borderColor: '#0056d2' }]}
-                    onPress={() => setPlan((prev) => ({ ...prev, amount: amount }))}
+                    style={[styles.quickAmountChip,plan.amount === amount && { backgroundColor: '#0056d2',borderColor: '#0056d2' }]}
+                    onPress={() => setPlan((prev) => ({ ...prev,amount: amount }))}
                   >
-                    <Text style={[styles.quickAmountText, plan.amount === amount && { color: '#fff' }]}>
+                    <Text style={[styles.quickAmountText,plan.amount === amount && { color: '#fff' }]}>
                       {amount}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
               <TextInput
-                style={[styles.modernInput, { marginTop: 8 }]}
+                style={[styles.modernInput,{ marginTop: 8 }]}
                 value={plan.amount}
-                onChangeText={(text) => setPlan((prev) => ({ ...prev, amount: text }))}
+                onChangeText={(text) => setPlan((prev) => ({ ...prev,amount: text }))}
                 placeholder="Or enter custom amount"
                 placeholderTextColor="#9CA3AF"
                 maxLength={50}
@@ -508,12 +516,12 @@ export default function EditReminderPlanScreen() {
             <Text style={styles.label}>Time</Text>
             <TouchableOpacity style={styles.timeInput} onPress={() => setShowTimePicker(true)}>
               <Ionicons name="time-outline" size={20} color={typeConfig.color} />
-              <Text style={styles.timeText}>{plan.time ? plan.time.slice(0, 5) : "Select time"}</Text>
+              <Text style={styles.timeText}>{plan.time ? plan.time.slice(0,5) : "Select time"}</Text>
               <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
             </TouchableOpacity>
             {showTimePicker && (
               <DateTimePicker
-                value={plan.time ? new Date(`1970-01-01T${plan.time}`) : new Date()}
+                value={plan.time ? getLocalTimeAsDate(plan.time) : new Date()}
                 mode="time"
                 is24Hour={true}
                 display={Platform.OS === "ios" ? "spinner" : "default"}
@@ -532,7 +540,7 @@ export default function EditReminderPlanScreen() {
               }}
             >
               <View style={styles.frequencyInputContent}>
-                <View style={[styles.frequencyInputIcon, { backgroundColor: frequencyConfig.color + "15" }]}>
+                <View style={[styles.frequencyInputIcon,{ backgroundColor: frequencyConfig.color + "15" }]}>
                   <Ionicons name={frequencyConfig.icon} size={20} color={frequencyConfig.color} />
                 </View>
                 <View style={styles.frequencyInputText}>
@@ -553,9 +561,9 @@ export default function EditReminderPlanScreen() {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Notes (Optional)</Text>
             <TextInput
-              style={[styles.modernInput, styles.notesInput]}
+              style={[styles.modernInput,styles.notesInput]}
               value={plan.notes}
-              onChangeText={(text) => setPlan((prev) => ({ ...prev, notes: text }))}
+              onChangeText={(text) => setPlan((prev) => ({ ...prev,notes: text }))}
               placeholder="Add any additional notes..."
               placeholderTextColor="#9CA3AF"
               multiline
@@ -571,23 +579,23 @@ export default function EditReminderPlanScreen() {
               <Text style={styles.toggleDescription}>Turn on to activate this reminder</Text>
             </View>
             <TouchableOpacity
-              style={[styles.toggle, plan.isActive && styles.toggleActive]}
-              onPress={() => setPlan((prev) => ({ ...prev, isActive: !prev.isActive }))}
+              style={[styles.toggle,plan.isActive && styles.toggleActive]}
+              onPress={() => setPlan((prev) => ({ ...prev,isActive: !prev.isActive }))}
             >
-              <View style={[styles.toggleThumb, plan.isActive && styles.toggleThumbActive]} />
+              <View style={[styles.toggleThumb,plan.isActive && styles.toggleThumbActive]} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {saving && <Loading />}
+        {saving && <CommonSkeleton />}
         {!saving && (
           <TouchableOpacity
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            style={[styles.saveButton,saving && styles.saveButtonDisabled]}
             onPress={handleSave}
             disabled={saving}
             activeOpacity={0.8}
           >
-            <View style={[styles.saveButtonGradient, { backgroundColor: '#0056d2' }]}> 
+            <View style={[styles.saveButtonGradient,{ backgroundColor: '#0056d2' }]}>
               <View style={styles.saveContent}>
                 <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                 <Text style={styles.saveButtonText}>Update Reminder</Text>
@@ -620,7 +628,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
@@ -673,7 +681,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
@@ -725,7 +733,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
@@ -760,7 +768,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0,height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 2,
       },
@@ -781,7 +789,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0,height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 2,
       },
@@ -809,7 +817,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0,height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 2,
       },
@@ -886,7 +894,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
@@ -994,7 +1002,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
       },
@@ -1013,7 +1021,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#06B6D4",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
       },
@@ -1059,7 +1067,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
+        shadowOffset: { width: 0,height: 10 },
         shadowOpacity: 0.3,
         shadowRadius: 20,
       },
@@ -1101,7 +1109,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },

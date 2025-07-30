@@ -51,16 +51,16 @@ apiClient.interceptors.response.use(
 export const authService = {
   async register(dataRegister) {
     try {
-      const response = await apiClient.post('/Auth/register',dataRegister);
+      const response = await apiClient.post('/Auth/register/m',dataRegister);
       return response.data;
     } catch (error) {
-       
+
       throw error?.response?.data;
     }
   },
   async login({ email,password }) {
     try {
-      const response = await apiClient.post('/Auth/login',{ email,password });
+      const response = await apiClient.post('/Auth/login/u',{ email,password });
       if (response.data.statusCode === 200 && response.data.data) {
         const { accessToken,refreshToken,userId,username,roles } = response.data.data;
         await AsyncStorage.setItem('accessToken',accessToken);
@@ -73,7 +73,7 @@ export const authService = {
       throw error;
     }
   },
-  
+
   async googleLogin({ token }) {
     try {
       const response = await apiClient.post('/Auth/google-login',{ token });

@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import { Ionicons } from '@expo/vector-icons';
 import { bodyMeasurementService } from 'services/apiBodyMeasurementService';
 import { useAuth } from 'context/AuthContext';
@@ -23,6 +23,7 @@ import Header from 'components/Header';
 import FloatingMenuButton from 'components/FloatingMenuButton';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
 
 const { width,height } = Dimensions.get("window");
 
@@ -50,9 +51,9 @@ export default function BodyMeasurementsScreen({ navigation }) {
     try {
       if (showLoading) setLoading(true);
       if (user && authToken) {
-        const response = await bodyMeasurementService.getMyMeasurements({ pageNumber: 1, pageSize: 50 });
+        const response = await bodyMeasurementService.getMyMeasurements({ pageNumber: 1,pageSize: 50 });
         if (response.statusCode === 200 && response.data) {
-          const sortedMeasurements = (response.data.records || []).sort((a, b) =>
+          const sortedMeasurements = (response.data.records || []).sort((a,b) =>
             new Date(b.measurementDate) - new Date(a.measurementDate)
           );
           setMeasurements(sortedMeasurements);
@@ -416,25 +417,24 @@ export default function BodyMeasurementsScreen({ navigation }) {
   };
 
   if (loading && !refreshing) {
-    return <Loading />;
+    return <CommonSkeleton />;
   }
 
   return (
     <View style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
+      <Header
+        title="Body Measurements"
+        canGoBack
+        onBack={() => navigation.goBack()}
+      />
       <View style={styles.container}>
-        <Header
-          title="Body Measurements"
-          canGoBack
-          onBack={() => navigation.goBack()}
-        />
-
         {measurements.length > 0 ? (
           <FlatList
             data={measurements}
             renderItem={renderItem}
             keyExtractor={(item) => item.measurementId.toString()}
-            contentContainerStyle={[styles.listContent, { marginTop: 90 }]}
+            contentContainerStyle={[styles.listContent]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
@@ -463,7 +463,7 @@ export default function BodyMeasurementsScreen({ navigation }) {
 
         {measurements.length > 0 && (
           <TouchableOpacity
-            style={[styles.fab, { backgroundColor: '#0056d2' }]}
+            style={[styles.fab,{ backgroundColor: '#0056d2' }]}
             onPress={handleAddMeasurement}
             activeOpacity={0.8}
           >
@@ -491,6 +491,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+    marginTop: 120
   },
   loadingContainer: {
     flex: 1,

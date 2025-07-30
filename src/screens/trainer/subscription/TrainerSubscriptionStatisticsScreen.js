@@ -20,6 +20,8 @@ import { showErrorFetchAPI } from 'utils/toastUtil';
 import { PieChart,BarChart } from 'react-native-chart-kit';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -130,10 +132,7 @@ const TrainerSubscriptionStatisticsScreen = () => {
     const renderLoadingScreen = () => (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#0056D2" />
-                <Text style={styles.loadingText}>Loading statistics...</Text>
-            </View>
+            <CommonSkeleton />
         </SafeAreaView>
     );
 
@@ -457,20 +456,21 @@ const TrainerSubscriptionStatisticsScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Subscription Statistics</Text>
-                    </View>
-                    <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-                        <Ionicons name="options-outline" size={24} color="#0056D2" />
-                        {(filters.startDate || filters.endDate) && <View style={styles.filterBadge} />}
-                    </TouchableOpacity>
-                </View>
-            </View>
+            <Header
+                title="Subscription Statistics"
+                onBack={() => navigation.goBack()}
+                backIconColor="#0056D2"
+                rightActions={[
+                    {
+                        icon: "options-outline",
+                        onPress: () => setShowFilterModal(true),
+                        color: "#0056D2",
+                        showBadge: filters.startDate || filters.endDate,
+                        accessibilityLabel: "Open Filters"
+                    }
+                ]}
+            />
+
             <ScrollView
                 style={styles.scrollContainer}
                 contentContainerStyle={styles.scrollContent}
@@ -532,6 +532,7 @@ const styles = StyleSheet.create({
     scrollContainer: {
         flex: 1,
         backgroundColor: '#F8FAFC',
+        marginTop: 70
     },
     scrollContent: {
         padding: 20,

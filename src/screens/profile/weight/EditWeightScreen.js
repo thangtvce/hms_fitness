@@ -1,4 +1,4 @@
-import { useState, useContext } from "react"
+import { useState,useContext } from "react"
 import {
     View,
     Text,
@@ -11,7 +11,7 @@ import {
     Animated,
 } from "react-native"
 import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
 import { Ionicons } from "@expo/vector-icons"
 import { weightHistoryService } from "services/apiWeightHistoryService"
 import DateTimePicker from "@react-native-community/datetimepicker"
@@ -20,6 +20,8 @@ import { ThemeContext } from "components/theme/ThemeContext"
 import Header from "components/Header"
 
 import { SafeAreaView } from "react-native-safe-area-context"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
+import { StatusBar } from "expo-status-bar";
 
 export default function EditWeightScreen({ navigation,route }) {
     const { historyId,weight,recordedAt,userId } = route.params
@@ -82,41 +84,36 @@ export default function EditWeightScreen({ navigation,route }) {
     }
 
     const handleSave = async () => {
-        // UserId validation
         if (!userId || isNaN(Number.parseInt(userId)) || Number.parseInt(userId) <= 0) {
-            showErrorFetchAPI("UserId must be a positive integer.");
+            showErrorMessage("UserId must be a positive integer.");
             return;
         }
-
-        // Weight validation: required, 0.1-500
         if (!formData.weight || isNaN(Number.parseFloat(formData.weight))) {
-            showErrorFetchAPI("Weight is required and must be a valid number.");
+            showErrorMessage("Weight is required and must be a valid number.");
             return;
         }
         const weightValue = Number.parseFloat(formData.weight);
         if (weightValue < 0.1 || weightValue > 500) {
-            showErrorFetchAPI("Weight must be between 0.1 and 500 kg.");
+            showErrorMessage("Weight must be between 0.1 and 500 kg.");
             return;
         }
 
-        // RecordedAt validation: not in the future
         const now = new Date();
         if (formData.recordedAt && formData.recordedAt > now) {
-            showErrorFetchAPI("Recorded date cannot be in the future.");
+            showErrorMessage("Recorded date cannot be in the future.");
             return;
         }
 
         setIsLoading(true);
         try {
-            // Format local datetime as 'YYYY-MM-DDTHH:mm:ss' (no Z, no UTC)
             const d = formData.recordedAt;
             const localDateTime =
                 d.getFullYear() + '-' +
-                String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                String(d.getDate()).padStart(2, '0') + 'T' +
-                String(d.getHours()).padStart(2, '0') + ':' +
-                String(d.getMinutes()).padStart(2, '0') + ':' +
-                String(d.getSeconds()).padStart(2, '0');
+                String(d.getMonth() + 1).padStart(2,'0') + '-' +
+                String(d.getDate()).padStart(2,'0') + 'T' +
+                String(d.getHours()).padStart(2,'0') + ':' +
+                String(d.getMinutes()).padStart(2,'0') + ':' +
+                String(d.getSeconds()).padStart(2,'0');
             const payload = {
                 historyId,
                 userId,
@@ -124,12 +121,12 @@ export default function EditWeightScreen({ navigation,route }) {
                 recordedAt: localDateTime,
             };
 
-            const response = await weightHistoryService.updateWeightHistory(historyId, payload);
+            const response = await weightHistoryService.updateWeightHistory(historyId,payload);
             if (response.statusCode === 200) {
                 showSuccessMessage("Weight updated successfully.");
                 navigation.goBack();
             } else {
-                showErrorFetchAPI(response.message || "Failed to update weight entry.");
+                showErrorMessage(response.message || "Failed to update weight entry.");
             }
         } catch (error) {
             showErrorFetchAPI(error);
@@ -148,7 +145,7 @@ export default function EditWeightScreen({ navigation,route }) {
     }
 
     if (isLoading) {
-        return <Loading />;
+        return <CommonSkeleton />;
     }
 
     return (
@@ -160,7 +157,7 @@ export default function EditWeightScreen({ navigation,route }) {
                 backgroundColor={colors.headerBackground || "#FFFFFF"}
                 textColor={colors.headerText || colors.primary || "#0056d2"}
             />
-            <View style={[styles.container, { paddingTop: 80 }]}> 
+            <View style={[styles.container,{ paddingTop: 80 }]}>
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
@@ -252,7 +249,7 @@ export default function EditWeightScreen({ navigation,route }) {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.saveButton, { backgroundColor: colors.primary || '#0056d2' }, isLoading && styles.saveButtonDisabled]}
+                                style={[styles.saveButton,{ backgroundColor: colors.primary || '#0056d2' },isLoading && styles.saveButtonDisabled]}
                                 onPress={handleSave}
                                 disabled={isLoading}
                             >

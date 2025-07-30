@@ -21,6 +21,8 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import HTML from "react-native-render-html";
 import { showErrorFetchAPI } from "utils/toastUtil";
+import Header from "components/Header";
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -78,24 +80,10 @@ const UserPostsScreen = ({ route }) => {
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.headerContent}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color="#0056d2" />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>History Posts</Text>
-          <Text style={styles.headerSubtitle}>
-            {posts.length} {posts.length === 1 ? "post" : "posts"} found
-          </Text>
-        </View>
-        <View style={styles.headerRight} />
-      </View>
-    </View>
+    <Header
+      title="History Posts"
+      onBack={() => navigation.goBack()}
+    />
   );
 
   const renderActionMenu = (item) => (
@@ -264,7 +252,7 @@ const UserPostsScreen = ({ route }) => {
         {renderHeader()}
         <View style={styles.loadingContent}>
           <ActivityIndicator size="large" color="#0056d2" />
-          <Text style={styles.loadingText}>Loading posts...</Text>
+          <CommonSkeleton />
         </View>
       </SafeAreaView>
     );
@@ -274,22 +262,24 @@ const UserPostsScreen = ({ route }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" backgroundColor="#FFFFFF" />
       {renderHeader()}
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.postId.toString()}
-        renderItem={renderItem}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={["#0056d2"]}
-            tintColor="#0056d2"
-          />
-        }
-        ListEmptyComponent={renderEmptyComponent}
-        contentContainerStyle={posts.length === 0 ? styles.emptyList : styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      <View style={styles.containerWraper}>
+        <FlatList
+          data={posts}
+          keyExtractor={(item) => item.postId.toString()}
+          renderItem={renderItem}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={["#0056d2"]}
+              tintColor="#0056d2"
+            />
+          }
+          ListEmptyComponent={renderEmptyComponent}
+          contentContainerStyle={posts.length === 0 ? styles.emptyList : styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
     </SafeAreaView>
   );
 };
@@ -298,6 +288,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  containerWraper: {
+    marginTop: 70
   },
   loadingContainer: {
     flex: 1,

@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useContext } from "react"
+import { useEffect,useState,useContext } from "react"
 import { getGeminiHealthAdvice } from "utils/gemini"
 import {
   View,
@@ -10,21 +10,22 @@ import {
   TouchableOpacity,
   Dimensions,
   PanResponder,
-  Platform, 
+  Platform,
 } from "react-native"
 import { showErrorFetchAPI } from "utils/toastUtil"
-import Loading from "components/Loading"
+import ShimmerPlaceholder from "components/shimmer/ShimmerPlaceholder"
 import { weightHistoryService } from "services/apiWeightHistoryService"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { AuthContext } from "context/AuthContext"
-import { useTheme, useNavigation } from "@react-navigation/native"
+import { useTheme,useNavigation } from "@react-navigation/native"
 import Header from "components/Header"
 import { AnimatedCircularProgress } from "react-native-circular-progress"
-import { LineChart, BarChart } from "react-native-chart-kit"
+import { LineChart,BarChart } from "react-native-chart-kit"
 import { Ionicons } from "@expo/vector-icons"
 import SelectModal from "components/SelectModal"
 import { useWaterTotal } from "context/WaterTotalContext"
 import { LinearGradient } from "expo-linear-gradient" // Import LinearGradient
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
 const PRIMARY_COLOR = "#0056d2" // Define primary color for consistency
@@ -38,14 +39,14 @@ export default function WeeklyProgressScreen({ route }) {
   const { user } = useContext(AuthContext)
   const { allTimeTotalIntake } = useWaterTotal()
   // PanResponder for full-screen swipe navigation (only for Day filter, only changes offset, never navigates away)
-  const getFullScreenPanResponder = (filter, offset, setOffset) => {
+  const getFullScreenPanResponder = (filter,offset,setOffset) => {
     if (filter !== "Day") return null
     return PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
+      onMoveShouldSetPanResponder: (evt,gestureState) => {
         // Only respond to horizontal swipes
         return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 20
       },
-      onPanResponderRelease: (evt, gestureState) => {
+      onPanResponderRelease: (evt,gestureState) => {
         if (gestureState.dx > 30) {
           setOffset(offset - 1)
         } else if (gestureState.dx < -30) {
@@ -56,44 +57,42 @@ export default function WeeklyProgressScreen({ route }) {
   }
   const { colors } = useTheme()
   const navigation = useNavigation()
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [nutritionTarget, setNutritionTarget] = useState({
+  const [loading,setLoading] = useState(true)
+  const [refreshing,setRefreshing] = useState(false)
+  const [nutritionTarget,setNutritionTarget] = useState({
     calories: null,
     carbs: null,
     protein: null,
     fats: null,
   })
-  // Accept initialTab from navigation params (e.g. { initialTab: "Macros" })
-  const tabNameToIndex = { Calories: 0, Macros: 1, Weight: 2 }
+  const tabNameToIndex = { Calories: 0,Macros: 1,Weight: 2 }
   const initialTabIndex = route?.params?.initialTab ? (tabNameToIndex[route.params.initialTab] ?? 0) : 0
-  const [activeTab, setActiveTab] = useState(initialTabIndex)
-  // Filter states for each tab
-  const [caloriesFilter, setCaloriesFilter] = useState("Day")
-  const [macrosFilter, setMacrosFilter] = useState("Day")
-  const [weightFilter, setWeightFilter] = useState("Day")
+  const [activeTab,setActiveTab] = useState(initialTabIndex)
+  const [caloriesFilter,setCaloriesFilter] = useState("Day")
+  const [macrosFilter,setMacrosFilter] = useState("Day")
+  const [weightFilter,setWeightFilter] = useState("Day")
   // Modal states for filter selection
-  const [showCaloriesFilterModal, setShowCaloriesFilterModal] = useState(false)
-  const [showMacrosFilterModal, setShowMacrosFilterModal] = useState(false)
-  const [showWeightFilterModal, setShowWeightFilterModal] = useState(false)
+  const [showCaloriesFilterModal,setShowCaloriesFilterModal] = useState(false)
+  const [showMacrosFilterModal,setShowMacrosFilterModal] = useState(false)
+  const [showWeightFilterModal,setShowWeightFilterModal] = useState(false)
   // Date offset states
-  const [caloriesOffset, setCaloriesOffset] = useState(0)
-  const [macrosOffset, setMacrosOffset] = useState(0)
-  const [weightOffset, setWeightOffset] = useState(0)
+  const [caloriesOffset,setCaloriesOffset] = useState(0)
+  const [macrosOffset,setMacrosOffset] = useState(0)
+  const [weightOffset,setWeightOffset] = useState(0)
   // Data states
-  const [caloriesData, setCaloriesData] = useState(null)
-  const [macrosData, setMacrosData] = useState(null)
-  const [weightHistory, setWeightHistory] = useState([])
-  const [stepsData, setStepsData] = useState([])
-  const [stepCounterSteps, setStepCounterSteps] = useState(null)
-  const [waterData, setWaterData] = useState([])
-  const [macroAdvice, setMacroAdvice] = useState("")
-  const filterOptions = ["Day", "Week", "Month"]
+  const [caloriesData,setCaloriesData] = useState(null)
+  const [macrosData,setMacrosData] = useState(null)
+  const [weightHistory,setWeightHistory] = useState([])
+  const [stepsData,setStepsData] = useState([])
+  const [stepCounterSteps,setStepCounterSteps] = useState(null)
+  const [waterData,setWaterData] = useState([])
+  const [macroAdvice,setMacroAdvice] = useState("")
+  const filterOptions = ["Day","Week","Month"]
   // Helper functions
-  const getCurrentDate = (filter, offset) => {
+  const getCurrentDate = (filter,offset) => {
     const now = new Date()
     // Luôn lấy ngày hiện tại (giờ local), offset=0 là hôm nay
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const date = new Date(now.getFullYear(),now.getMonth(),now.getDate())
     if (filter === "Day") {
       date.setDate(date.getDate() + offset)
     } else if (filter === "Week") {
@@ -103,10 +102,10 @@ export default function WeeklyProgressScreen({ route }) {
     }
     return date
   }
-  const formatDateDisplay = (filter, offset) => {
-    const date = getCurrentDate(filter, offset)
+  const formatDateDisplay = (filter,offset) => {
+    const date = getCurrentDate(filter,offset)
     if (filter === "Day") {
-      return date.toLocaleDateString("en-US", {
+      return date.toLocaleDateString("en-US",{
         weekday: "long",
         year: "numeric",
         month: "long",
@@ -117,17 +116,17 @@ export default function WeeklyProgressScreen({ route }) {
       startOfWeek.setDate(date.getDate() - date.getDay())
       const endOfWeek = new Date(startOfWeek)
       endOfWeek.setDate(startOfWeek.getDate() + 6)
-      return `${startOfWeek.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endOfWeek.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+      return `${startOfWeek.toLocaleDateString("en-US",{ month: "short",day: "numeric" })} - ${endOfWeek.toLocaleDateString("en-US",{ month: "short",day: "numeric" })}`
     } else if (filter === "Month") {
-      return date.toLocaleDateString("en-US", { year: "numeric", month: "long" })
+      return date.toLocaleDateString("en-US",{ year: "numeric",month: "long" })
     }
   }
-  const getDateKey = (filter, offset) => {
-    const date = getCurrentDate(filter, offset)
+  const getDateKey = (filter,offset) => {
+    const date = getCurrentDate(filter,offset)
     // yyyy-mm-dd theo local time
     const yyyy = date.getFullYear()
-    const mm = (date.getMonth() + 1).toString().padStart(2, "0")
-    const dd = date.getDate().toString().padStart(2, "0")
+    const mm = (date.getMonth() + 1).toString().padStart(2,"0")
+    const dd = date.getDate().toString().padStart(2,"0")
     return `${yyyy}-${mm}-${dd}`
   }
   // Fetch calories data
@@ -135,8 +134,8 @@ export default function WeeklyProgressScreen({ route }) {
     setCaloriesData(null) // Reset before fetch
     setLoading(true)
     try {
-      const dateKey = getDateKey(caloriesFilter, caloriesOffset)
-      const displayDate = formatDateDisplay(caloriesFilter, caloriesOffset)
+      const dateKey = getDateKey(caloriesFilter,caloriesOffset)
+      const displayDate = formatDateDisplay(caloriesFilter,caloriesOffset)
       const raw = await AsyncStorage.getItem(`dailyStats_${dateKey}`)
       if (raw) {
         const parsed = JSON.parse(raw)
@@ -146,7 +145,7 @@ export default function WeeklyProgressScreen({ route }) {
       }
     } catch (error) {
       setCaloriesData(null)
-      showErrorFetchAPI(error.message || "Error fetching calories data")
+      showErrorFetchAPI(error)
     } finally {
       setLoading(false)
     }
@@ -157,12 +156,11 @@ export default function WeeklyProgressScreen({ route }) {
     setMacroAdvice("")
     setLoading(true)
     try {
-      const dateKey = getDateKey(macrosFilter, macrosOffset)
+      const dateKey = getDateKey(macrosFilter,macrosOffset)
       const raw = await AsyncStorage.getItem(`dailyStats_${dateKey}`)
       if (raw) {
         const parsed = JSON.parse(raw)
         setMacrosData(parsed)
-        // Fetch AI advice for macros
         if (parsed.macros) {
           const carbs = parsed.macros.carbs || 0
           const protein = parsed.macros.protein || 0
@@ -181,54 +179,46 @@ export default function WeeklyProgressScreen({ route }) {
       }
     } catch (error) {
       setMacrosData(null)
-      showErrorFetchAPI(error.message || "Error fetching macros data")
+      showErrorFetchAPI(error)
     } finally {
       setLoading(false)
     }
   }
-  // Fetch weight data and stepcounter steps
   const fetchWeightData = async () => {
-    setStepsData([{ steps: 0, date: getDateKey(weightFilter, weightOffset) }])
-    setWaterData([{ waterIntake: 0, date: getDateKey(weightFilter, weightOffset) }])
+    setStepsData([{ steps: 0,date: getDateKey(weightFilter,weightOffset) }])
+    setWaterData([{ waterIntake: 0,date: getDateKey(weightFilter,weightOffset) }])
     setWeightHistory([])
     setLoading(true)
     try {
-      // Fetch weight history
-      const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1, pageSize: 30 })
+      const response = await weightHistoryService.getMyWeightHistory({ pageNumber: 1,pageSize: 30 })
       if (response.statusCode === 200 && response.data && response.data.records) {
         setWeightHistory(response.data.records)
       }
-      // Fetch steps and water data for current period
-      const dateKey = getDateKey(weightFilter, weightOffset)
+      const dateKey = getDateKey(weightFilter,weightOffset)
       const raw = await AsyncStorage.getItem(`dailyStats_${dateKey}`)
       let waterIntake = 0
       if (raw) {
         const parsed = JSON.parse(raw)
-        setStepsData([{ steps: parsed.steps || 0, date: dateKey }])
-        // Prefer waterIntake from UserWaterLog if available
+        setStepsData([{ steps: parsed.steps || 0,date: dateKey }])
         if (parsed.waterIntake != null) {
           waterIntake = Number(parsed.waterIntake) || 0
         }
       } else {
-        setStepsData([{ steps: 0, date: dateKey }])
+        setStepsData([{ steps: 0,date: dateKey }])
       }
-      // Always try to get latest water logs from UserWaterLogScreen (if available in AsyncStorage)
       try {
         const waterLogKey = `userWaterLogs_${dateKey}`
         const waterLogRaw = await AsyncStorage.getItem(waterLogKey)
         if (waterLogRaw) {
           const logs = JSON.parse(waterLogRaw)
           if (Array.isArray(logs)) {
-            // Sum all amountMl for this day
-            const sum = logs.reduce((acc, log) => acc + (Number(log.amountMl) || 0), 0)
+            const sum = logs.reduce((acc,log) => acc + (Number(log.amountMl) || 0),0)
             if (sum > 0) waterIntake = sum
           }
         }
       } catch (err) {
-        // Ignore
       }
-      setWaterData([{ waterIntake, date: dateKey }])
-      // Fetch stepcounter steps from stepcounter_{userId}_{dateKey}
+      setWaterData([{ waterIntake,date: dateKey }])
       const userId = user?.userId || "unknown"
       const stepKey = `stepcounter_${userId}_${dateKey}`
       const stepRaw = await AsyncStorage.getItem(stepKey)
@@ -244,12 +234,11 @@ export default function WeeklyProgressScreen({ route }) {
       }
     } catch (error) {
       setStepCounterSteps(0)
-      showErrorFetchAPI(error.message || "Error fetching weight data")
+      showErrorFetchAPI(error)
     } finally {
       setLoading(false)
     }
   }
-  // Helper to get userId-based key (same as NutritionTargetScreen)
   const getUserId = () => {
     if (user && typeof user === "object") {
       return user.id || user._id || user.userId || ""
@@ -264,11 +253,10 @@ export default function WeeklyProgressScreen({ route }) {
     const userId = getUserId()
     return userId ? `nutritionTarget_${userId}_${dateKey}` : `nutritionTarget_${dateKey}`
   }
-  // Load nutrition target for selected day (per-day), KHÔNG fallback về latest
   useEffect(() => {
     const loadNutritionTarget = async () => {
       try {
-        let filter, offset
+        let filter,offset
         if (activeTab === 0) {
           filter = caloriesFilter
           offset = caloriesOffset
@@ -279,7 +267,7 @@ export default function WeeklyProgressScreen({ route }) {
           filter = caloriesFilter
           offset = caloriesOffset
         }
-        const dateKey = getDateKey(filter, offset)
+        const dateKey = getDateKey(filter,offset)
         const raw = await AsyncStorage.getItem(getTodayKey(dateKey))
         if (raw) {
           const target = JSON.parse(raw)
@@ -290,15 +278,14 @@ export default function WeeklyProgressScreen({ route }) {
             fats: isNaN(Number(target.fats)) ? null : Number(target.fats),
           })
         } else {
-          setNutritionTarget({ calories: null, carbs: null, protein: null, fats: null })
+          setNutritionTarget({ calories: null,carbs: null,protein: null,fats: null })
         }
       } catch (e) {
-        console.error("Error loading nutrition target:", e)
+        console.error("Error loading nutrition target:",e)
       }
     }
     loadNutritionTarget()
-  }, [activeTab, caloriesFilter, caloriesOffset, macrosFilter, macrosOffset, user?.userId])
-  // Fetch data when tab or filters change
+  },[activeTab,caloriesFilter,caloriesOffset,macrosFilter,macrosOffset,user?.userId])
   useEffect(() => {
     if (activeTab === 0) {
       fetchCaloriesData()
@@ -307,8 +294,7 @@ export default function WeeklyProgressScreen({ route }) {
     } else if (activeTab === 2) {
       fetchWeightData()
     }
-  }, [activeTab, caloriesFilter, caloriesOffset, macrosFilter, macrosOffset, weightFilter, weightOffset])
-  // Always fetch latest data when entering the screen (mount/focus)
+  },[activeTab,caloriesFilter,caloriesOffset,macrosFilter,macrosOffset,weightFilter,weightOffset])
   useEffect(() => {
     if (activeTab === 0) {
       fetchCaloriesData()
@@ -317,8 +303,7 @@ export default function WeeklyProgressScreen({ route }) {
     } else if (activeTab === 2) {
       fetchWeightData()
     }
-    // eslint-disable-next-line
-  }, [])
+  },[])
   const onRefresh = () => {
     setRefreshing(true)
     if (activeTab === 0) {
@@ -331,12 +316,12 @@ export default function WeeklyProgressScreen({ route }) {
     setRefreshing(false)
   }
 
-  const NavigationBoxes = ({ activeTab, setActiveTab }) => (
+  const NavigationBoxes = ({ activeTab,setActiveTab }) => (
     <View style={styles.navigationContainer}>
       {[
-        { index: 0, title: "Calories", icon: "nutrition-outline" },
-        { index: 1, title: "Macros", icon: "pie-chart-outline" },
-        { index: 2, title: "Weight", icon: "scale-outline" },
+        { index: 0,title: "Calories",icon: "nutrition-outline" },
+        { index: 1,title: "Macros",icon: "pie-chart-outline" },
+        { index: 2,title: "Weight",icon: "scale-outline" },
       ].map((item) => (
         <TouchableOpacity
           key={item.index}
@@ -344,7 +329,6 @@ export default function WeeklyProgressScreen({ route }) {
             styles.navigationBox,
             item.index === 0 && styles.navigationBoxLeft,
             item.index === 2 && styles.navigationBoxRight,
-            activeTab === item.index && { borderColor: PRIMARY_COLOR, borderWidth: 2 },
           ]}
           onPress={() => setActiveTab(item.index)}
         >
@@ -356,7 +340,7 @@ export default function WeeklyProgressScreen({ route }) {
           <Text
             style={[
               styles.navigationBoxText,
-              activeTab === item.index && { color: PRIMARY_COLOR, fontWeight: "700" },
+              activeTab === item.index && { color: PRIMARY_COLOR,fontWeight: "700" },
             ]}
           >
             {item.title}
@@ -366,24 +350,24 @@ export default function WeeklyProgressScreen({ route }) {
     </View>
   )
   // Filter component with select dropdown and swipe gesture for day navigation
-  const FilterComponent = ({ currentFilter, setFilter, offset, setOffset, showModal, setShowModal }) => {
+  const FilterComponent = ({ currentFilter,setFilter,offset,setOffset,showModal,setShowModal }) => {
     // Only enable swipe for Day filter
     const enableSwipe = currentFilter === "Day"
     const panResponder = enableSwipe
       ? PanResponder.create({
-          onMoveShouldSetPanResponder: (evt, gestureState) => {
-            // Only respond to horizontal swipes
-            return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 20
-          },
-          onPanResponderRelease: (evt, gestureState) => {
-            // Đảo ngược: kéo qua phải (dx > 30) là tăng ngày, kéo qua trái (dx < -30) là giảm ngày
-            if (gestureState.dx > 30) {
-              setOffset(offset - 1)
-            } else if (gestureState.dx < -30) {
-              setOffset(offset + 1)
-            }
-          },
-        })
+        onMoveShouldSetPanResponder: (evt,gestureState) => {
+          // Only respond to horizontal swipes
+          return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 20
+        },
+        onPanResponderRelease: (evt,gestureState) => {
+          // Đảo ngược: kéo qua phải (dx > 30) là tăng ngày, kéo qua trái (dx < -30) là giảm ngày
+          if (gestureState.dx > 30) {
+            setOffset(offset - 1)
+          } else if (gestureState.dx < -30) {
+            setOffset(offset + 1)
+          }
+        },
+      })
       : null
     return (
       <View style={styles.filterContainer} {...(enableSwipe ? panResponder.panHandlers : {})}>
@@ -399,13 +383,13 @@ export default function WeeklyProgressScreen({ route }) {
             <Ionicons name="chevron-forward" size={24} color={PRIMARY_COLOR} />
           </TouchableOpacity>
         </View>
-        <Text style={styles.dateDisplay}>{formatDateDisplay(currentFilter, offset)}</Text>
+        <Text style={styles.dateDisplay}>{formatDateDisplay(currentFilter,offset)}</Text>
       </View>
     )
   }
   // Calories Tab Content
   const CaloriesTab = () => {
-    const panResponder = getFullScreenPanResponder(caloriesFilter, caloriesOffset, setCaloriesOffset)
+    const panResponder = getFullScreenPanResponder(caloriesFilter,caloriesOffset,setCaloriesOffset)
     return (
       <View style={{ flex: 1 }} {...(panResponder ? panResponder.panHandlers : {})}>
         <ScrollView
@@ -439,14 +423,13 @@ export default function WeeklyProgressScreen({ route }) {
             }}
           />
           {loading ? (
-            <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading calories data..." />
+            <CommonSkeleton />
           ) : (
             <View style={styles.dataCard}>
               {caloriesData?.caloriesSummary ? (
                 <>
                   <View style={styles.circularProgressContainer}>
                     {(() => {
-                      // Lấy target calories mới nhất từ nutritionTarget nếu có, ưu tiên nutritionTarget.calories
                       const target = nutritionTarget.calories ?? caloriesData.caloriesSummary.target
                       const food =
                         typeof caloriesData.caloriesSummary.net === "number" ? caloriesData.caloriesSummary.net : 0
@@ -479,13 +462,13 @@ export default function WeeklyProgressScreen({ route }) {
                     <View style={styles.calorieStatRow}>
                       <View style={styles.calorieStatItem}>
                         <Text style={styles.calorieStatLabel}>Target</Text>
-                        <Text style={[styles.calorieStatValue, { color: PRIMARY_COLOR }]}>
+                        <Text style={[styles.calorieStatValue,{ color: PRIMARY_COLOR }]}>
                           {nutritionTarget.calories ?? caloriesData.caloriesSummary.target ?? "-"}
                         </Text>
                       </View>
                       <View style={styles.calorieStatItem}>
                         <Text style={styles.calorieStatLabel}>Food</Text>
-                        <Text style={[styles.calorieStatValue, { color: "#4CAF50" }]}>
+                        <Text style={[styles.calorieStatValue,{ color: "#4CAF50" }]}>
                           {typeof caloriesData.caloriesSummary.net === "number"
                             ? caloriesData.caloriesSummary.net
                             : "-"}
@@ -495,7 +478,7 @@ export default function WeeklyProgressScreen({ route }) {
                     <View style={styles.calorieStatRow}>
                       <View style={styles.calorieStatItem}>
                         <Text style={styles.calorieStatLabel}>Exercise</Text>
-                        <Text style={[styles.calorieStatValue, { color: "#FF9800" }]}>
+                        <Text style={[styles.calorieStatValue,{ color: "#FF9800" }]}>
                           {typeof caloriesData.caloriesSummary.burned === "number"
                             ? caloriesData.caloriesSummary.burned
                             : "-"}
@@ -503,7 +486,7 @@ export default function WeeklyProgressScreen({ route }) {
                       </View>
                       <View style={styles.calorieStatItem}>
                         <Text style={styles.calorieStatLabel}>Remaining</Text>
-                        <Text style={[styles.calorieStatValue, { color: "#F44336" }]}>
+                        <Text style={[styles.calorieStatValue,{ color: "#F44336" }]}>
                           {(() => {
                             // Always use nutritionTarget.calories if available, fallback to caloriesData.caloriesSummary.target
                             const target = nutritionTarget.calories ?? caloriesData.caloriesSummary.target
@@ -537,9 +520,9 @@ export default function WeeklyProgressScreen({ route }) {
           )}
           <TouchableOpacity style={styles.createTargetBtn} onPress={() => navigation.navigate("NutritionTargetScreen")}>
             <LinearGradient
-              colors={[PRIMARY_COLOR, ACCENT_COLOR]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              colors={["#0056d2","#0056d2"]}
+              start={{ x: 0,y: 0 }}
+              end={{ x: 1,y: 0 }}
               style={styles.createTargetBtnGradient}
             >
               <Text style={styles.createTargetBtnText}>Set Nutrition Target</Text>
@@ -551,7 +534,7 @@ export default function WeeklyProgressScreen({ route }) {
   }
   // Macros Tab Content
   const MacrosTab = () => {
-    const panResponder = getFullScreenPanResponder(macrosFilter, macrosOffset, setMacrosOffset)
+    const panResponder = getFullScreenPanResponder(macrosFilter,macrosOffset,setMacrosOffset)
     return (
       <View style={{ flex: 1 }} {...(panResponder ? panResponder.panHandlers : {})}>
         <ScrollView
@@ -585,7 +568,9 @@ export default function WeeklyProgressScreen({ route }) {
             }}
           />
           {loading ? (
-            <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading macros data..." />
+            <>
+              <CommonSkeleton />
+            </>
           ) : (
             <>
               {macrosData?.macros ? (
@@ -593,11 +578,11 @@ export default function WeeklyProgressScreen({ route }) {
                   <View style={styles.dataCard}>
                     <Text style={styles.cardTitle}>Today's Macros</Text>
                     <View style={styles.macrosContainer}>
-                      {["carbs", "protein", "fats"].map((macro, index) => {
+                      {["carbs","protein","fats"].map((macro,index) => {
                         const value = macrosData.macros[macro] || 0
                         const target = nutritionTarget[macro] || 0
                         const percent = target > 0 ? Math.round((value / target) * 100) : 0
-                        const colors_macro = ["#FF6B6B", PRIMARY_COLOR, "#45B7D1"]
+                        const colors_macro = ["#FF6B6B",PRIMARY_COLOR,"#45B7D1"]
                         return (
                           <View key={macro} style={styles.macroItem}>
                             <AnimatedCircularProgress
@@ -611,7 +596,7 @@ export default function WeeklyProgressScreen({ route }) {
                             >
                               {() => (
                                 <View style={styles.macroProgressText}>
-                                  <Text style={[styles.macroPercent, { color: colors_macro[index] }]}>{percent}%</Text>
+                                  <Text style={[styles.macroPercent,{ color: colors_macro[index] }]}>{percent}%</Text>
                                 </View>
                               )}
                             </AnimatedCircularProgress>
@@ -628,7 +613,7 @@ export default function WeeklyProgressScreen({ route }) {
                     <View style={styles.dataCard}>
                       <View style={styles.adviceHeader}>
                         <Ionicons name="bulb-outline" size={20} color="#FF9800" />
-                        <Text style={[styles.cardTitle, { color: "#FF9800", marginLeft: 8 }]}>AI Health Advice</Text>
+                        <Text style={[styles.cardTitle,{ color: "#FF9800",marginLeft: 8 }]}>AI Health Advice</Text>
                       </View>
                       <Text style={styles.adviceText}>{macroAdvice}</Text>
                     </View>
@@ -650,14 +635,13 @@ export default function WeeklyProgressScreen({ route }) {
   }
   // Weight Tab Content
   const WeightTab = () => {
-    const panResponder = getFullScreenPanResponder(weightFilter, weightOffset, setWeightOffset)
+    const panResponder = getFullScreenPanResponder(weightFilter,weightOffset,setWeightOffset)
     // Calculate total water intake (sum all waterData entries)
     const totalWaterIntake =
       waterData && Array.isArray(waterData)
-        ? waterData.reduce((sum, entry) => sum + (Number(entry.waterIntake) || 0), 0)
+        ? waterData.reduce((sum,entry) => sum + (Number(entry.waterIntake) || 0),0)
         : 0
     // Log water intake for debugging
-    console.log("[WEEKLY_PROGRESS] waterData:", waterData, "totalWaterIntake:", totalWaterIntake)
     return (
       <View style={{ flex: 1 }} {...(panResponder ? panResponder.panHandlers : {})}>
         <ScrollView
@@ -691,7 +675,9 @@ export default function WeeklyProgressScreen({ route }) {
             }}
           />
           {loading ? (
-            <Loading backgroundColor="rgba(255,255,255,0.8)" text="Loading weight data..." />
+            <>
+              <CommonSkeleton />
+            </>
           ) : (
             <>
               {/* Weight Chart */}
@@ -700,9 +686,9 @@ export default function WeeklyProgressScreen({ route }) {
                   <Text style={styles.cardTitle}>Weight Progress</Text>
                   <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate("WeightHistory")}>
                     <LinearGradient
-                      colors={[PRIMARY_COLOR, ACCENT_COLOR]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
+                      colors={["#0056d2","#0056d2"]}
+                      start={{ x: 0,y: 0 }}
+                      end={{ x: 1,y: 0 }}
                       style={styles.addButtonGradient}
                     >
                       <Ionicons name="add" size={20} color="#FFFFFF" />
@@ -714,7 +700,7 @@ export default function WeeklyProgressScreen({ route }) {
                     data={{
                       labels: weightHistory.slice(-7).map((item) => {
                         const d = new Date(item.recordedAt)
-                        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                        return d.toLocaleDateString("en-US",{ month: "short",day: "numeric" })
                       }),
                       datasets: [{ data: weightHistory.slice(-7).map((item) => Number(item.weight)) }],
                     }}
@@ -729,7 +715,7 @@ export default function WeeklyProgressScreen({ route }) {
                       color: (opacity = 1) => PRIMARY_COLOR,
                       labelColor: (opacity = 1) => TEXT_COLOR_DARK,
                       style: { borderRadius: 0 },
-                      propsForDots: { r: "4", strokeWidth: "0.5", stroke: PRIMARY_COLOR },
+                      propsForDots: { r: "4",strokeWidth: "0.5",stroke: PRIMARY_COLOR },
                       propsForBackgroundLines: { stroke: "#E0E0E0" },
                       propsForLabels: {},
                       propsForHorizontalLabels: {},
@@ -770,7 +756,7 @@ export default function WeeklyProgressScreen({ route }) {
                       >
                         {() => (
                           <View style={styles.progressTextContainer}>
-                            <Text style={[styles.progressValue, { color: "#4CAF50" }]}>{steps.toLocaleString()}</Text>
+                            <Text style={[styles.progressValue,{ color: "#4CAF50" }]}>{steps.toLocaleString()}</Text>
                             <Text style={styles.progressLabel}>steps</Text>
                           </View>
                         )}
@@ -792,9 +778,9 @@ export default function WeeklyProgressScreen({ route }) {
                   <Text style={styles.cardTitle}>Water Intake</Text>
                   <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate("UserWaterLog")}>
                     <LinearGradient
-                      colors={[PRIMARY_COLOR, ACCENT_COLOR]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
+                      colors={["#0056d2","#0056d2"]}
+                      start={{ x: 0,y: 0 }}
+                      end={{ x: 1,y: 0 }}
                       style={styles.addButtonGradient}
                     >
                       <Ionicons name="add" size={20} color="#FFFFFF" />
@@ -877,7 +863,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
@@ -885,7 +871,7 @@ const styles = StyleSheet.create({
         elevation: 8,
       },
     }),
-    marginTop: 90, // Adjust to sit below the header
+    marginTop: 120, // Adjust to sit below the header
   },
   navigationBox: {
     flex: 1,
@@ -914,7 +900,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    backgroundColor: BACKGROUND_COLOR,
+    backgroundColor: BACKGROUND_COLOR
   },
   tabContent: {
     flex: 1,
@@ -930,7 +916,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 4,
       },
@@ -994,7 +980,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 8,
       },
@@ -1044,7 +1030,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
@@ -1054,9 +1040,8 @@ const styles = StyleSheet.create({
     }),
   },
   cardTitle: {
-    fontSize: 20, // Larger title
+    fontSize: 20,
     fontWeight: "700",
-    marginBottom: 16,
     textAlign: "center",
     color: PRIMARY_COLOR,
   },
@@ -1141,14 +1126,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 12,
-    justifyContent: "center", // Center the header
+    justifyContent: "center",
   },
   adviceText: {
     fontSize: 15,
     lineHeight: 22,
     color: TEXT_COLOR_MEDIUM,
     fontWeight: "400",
-    textAlign: "justify", // Justify text for better readability
+    textAlign: "justify",
   },
   chartHeader: {
     flexDirection: "row",
@@ -1164,7 +1149,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: PRIMARY_COLOR,
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 6,
       },
@@ -1205,7 +1190,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: PRIMARY_COLOR,
-        shadowOffset: { width: 0, height: 6 },
+        shadowOffset: { width: 0,height: 6 },
         shadowOpacity: 0.3,
         shadowRadius: 10,
       },

@@ -18,8 +18,11 @@ import { AuthContext } from 'context/AuthContext';
 import { useNavigation,useRoute } from '@react-navigation/native';
 import { trainerService } from 'services/apiTrainerService';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
-import { RichEditor } from 'react-native-pell-rich-editor';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import { StatusBar } from 'expo-status-bar';
+import Header from 'components/Header';
+import RenderHTML from 'react-native-render-html';
 
 const { width } = Dimensions.get('window');
 
@@ -249,10 +252,7 @@ const TrainerPackageDetailScreen = () => {
   const renderLoadingScreen = () => (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#F8FAFC" />
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0056D2" />
-        <Text style={styles.loadingText}>Loading package details...</Text>
-      </View>
+      <CommonSkeleton />
     </SafeAreaView>
   );
 
@@ -344,18 +344,19 @@ const TrainerPackageDetailScreen = () => {
         </View>
         {packageData?.description ? (
           <View style={styles.descriptionContainer}>
-            <RichEditor
-              ref={null}
-              initialContentHTML={typeof packageData.description === 'string' ? packageData.description : ''}
-              disabled={true}
-              style={styles.richEditor}
-              editorStyle={{
-                backgroundColor: '#FFFFFF',
-                color: '#000000',
-                fontSize: 16,
-                fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-                lineHeight: 24,
-                padding: 16,
+            <RenderHTML
+              source={{
+                html:
+                  item.responseText || "N/A"
+              }}
+              tagsStyles={{
+                p: {
+                  fontSize: 14,
+                  color: "#64748B",
+                  margin: 0,
+                  lineHeight: 20,
+                  fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
+                },
               }}
             />
           </View>
@@ -677,19 +678,20 @@ const TrainerPackageDetailScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#F8FAFC" />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056D2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>#PACKAGE{packageData?.packageId || 'Package'}</Text>
-          </View>
-          <TouchableOpacity style={styles.filterButton} onPress={handleEdit}>
-            <Ionicons name="pencil-outline" size={24} color="#0056D2" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title={`#PACKAGE${packageData?.packageId || 'Package'}`}
+        onBack={() => navigation.goBack()}
+        backIconColor="#0056D2"
+        rightActions={[
+          {
+            icon: "pencil-outline",
+            onPress: handleEdit,
+            color: "#0056D2",
+            accessibilityLabel: "Edit Package"
+          }
+        ]}
+      />
+
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
@@ -749,6 +751,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+    marginTop: 70
   },
   scrollContent: {
     padding: 20,

@@ -13,15 +13,17 @@ import {
   Platform,
   TouchableWithoutFeedback,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getMyReports } from 'services/apiCommunityService';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { showErrorFetchAPI } from 'utils/toastUtil';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
-const { width } = Dimensions.get('window');
+const { width,height } = Dimensions.get('window');
 
 const MyReportsScreen = ({ navigation }) => {
   const [reports,setReports] = useState([]);
@@ -45,13 +47,17 @@ const MyReportsScreen = ({ navigation }) => {
   useEffect(() => {
     const fetchReports = async () => {
       setLoading(true);
+      setError(null);
       try {
         const data = await getMyReports(filters);
-        setReports(data);
+        setReports(Array.isArray(data) ? data : []);
       } catch (e) {
-        setError(e.message || 'Error fetching reports');
+        setReports([]);
+        setError('Failed to load reports. Please try again.');
+        showErrorFetchAPI(e);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchReports();
@@ -69,6 +75,10 @@ const MyReportsScreen = ({ navigation }) => {
 
   const handleFilterChange = (key,value) => {
     setPendingFilters((prev) => ({ ...prev,[key]: value }));
+  };
+
+  const handleStatusChange = (status) => {
+    setFilters((prev) => ({ ...prev,Status: status,PageNumber: 1 }));
   };
 
   const handleApplyFilters = () => {
@@ -111,22 +121,48 @@ const MyReportsScreen = ({ navigation }) => {
       case 'rejected':
         return { bg: '#FEE2E2',text: '#991B1B',border: '#EF4444' };
       case 'resolved':
-        return { bg: '#DBEAFE',text: '#1E40AF',border: '#0056d2' };
+        return { bg: '#DBEAFE',text: '#1E40AF',border: '#0056D2' };
       default:
         return { bg: '#F3F4F6',text: '#6B7280',border: '#9CA3AF' };
     }
+  };
+
+  const renderStatusChip = (status,label) => {
+    const isSelected = filters.Status.toLowerCase() === status.toLowerCase();
+    const statusColors = getStatusColor(status);
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.statusChip,
+          isSelected && { backgroundColor: statusColors.bg,borderColor: statusColors.border,borderWidth: 2 },
+        ]}
+        onPress={() => handleStatusChange(status)}
+        accessibilityLabel={`Filter by ${label}`}
+        accessibilityRole="button"
+      >
+        <Text
+          style={[
+            styles.statusChipText,
+            isSelected && { color: statusColors.text,fontWeight: '600' },
+          ]}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
   const renderReportItem = ({ item,index }) => {
     const statusColors = getStatusColor(item.status);
 
     return (
-      <View style={[styles.reportCard,{ marginTop: index === 0 ? 0 : 20 }]}>
+      <View style={[styles.reportCard,{ marginTop: index === 0 ? 0 : 16 }]}>
         <View style={styles.reportCardContainer}>
           <View style={styles.reportHeader}>
             <View style={styles.reportIdContainer}>
               <View style={styles.iconContainer}>
-                <Ionicons name="document-text" size={20} color="#0056d2" />
+                <Ionicons name="document-text" size={18} color="#0056D2" />
               </View>
               <Text style={styles.reportId}>#{item.reportId}</Text>
             </View>
@@ -196,18 +232,13 @@ const MyReportsScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" backgroundColor="#FFFFFF" />
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color="#0056d2" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>My Reports</Text>
-            <View style={styles.headerRight} />
-          </View>
-        </View>
+        <Header
+          title="Reports"
+          onBack={() => navigation.goBack()}
+        />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0056d2" />
-          <Text style={styles.loadingText}>Loading your reports...</Text>
+          <ActivityIndicator size="large" color="#0056D2" />
+          <CommonSkeleton />
         </View>
       </SafeAreaView>
     );
@@ -217,28 +248,23 @@ const MyReportsScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" backgroundColor="#FFFFFF" />
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color="#0056d2" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>My Reports</Text>
-            <View style={styles.headerRight} />
-          </View>
-        </View>
+        <Header
+          title="Reports"
+          onBack={() => navigation.goBack()}
+        />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={64} color="#EF4444" />
-          <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+          <Text style={styles.errorTitle}>Something Went Wrong</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
             onPress={() => setFilters({ ...filters,PageNumber: 1 })}
-            accessibilityLabel="Retry"
+            accessibilityLabel="Retry loading reports"
             accessibilityRole="button"
           >
-            <LinearGradient colors={["#0056d2","#0041a3"]} style={styles.retryButtonGradient}>
-              <Ionicons name="refresh" size={16} color="#FFFFFF" />
-              <Text style={styles.retryButtonText}>Try Again</Text>
+            <LinearGradient colors={['#0056D2','#0041A3']} style={styles.retryButtonGradient}>
+              <Ionicons name="refresh" size={16} color="#FFFFFF" style={styles.retryButtonIcon} />
+              <Text style={styles.retryButtonText}>Retry</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -249,46 +275,35 @@ const MyReportsScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" backgroundColor="#FFFFFF" />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            accessibilityLabel="Back"
-            accessibilityRole="button"
-          >
-            <Ionicons name="arrow-back" size={24} color="#0056d2" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Reports</Text>
-          <TouchableOpacity
-            style={styles.filterMenuButton}
-            onPress={() => setShowFilters(true)}
-            accessibilityLabel="Open Filters"
-            accessibilityRole="button"
-          >
-            <Ionicons name="filter" size={24} color="#0056d2" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Reports"
+        onBack={() => navigation.goBack()}
 
+        rightActions={[
+          {
+            icon: "options-outline",
+            onPress: () => setShowFilters(true),
+          },
+        ]}
+      />
       <View style={styles.searchSection}>
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
             <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search your reports..."
+              placeholder="Search reports..."
               placeholderTextColor="#9CA3AF"
               value={searchTerm}
               onChangeText={setSearchTerm}
-              accessibilityLabel="Search Reports"
+              accessibilityLabel="Search reports"
               accessibilityRole="search"
             />
             {searchTerm.length > 0 && (
               <TouchableOpacity
                 onPress={() => setSearchTerm('')}
                 style={styles.clearSearchButton}
-                accessibilityLabel="Clear Search"
+                accessibilityLabel="Clear search"
                 accessibilityRole="button"
               >
                 <Ionicons name="close-circle" size={20} color="#6B7280" />
@@ -298,10 +313,21 @@ const MyReportsScreen = ({ navigation }) => {
         </View>
         <View style={styles.resultsInfo}>
           <Text style={styles.resultsText}>
-            {reports.length > 0 ? `${reports.length} report${reports.length !== 1 ? 's' : ''} found` : 'No reports found'}
+            {reports.length} report{reports.length !== 1 ? 's' : ''} found
           </Text>
           {searchTerm && <Text style={styles.searchTermText}>for "{searchTerm}"</Text>}
         </View>
+        <ScrollView
+          horizontal
+          style={styles.statusFilterContainer}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.statusFilterContent}
+        >
+          {renderStatusChip('','All')}
+          {renderStatusChip('pending','Pending')}
+          {renderStatusChip('approved','Approved')}
+          {renderStatusChip('rejected','Rejected')}
+        </ScrollView>
       </View>
 
       <View style={styles.mainContainer}>
@@ -311,20 +337,22 @@ const MyReportsScreen = ({ navigation }) => {
           keyExtractor={(item) => item.reportId.toString()}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="document-outline" size={64} color="#6B7280" />
+              <Ionicons name="document-outline" size={64} color="#D1D5DB" />
               <Text style={styles.emptyTitle}>No Reports Found</Text>
               <Text style={styles.emptyText}>
-                {searchTerm ? 'Try adjusting your search terms or filters' : "You haven't submitted any reports yet"}
+                {searchTerm || filters.Status || filters.StartDate || filters.EndDate
+                  ? 'Try adjusting your search or filters.'
+                  : "You haven't submitted any reports yet."}
               </Text>
-              {searchTerm && (
+              {(searchTerm || filters.Status || filters.StartDate || filters.EndDate) && (
                 <TouchableOpacity
                   style={styles.clearSearchEmptyButton}
-                  onPress={() => setSearchTerm('')}
-                  accessibilityLabel="Clear Search"
+                  onPress={clearFilters}
+                  accessibilityLabel="Clear all filters and search"
                   accessibilityRole="button"
                 >
-                  <LinearGradient colors={["#0056d2","#0041a3"]} style={styles.clearSearchEmptyButtonGradient}>
-                    <Text style={styles.clearSearchEmptyText}>Clear Search</Text>
+                  <LinearGradient colors={['#0056D2','#0041A3']} style={styles.clearSearchEmptyButtonGradient}>
+                    <Text style={styles.clearSearchEmptyText}>Clear All</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               )}
@@ -332,21 +360,32 @@ const MyReportsScreen = ({ navigation }) => {
           }
           contentContainerStyle={styles.reportsList}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            if (reports.length >= filters.PageSize) {
+              setFilters((prev) => ({ ...prev,PageNumber: prev.PageNumber + 1 }));
+            }
+          }}
+          onEndReachedThreshold={0.5}
         />
       </View>
 
-      <Modal visible={showFilters} animationType="slide" transparent={true} onRequestClose={() => setShowFilters(false)}>
+      <Modal
+        visible={showFilters}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowFilters(false)}
+      >
         <TouchableWithoutFeedback onPress={() => setShowFilters(false)}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={() => { }}>
               <View style={styles.filterModal}>
                 <View style={styles.modalHandle} />
                 <View style={styles.filterHeader}>
-                  <Text style={styles.filterTitle}>Filter Options</Text>
+                  <Text style={styles.filterTitle}>Filters</Text>
                   <TouchableOpacity
                     style={styles.closeModalButton}
                     onPress={() => setShowFilters(false)}
-                    accessibilityLabel="Close Filters"
+                    accessibilityLabel="Close date filters"
                     accessibilityRole="button"
                   >
                     <Ionicons name="close" size={24} color="#6B7280" />
@@ -355,29 +394,13 @@ const MyReportsScreen = ({ navigation }) => {
                 <ScrollView style={styles.filterContent} showsVerticalScrollIndicator={false}>
                   <View style={styles.filterGroup}>
                     <Text style={styles.filterLabel}>
-                      <Ionicons name="flag-outline" size={16} color="#0056d2" style={styles.filterIcon} /> Status
-                    </Text>
-                    <View style={styles.filterPicker}>
-                      <Picker
-                        selectedValue={pendingFilters.Status}
-                        onValueChange={(value) => handleFilterChange('Status',value)}
-                      >
-                        <Picker.Item label="All Statuses" value="" />
-                        <Picker.Item label="Pending" value="pending" />
-                        <Picker.Item label="Approved" value="approved" />
-                        <Picker.Item label="Rejected" value="rejected" />
-                        <Picker.Item label="Resolved" value="resolved" />
-                      </Picker>
-                    </View>
-                  </View>
-                  <View style={styles.filterGroup}>
-                    <Text style={styles.filterLabel}>
-                      <Ionicons name="calendar-outline" size={16} color="#0056d2" style={styles.filterIcon} /> Start Date
+                      <Ionicons name="calendar-outline" size={16} color="#0056D2" style={styles.filterIcon} />
+                      Start Date
                     </Text>
                     <TouchableOpacity
                       style={styles.dateInput}
                       onPress={() => setShowStartDatePicker(true)}
-                      accessibilityLabel="Select Start Date"
+                      accessibilityLabel="Select start date"
                       accessibilityRole="button"
                     >
                       <Ionicons name="calendar" size={16} color="#6B7280" />
@@ -391,20 +414,22 @@ const MyReportsScreen = ({ navigation }) => {
                         mode="datetime"
                         display="default"
                         onChange={(event,date) => {
-                          setShowStartDatePicker(false);
+                          setShowStartDatePicker(Platform.OS === 'ios' ? true : false);
                           if (date) handleFilterChange('StartDate',date.toISOString());
                         }}
+                        onCancel={() => setShowStartDatePicker(false)}
                       />
                     )}
                   </View>
                   <View style={styles.filterGroup}>
                     <Text style={styles.filterLabel}>
-                      <Ionicons name="calendar-outline" size={16} color="#0056d2" style={styles.filterIcon} /> End Date
+                      <Ionicons name="calendar-outline" size={16} color="#0056D2" style={styles.filterIcon} />
+                      End Date
                     </Text>
                     <TouchableOpacity
                       style={styles.dateInput}
                       onPress={() => setShowEndDatePicker(true)}
-                      accessibilityLabel="Select End Date"
+                      accessibilityLabel="Select end date"
                       accessibilityRole="button"
                     >
                       <Ionicons name="calendar" size={16} color="#6B7280" />
@@ -418,9 +443,10 @@ const MyReportsScreen = ({ navigation }) => {
                         mode="datetime"
                         display="default"
                         onChange={(event,date) => {
-                          setShowEndDatePicker(false);
+                          setShowEndDatePicker(Platform.OS === 'ios' ? true : false);
                           if (date) handleFilterChange('EndDate',date.toISOString());
                         }}
+                        onCancel={() => setShowEndDatePicker(false)}
                       />
                     )}
                   </View>
@@ -429,7 +455,7 @@ const MyReportsScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.clearButton}
                     onPress={clearFilters}
-                    accessibilityLabel="Clear Filters"
+                    accessibilityLabel="Clear date filters"
                     accessibilityRole="button"
                   >
                     <Text style={styles.clearButtonText}>Clear All</Text>
@@ -437,10 +463,10 @@ const MyReportsScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.applyFilterButton}
                     onPress={handleApplyFilters}
-                    accessibilityLabel="Apply Filters"
+                    accessibilityLabel="Apply date filters"
                     accessibilityRole="button"
                   >
-                    <LinearGradient colors={["#0056d2","#0041a3"]} style={styles.applyFilterButtonGradient}>
+                    <LinearGradient colors={['#0056D2','#0041A3']} style={styles.applyFilterButtonGradient}>
                       <Text style={styles.applyFilterButtonText}>Apply Filters</Text>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -457,42 +483,41 @@ const MyReportsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F9FAFB',
   },
   header: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: Platform.OS === 'android' ? 10 : 0,
+    paddingTop: Platform.OS === 'android' ? 8 : 0,
     shadowColor: '#000',
     shadowOffset: { width: 0,height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-    zIndex: 1000,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   backButton: {
     padding: 8,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: '#F1F5F9',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000000',
+    color: '#1E293B',
     flex: 1,
     textAlign: 'center',
   },
   filterMenuButton: {
     padding: 8,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: '#F1F5F9',
   },
   headerRight: {
@@ -500,15 +525,11 @@ const styles = StyleSheet.create({
   },
   searchSection: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0,height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    marginTop: 70
   },
   searchContainer: {
     marginBottom: 12,
@@ -516,21 +537,25 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderWidth: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
     borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0,height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   searchIcon: {
-    marginRight: 12,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
-    fontWeight: '400',
+    color: '#1E293B',
+    paddingVertical: 12,
   },
   clearSearchButton: {
     padding: 4,
@@ -538,7 +563,8 @@ const styles = StyleSheet.create({
   resultsInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
+    marginBottom: 12,
   },
   resultsText: {
     fontSize: 14,
@@ -547,37 +573,57 @@ const styles = StyleSheet.create({
   },
   searchTermText: {
     fontSize: 14,
-    color: '#0056d2',
+    color: '#0056D2',
     fontWeight: '600',
+  },
+  statusFilterContainer: {
+    marginBottom: 8,
+  },
+  statusFilterContent: {
+    paddingHorizontal: 4,
+    gap: 8,
+  },
+  statusChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#0056D2',
+  },
+  statusChipText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   mainContainer: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   reportsList: {
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingVertical: 16,
+    paddingBottom: 80,
   },
   reportCard: {
-    borderRadius: 16,
+    borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0,height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 2,
   },
   reportCardContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 2,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   reportHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -587,20 +633,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconContainer: {
-    backgroundColor: '#F0F9FF',
+    backgroundColor: '#EFF6FF',
     padding: 8,
-    borderRadius: 12,
-    marginRight: 12,
+    borderRadius: 8,
+    marginRight: 8,
   },
   reportId: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1E293B',
   },
   statusBadge: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
   },
   statusText: {
@@ -609,7 +655,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   reportContent: {
-    gap: 12,
+    gap: 8,
   },
   infoRow: {
     marginBottom: 4,
@@ -617,12 +663,12 @@ const styles = StyleSheet.create({
   infoItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: 8,
   },
   infoIconContainer: {
     backgroundColor: '#F9FAFB',
     padding: 6,
-    borderRadius: 8,
+    borderRadius: 6,
     marginTop: 2,
   },
   infoLabel: {
@@ -634,10 +680,9 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     fontSize: 14,
-    color: '#000000',
+    color: '#1E293B',
     flex: 1,
     lineHeight: 20,
-    fontWeight: '400',
   },
   dateRow: {
     flexDirection: 'row',
@@ -650,8 +695,8 @@ const styles = StyleSheet.create({
   dateIconContainer: {
     backgroundColor: '#F9FAFB',
     padding: 6,
-    borderRadius: 8,
-    marginRight: 12,
+    borderRadius: 6,
+    marginRight: 8,
   },
   dateText: {
     fontSize: 13,
@@ -662,12 +707,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
-    paddingHorizontal: 40,
+    paddingHorizontal: 24,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000000',
+    color: '#1E293B',
     marginTop: 16,
     marginBottom: 8,
   },
@@ -676,10 +721,9 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
-    fontWeight: '400',
   },
   clearSearchEmptyButton: {
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
     marginTop: 16,
   },
@@ -697,25 +741,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 16,
-    fontWeight: '500',
+    backgroundColor: '#F9FAFB',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
-    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 24,
+    backgroundColor: '#F9FAFB',
   },
   errorTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000000',
+    color: '#1E293B',
     marginTop: 16,
     marginBottom: 8,
   },
@@ -724,11 +762,10 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     textAlign: 'center',
     lineHeight: 24,
-    fontWeight: '400',
     marginBottom: 16,
   },
   retryButton: {
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   retryButtonGradient: {
@@ -743,6 +780,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  retryButtonIcon: {
+    marginRight: 4,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -750,14 +790,15 @@ const styles = StyleSheet.create({
   },
   filterModal: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: '80%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: height * 0.7,
     shadowColor: '#000',
     shadowOffset: { width: 0,height: -2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
+    paddingBottom: 20
   },
   modalHandle: {
     width: 40,
@@ -772,80 +813,74 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   filterTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#000000',
+    color: '#1E293B',
     flex: 1,
     textAlign: 'center',
   },
   closeModalButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
   },
   filterContent: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   filterGroup: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   filterLabel: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
-    marginBottom: 12,
+    color: '#1E293B',
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   filterIcon: {
     marginRight: 4,
   },
-  filterPicker: {
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderRadius: 16,
-    backgroundColor: '#F8FAFC',
-  },
   dateInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 16,
-    backgroundColor: '#F8FAFC',
-    gap: 12,
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    gap: 8,
   },
   dateText: {
     fontSize: 16,
-    color: '#000000',
-    fontWeight: '400',
+    color: '#1E293B',
     flex: 1,
   },
   filterActions: {
     flexDirection: 'row',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
   clearButton: {
     flex: 1,
     backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   clearButtonText: {
@@ -855,11 +890,11 @@ const styles = StyleSheet.create({
   },
   applyFilterButton: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   applyFilterButtonGradient: {
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   applyFilterButtonText: {

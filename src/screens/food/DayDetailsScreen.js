@@ -1,6 +1,5 @@
-
-import { useState, useRef } from "react"
-import Loading from "components/Loading"
+import { useState,useRef } from "react";
+import Loading from "components/Loading";
 import {
   View,
   Text,
@@ -9,166 +8,241 @@ import {
   StyleSheet,
   Dimensions,
   Modal,
-  TextInput,
   Alert,
-  Image,
   Animated,
   Platform,
-} from "react-native"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
-import Header from 'components/Header'
-import { SafeAreaView } from "react-native-safe-area-context"
-import { StatusBar } from "expo-status-bar"
-import { useNavigation, useRoute } from "@react-navigation/native"
-import { LinearGradient } from "expo-linear-gradient"
-import dayjs from "dayjs"
+} from "react-native";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
+import Header from "components/Header";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { useNavigation,useRoute } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
+import dayjs from "dayjs";
 
 // Icon imports
-import Icon from "react-native-vector-icons/MaterialIcons"
-import IconCommunity from "react-native-vector-icons/MaterialCommunityIcons"
-import IconFeather from "react-native-vector-icons/Feather"
-import IconAntDesign from "react-native-vector-icons/AntDesign"
+import Icon from "react-native-vector-icons/MaterialIcons";
+import IconCommunity from "react-native-vector-icons/MaterialCommunityIcons";
+import IconFeather from "react-native-vector-icons/Feather";
+import IconAntDesign from "react-native-vector-icons/AntDesign";
 
-import { foodService } from "services/apiFoodService"
+import { foodService } from "services/apiFoodService";
+import SafeImage from "./SafeImage";
+import { TextInput } from "react-native-gesture-handler";
 
-const { width, height } = Dimensions.get("window")
-const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Other"]
+const { width,height } = Dimensions.get("window");
+const MEAL_TYPES = ["Breakfast","Lunch","Dinner","Other"];
 
 const DayDetailsScreen = () => {
-  const navigation = useNavigation()
-  const route = useRoute()
-  const { date, dayStats } = route.params
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { date,dayStats: initialDayStats } = route.params;
 
-  const [grouped, setGrouped] = useState(route.params.grouped)
-  const [editModalVisible, setEditModalVisible] = useState(false)
-  const [editingFood, setEditingFood] = useState(null)
-  const [ratingModalVisible, setRatingModalVisible] = useState(false)
-  const [ratingTarget, setRatingTarget] = useState(null)
-  const [ratingLoading, setRatingLoading] = useState(false)
-  const [ratingValue, setRatingValue] = useState(0)
-  const [ratingNote, setRatingNote] = useState("")
+  // Process grouped data to aggregate by foodId and foodName
+  const processGroupedData = (grouped) => {
+    const newGrouped = {};
+    MEAL_TYPES.forEach((mealType) => {
+      const mealFoods = grouped[mealType] || [];
+      const groupedByFood = {};
+
+      mealFoods.forEach((food) => {
+        const key = `${food.foodId}-${food.foodName}`;
+        if (!groupedByFood[key]) {
+          groupedByFood[key] = {
+            ...food,
+            logIds: [food.logId || food.id],
+            quantity: food.quantity || 1,
+            calories: food.calories || 0,
+            protein: food.protein || 0,
+            carbs: food.carbs || 0,
+            fats: food.fats || 0,
+            count: 1,
+            originalQuantity: food.quantity || 1,
+            originalCalories: food.calories || 0,
+            originalProtein: food.protein || 0,
+            originalCarbs: food.carbs || 0,
+            originalFats: food.fats || 0,
+          };
+        } else {
+          groupedByFood[key].logIds.push(food.logId || food.id);
+          groupedByFood[key].quantity = (groupedByFood[key].quantity || 1) + (food.quantity || 1);
+          groupedByFood[key].calories += food.calories || 0;
+          groupedByFood[key].protein += food.protein || 0;
+          groupedByFood[key].carbs += food.carbs || 0;
+          groupedByFood[key].fats += food.fats || 0;
+          groupedByFood[key].count += 1;
+          if (food.satisfactionRating) {
+            groupedByFood[key].satisfactionRating = food.satisfactionRating;
+            groupedByFood[key].notes = food.notes || "";
+          }
+        }
+      });
+
+      newGrouped[mealType] = Object.values(groupedByFood);
+    });
+    return newGrouped;
+  };
+
+  const [grouped,setGrouped] = useState(processGroupedData(route.params.grouped));
+  const [dayStats,setDayStats] = useState(initialDayStats);
+  const [ratingModalVisible,setRatingModalVisible] = useState(false);
+  const [ratingTarget,setRatingTarget] = useState(null);
+  const [ratingLoading,setRatingLoading] = useState(false);
+  const [ratingValue,setRatingValue] = useState(0);
+  const [ratingNote,setRatingNote] = useState("");
 
   // Animation refs
-  const modalScale = useRef(new Animated.Value(0)).current
-  const modalOpacity = useRef(new Animated.Value(0)).current
-  const starAnimations = useRef([...Array(5)].map(() => new Animated.Value(1))).current
+  const modalScale = useRef(new Animated.Value(0)).current;
+  const modalOpacity = useRef(new Animated.Value(0)).current;
+  const starAnimations = useRef([...Array(5)].map(() => new Animated.Value(1))).current;
 
   const handleDeleteDayLog = async () => {
-    const allLogs = []
+    const allLogs = [];
     MEAL_TYPES.forEach((mealType) => {
-      const mealFoods = grouped[mealType] || []
-      allLogs.push(...mealFoods)
-    })
+      const mealFoods = grouped[mealType] || [];
+      mealFoods.forEach((food) => {
+        allLogs.push(...food.logIds);
+      });
+    });
 
-    Alert.alert("Delete Day", `Delete all ${allLogs.length} food entries for ${dayjs(date).format("MMM DD, YYYY")}?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const deletePromises = allLogs.map((log) => {
-              const logId = log.logId || log.id
-              return foodService.deleteNutritionLog(logId)
-            })
-            await Promise.all(deletePromises)
-            showSuccessMessage("All food logs deleted!")
-            navigation.goBack()
-          } catch (error) {
-            showErrorFetchAPI(error)
-          }
+    Alert.alert(
+      "Delete Day",
+      `Delete all ${allLogs.length} food entries for ${dayjs(date).format("MMM DD, YYYY")}?`,
+      [
+        { text: "Cancel",style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const deletePromises = allLogs.map((logId) => foodService.deleteNutritionLog(logId));
+              await Promise.all(deletePromises);
+              showSuccessMessage("All food logs deleted!");
+              navigation.goBack();
+            } catch (error) {
+              showErrorFetchAPI(error);
+            }
+          },
         },
-      },
-    ])
-  }
+      ]
+    );
+  };
 
-  const handleEditLog = (log) => {
-    setEditingFood({
-      ...log,
-      originalCalories: log.calories,
-      originalProtein: log.protein,
-      originalCarbs: log.carbs,
-      originalFats: log.fats,
-      quantity: log.quantity || 1,
-    })
-    setEditModalVisible(true)
-  }
+  const handleDeleteFoodLog = async (food,mealType) => {
+    if (food.logIds.length === 0) return;
 
-  const handleSaveEdit = async () => {
-    if (!editingFood) return
+    Alert.alert(
+      "Delete Food Log",
+      `Delete one entry of "${food.foodName}" from ${mealType}?`,
+      [
+        { text: "Cancel",style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Delete the first logId in the list
+              const logIdToDelete = food.logIds[0];
+              await foodService.deleteNutritionLog(logIdToDelete);
 
-    try {
-      const multiplier = editingFood.quantity / (editingFood.originalQuantity || 1)
-      const updatedLog = {
-        ...editingFood,
-        calories: Math.round((editingFood.originalCalories || 0) * multiplier),
-        protein: Math.round((editingFood.originalProtein || 0) * multiplier),
-        carbs: Math.round((editingFood.originalCarbs || 0) * multiplier),
-        fats: Math.round((editingFood.originalFats || 0) * multiplier),
-      }
+              // Update dayStats
+              setDayStats((prevStats) => ({
+                ...prevStats,
+                calories: prevStats.calories - food.originalCalories,
+                protein: prevStats.protein - food.originalProtein,
+                carbs: prevStats.carbs - food.originalCarbs,
+                fats: prevStats.fats - food.originalFats,
+              }));
 
-      const res = await foodService.updateNutritionLog(editingFood.id, updatedLog)
-      if (res.statusCode === 200) {
-        showSuccessMessage("Food updated successfully!")
-        setEditModalVisible(false)
-        setEditingFood(null)
-        if (typeof route.params.onRefresh === "function") route.params.onRefresh()
-        navigation.goBack()
-      } else {
-        showErrorFetchAPI(res.message || "Update failed")
-      }
-    } catch (error) {
-      showErrorFetchAPI(error)
-    }
-  }
+              // Update grouped state
+              setGrouped((prevGrouped) => {
+                const newGrouped = { ...prevGrouped };
+                const mealFoods = newGrouped[mealType] || [];
+                const updatedMealFoods = mealFoods
+                  .map((f) => {
+                    if (f.foodId === food.foodId && f.foodName === food.foodName) {
+                      if (f.logIds.length === 1) {
+                        // Remove the food item if it's the last log
+                        return null;
+                      }
+                      // Update the food item
+                      return {
+                        ...f,
+                        logIds: f.logIds.filter((id) => id !== logIdToDelete),
+                        quantity: f.quantity - f.originalQuantity,
+                        calories: f.calories - f.originalCalories,
+                        protein: f.protein - f.originalProtein,
+                        carbs: f.carbs - f.originalCarbs,
+                        fats: f.fats - f.originalFats,
+                        count: f.count - 1,
+                      };
+                    }
+                    return f;
+                  })
+                  .filter((f) => f !== null); // Remove null entries
 
-  const handleOpenRating = (logId, currentRating, currentNote) => {
-    setRatingTarget({ logId })
-    setRatingValue(currentRating || 0)
-    setRatingNote(currentNote || "")
-    setRatingModalVisible(true)
+                newGrouped[mealType] = updatedMealFoods;
+                return newGrouped;
+              });
+
+              showSuccessMessage("Food log deleted!");
+              if (typeof route.params.onRefresh === "function") route.params.onRefresh();
+            } catch (error) {
+              showErrorFetchAPI(error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleOpenRating = (food) => {
+    setRatingTarget({ logIds: food.logIds,foodId: food.foodId });
+    setRatingValue(food.satisfactionRating || 0);
+    setRatingNote(food.notes || "");
+    setRatingModalVisible(true);
 
     Animated.parallel([
-      Animated.spring(modalScale, {
+      Animated.spring(modalScale,{
         toValue: 1,
         tension: 100,
         friction: 8,
         useNativeDriver: true,
       }),
-      Animated.timing(modalOpacity, {
+      Animated.timing(modalOpacity,{
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-    ]).start()
-  }
+    ]).start();
+  };
 
   const animateStar = (index) => {
     Animated.sequence([
-      Animated.timing(starAnimations[index], {
+      Animated.timing(starAnimations[index],{
         toValue: 1.3,
         duration: 120,
         useNativeDriver: true,
       }),
-      Animated.timing(starAnimations[index], {
+      Animated.timing(starAnimations[index],{
         toValue: 1,
         duration: 120,
         useNativeDriver: true,
       }),
-    ]).start()
-  }
+    ]).start();
+  };
 
   const handleSubmitRating = async () => {
-    if (!ratingTarget) return
-    setRatingLoading(true)
+    if (!ratingTarget) return;
+    setRatingLoading(true);
     try {
-      let foundLog = null
+      let foundLog = null;
       for (const mealType of MEAL_TYPES) {
-        const mealFoods = grouped[mealType] || []
-        foundLog = mealFoods.find((f) => (f.logId || f.id) === ratingTarget.logId)
-        if (foundLog) break
+        const mealFoods = grouped[mealType] || [];
+        foundLog = mealFoods.find((f) => f.foodId === ratingTarget.foodId);
+        if (foundLog) break;
       }
-      if (!foundLog) throw new Error("Log not found")
+      if (!foundLog) throw new Error("Log not found");
 
       const payload = {
         userId: foundLog.userId,
@@ -176,242 +250,88 @@ const DayDetailsScreen = () => {
         mealType: foundLog.mealType,
         portionSize: foundLog.portionSize,
         servingSize: foundLog.servingSize,
-        calories: foundLog.calories,
-        protein: foundLog.protein,
-        carbs: foundLog.carbs,
-        fats: foundLog.fats,
+        calories: foundLog.calories / (foundLog.quantity || 1),
+        protein: foundLog.protein / (foundLog.quantity || 1),
+        carbs: foundLog.carbs / (foundLog.quantity || 1),
+        fats: foundLog.fats / (foundLog.quantity || 1),
         consumptionDate: foundLog.consumptionDate,
         satisfactionRating: ratingValue,
         notes: ratingNote,
-      }
+        quantity: foundLog.quantity || 1,
+      };
 
-      await foodService.updateNutritionLog(ratingTarget.logId, payload)
+      const updatePromises = ratingTarget.logIds.map((logId) =>
+        foodService.updateNutritionLog(logId,payload)
+      );
+      await Promise.all(updatePromises);
 
-      // Update local grouped state with new rating and note
       setGrouped((prevGrouped) => {
-        const newGrouped = { ...prevGrouped }
+        const newGrouped = { ...prevGrouped };
         for (const mealType of MEAL_TYPES) {
           newGrouped[mealType] = (newGrouped[mealType] || []).map((food) => {
-            if ((food.logId || food.id) === ratingTarget.logId) {
+            if (food.foodId === ratingTarget.foodId) {
               return {
                 ...food,
                 satisfactionRating: ratingValue,
                 notes: ratingNote,
-              }
+              };
             }
-            return food
-          })
+            return food;
+          });
         }
-        return newGrouped
-      })
+        return newGrouped;
+      });
 
       Animated.parallel([
-        Animated.timing(modalScale, {
+        Animated.timing(modalScale,{
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
         }),
-        Animated.timing(modalOpacity, {
+        Animated.timing(modalOpacity,{
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
         }),
       ]).start(() => {
-        setRatingModalVisible(false)
-        setRatingTarget(null)
-      })
+        setRatingModalVisible(false);
+        setRatingTarget(null);
+      });
 
-      showSuccessMessage("Rating updated!")
-      if (typeof route.params.onRefresh === "function") route.params.onRefresh()
+      showSuccessMessage("Rating updated!");
+      if (typeof route.params.onRefresh === "function") route.params.onRefresh();
     } catch (e) {
-      showErrorFetchAPI(e.message || "Failed to update rating")
+      showErrorFetchAPI(e);
     } finally {
-      setRatingLoading(false)
+      setRatingLoading(false);
     }
-  }
+  };
 
   const getMealIcon = (meal) => {
     switch (meal) {
       case "Breakfast":
-        return "wb-sunny"
+        return "wb-sunny";
       case "Lunch":
-        return "restaurant"
+        return "restaurant";
       case "Dinner":
-        return "brightness-3"
+        return "brightness-3";
       default:
-        return "fastfood"
+        return "fastfood";
     }
-  }
+  };
 
   const getMealColor = (meal) => {
     switch (meal) {
       case "Breakfast":
-        return "#2563EB"
+        return "#2563EB";
       case "Lunch":
-        return "#059669"
+        return "#059669";
       case "Dinner":
-        return "#7C3AED"
+        return "#7C3AED";
       default:
-        return "#6B7280"
+        return "#6B7280";
     }
-  }
-
-  const renderEditModal = () => (
-    <Modal
-      visible={editModalVisible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setEditModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderContent}>
-              <View style={styles.modalIconContainer}>
-                <IconFeather name="edit-3" size={20} color="#374151" />
-              </View>
-              <View style={styles.modalHeaderText}>
-                <Text style={styles.modalTitle}>Edit Quantity</Text>
-                <Text style={styles.modalSubtitle}>Adjust your serving size</Text>
-              </View>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setEditModalVisible(false)}>
-                <IconFeather name="x" size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-            {editingFood && (
-              <>
-                {/* Food Preview */}
-                <View style={styles.foodPreview}>
-                  <Image
-                    source={{
-                      uri: editingFood.foodImage || editingFood.image || "https://via.placeholder.com/60x60",
-                    }}
-                    style={styles.previewImage}
-                  />
-                  <View style={styles.previewInfo}>
-                    <Text style={styles.previewName}>{editingFood.foodName}</Text>
-                    <View style={styles.previewNutrition}>
-                      <View style={styles.nutritionChip}>
-                        <IconCommunity name="fire" size={12} color="#EF4444" />
-                        <Text style={styles.previewText}>{Math.round(editingFood.originalCalories || 0)} kcal</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Quantity Controls */}
-                <View style={styles.quantitySection}>
-                  <Text style={styles.sectionTitle}>Adjust Quantity</Text>
-                  <View style={styles.quantityControls}>
-                    <TouchableOpacity
-                      style={styles.quantityButton}
-                      onPress={() => {
-                        const newQuantity = Math.max(0.5, (editingFood.quantity || 1) - 0.5)
-                        setEditingFood((prev) => ({ ...prev, quantity: newQuantity }))
-                      }}
-                    >
-                      <Icon name="remove" size={18} color="#374151" />
-                    </TouchableOpacity>
-
-                    <View style={styles.quantityDisplay}>
-                      <View style={styles.quantityInputWrapper}>
-                        <TextInput
-                          style={styles.quantityInput}
-                          value={editingFood.quantity?.toString() || "1"}
-                          onChangeText={(text) => {
-                            const quantity = Number.parseFloat(text) || 1
-                            setEditingFood((prev) => ({ ...prev, quantity }))
-                          }}
-                          keyboardType="numeric"
-                          textAlign="center"
-                        />
-                      </View>
-                      <Text style={styles.quantityLabel}>servings</Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.quantityButton}
-                      onPress={() => {
-                        const newQuantity = (editingFood.quantity || 1) + 0.5
-                        setEditingFood((prev) => ({ ...prev, quantity: newQuantity }))
-                      }}
-                    >
-                      <Icon name="add" size={18} color="#374151" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Updated Nutrition */}
-                <View style={styles.nutritionPreview}>
-                  <Text style={styles.sectionTitle}>Updated Nutrition</Text>
-                  <View style={styles.nutritionGrid}>
-                    {[
-                      {
-                        key: "calories",
-                        icon: "fire",
-                        color: "#EF4444",
-                        value: editingFood.originalCalories,
-                        unit: "",
-                      },
-                      {
-                        key: "protein",
-                        icon: "dumbbell",
-                        color: "#059669",
-                        value: editingFood.originalProtein,
-                        unit: "g",
-                      },
-                      {
-                        key: "carbs",
-                        icon: "grain",
-                        color: "#2563EB",
-                        value: editingFood.originalCarbs,
-                        unit: "g",
-                      },
-                      {
-                        key: "fats",
-                        icon: "oil",
-                        color: "#D97706",
-                        value: editingFood.originalFats,
-                        unit: "g",
-                      },
-                    ].map((item) => (
-                      <View key={item.key} style={styles.nutritionItem}>
-                        <View style={[styles.nutritionIconBg, { backgroundColor: item.color + "15" }]}>
-                          <IconCommunity name={item.icon} size={16} color={item.color} />
-                        </View>
-                        <Text style={styles.nutritionValue}>
-                          {Math.round((item.value || 0) * (editingFood.quantity || 1))}
-                          {item.unit}
-                        </Text>
-                        <Text style={styles.nutritionName}>{item.key}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </>
-            )}
-          </ScrollView>
-
-          {/* Footer */}
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setEditModalVisible(false)}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveEdit}>
-              <View style={styles.saveButtonContent}>
-                <IconFeather name="check" size={16} color="#FFFFFF" />
-                <Text style={styles.saveText}>Save Changes</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  )
+  };
 
   const renderRatingModal = () => (
     <Modal
@@ -423,8 +343,8 @@ const DayDetailsScreen = () => {
       {ratingLoading ? (
         <Loading backgroundColor="rgba(0,0,0,0.7)" logoSize={120} />
       ) : (
-        <Animated.View style={[styles.ratingOverlay, { opacity: modalOpacity }]}> 
-          <Animated.View style={[styles.ratingModal, { transform: [{ scale: modalScale }] }]}> 
+        <Animated.View style={[styles.ratingOverlay,{ opacity: modalOpacity }]}>
+          <Animated.View style={[styles.ratingModal,{ transform: [{ scale: modalScale }] }]}>
             {/* Enhanced Header */}
             <LinearGradient colors={["#0056d2","#0056d2","#0056d2"]} style={styles.ratingHeader}>
               <View style={styles.ratingHeaderContent}>
@@ -446,18 +366,18 @@ const DayDetailsScreen = () => {
               <View style={styles.starSection}>
                 <Text style={styles.starLabel}>How would you rate this meal?</Text>
                 <View style={styles.starContainer}>
-                  {[1, 2, 3, 4, 5].map((star) => (
+                  {[1,2,3,4,5].map((star) => (
                     <TouchableOpacity
                       key={star}
                       onPress={() => {
-                        setRatingValue(star)
-                        animateStar(star - 1)
+                        setRatingValue(star);
+                        animateStar(star - 1);
                       }}
                       disabled={ratingLoading}
                       style={styles.starButton}
                     >
                       <Animated.View style={{ transform: [{ scale: starAnimations[star - 1] }] }}>
-                        <View style={[styles.starWrapper, ratingValue >= star && styles.starWrapperActive]}>
+                        <View style={[styles.starWrapper,ratingValue >= star && styles.starWrapperActive]}>
                           <IconAntDesign
                             name={ratingValue >= star ? "star" : "staro"}
                             size={28}
@@ -480,31 +400,31 @@ const DayDetailsScreen = () => {
                   {ratingValue === 1 && (
                     <View style={styles.descriptionContent}>
                       <IconCommunity name="emoticon-sad-outline" size={18} color="#EF4444" />
-                      <Text style={[styles.descText, { color: "#EF4444" }]}>Poor - Not satisfied</Text>
+                      <Text style={[styles.descText,{ color: "#EF4444" }]}>Poor - Not satisfied</Text>
                     </View>
                   )}
                   {ratingValue === 2 && (
                     <View style={styles.descriptionContent}>
                       <IconCommunity name="emoticon-neutral-outline" size={18} color="#F59E0B" />
-                      <Text style={[styles.descText, { color: "#F59E0B" }]}>Fair - Could be better</Text>
+                      <Text style={[styles.descText,{ color: "#F59E0B" }]}>Fair - Could be better</Text>
                     </View>
                   )}
                   {ratingValue === 3 && (
                     <View style={styles.descriptionContent}>
                       <IconCommunity name="emoticon-outline" size={18} color="#FBBF24" />
-                      <Text style={[styles.descText, { color: "#FBBF24" }]}>Good - Satisfied</Text>
+                      <Text style={[styles.descText,{ color: "#FBBF24" }]}>Good - Satisfied</Text>
                     </View>
                   )}
                   {ratingValue === 4 && (
                     <View style={styles.descriptionContent}>
                       <IconCommunity name="emoticon-happy-outline" size={18} color="#10B981" />
-                      <Text style={[styles.descText, { color: "#10B981" }]}>Very Good - Really enjoyed</Text>
+                      <Text style={[styles.descText,{ color: "#10B981" }]}>Very Good - Really enjoyed</Text>
                     </View>
                   )}
                   {ratingValue === 5 && (
                     <View style={styles.descriptionContent}>
                       <IconCommunity name="emoticon-excited-outline" size={18} color="#8B5CF6" />
-                      <Text style={[styles.descText, { color: "#8B5CF6" }]}>Excellent - Amazing!</Text>
+                      <Text style={[styles.descText,{ color: "#8B5CF6" }]}>Excellent - Amazing!</Text>
                     </View>
                   )}
                 </View>
@@ -545,16 +465,16 @@ const DayDetailsScreen = () => {
                 </View>
                 <View style={styles.quickNotesGrid}>
                   {[
-                    { text: "Delicious!", icon: "emoticon-excited" },
-                    { text: "Too salty", icon: "water-off" },
-                    { text: "Perfect portion", icon: "check-circle" },
-                    { text: "Too spicy", icon: "fire" },
-                    { text: "Will order again", icon: "repeat" },
-                    { text: "Could be better", icon: "arrow-up-circle" },
-                  ].map((note, index) => (
+                    { text: "Delicious!",icon: "emoticon-excited" },
+                    { text: "Too salty",icon: "water-off" },
+                    { text: "Perfect portion",icon: "check-circle" },
+                    { text: "Too spicy",icon: "fire" },
+                    { text: "Will order again",icon: "repeat" },
+                    { text: "Could be better",icon: "arrow-up-circle" },
+                  ].map((note,index) => (
                     <TouchableOpacity
                       key={index}
-                      style={[styles.quickNote, ratingNote === note.text && styles.quickNoteActive]}
+                      style={[styles.quickNote,ratingNote === note.text && styles.quickNoteActive]}
                       onPress={() => setRatingNote(note.text)}
                       disabled={ratingLoading}
                     >
@@ -563,7 +483,7 @@ const DayDetailsScreen = () => {
                         size={12}
                         color={ratingNote === note.text ? "#FFFFFF" : "#667eea"}
                       />
-                      <Text style={[styles.quickNoteText, ratingNote === note.text && styles.quickNoteTextActive]}>
+                      <Text style={[styles.quickNoteText,ratingNote === note.text && styles.quickNoteTextActive]}>
                         {note.text}
                       </Text>
                     </TouchableOpacity>
@@ -575,7 +495,7 @@ const DayDetailsScreen = () => {
             {/* Enhanced Submit Button */}
             <View style={styles.ratingFooter}>
               <TouchableOpacity
-                style={[styles.submitButton, { opacity: ratingLoading || ratingValue === 0 ? 0.6 : 1 }]}
+                style={[styles.submitButton,{ opacity: ratingLoading || ratingValue === 0 ? 0.6 : 1 }]}
                 onPress={handleSubmitRating}
                 disabled={ratingLoading || ratingValue === 0}
               >
@@ -589,7 +509,7 @@ const DayDetailsScreen = () => {
         </Animated.View>
       )}
     </Modal>
-  )
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -598,10 +518,12 @@ const DayDetailsScreen = () => {
         title={dayjs(date).format("dddd")}
         subtitle={dayjs(date).format("MMMM DD, YYYY")}
         onBack={() => navigation.goBack()}
-        rightActions={[{
-          icon: <IconFeather name="trash-2" size={18} color="#EF4444" />,
-          onPress: handleDeleteDayLog
-        }]}
+        rightActions={[
+          {
+            icon: <IconFeather name="trash-2" size={18} color="#EF4444" />,
+            onPress: handleDeleteDayLog,
+          },
+        ]}
       />
       {/* Clean Nutrition Overview */}
       <View style={styles.overview}>
@@ -609,36 +531,35 @@ const DayDetailsScreen = () => {
           <Text style={styles.overviewTitle}>Daily Summary</Text>
           <Text style={styles.overviewSubtitle}>Nutrition breakdown for today</Text>
         </View>
-        <View style={[styles.overviewCards, { justifyContent: 'space-between' }]}>
+        <View style={[styles.overviewCards,{ justifyContent: "space-between" }]}>
           <View style={styles.overviewCard}>
             <Text style={styles.overviewLabel}>KCAL</Text>
-            <Text style={[styles.overviewValue, { fontSize: 14 }]}>{Math.round(dayStats.calories)}</Text>
+            <Text style={[styles.overviewValue,{ fontSize: 14 }]}>{Math.round(dayStats.calories)}</Text>
           </View>
           <View style={styles.overviewCard}>
             <Text style={styles.overviewLabel}>Protein</Text>
-            <Text style={[styles.overviewValue, { fontSize: 14 }]}>{Math.round(dayStats.protein)}g</Text>
+            <Text style={[styles.overviewValue,{ fontSize: 14 }]}>{Math.round(dayStats.protein)}g</Text>
           </View>
           <View style={styles.overviewCard}>
             <Text style={styles.overviewLabel}>Carbs</Text>
-            <Text style={[styles.overviewValue, { fontSize: 14 }]}>{Math.round(dayStats.carbs)}g</Text>
+            <Text style={[styles.overviewValue,{ fontSize: 14 }]}>{Math.round(dayStats.carbs)}g</Text>
           </View>
           <View style={styles.overviewCard}>
             <Text style={styles.overviewLabel}>Fats</Text>
-            <Text style={[styles.overviewValue, { fontSize: 14 }]}>{Math.round(dayStats.fats)}g</Text>
+            <Text style={[styles.overviewValue,{ fontSize: 14 }]}>{Math.round(dayStats.fats)}g</Text>
           </View>
         </View>
       </View>
       {/* Clean Meals */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {MEAL_TYPES.map((mealType) => {
-          const mealFoods = grouped[mealType] || []
-          if (mealFoods.length === 0) return null
+          const mealFoods = grouped[mealType] || [];
+          if (mealFoods.length === 0) return null;
 
           return (
             <View key={mealType} style={styles.mealCard}>
-              <View style={[styles.mealHeader, { borderLeftColor: getMealColor(mealType) }]}> 
+              <View style={[styles.mealHeader,{ borderLeftColor: getMealColor(mealType) }]}>
                 <View style={styles.mealHeaderContent}>
-                  {/* Removed meal icon for simplicity */}
                   <View style={styles.mealHeaderText}>
                     <Text style={styles.mealTitle}>{mealType}</Text>
                     <Text style={styles.mealItemCount}>{mealFoods.length} items</Text>
@@ -646,23 +567,30 @@ const DayDetailsScreen = () => {
                   <View style={styles.mealCalories}>
                     <IconCommunity name="fire" size={12} color="#EF4444" />
                     <Text style={styles.mealCaloriesText}>
-                      {Math.round(mealFoods.reduce((sum, food) => sum + (food.calories || 0), 0))} kcal
+                      {Math.round(mealFoods.reduce((sum,food) => sum + (food.calories || 0),0))} kcal
                     </Text>
                   </View>
                 </View>
               </View>
 
               <View style={styles.mealContent}>
-                {mealFoods.map((food, idx) => (
+                {mealFoods.map((food,idx) => (
                   <View key={idx} style={styles.foodCard}>
-                    <Image
-                      source={{ uri: food.foodImage || food.image || "https://via.placeholder.com/50x50" }}
+                    <SafeImage
+                      imageUrl={{ uri: food.foodImage || "https://via.placeholder.com/50x50" }}
                       style={styles.foodImage}
                     />
                     <View style={styles.foodInfo}>
-                      <Text style={styles.foodName}>{food.foodName}</Text>
-                      {food.quantity && food.quantity > 1 && (
-                        <Text style={styles.foodQuantity}>Quantity: {food.quantity}</Text>
+                      <View style={styles.foodNameContainer}>
+                        <Text style={styles.foodName}>{food.foodName}</Text>
+                        {food.count > 1 && (
+                          <View style={styles.countTag}>
+                            <Text style={styles.countTagText}>+{food.count}</Text>
+                          </View>
+                        )}
+                      </View>
+                      {food.quantity && food.quantity > 0 && (
+                        <Text style={styles.foodQuantity}>Quantity: {food.quantity.toFixed(1)}</Text>
                       )}
 
                       {/* Current Rating */}
@@ -671,7 +599,7 @@ const DayDetailsScreen = () => {
                           {food.satisfactionRating && (
                             <View style={styles.ratingDisplay}>
                               <View style={styles.ratingStars}>
-                                {[...Array(5)].map((_, i) => (
+                                {[...Array(5)].map((_,i) => (
                                   <IconAntDesign
                                     key={i}
                                     name="star"
@@ -712,28 +640,37 @@ const DayDetailsScreen = () => {
                       </View>
                     </View>
 
-                    {/* Action Button */}
-                    <TouchableOpacity
-                      style={styles.rateButton}
-                      onPress={() => handleOpenRating(food.logId || food.id, food.satisfactionRating, food.notes)}
-                    >
-                      <View style={styles.rateButtonContent}>
-                        <IconAntDesign name="star" size={12} color="#F59E0B" />
-                      </View>
-                    </TouchableOpacity>
+                    {/* Action Buttons */}
+                    <View style={styles.actionButtons}>
+                      <TouchableOpacity
+                        style={[styles.rateButton,{ backgroundColor: "#FEF3C7" }]}
+                        onPress={() => handleOpenRating(food)}
+                      >
+                        <View style={styles.rateButtonContent}>
+                          <IconAntDesign name="star" size={12} color="#F59E0B" />
+                        </View>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.rateButton,{ backgroundColor: "#FEF2F2" }]}
+                        onPress={() => handleDeleteFoodLog(food,mealType)}
+                      >
+                        <View style={styles.rateButtonContent}>
+                          <IconFeather name="trash-2" size={12} color="#EF4444" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))}
               </View>
             </View>
-          )
+          );
         })}
       </ScrollView>
 
-      {renderEditModal()}
       {renderRatingModal()}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -791,10 +728,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+    marginTop: 70,
   },
   overviewHeader: {
     marginBottom: 20,
@@ -852,7 +790,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
@@ -926,11 +864,27 @@ const styles = StyleSheet.create({
   foodInfo: {
     flex: 1,
   },
+  foodNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
   foodName: {
     fontSize: 15,
     fontWeight: "700",
     color: "#111827",
-    marginBottom: 4,
+  },
+  countTag: {
+    backgroundColor: "#E0E7FF",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  countTagText: {
+    fontSize: 10,
+    color: "#2563EB",
+    fontWeight: "600",
   },
   foodQuantity: {
     fontSize: 12,
@@ -984,255 +938,22 @@ const styles = StyleSheet.create({
   },
   rateButton: {
     borderRadius: 10,
+    marginLeft: 8,
   },
   rateButtonContent: {
     width: 32,
     height: 32,
-    backgroundColor: "#FEF3C7",
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#F59E0B",
-  },
-
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: height * 0.8,
-  },
-  modalHeader: {
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-    backgroundColor: "#FFFFFF",
-  },
-  modalHeaderContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  modalIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F3F4F6",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  modalHeaderText: {
-    flex: 1,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 2,
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#F3F4F6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalBody: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
-  foodPreview: {
-    flexDirection: "row",
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
     borderColor: "#F3F4F6",
   },
-  previewImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    marginRight: 16,
-  },
-  previewInfo: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  previewName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  previewNutrition: {
-    flexDirection: "row",
-  },
-  nutritionChip: {
+  actionButtons: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF2F2",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
   },
-  previewText: {
-    fontSize: 12,
-    color: "#EF4444",
-    fontWeight: "600",
-  },
-  quantitySection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  quantityControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 20,
-  },
-  quantityButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F3F4F6",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  quantityDisplay: {
-    alignItems: "center",
-  },
-  quantityInputWrapper: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#374151",
-  },
-  quantityInput: {
-    width: 60,
-    height: 40,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-    textAlign: "center",
-  },
-  quantityLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 6,
-    fontWeight: "500",
-  },
-  nutritionPreview: {
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  nutritionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  nutritionItem: {
-    flex: 1,
-    minWidth: "45%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  nutritionIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  nutritionValue: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  nutritionName: {
-    fontSize: 10,
-    color: "#6B7280",
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
-  modalFooter: {
-    flexDirection: "row",
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-    gap: 12,
-    backgroundColor: "#FFFFFF",
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
-  },
-  cancelText: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "600",
-  },
-  saveButton: {
-    flex: 2,
-    borderRadius: 12,
-    backgroundColor: "#374151",
-  },
-  saveButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 14,
-    gap: 8,
-  },
-  saveText: {
-    fontSize: 14,
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-
-  // Rating Modal Styles (Keep as is - user said it's good)
+  // Rating Modal Styles
   ratingOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.7)",
@@ -1247,7 +968,7 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     maxHeight: height * 0.8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0,height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 16,
@@ -1331,7 +1052,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF7ED",
     borderColor: "#FFD700",
     shadowColor: "#FFD700",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
@@ -1387,7 +1108,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -1445,7 +1166,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#667eea",
     borderColor: "#667eea",
     shadowColor: "#667eea",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
@@ -1469,7 +1190,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#FF9A56",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
@@ -1486,6 +1207,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
-})
+});
 
-export default DayDetailsScreen
+export default DayDetailsScreen;

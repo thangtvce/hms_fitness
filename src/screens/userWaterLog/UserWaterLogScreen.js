@@ -1,18 +1,5 @@
 
-function getVietnamTodayString() {
-  const now = new Date();
-  // Lấy thời gian hiện tại ở Việt Nam (UTC+7) bất kể máy ở đâu
-  const vietnamNow = new Date(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate(),
-    now.getUTCHours() + 7,
-    now.getUTCMinutes(),
-    now.getUTCSeconds()
-  );
-  return vietnamNow.toISOString().slice(0, 10);
-}
-import { useEffect, useState, useCallback } from "react"
+import { useEffect,useState,useCallback } from "react"
 import {
   View,
   Text,
@@ -41,23 +28,25 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import Header from "components/Header"
 import Loading from "components/Loading"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Ionicons } from "@expo/vector-icons"
 import { useWaterTotal } from "context/WaterTotalContext"
 import { getTargetWaterLog } from "utils/waterTargetStorage"
 import { getGeminiHealthAdvice } from "utils/gemini"
-import CelebrationFireworks from "components/CelebrationFireworks" 
+import CelebrationFireworks from "components/congratulation/CelebrationFireworks"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+import { handleDailyCheckin } from "utils/checkin"
 
-const { width, height } = Dimensions.get("window")
+const { width,height } = Dimensions.get("window")
 const RECOMMENDED_DAILY_INTAKE = 2000
 const MINIMUM_DAILY_INTAKE = 1200
 const MAXIMUM_SAFE_INTAKE = 3500
 
 export default function UserWaterLogScreen({ navigation }) {
-  const safeNavigation = navigation || { navigate: () => {}, goBack: () => {} }
-  const [showTargetSelector, setShowTargetSelector] = useState(false)
-  const [targetWater, setTargetWater] = useState(() => {
+  const safeNavigation = navigation || { navigate: () => { },goBack: () => { } }
+  const [showTargetSelector,setShowTargetSelector] = useState(false)
+  const [targetWater,setTargetWater] = useState(() => {
     try {
       let userId = null;
       if (typeof window !== 'undefined' && window.localStorage) {
@@ -67,7 +56,7 @@ export default function UserWaterLogScreen({ navigation }) {
           try {
             const userObj = JSON.parse(userRaw);
             userId = userObj.id || userObj._id || userObj.userId;
-          } catch (e) {}
+          } catch (e) { }
         }
       }
       // Fallback: try to get userId from global variable if available
@@ -76,28 +65,28 @@ export default function UserWaterLogScreen({ navigation }) {
       }
       const key = userId ? `waterTarget_${userId}` : 'waterTarget';
       const saved = localStorage.getItem(key);
-      console.log('DEBUG waterTarget localStorage:', key, saved);
+      console.log('DEBUG waterTarget localStorage:',key,saved);
       if (saved) {
         const obj = JSON.parse(saved);
         if (obj && typeof obj.target === 'number') return obj.target;
       }
-    } catch (e) {}
+    } catch (e) { }
     return 2000;
   })
-  const [targetType, setTargetType] = useState("ml") 
-  const [targetLoaded, setTargetLoaded] = useState(false)
+  const [targetType,setTargetType] = useState("ml")
+  const [targetLoaded,setTargetLoaded] = useState(false)
 
   // New state for celebration
-  const [showCelebration, setShowCelebration] = useState(false)
+  const [showCelebration,setShowCelebration] = useState(false)
 
-  const { user, authToken } = useAuth()
+  const { user,authToken } = useAuth()
 
   useFocusEffect(
     useCallback(() => {
       let userId = null
       if (user && typeof user === "object") {
         userId = user.id || user._id || user.userId
-        if (typeof userId === "string") userId = Number.parseInt(userId, 10)
+        if (typeof userId === "string") userId = Number.parseInt(userId,10)
       }
       if (userId) {
         getTargetWaterLog(userId).then((data) => {
@@ -110,19 +99,19 @@ export default function UserWaterLogScreen({ navigation }) {
       } else {
         setTargetLoaded(true)
       }
-    }, [user]),
+    },[user]),
   )
 
-  const { allTimeTotalIntake, setAllTimeTotalIntake } = useWaterTotal()
-  const [waterLogs, setWaterLogs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [filterModalVisible, setFilterModalVisible] = useState(false)
-  const [customDaysModalVisible, setCustomDaysModalVisible] = useState(false)
-  const [selectedQuickFilter, setSelectedQuickFilter] = useState("7")
-  const [customDaysInput, setCustomDaysModalInput] = useState("")
-  const [showAllLogs, setShowAllLogs] = useState(false)
-  const [filters, setFilters] = useState({
+  const { allTimeTotalIntake,setAllTimeTotalIntake } = useWaterTotal()
+  const [waterLogs,setWaterLogs] = useState([])
+  const [loading,setLoading] = useState(true)
+  const [refreshing,setRefreshing] = useState(false)
+  const [filterModalVisible,setFilterModalVisible] = useState(false)
+  const [customDaysModalVisible,setCustomDaysModalVisible] = useState(false)
+  const [selectedQuickFilter,setSelectedQuickFilter] = useState("7")
+  const [customDaysInput,setCustomDaysModalInput] = useState("")
+  const [showAllLogs,setShowAllLogs] = useState(false)
+  const [filters,setFilters] = useState({
     pageNumber: 1,
     pageSize: 50,
     startDate: null,
@@ -130,35 +119,35 @@ export default function UserWaterLogScreen({ navigation }) {
     searchTerm: "",
     status: "active",
   })
-const [tempFilters, setTempFilters] = useState({ ...filters });
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false)
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false)
-  const [timePeriod, setTimePeriod] = useState("week")
-  const [customDays, setCustomDays] = useState(7)
-  const [chartData, setChartData] = useState({ labels: [], datasets: [] })
-  const [averageIntake, setAverageIntake] = useState(0)
-  const [hydrationStatus, setHydrationStatus] = useState("")
-  const [todayIntake, setTodayIntake] = useState(0)
-  const [weeklyAverage, setWeeklyAverage] = useState(0)
+  const [tempFilters,setTempFilters] = useState({ ...filters });
+  const [showStartDatePicker,setShowStartDatePicker] = useState(false)
+  const [showEndDatePicker,setShowEndDatePicker] = useState(false)
+  const [timePeriod,setTimePeriod] = useState("week")
+  const [customDays,setCustomDays] = useState(7)
+  const [chartData,setChartData] = useState({ labels: [],datasets: [] })
+  const [averageIntake,setAverageIntake] = useState(0)
+  const [hydrationStatus,setHydrationStatus] = useState("")
+  const [todayIntake,setTodayIntake] = useState(0)
+  const [weeklyAverage,setWeeklyAverage] = useState(0)
   // Tổng amountMl của tất cả log (không chỉ hôm nay)
-  const [allTimeTotalIntakeState, setAllTimeTotalIntakeState] = useState(0)
+  const [allTimeTotalIntakeState,setAllTimeTotalIntakeState] = useState(0)
   const [animatedValue] = useState(new Animated.Value(0))
   // Quick log form state
-  const [quickLogForm, setQuickLogForm] = useState({
+  const [quickLogForm,setQuickLogForm] = useState({
     amountMl: 250,
     consumptionDate: new Date(),
     notes: "",
     status: "active",
   })
-  const [logging, setLogging] = useState(false)
-  const [quickLogStatus, setQuickLogStatus] = useState({ status: "idle", message: "" })
-  const [showSelectModal, setShowSelectModal] = useState(false)
+  const [logging,setLogging] = useState(false)
+  const [quickLogStatus,setQuickLogStatus] = useState({ status: "idle",message: "" })
+  const [showSelectModal,setShowSelectModal] = useState(false)
   const quickFilterOptions = [
-    { id: "today", label: "Today", days: 0 },
-    { id: "3", label: "3 Days", days: 3 },
-    { id: "5", label: "5 Days", days: 5 },
-    { id: "7", label: "7 Days", days: 7 },
-    { id: "custom", label: "Custom", days: null },
+    { id: "today",label: "Today",days: 0 },
+    { id: "3",label: "3 Days",days: 3 },
+    { id: "5",label: "5 Days",days: 5 },
+    { id: "7",label: "7 Days",days: 7 },
+    { id: "custom",label: "Custom",days: null },
   ]
   // Generate water amount options for iOS-style picker
   const generateWaterAmounts = () => {
@@ -169,7 +158,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     return amounts
   }
   const waterAmounts = generateWaterAmounts()
-  const quickLogOptions = generateWaterAmounts().map((amount) => ({ label: `${amount} ml`, value: amount }))
+  const quickLogOptions = generateWaterAmounts().map((amount) => ({ label: `${amount} ml`,value: amount }))
   // Modern iOS-style Quick Log card
   const renderQuickLogCard = () => {
     const currentIndex = waterAmounts.findIndex((amount) => amount >= quickLogForm.amountMl)
@@ -177,14 +166,14 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     return (
       <View style={styles.quickLogCard}>
         <LinearGradient
-          colors={["#FFFFFF", "#F8FAFC"]}
+          colors={["#FFFFFF","#F8FAFC"]}
           style={styles.quickLogGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          start={{ x: 0,y: 0 }}
+          end={{ x: 1,y: 1 }}
         >
           <View style={styles.quickLogHeader}>
             <View style={styles.quickLogIconContainer}>
-              <LinearGradient colors={["#06B6D4", "#0EA5E9"]} style={styles.iconGradient}>
+              <LinearGradient colors={["#06B6D4","#0EA5E9"]} style={styles.iconGradient}>
                 <Ionicons name="water" size={28} color="#FFFFFF" />
               </LinearGradient>
             </View>
@@ -203,7 +192,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                 {/* Current Amount Display */}
                 <View style={styles.currentAmountDisplay}>
                   <View style={styles.amountCircle}>
-                    <LinearGradient colors={["#06B6D4", "#0EA5E9"]} style={styles.amountCircleGradient}>
+                    <LinearGradient colors={["#06B6D4","#0EA5E9"]} style={styles.amountCircleGradient}>
                       <Text style={styles.currentAmountText}>{quickLogForm.amountMl}</Text>
                       <Text style={styles.currentAmountUnit}>ml</Text>
                     </LinearGradient>
@@ -223,14 +212,14 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                         const y = event.nativeEvent.contentOffset.y
                         const index = Math.round(y / 50)
                         const selectedAmount = waterAmounts[index] || 0
-                        setQuickLogForm((f) => ({ ...f, amountMl: selectedAmount }))
+                        setQuickLogForm((f) => ({ ...f,amountMl: selectedAmount }))
                       }}
                     >
-                      {waterAmounts.map((amount, index) => (
+                      {waterAmounts.map((amount,index) => (
                         <TouchableOpacity
                           key={amount}
                           style={styles.pickerItem}
-                          onPress={() => setQuickLogForm((f) => ({ ...f, amountMl: amount }))}
+                          onPress={() => setQuickLogForm((f) => ({ ...f,amountMl: amount }))}
                         >
                           <Text
                             style={[
@@ -248,16 +237,16 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
               </View>
             </View>
             <TouchableOpacity
-              style={[styles.modernLogButton, logging && styles.modernLogButtonDisabled]}
+              style={[styles.modernLogButton,logging && styles.modernLogButtonDisabled]}
               onPress={handleQuickLog}
               disabled={logging}
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={logging ? ["#94A3B8", "#CBD5E1"] : ["#06B6D4", "#0EA5E9"]}
+                colors={logging ? ["#94A3B8","#CBD5E1"] : ["#06B6D4","#0EA5E9"]}
                 style={styles.modernLogButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                start={{ x: 0,y: 0 }}
+                end={{ x: 1,y: 0 }}
               >
                 {logging ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
@@ -276,14 +265,14 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
       </View>
     )
   }
-  const safeNavigate = (screen, params = {}) => {
+  const safeNavigate = (screen,params = {}) => {
     try {
       if (safeNavigation && typeof safeNavigation.navigate === "function") {
-        safeNavigation.navigate(screen, params)
+        safeNavigation.navigate(screen,params)
       } else {
-        Alert.alert("Error", "Navigation is not available")
+        Alert.alert("Error","Navigation is not available")
       }
-    } catch (error) {}
+    } catch (error) { }
   }
   const safeGoBack = () => {
     try {
@@ -292,21 +281,21 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
       } else if (safeNavigation && typeof safeNavigation.navigate === "function") {
         safeNavigation.navigate("Home")
       }
-    } catch (error) {}
+    } catch (error) { }
   }
   const getDateRangeForDays = (days) => {
     const endDate = new Date()
-    endDate.setHours(23, 59, 59, 999)
+    endDate.setHours(23,59,59,999)
     let startDate
     if (days === 0) {
       startDate = new Date()
-      startDate.setHours(0, 0, 0, 0)
+      startDate.setHours(0,0,0,0)
     } else {
       startDate = new Date()
       startDate.setDate(startDate.getDate() - (days - 1))
-      startDate.setHours(0, 0, 0, 0)
+      startDate.setHours(0,0,0,0)
     }
-    return { startDate, endDate }
+    return { startDate,endDate }
   }
   const handleQuickFilter = (filterId) => {
     setSelectedQuickFilter(filterId)
@@ -316,14 +305,14 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     }
     const option = quickFilterOptions.find((opt) => opt.id === filterId)
     if (option) {
-      const { startDate, endDate } = getDateRangeForDays(option.days)
+      const { startDate,endDate } = getDateRangeForDays(option.days)
       const newFilters = {
         ...filters,
         startDate,
         endDate,
       }
       setFilters(newFilters)
-      fetchWaterLogs(true, newFilters)
+      fetchWaterLogs(true,newFilters)
     }
   }
   const handleCustomDaysSubmit = () => {
@@ -332,18 +321,18 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
       showErrorFetchAPI("Please enter a number between 1 and 365.")
       return
     }
-    const { startDate, endDate } = getDateRangeForDays(days)
+    const { startDate,endDate } = getDateRangeForDays(days)
     const newFilters = {
       ...filters,
       startDate,
       endDate,
     }
     setFilters(newFilters)
-    fetchWaterLogs(true, newFilters)
+    fetchWaterLogs(true,newFilters)
     setCustomDaysModalVisible(false)
     setCustomDaysModalInput("")
   }
-  const fetchWaterLogs = async (showLoading = true, appliedFilters = filters) => {
+  const fetchWaterLogs = async (showLoading = true,appliedFilters = filters) => {
     try {
       if (showLoading) setLoading(true)
       if (!user || !authToken) {
@@ -364,17 +353,16 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
       const response = await apiUserWaterLogService.getMyWaterLogs(queryParams)
       if (response?.statusCode === 200 && response?.data) {
         const sortedLogs = (response.data.records || []).sort(
-          (a, b) => new Date(b.consumptionDate) - new Date(a.consumptionDate),
+          (a,b) => new Date(b.consumptionDate) - new Date(a.consumptionDate),
         )
         setWaterLogs(sortedLogs)
         updateChartData(sortedLogs)
         calculateHealthMetrics(sortedLogs)
-        // Tính tổng amountMl của tất cả log
-        const allTotal = sortedLogs.reduce((sum, log) => sum + (Number(log.amountMl) || 0), 0)
+        const allTotal = sortedLogs.reduce((sum,log) => sum + (Number(log.amountMl) || 0),0)
         setAllTimeTotalIntake(allTotal)
       }
     } catch (error) {
-      showErrorFetchAPI(error.message || "Failed to fetch water logs.")
+      showErrorFetchAPI(error)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -383,8 +371,8 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
   function parseVietnamDate(dateStr) {
     if (!dateStr) return null
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      const [y, m, d] = dateStr.split("-").map(Number)
-      return new Date(Date.UTC(y, m - 1, d, 0, 0, 0))
+      const [y,m,d] = dateStr.split("-").map(Number)
+      return new Date(Date.UTC(y,m - 1,d,0,0,0))
     }
     const date = new Date(dateStr)
     const utc = date.getTime() + date.getTimezoneOffset() * 60000
@@ -392,7 +380,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
   }
   const updateChartData = (logs) => {
     if (!Array.isArray(logs)) {
-      setChartData({ labels: [], datasets: [] })
+      setChartData({ labels: [],datasets: [] })
       return
     }
     const dataPoints = []
@@ -400,16 +388,16 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     const now = new Date()
     const utc = now.getTime() + now.getTimezoneOffset() * 60000
     const vietnamToday = new Date(utc + 7 * 60 * 60000)
-    vietnamToday.setHours(0, 0, 0, 0)
+    vietnamToday.setHours(0,0,0,0)
     try {
       if (timePeriod === "week") {
-        labels = Array.from({ length: 7 }, (_, i) => {
+        labels = Array.from({ length: 7 },(_,i) => {
           const date = new Date(vietnamToday)
           date.setDate(vietnamToday.getDate() - (6 - i))
-          return date.toLocaleDateString("en-US", { weekday: "short" })
+          return date.toLocaleDateString("en-US",{ weekday: "short" })
         })
         dataPoints.push(
-          ...Array.from({ length: 7 }, (_, i) => {
+          ...Array.from({ length: 7 },(_,i) => {
             const date = new Date(vietnamToday)
             date.setDate(vietnamToday.getDate() - (6 - i))
             const nextDay = new Date(date)
@@ -419,7 +407,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                 const logDate = parseVietnamDate(log.consumptionDate)
                 return logDate && logDate >= date && logDate < nextDay
               })
-              .reduce((sum, log) => sum + (log.amountMl || 0), 0)
+              .reduce((sum,log) => sum + (log.amountMl || 0),0)
           }),
         )
       }
@@ -435,7 +423,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
         ],
       })
     } catch (error) {
-      setChartData({ labels: [], datasets: [] })
+      setChartData({ labels: [],datasets: [] })
     }
   }
   const calculateHealthMetrics = (logs) => {
@@ -451,14 +439,14 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
       const now = new Date()
       const utc = now.getTime() + now.getTimezoneOffset() * 60000
       const vietnamToday = new Date(utc + 7 * 60 * 60000)
-      vietnamToday.setHours(0, 0, 0, 0)
+      vietnamToday.setHours(0,0,0,0)
       const vietnamTomorrow = new Date(vietnamToday)
       vietnamTomorrow.setDate(vietnamToday.getDate() + 1)
       const todayLogs = logs.filter((log) => {
         const logDate = parseVietnamDate(log.consumptionDate)
         return logDate && logDate >= vietnamToday && logDate < vietnamTomorrow
       })
-      const todayTotal = todayLogs.reduce((sum, log) => sum + (log.amountMl || 0), 0)
+      const todayTotal = todayLogs.reduce((sum,log) => sum + (log.amountMl || 0),0)
       setTodayIntake(todayTotal)
       const weekAgo = new Date(vietnamToday)
       weekAgo.setDate(vietnamToday.getDate() - 7)
@@ -466,11 +454,11 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
         const logDate = parseVietnamDate(log.consumptionDate)
         return logDate && logDate >= weekAgo && logDate < vietnamTomorrow
       })
-      const weeklyTotal = weekLogs.reduce((sum, log) => sum + (log.amountMl || 0), 0)
+      const weeklyTotal = weekLogs.reduce((sum,log) => sum + (log.amountMl || 0),0)
       const weeklyAvg = weeklyTotal / 7
       setWeeklyAverage(weeklyAvg)
       // Ensure amountMl is always a number and not NaN/null/undefined
-      const totalIntake = logs.reduce((sum, log) => sum + (Number(log.amountMl) || 0), 0)
+      const totalIntake = logs.reduce((sum,log) => sum + (Number(log.amountMl) || 0),0)
       const uniqueDays = new Set(
         logs
           .filter((log) => log.consumptionDate)
@@ -497,12 +485,12 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
       setWeeklyAverage(0)
     }
   }
-  const getIntakeWarning = (amount, date) => {
+  const getIntakeWarning = (amount,date) => {
     const logDate = new Date(date)
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    today.setHours(0,0,0,0)
     const logDay = new Date(logDate)
-    logDay.setHours(0, 0, 0, 0)
+    logDay.setHours(0,0,0,0)
     if (amount > MAXIMUM_SAFE_INTAKE) {
       return {
         type: "danger",
@@ -557,7 +545,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
   }
   const applyFilters = () => {
     setFilters({ ...tempFilters })
-    fetchWaterLogs(true, tempFilters)
+    fetchWaterLogs(true,tempFilters)
     setFilterModalVisible(false)
   }
   const resetFilters = () => {
@@ -572,14 +560,14 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     setTempFilters(defaultFilters)
     setFilters(defaultFilters)
     setSelectedQuickFilter("7")
-    fetchWaterLogs(true, defaultFilters)
+    fetchWaterLogs(true,defaultFilters)
     setFilterModalVisible(false)
   }
   const handleQuickLog = async () => {
     let userId = null
     if (user && typeof user === "object") {
       userId = user.id || user._id || user.userId
-      if (typeof userId === "string") userId = Number.parseInt(userId, 10)
+      if (typeof userId === "string") userId = Number.parseInt(userId,10)
     }
     if (!userId || isNaN(userId) || userId <= 0) {
       showErrorFetchAPI("Unable to identify user. Please log in again.")
@@ -614,19 +602,16 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
         response?.statusCode === 201 ||
         (typeof response?.message === "string" && response.message.toLowerCase().includes("success"))
       ) {
-        // Check-in logic: only check-in once per day
+        setQuickLogForm({ amountMl: 250,consumptionDate: vietnamTodayStr,notes: "",status: "active" })
+        await fetchWaterLogs(true)
+        showSuccessMessage("Water logged successfully!");
         try {
-          const checkinKey = `@Checkin_${vietnamTodayStr}`
-          const alreadyCheckedIn = await AsyncStorage.getItem(checkinKey)
-          if (!alreadyCheckedIn) {
-            await AsyncStorage.setItem(checkinKey, "1")
+          if (user?.userId) {
+            await handleDailyCheckin(user.userId,"water_log");
           }
         } catch (e) {
-          // Silent fail for check-in, do not block log
+          console.log(e);
         }
-        setQuickLogForm({ amountMl: 250, consumptionDate: vietnamTodayStr, notes: "", status: "active" })
-        await fetchWaterLogs(true)
-        showSuccessMessage("Water logged successfully!")
         return
       } else if (response?.message) {
         showErrorFetchAPI(response.message)
@@ -636,7 +621,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
         return
       }
     } catch (error) {
-      showErrorFetchAPI(error.message || "Unable to log water.")
+      showErrorFetchAPI(error)
       return
     } finally {
       setLogging(false)
@@ -644,7 +629,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
   }
   // Utility: Get Vietnam today string in YYYY-MM-DD format using Asia/Ho_Chi_Minh timezone
   function getVietnamTodayString() {
-    const vietnamDate = new Date().toLocaleDateString('en-CA', {
+    const vietnamDate = new Date().toLocaleDateString('en-CA',{
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
       month: '2-digit',
@@ -661,7 +646,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
       const isToday = log.consumptionDate === todayStr
       if (isToday) return isToday
     })
-    return showAllLogs ? todayLogs : todayLogs.slice(0, 3)
+    return showAllLogs ? todayLogs : todayLogs.slice(0,3)
   }
   // Calculate today's total water intake (sum of all logs for today, using Vietnam timezone)
   const getTodayTotalIntake = () => {
@@ -671,7 +656,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
         if (!log.consumptionDate) return false
         return log.consumptionDate === todayStr
       })
-      .reduce((sum, log) => sum + (Number(log.amountMl) || 0), 0)
+      .reduce((sum,log) => sum + (Number(log.amountMl) || 0),0)
     return total
   }
   // Luôn cập nhật todayIntake khi waterLogs thay đổi
@@ -687,8 +672,8 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
       typeof Animated.timing === "function"
     ) {
       try {
-        Animated.timing(animatedValue, {
-          toValue: Math.min(currentTodayIntake / (targetWater || RECOMMENDED_DAILY_INTAKE), 1),
+        Animated.timing(animatedValue,{
+          toValue: Math.min(currentTodayIntake / (targetWater || RECOMMENDED_DAILY_INTAKE),1),
           duration: 1000,
           useNativeDriver: false,
         }).start()
@@ -703,7 +688,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     } else {
       setShowCelebration(false)
     }
-  }, [waterLogs, targetWater, targetLoaded, animatedValue])
+  },[waterLogs,targetWater,targetLoaded,animatedValue])
 
   const getTodayLogsCount = () => {
     const todayStr = getVietnamTodayString()
@@ -717,7 +702,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     const todayTotalIntake = getTodayTotalIntake()
     return (
       <View style={styles.healthCard}>
-        <LinearGradient colors={["#0056d2", "#2070e0", "#4080f0"]} style={styles.healthCardGradient}>
+        <LinearGradient colors={["#0056d2","#2070e0","#4080f0"]} style={styles.healthCardGradient}>
           <View style={styles.healthCardHeader}>
             <Ionicons name="water" size={24} color="#FFFFFF" />
             <Text style={styles.healthCardTitle}>Today's Hydration</Text>
@@ -729,8 +714,8 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                   styles.progressFill,
                   {
                     width: animatedValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ["0%", "100%"],
+                      inputRange: [0,1],
+                      outputRange: ["0%","100%"],
                     }),
                   },
                 ]}
@@ -758,7 +743,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     )
   }
   // Display hydration status with Gemini AI advice (personalized with today's water log data)
-  const [geminiAdvice, setGeminiAdvice] = useState("")
+  const [geminiAdvice,setGeminiAdvice] = useState("")
   useEffect(() => {
     // Compose a detailed prompt for Gemini based on today's water intake
     const status =
@@ -785,13 +770,13 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
           .split("\n")
           .map((l) => l.trim())
           .filter(Boolean)
-          .slice(0, 2)
+          .slice(0,2)
         setGeminiAdvice(lines.join("\n"))
       } else {
         setGeminiAdvice("")
       }
     })
-  }, [todayIntake, hydrationStatus])
+  },[todayIntake,hydrationStatus])
   const renderStatusCard = () => (
     <View style={styles.statusCard}>
       <View style={styles.statusHeader}>
@@ -814,7 +799,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
             {geminiAdvice.trim()}
           </Text>
         ) : (
-          <Text style={{ fontSize: 15, color: "#111", textAlign: "center", lineHeight: 22, fontWeight: "400" }}>
+          <Text style={{ fontSize: 15,color: "#111",textAlign: "center",lineHeight: 22,fontWeight: "400" }}>
             {hydrationStatus}
           </Text>
         )}
@@ -823,17 +808,17 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
   )
   useEffect(() => {
     handleQuickFilter("7")
-  }, [user, authToken]) // Removed todayIntake from here as it's handled in the combined useEffect
+  },[user,authToken]) // Removed todayIntake from here as it's handled in the combined useEffect
 
   useEffect(() => {
     setAllTimeTotalIntake(allTimeTotalIntake)
-  }, [allTimeTotalIntake, setAllTimeTotalIntake])
+  },[allTimeTotalIntake,setAllTimeTotalIntake])
   useFocusEffect(
     useCallback(() => {
       if (selectedQuickFilter) {
         handleQuickFilter(selectedQuickFilter)
       }
-    }, []),
+    },[]),
   )
   const onRefresh = () => {
     setRefreshing(true)
@@ -843,7 +828,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     safeNavigate("AddWaterLogScreen")
   }
   const handleEditWaterLog = (item) => {
-    safeNavigate("EditWaterLogScreen", { waterLog: item })
+    safeNavigate("EditWaterLogScreen",{ waterLog: item })
   }
   const handleDeleteWaterLog = (logId) => {
     // Custom confirm dialog can be implemented if needed, for now just delete directly for toast demo
@@ -933,20 +918,20 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
             <TextInput
               style={styles.input}
               value={tempFilters.searchTerm || ""}
-              onChangeText={(text) => setTempFilters({ ...tempFilters, searchTerm: text })}
+              onChangeText={(text) => setTempFilters({ ...tempFilters,searchTerm: text })}
               placeholder="Enter search term"
               placeholderTextColor="#9CA3AF"
             />
             <Text style={styles.filterLabel}>Status</Text>
             <View style={styles.statusButtons}>
-              {["active", "inactive"].map((status) => (
+              {["active","inactive"].map((status) => (
                 <TouchableOpacity
                   key={status}
-                  style={[styles.statusButton, tempFilters.status === status && styles.statusButtonSelected]}
-                  onPress={() => setTempFilters({ ...tempFilters, status })}
+                  style={[styles.statusButton,tempFilters.status === status && styles.statusButtonSelected]}
+                  onPress={() => setTempFilters({ ...tempFilters,status })}
                 >
                   <Text
-                    style={[styles.statusButtonText, tempFilters.status === status && styles.statusButtonTextSelected]}
+                    style={[styles.statusButtonText,tempFilters.status === status && styles.statusButtonTextSelected]}
                   >
                     {status.charAt(0).toUpperCase() + status.slice(1)}
                   </Text>
@@ -965,10 +950,10 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                 value={tempFilters.startDate || new Date()}
                 mode="date"
                 display="default"
-                onChange={(event, date) => {
+                onChange={(event,date) => {
                   setShowStartDatePicker(false)
                   if (date) {
-                    setTempFilters({ ...tempFilters, startDate: date })
+                    setTempFilters({ ...tempFilters,startDate: date })
                   }
                 }}
               />
@@ -985,10 +970,10 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                 value={tempFilters.endDate || new Date()}
                 mode="date"
                 display="default"
-                onChange={(event, date) => {
+                onChange={(event,date) => {
                   setShowEndDatePicker(false)
                   if (date) {
-                    setTempFilters({ ...tempFilters, endDate: date })
+                    setTempFilters({ ...tempFilters,endDate: date })
                   }
                 }}
               />
@@ -1015,24 +1000,24 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     // Parse and convert to Vietnam timezone (UTC+7)
     const date = new Date(recordedAt)
     // Format date as local Vietnam time
-    const formattedDate = date.toLocaleDateString("vi-VN", {
+    const formattedDate = date.toLocaleDateString("vi-VN",{
       year: "numeric",
       month: "short",
       day: "numeric",
       timeZone: "Asia/Ho_Chi_Minh",
     })
     // Format time as 12h with AM/PM in Vietnam timezone
-    const formattedTime = date.toLocaleTimeString("en-US", {
+    const formattedTime = date.toLocaleTimeString("en-US",{
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
       timeZone: "Asia/Ho_Chi_Minh",
     })
-    const warning = getIntakeWarning(item.amountMl, recordedAt)
+    const warning = getIntakeWarning(item.amountMl,recordedAt)
     return (
       <TouchableOpacity style={styles.logCard} onPress={() => handleEditWaterLog(item)} activeOpacity={0.7}>
         {warning && (
-          <View style={[styles.warningBanner, { backgroundColor: warning.color }]}>
+          <View style={[styles.warningBanner,{ backgroundColor: warning.color }]}>
             <Ionicons name={warning.icon} size={16} color="#FFFFFF" />
             <Text style={styles.warningText}>{warning.message}</Text>
           </View>
@@ -1061,7 +1046,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
           </View>
           <View style={styles.statusBadge}>
             <View
-              style={[styles.statusIndicator, { backgroundColor: item.status === "active" ? "#10B981" : "#EF4444" }]}
+              style={[styles.statusIndicator,{ backgroundColor: item.status === "active" ? "#10B981" : "#EF4444" }]}
             />
             <Text style={styles.statusText}>
               {item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : "Unknown"}
@@ -1081,7 +1066,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <DynamicStatusBar backgroundColor={theme.primaryColor} />
-        <Loading backgroundColor="#fff" logoSize={180} />
+        <CommonSkeleton />
       </SafeAreaView>
     )
   }
@@ -1089,7 +1074,6 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
   const totalTodayLogs = getTodayLogsCount()
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Không render TargetWaterLogSelector ở đây nữa, đã chuyển sang screen riêng */}
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
       <Header
         title="Water Intake Logs"
@@ -1101,17 +1085,17 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
           },
           {
             icon: "water-outline",
-            iconColor: "#0056d2", // Updated icon color
+            iconColor: "#0056d2",
             onPress: () => {
               const userId =
                 user && (user.id || user._id || user.userId)
-                  ? Number.parseInt(user.id || user._id || user.userId, 10)
+                  ? Number.parseInt(user.id || user._id || user.userId,10)
                   : null
-              safeNavigation.navigate("SetWaterTarget", {
+              safeNavigation.navigate("SetWaterTarget",{
                 userId,
                 initialTarget: targetWater,
                 initialType: targetType,
-                onSaved: (t, ty) => {
+                onSaved: (t,ty) => {
                   setTargetWater(t)
                   setTargetType(ty)
                 },
@@ -1129,7 +1113,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
         <View style={styles.cardsContainer}>
           {/* Health Card with new color */}
           <View style={styles.healthCard}>
-            <LinearGradient colors={["#0056d2", "#2070e0", "#4080f0"]} style={styles.healthCardGradient}>
+            <LinearGradient colors={["#0056d2","#2070e0","#4080f0"]} style={styles.healthCardGradient}>
               <View style={styles.healthCardHeader}>
                 <Ionicons name="water" size={24} color="#FFFFFF" />
                 <Text style={styles.healthCardTitle}>Today's Hydration</Text>
@@ -1141,8 +1125,8 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                       styles.progressFill,
                       {
                         width: animatedValue.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ["0%", "100%"],
+                          inputRange: [0,1],
+                          outputRange: ["0%","100%"],
                         }),
                       },
                     ]}
@@ -1181,7 +1165,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
           {/* Simple Quick Log Card */}
           <View style={styles.quickLogCard}>
             <View style={styles.quickLogContentSimple}>
-              <View style={{ width: "100%", marginBottom: 6, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: "100%",marginBottom: 6,alignItems: "center",justifyContent: "center" }}>
                 <View
                   style={{
                     flexDirection: "row",
@@ -1209,9 +1193,9 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                     }}
                     value={quickLogForm.amountMl.toString()}
                     onChangeText={(val) => {
-                      let num = Number.parseInt(val.replace(/[^0-9]/g, "")) || 0
+                      let num = Number.parseInt(val.replace(/[^0-9]/g,"")) || 0
                       if (num > 3500) num = 3500
-                      setQuickLogForm((f) => ({ ...f, amountMl: num }))
+                      setQuickLogForm((f) => ({ ...f,amountMl: num }))
                     }}
                     placeholder="0"
                     placeholderTextColor="#9CA3AF"
@@ -1235,7 +1219,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
               <TouchableOpacity
                 style={[
                   styles.simpleLogButton,
-                  { backgroundColor: "#0056d2", marginTop: 4 },
+                  { backgroundColor: "#0056d2",marginTop: 4 },
                   logging && styles.simpleLogButtonDisabled,
                 ]}
                 onPress={handleQuickLog}
@@ -1245,7 +1229,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                 {logging ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                <Text style={styles.simpleLogButtonText}>{"Quick Log Water"}</Text>
+                  <Text style={styles.simpleLogButtonText}>{"Quick Log Water"}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1254,8 +1238,8 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
         </View>
         <View style={styles.logsSection}>
           <View style={styles.logsSectionHeader}>
-              <Text style={styles.logsSectionTitle}>{"Today's Logs"}</Text>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text style={styles.logsSectionTitle}>{"Today's Logs"}</Text>
+            <View style={{ flexDirection: "row",alignItems: "center" }}>
               <Text style={styles.logsCount}>{`${totalTodayLogs} entries`}</Text>
               <TouchableOpacity
                 style={{
@@ -1268,7 +1252,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
                 onPress={() => safeNavigate("WaterLogAnalyticsScreen")}
                 activeOpacity={0.8}
               >
-                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>{"View All"}</Text>
+                <Text style={{ color: "#fff",fontWeight: "600",fontSize: 14 }}>{"View All"}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1290,7 +1274,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
               {showAllLogs && totalTodayLogs > 3 && (
                 <TouchableOpacity style={styles.showMoreButton} onPress={() => setShowAllLogs(false)}>
                   <Text style={styles.showMoreText}>{"Show less"}</Text>
-                  <Ionicons name="chevron-up" size={16} color="#0056d2" /> 
+                  <Ionicons name="chevron-up" size={16} color="#0056d2" />
                 </TouchableOpacity>
               )}
             </>
@@ -1317,7 +1301,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
             justifyContent: "center",
             alignItems: "center",
             shadowColor: "#0056d2",
-            shadowOffset: { width: 0, height: 8 },
+            shadowOffset: { width: 0,height: 8 },
             shadowOpacity: 0.35,
             shadowRadius: 16,
             elevation: 12,
@@ -1335,7 +1319,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
             justifyContent: "center",
             alignItems: "center",
             shadowColor: "#0056d2",
-            shadowOffset: { width: 0, height: 2 },
+            shadowOffset: { width: 0,height: 2 },
             shadowOpacity: 0.12,
             shadowRadius: 8,
             elevation: 4,
@@ -1347,7 +1331,7 @@ const [tempFilters, setTempFilters] = useState({ ...filters });
       {renderFilterModal()}
       {renderCustomDaysModal()}
       <FloatingMenuButton
-        initialPosition={{ x: width - 70, y: height - 180 }}
+        initialPosition={{ x: width - 70,y: height - 180 }}
         autoHide={true}
         navigation={navigation}
         autoHideDelay={4000}
@@ -1435,7 +1419,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#4F46E5",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 12,
       },
@@ -1510,7 +1494,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#06B6D4",
-        shadowOffset: { width: 0, height: 12 },
+        shadowOffset: { width: 0,height: 12 },
         shadowOpacity: 0.15,
         shadowRadius: 24,
       },
@@ -1536,7 +1520,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#06B6D4",
-        shadowOffset: { width: 0, height: 6 },
+        shadowOffset: { width: 0,height: 6 },
         shadowOpacity: 0.25,
         shadowRadius: 12,
       },
@@ -1596,7 +1580,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#06B6D4",
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0,height: 8 },
         shadowOpacity: 0.2,
         shadowRadius: 16,
       },
@@ -1638,7 +1622,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 12,
       },
@@ -1701,7 +1685,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#06B6D4",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
@@ -1731,7 +1715,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#06B6D4",
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0,height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
       },
@@ -1772,7 +1756,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
@@ -1819,7 +1803,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
@@ -1871,7 +1855,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 8,
       },
@@ -1985,7 +1969,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
@@ -2094,7 +2078,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0,height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
@@ -2142,7 +2126,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#4F46E5",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
       },
@@ -2171,7 +2155,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 8,
       },
@@ -2348,7 +2332,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#06B6D4",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0,height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
       },
@@ -2376,7 +2360,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#B2EBF2", // Slightly darker border
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,

@@ -8,7 +8,7 @@ import {
   Platform,
 } from "react-native"
 import Loading from "components/Loading";
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
 import { LinearGradient } from "expo-linear-gradient"
 import { apiUserPaymentService } from "services/apiUserPaymentService"
 import { AuthContext } from "context/AuthContext"
@@ -17,6 +17,8 @@ import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { theme } from "theme/color"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Header from "components/Header";
+import PaymentSkeleton from "components/CommonSkeleton/PaymentSkeleton";
 
 const PaymentScreen = ({ route,navigation }) => {
   const { packageId,packageName,price,trainerId,trainerFullName } = route.params
@@ -28,12 +30,12 @@ const PaymentScreen = ({ route,navigation }) => {
 
   const handleConfirmPayment = async () => {
     if (!user?.userId) {
-      showErrorFetchAPI("Please log in to continue with payment.");
+      showErrorMessage("Please log in to continue with payment.");
       return;
     }
 
     if (!termsAccepted) {
-      showErrorFetchAPI("Please accept the terms and conditions to proceed.");
+      showErrorMessage("Please accept the terms and conditions to proceed.");
       return;
     }
 
@@ -69,44 +71,37 @@ const PaymentScreen = ({ route,navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <DynamicStatusBar backgroundColor={theme.primaryColor} />
-      {loading && <Loading />}
+      {loading && <PaymentSkeleton />}
       {!loading && (
         <>
           {/* Header */}
-          <View style={[styles.header, { backgroundColor: '#FFFFFF' }]}> 
-            <TouchableOpacity style={[styles.backBtn, { backgroundColor: '#F1F5F9' }]} onPress={() => navigation.goBack()} disabled={loading}>
-              <Ionicons name="arrow-back" size={24} color="#1E293B" />
-            </TouchableOpacity>
-            <View style={styles.headerTitleContainer}>
-              <Text style={[styles.headerTitle, { color: '#1E293B' }]}>Secure Payment</Text>
-              <Text style={[styles.headerSubtitle, { color: '#64748B' }]}>Complete your purchase</Text>
-            </View>
-            <View style={styles.headerRight}>
-              <View style={[styles.securityBadge, { backgroundColor: '#F1F5F9' }]}> 
-                <Ionicons name="shield-checkmark" size={16} color="#1E293B" />
-              </View>
-            </View>
-          </View>
+          <Header
+            title="Secure Payment"
+            onBack={() => navigation.goBack()}
+            rightActions={[
+              { icon: "shield-checkmark",onPress: () => setShowFilterModal(true),color: "#3B82F6" },
+            ]}
+          />
 
           <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
             {/* Package Summary */}
             <View style={styles.summaryCard}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardHeaderIcon}>
-                  <Ionicons name="receipt-outline" size={20} color="#1E293B" />
+                  <Ionicons name="receipt-outline" size={20} color="#003C9E" />
                 </View>
                 <Text style={styles.cardHeaderTitle}>Order Summary</Text>
               </View>
 
               <View style={styles.packageInfo}>
-                <View style={[styles.packageIconContainer, { backgroundColor: '#F1F5F9' }]}> 
-                  <MaterialCommunityIcons name="dumbbell" size={32} color="#1E293B" />
+                <View style={[styles.packageIconContainer,{ backgroundColor: '#F1F5F9' }]}>
+                  <MaterialCommunityIcons name="dumbbell" size={32} color="#003C9E" />
                 </View>
                 <View style={styles.packageDetails}>
                   <Text style={styles.packageName}>{packageName || "Fitness Package"}</Text>
                   <Text style={styles.packageTrainer}>Personal Trainer: {trainerFullName || "Professional Coach"}</Text>
                   <View style={styles.packageBadge}>
-                    <Ionicons name="star" size={12} color="#1E293B" />
+                    <Ionicons name="star" size={12} color="#003C9E" />
                     <Text style={styles.packageBadgeText}>Premium Package</Text>
                   </View>
                 </View>
@@ -122,7 +117,7 @@ const PaymentScreen = ({ route,navigation }) => {
 
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>Total Amount</Text>
-                  <Text style={[styles.totalValue, { color: '#1E293B' }]}>${formattedPrice}</Text>
+                  <Text style={[styles.totalValue,{ color: '#003C9E' }]}>${formattedPrice}</Text>
                 </View>
               </View>
             </View>
@@ -131,27 +126,27 @@ const PaymentScreen = ({ route,navigation }) => {
             <View style={styles.paymentMethodCard}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardHeaderIcon}>
-                  <Ionicons name="card-outline" size={20} color="#1E293B" />
+                  <Ionicons name="card-outline" size={20} color="#003C9E" />
                 </View>
                 <Text style={styles.cardHeaderTitle}>Payment Method</Text>
               </View>
 
               <View style={styles.paymentMethodItem}>
-                <View style={[styles.paymentMethodIcon, { backgroundColor: '#F1F5F9' }]}> 
-                  <Ionicons name="business-outline" size={24} color="#1E293B" />
+                <View style={[styles.paymentMethodIcon,{ backgroundColor: '#F1F5F9' }]}>
+                  <Ionicons name="business-outline" size={24} color="#003C9E" />
                 </View>
                 <View style={styles.paymentMethodContent}>
                   <Text style={styles.paymentMethodTitle}>Bank Transfer</Text>
                   <Text style={styles.paymentMethodSubtitle}>Secure bank-to-bank transfer</Text>
                 </View>
                 <View style={styles.selectedIndicator}>
-                  <Ionicons name="checkmark-circle" size={24} color="#1E293B" />
+                  <Ionicons name="checkmark-circle" size={24} color="#003C9E" />
                 </View>
               </View>
 
               <View style={styles.paymentNote}>
-                <Ionicons name="information-circle-outline" size={16} color="#1E293B" />
-                <Text style={[styles.paymentNoteText, { color: '#1E293B' }]}> 
+                <Ionicons name="information-circle-outline" size={16} color="#003C9E" />
+                <Text style={[styles.paymentNoteText,{ color: '#003C9E' }]}>
                   Bank transfer details will be provided after payment confirmation.
                 </Text>
               </View>
@@ -161,7 +156,7 @@ const PaymentScreen = ({ route,navigation }) => {
             <View style={styles.transactionCard}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardHeaderIcon}>
-                  <Ionicons name="document-text-outline" size={20} color="#1E293B" />
+                  <Ionicons name="document-text-outline" size={20} color="#003C9E" />
                 </View>
                 <Text style={styles.cardHeaderTitle}>Transaction Information</Text>
               </View>
@@ -203,9 +198,9 @@ const PaymentScreen = ({ route,navigation }) => {
                 </View>
                 <View style={styles.termsTextContainer}>
                   <Text style={styles.termsText}>
-                    I agree to the <Text style={[styles.termsLink, { color: '#1E293B' }]}>Terms of Service</Text>,{" "}
-                    <Text style={[styles.termsLink, { color: '#1E293B' }]}>Privacy Policy</Text>, and{" "}
-                    <Text style={[styles.termsLink, { color: '#1E293B' }]}>Payment Terms</Text>
+                    I agree to the <Text style={[styles.termsLink,{ color: '#003C9E' }]}>Terms of Service</Text>,{" "}
+                    <Text style={[styles.termsLink,{ color: '#003C9E' }]}>Privacy Policy</Text>, and{" "}
+                    <Text style={[styles.termsLink,{ color: '#003C9E' }]}>Payment Terms</Text>
                   </Text>
                   <Text style={styles.termsSubtext}>
                     By proceeding, you acknowledge that you have read and understood our policies.
@@ -223,7 +218,7 @@ const PaymentScreen = ({ route,navigation }) => {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={termsAccepted && !loading ? ["#4F46E5","#6366F1"] : ["#94A3B8","#CBD5E1"]}
+                  colors={termsAccepted && !loading ? ["#003C9E","#0056D2","#0056D2"] : ["#94A3B8","#CBD5E1"]}
                   style={styles.confirmButtonGradient}
                 >
                   <Ionicons name="card-outline" size={20} color="#FFFFFF" />
@@ -320,9 +315,9 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
     backgroundColor: "#F8FAFC",
-    marginTop: 15,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    marginTop: 60
   },
   summaryCard: {
     backgroundColor: "#FFFFFF",
@@ -457,7 +452,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2FF",
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: "#4F46E5",
+    borderColor: "#0056D2",
     marginBottom: 16,
   },
   paymentMethodIcon: {
@@ -580,8 +575,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   checkboxChecked: {
-    backgroundColor: "#4F46E5",
-    borderColor: "#4F46E5",
+    backgroundColor: "#003C9E",
+    borderColor: "#0056D2",
   },
   termsTextContainer: {
     flex: 1,

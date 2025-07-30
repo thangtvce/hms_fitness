@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState,useEffect,useRef } from "react"
 import trainerService from "services/apiTrainerService"
 import {
   View,
@@ -19,43 +19,44 @@ import { Ionicons } from "@expo/vector-icons"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Header from "components/Header"
 
-const { width, height } = Dimensions.get("window")
+const { width,height } = Dimensions.get("window")
 
-const TrainerDetailScreen = ({ route, navigation }) => {
-  const { trainerId, trainerFullName, trainerAvatar } = route.params || {}
-  const [trainerData, setTrainerData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [showFullBio, setShowFullBio] = useState(false)
+const TrainerDetailScreen = ({ route,navigation }) => {
+  const { trainerId,trainerFullName,trainerAvatar } = route.params || {}
+  const [trainerData,setTrainerData] = useState(null)
+  const [loading,setLoading] = useState(true)
+  const [error,setError] = useState(null)
+  const [showFullBio,setShowFullBio] = useState(false)
 
   // State cho rating và clients thực tế
-  const [averageRating, setAverageRating] = useState(null)
-  const [totalClients, setTotalClients] = useState(null)
+  const [averageRating,setAverageRating] = useState(null)
+  const [totalClients,setTotalClients] = useState(null)
 
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim,{
         toValue: 1,
         duration: 800,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.timing(slideAnim,{
         toValue: 0,
         duration: 800,
         useNativeDriver: true,
       }),
     ]).start()
-  }, [])
+  },[])
 
   useEffect(() => {
     if (!trainerId) {
       setError("Invalid trainer ID provided.")
       setLoading(false)
-      Alert.alert("Error", "Invalid trainer ID provided.", [{ text: "OK", onPress: () => navigation.goBack() }])
+      Alert.alert("Error","Invalid trainer ID provided.",[{ text: "OK",onPress: () => navigation.goBack() }])
       return
     }
 
@@ -76,7 +77,7 @@ const TrainerDetailScreen = ({ route, navigation }) => {
     }
 
     fetchTrainer()
-  }, [trainerId, navigation])
+  },[trainerId,navigation])
 
   useEffect(() => {
     if (trainerId) {
@@ -96,62 +97,47 @@ const TrainerDetailScreen = ({ route, navigation }) => {
         .getAllActivePackages({ trainerId })
         .then((res) => {
           const pkgs = res.data?.packages || []
-          const total = pkgs.reduce((sum, pkg) => sum + (pkg.currentSubscribers || 0), 0)
+          const total = pkgs.reduce((sum,pkg) => sum + (pkg.currentSubscribers || 0),0)
           setTotalClients(total)
         })
         .catch(() => setTotalClients(0))
     }
-  }, [trainerId])
+  },[trainerId])
 
   const handleContactEmail = () => {
     if (trainerData?.email) {
-      Linking.openURL(`mailto:${trainerData.email}`).catch(() => Alert.alert("Error", "Unable to open email client."))
+      Linking.openURL(`mailto:${trainerData.email}`).catch(() => Alert.alert("Error","Unable to open email client."))
     } else {
-      Alert.alert("Notice", "Email not available.")
+      Alert.alert("Notice","Email not available.")
     }
   }
 
   const handleContactPhone = () => {
     if (trainerData?.phoneNumber) {
       Linking.openURL(`tel:${trainerData.phoneNumber}`).catch(() =>
-        Alert.alert("Error", "Unable to make a phone call."),
+        Alert.alert("Error","Unable to make a phone call."),
       )
     } else {
-      Alert.alert("Notice", "Phone number not available.")
+      Alert.alert("Notice","Phone number not available.")
     }
   }
 
   const handleOpenSocialLinks = () => {
     if (trainerData?.socialLinks && trainerData.socialLinks !== "string") {
-      Linking.openURL(trainerData.socialLinks).catch(() => Alert.alert("Error", "Unable to open social link."))
+      Linking.openURL(trainerData.socialLinks).catch(() => Alert.alert("Error","Unable to open social link."))
     } else {
-      Alert.alert("Notice", "No social links available.")
+      Alert.alert("Notice","No social links available.")
     }
   }
 
   const handleViewCV = () => {
     if (trainerData?.cvFileUrl && trainerData.cvFileUrl !== "string") {
-      Linking.openURL(trainerData.cvFileUrl).catch(() => Alert.alert("Error", "Unable to open CV file."))
+      Linking.openURL(trainerData.cvFileUrl).catch(() => Alert.alert("Error","Unable to open CV file."))
     } else {
-      Alert.alert("Notice", "No CV file available.")
+      Alert.alert("Notice","No CV file available.")
     }
   }
 
-  const handleBookSession = () => {
-    Alert.alert(
-      "Book Training Session",
-      `Would you like to book a training session with ${trainerData?.fullName || "this trainer"}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Book Now",
-          onPress: () => {
-            Alert.alert("Success", "Booking request sent! The trainer will contact you soon.")
-          },
-        },
-      ],
-    )
-  }
 
   if (loading) {
     return (
@@ -161,8 +147,8 @@ const TrainerDetailScreen = ({ route, navigation }) => {
             <View style={styles.loadingIcon}>
               <Ionicons name="person-circle-outline" size={48} color="#111" />
             </View>
-            <Text style={[styles.loadingTitle, {color: '#111'}]}>Loading Trainer Profile</Text>
-            <Text style={[styles.loadingText, {color: '#444'}]}>Please wait...</Text>
+            <Text style={[styles.loadingTitle,{ color: '#111' }]}>Loading Trainer Profile</Text>
+            <Text style={[styles.loadingText,{ color: '#444' }]}>Please wait...</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -191,15 +177,12 @@ const TrainerDetailScreen = ({ route, navigation }) => {
       <DynamicStatusBar backgroundColor="#FFF" />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#111" />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Trainer Profile</Text>
-        </View>
-        <View style={styles.headerPlaceholder} />
-      </View>
+      <Header
+        title="Trainer Profile"
+        onBack={() => navigation.goBack()}
+        showAvatar={false}
+      />
+
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Profile Section */}
@@ -250,10 +233,6 @@ const TrainerDetailScreen = ({ route, navigation }) => {
               </View>
             </>
           </View>
-
-          <TouchableOpacity style={styles.bookButton} onPress={handleBookSession}>
-            <Text style={styles.bookButtonText}>Book Training Session</Text>
-          </TouchableOpacity>
         </Animated.View>
 
         {/* About Section */}
@@ -295,8 +274,8 @@ const TrainerDetailScreen = ({ route, navigation }) => {
               <HTML
                 source={{ html: trainerData.specialties }}
                 contentWidth={width - 80}
-                tagsStyles={{ p: { color: "#374151", fontSize: 15, lineHeight: 22 } }}
-                ignoredTags={['script', 'style']}
+                tagsStyles={{ p: { color: "#374151",fontSize: 15,lineHeight: 22 } }}
+                ignoredTags={['script','style']}
               />
             ) : (
               <Text style={styles.specialtiesText}>
@@ -322,8 +301,8 @@ const TrainerDetailScreen = ({ route, navigation }) => {
               <HTML
                 source={{ html: trainerData.certifications }}
                 contentWidth={width - 80}
-                tagsStyles={{ p: { color: "#374151", fontSize: 15, lineHeight: 22 } }}
-                ignoredTags={['script', 'style']}
+                tagsStyles={{ p: { color: "#374151",fontSize: 15,lineHeight: 22 } }}
+                ignoredTags={['script','style']}
               />
             ) : (
               <Text style={styles.certificationsText}>
@@ -410,7 +389,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    marginTop: -10,
+    marginTop: 70,
   },
   profileSection: {
     alignItems: "center",
@@ -422,7 +401,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderRadius: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -488,7 +467,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   bookButton: {
-    backgroundColor: "#111",
+    backgroundColor: "#0056D2",
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -503,6 +482,7 @@ const styles = StyleSheet.create({
   section: {
     marginHorizontal: 20,
     marginBottom: 20,
+    marginTop: 20
   },
   sectionTitle: {
     fontSize: 18,
@@ -515,7 +495,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -594,7 +574,7 @@ const styles = StyleSheet.create({
     padding: 32,
     borderRadius: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,

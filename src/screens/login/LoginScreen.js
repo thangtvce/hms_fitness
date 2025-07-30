@@ -29,13 +29,14 @@ import * as Facebook from "expo-auth-session/providers/facebook"
 import * as WebBrowser from "expo-web-browser"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { showErrorFetchAPI } from "utils/toastUtil"
+import { showErrorFetchAPI,showErrorMessage,showInfoMessage } from "utils/toastUtil"
+import * as AuthSession from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession()
 
 const { width,height } = Dimensions.get("window")
 
-const GOOGLE_CLIENT_ID = "1005255181896-g20la8a1fi78eg52sch8r1q60kmigt5s.apps.googleusercontent.com"
+const GOOGLE_CLIENT_ID = "1005255181896-ms3rp7n4s0p734n2b59dt6ngaf082ep2.apps.googleusercontent.com"
 const FACEBOOK_APP_ID = "1669047477285810"
 
 export default function LoginScreen() {
@@ -54,15 +55,16 @@ export default function LoginScreen() {
   const formTranslateY = new Animated.Value(0)
 
   const [googleRequest,googleResponse,googlePromptAsync] = Google.useAuthRequest({
-    expoClientId: GOOGLE_CLIENT_ID,
-    iosClientId: GOOGLE_CLIENT_ID,
-    androidClientId: GOOGLE_CLIENT_ID,
-    webClientId: GOOGLE_CLIENT_ID,
+    clientId: GOOGLE_CLIENT_ID,
+    scopes: ['profile','email'],
   })
 
   const [fbRequest,fbResponse,fbPromptAsync] = Facebook.useAuthRequest({
     clientId: FACEBOOK_APP_ID,
   })
+
+  const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
+
 
   useEffect(() => {
     if (googleResponse?.type === "success") {
@@ -199,7 +201,8 @@ export default function LoginScreen() {
         throw new Error(response.message || "Login failed")
       }
 
-      const { accessToken,refreshToken,userId,username,roles } = response.data
+      const { accessToken,refreshToken,userId,username,roles,isProfileCompleted } = response.data;
+
 
       if (!accessToken || !userId || !username || !Array.isArray(roles)) {
         throw new Error("Invalid login response data")
@@ -209,12 +212,28 @@ export default function LoginScreen() {
       const userData = { userId,username,roles }
       setAuthToken(accessToken)
       setUser(userData)
-
-      const targetScreen = hasRole("Trainer") ? "AdminDashboard" : "Main"
-      navigation.replace(targetScreen)
+      if (isProfileCompleted === false) {
+        console.log('[LOGIN NAVIGATE] Chuyển tới ProfileSteps');
+        showInfoMessage("You need to complete your profile before using the application.");
+        let savedStep = 0;
+        let savedFormData = {};
+        try {
+          const formDataStr = await AsyncStorage.getItem("profileFormData");
+          const stepStr = await AsyncStorage.getItem("profileCurrentStep");
+          if (formDataStr) savedFormData = JSON.parse(formDataStr);
+          if (stepStr && !isNaN(Number(stepStr))) savedStep = Number(stepStr);
+        } catch (e) {
+          console.warn("[LoginScreen] Không thể lấy trạng thái profile từ AsyncStorage",e);
+        }
+        navigation.replace("ProfileSteps",{ currentStep: savedStep,formData: savedFormData });
+      } else {
+        const targetScreen = "Main"
+        navigation.replace(targetScreen)
+      }
     } catch (error) {
       showErrorFetchAPI(error);
-    } finally {
+    }
+    finally {
       setIsLoading(false)
     }
   }
@@ -226,6 +245,7 @@ export default function LoginScreen() {
   const handleGoogleLogin = async (token) => {
     setIsLoading(true)
     try {
+      console.log("Login with google token: ",token);
       const response = await apiAuthService.googleLogin({ token })
 
       if (response.statusCode !== 200 || !response.data) {
@@ -243,10 +263,20 @@ export default function LoginScreen() {
       setAuthToken(accessToken)
       setUser(userData)
 
-      const targetScreen = hasRole("Admin") ? "AdminDashboard" : "Main"
+      const targetScreen = "Main"
       navigation.replace(targetScreen)
     } catch (error) {
-      showErrorAlert(error.message || "Failed to login with Google")
+      if (error?.response?.data?.errors) {
+        const serverErrors = error.response.data.errors;
+        const errorMessage = Object.entries(serverErrors)
+          .map(([field,messages]) => `${field}: ${messages.join(', ')}`)
+          .join('\n');
+        showErrorFetchAPI(errorMessage);
+      } else if (error?.message) {
+        showErrorFetchAPI(error.message);
+      } else {
+        showErrorMessage("An error occurred, please try again.");
+      }
     } finally {
       setIsLoading(false)
     }
@@ -255,7 +285,6 @@ export default function LoginScreen() {
   const handleFacebookLogin = async (token) => {
     setIsLoading(true)
     try {
-      // Call your API with the Facebook token
       const response = await apiAuthService.facebookLogin({ token })
 
       if (response.statusCode !== 200 || !response.data) {
@@ -276,7 +305,17 @@ export default function LoginScreen() {
       const targetScreen = hasRole("Admin") ? "AdminDashboard" : "Main"
       navigation.replace(targetScreen)
     } catch (error) {
-      showErrorAlert(error.message || "Failed to login with Facebook")
+      if (error?.response?.data?.errors) {
+        const serverErrors = error.response.data.errors;
+        const errorMessage = Object.entries(serverErrors)
+          .map(([field,messages]) => `${field}: ${messages.join(', ')}`)
+          .join('\n');
+        showErrorFetchAPI(errorMessage);
+      } else if (error?.message) {
+        showErrorFetchAPI(error.message);
+      } else {
+        showErrorFetchAPI("Đã xảy ra lỗi, vui lòng thử lại.");
+      }
     } finally {
       setIsLoading(false)
     }
@@ -296,7 +335,7 @@ export default function LoginScreen() {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.innerContainer}>
-            
+
 
             <KeyboardAvoidingView
               behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -456,7 +495,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "rgba(255, 255, 255, 0.3)",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
@@ -476,7 +515,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: -0.5,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
+    textShadowOffset: { width: 0,height: 2 },
     textShadowRadius: 4,
   },
   subtitle: {
@@ -537,7 +576,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 52,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -625,7 +664,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     letterSpacing: 0.5,
   },
-   separatorContainer: {
+  separatorContainer: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 24,
@@ -674,7 +713,7 @@ const styles = StyleSheet.create({
     height: 48,
     flex: 1,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
@@ -701,19 +740,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#0056d2",
   },
-   welcomeText: {
+  welcomeText: {
     fontFamily: "Inter_700Bold",
     fontSize: 24,
     color: "#1E293B",
     marginBottom: 8,
     textAlign: "center",
   },
-   subtitleText: {
+  subtitleText: {
     fontFamily: "Inter_400Regular",
     fontSize: 16,
     color: "#64748B",
     marginBottom: 24,
-        textAlign: "center",
+    textAlign: "center",
 
   },
 })

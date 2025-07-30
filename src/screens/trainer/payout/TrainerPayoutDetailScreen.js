@@ -18,6 +18,8 @@ import { useNavigation,useRoute } from '@react-navigation/native';
 import { trainerService } from 'services/apiTrainerService';
 import { showErrorFetchAPI } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
 
 const { width } = Dimensions.get('window');
 
@@ -103,7 +105,7 @@ const TrainerPayoutDetailScreen = () => {
             <DynamicStatusBar backgroundColor="#F8FAFC" />
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#0056D2" />
-                <Text style={styles.loadingText}>Loading payout details...</Text>
+                <CommonSkeleton />
             </View>
         </SafeAreaView>
     );
@@ -306,17 +308,12 @@ const TrainerPayoutDetailScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <DynamicStatusBar backgroundColor="#F8FAFC" />
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#0056D2" />
-                    </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>Payout #{payoutData?.payoutId || 'Unknown'}</Text>
-                    </View>
-                    <View style={{ width: 44 }} />
-                </View>
-            </View>
+            <Header
+                title={`Payout #${payoutData?.payoutId || 'Unknown'}`}
+                onBack={() => navigation.goBack()}
+                backIconColor="#0056D2"
+            />
+
             <ScrollView
                 style={styles.scrollContainer}
                 contentContainerStyle={styles.scrollContent}
@@ -366,6 +363,7 @@ const styles = StyleSheet.create({
     scrollContainer: {
         flex: 1,
         backgroundColor: '#F8FAFC',
+        marginTop: 75
     },
     scrollContent: {
         padding: 20,

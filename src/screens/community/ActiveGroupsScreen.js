@@ -28,6 +28,9 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { ScrollView } from "react-native-gesture-handler"
 import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+import SafeImage from "screens/food/SafeImage"
+import Header from "components/Header"
 
 const { width } = Dimensions.get("window")
 
@@ -107,7 +110,7 @@ const ActiveGroupsScreenModern = () => {
         SearchTerm: searchTerm || undefined,
         StartDate: formatDate(filters.startDate),
         EndDate: formatDate(filters.endDate),
-        Status: filters.status || undefined,
+        Priority: filters.status || undefined,
         ValidPageSize: filters.validPageSize,
       }
       let response = null;
@@ -370,10 +373,9 @@ const ActiveGroupsScreenModern = () => {
             <View style={styles.cardHeader}>
               <View style={styles.headerLeft}>
                 <View style={styles.avatarContainer}>
-                  <Image
-                    source={{ uri: item.thumbnail || "https://via.placeholder.com/50" }}
-                    style={styles.groupAvatar}
-                  />
+                  <SafeImage imageUrl={item.thumbnail}
+                    fallbackSource={require('../../../assets/images/group-default.png')}
+                    style={styles.groupAvatar} />
                   {item.isPrivate && (
                     <View style={styles.privateBadge}>
                       <Ionicons name="lock-closed" size={10} color="#FFFFFF" />
@@ -496,7 +498,7 @@ const ActiveGroupsScreenModern = () => {
       ]}
     >
       <LinearGradient
-        colors={["#003C9E","#0056D2","#4A90E2"]}
+        colors={["#4A90E2","#0056D2","#4A90E2"]}
         style={styles.createGroupCard}
         start={{ x: 0,y: 0 }}
         end={{ x: 1,y: 1 }}
@@ -618,6 +620,7 @@ const ActiveGroupsScreenModern = () => {
               <Text style={styles.filterSectionTitle}>Group Status</Text>
               <View style={styles.statusOptions}>
                 {[
+                  { key: "",label: "ALL",icon: "list",color: "#1e98fcff" },
                   { key: "private",label: "Private",icon: "lock-closed",color: "#A855F7" },
                   { key: "public",label: "Public",icon: "globe",color: "#3B82F6" },
                 ].map((status) => (
@@ -748,32 +751,44 @@ const ActiveGroupsScreenModern = () => {
       <DynamicStatusBar backgroundColor="#3B82F6" />
 
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056d2" />
-          </TouchableOpacity>
+      <Header
+        title="Community"
+        onBack={() => navigation.goBack()}
+        showAvatar={false}
+        rightActions={[
+          {
+            icon: (
+              <View>
+                <Ionicons name="options-outline" size={24} color="#0056d2" />
+                {(searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -2,
+                      right: -2,
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: 'red',
+                    }}
+                  />
+                )}
+              </View>
+            ),
+            onPress: () => setShowFilterModal(true),
+            backgroundColor: 'transparent',
+          },
+          {
+            icon: (
+              <Ionicons name="person-add-outline" size={20} color="#0056d2" />
+            ),
+            onPress: () => navigation.navigate('MyGroupsScreen'),
+            backgroundColor: '#0056d2',
+            style: { marginLeft: 8 },
+          },
+        ]}
+      />
 
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Community</Text>
-          </View>
-          <View style={{ flexDirection: 'row',alignItems: 'center' }}>
-            <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-              <Ionicons name="options-outline" size={24} color="#0056d2" />
-              {(searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) && (
-                <View style={styles.filterBadge} />
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterButton,{ marginLeft: 8,backgroundColor: '#0056d2' }]}
-              onPress={() => navigation.navigate('MyGroupsScreen')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="people-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tabItem,activeTab === 'all' && styles.tabItemActive]}
@@ -820,19 +835,14 @@ const ActiveGroupsScreenModern = () => {
 
       {/* Content */}
       {loading && pageNumber === 1 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading communities...</Text>
-        </View>
+        <CommonSkeleton />
       ) : (
         <FlatList
           data={groups}
           onEndReached={loadMoreGroups}
           ListFooterComponent={
             loading && pageNumber > 1 ? (
-              <View style={{ padding: 20,alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#3B82F6" />
-              </View>
+              <CommonSkeleton />
             ) : null
           }
           onEndReachedThreshold={0.2}
@@ -1452,6 +1462,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     marginBottom: 2,
+    marginTop: 75
   },
   tabItem: {
     flex: 1,

@@ -23,6 +23,8 @@ import { PieChart,BarChart } from "react-native-chart-kit"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import DynamicStatusBar from "screens/statusBar/DynamicStatusBar"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+import Header from "components/Header"
 
 const { width } = Dimensions.get("window")
 
@@ -286,32 +288,24 @@ const TrainerDashboard = () => {
   const renderLoadingScreen = () => (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#F8FAFC" />
-      <View style={styles.loadingContainer}>
-        <View style={styles.loadingCard}>
-          <ActivityIndicator size="large" color="#0056D2" />
-          <Text style={styles.loadingText}>Loading dashboard...</Text>
-          <Text style={styles.loadingSubtext}>Fetching your latest statistics</Text>
-        </View>
-      </View>
+      <CommonSkeleton />
     </SafeAreaView>
   )
 
   const renderEmptyState = () => (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#F8FAFC" />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("TrainerServiceManagement")}>
-            <Ionicons name="arrow-back" size={24} color="#1E293B" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Dashboard</Text>
-          </View>
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-            <Ionicons name="options" size={24} color="#0056D2" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Dashboard"
+        onBack={() => navigation.goBack()}
+        backIconColor="#1E293B"
+        rightIcon={{
+          name: "options",
+          onPress: () => setShowFilterModal(true),
+          color: "#0056D2"
+        }}
+      />
+
       {renderWelcomeSection()}
       <Animated.View
         style={[
@@ -839,21 +833,17 @@ const TrainerDashboard = () => {
       <DynamicStatusBar backgroundColor="#F8FAFC" />
 
       {/* Modern Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("TrainerServiceManagement")}>
-            <Ionicons name="arrow-back" size={24} color="#1E293B" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Dashboard</Text>
-            <Text style={styles.headerSubtitle}>Analytics Overview</Text>
-          </View>
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-            <Ionicons name="options" size={24} color="#0056D2" />
-            {(filters.startDate || filters.endDate) && <View style={styles.filterBadge} />}
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title="Dashboard"
+        onBack={() => navigation.goBack()}
+        backIconColor="#1E293B"
+        rightIcon={{
+          name: "options",
+          onPress: () => setShowFilterModal(true),
+          color: "#0056D2"
+        }}
+      />
+
 
       <ScrollView
         style={styles.scrollContainer}

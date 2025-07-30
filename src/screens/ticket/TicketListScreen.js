@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React,{ useEffect,useState,useContext } from 'react';
 import {
   View,
   Text,
@@ -7,55 +7,62 @@ import {
   StyleSheet,
   RefreshControl,
   TextInput,
-  Modal,
-  Dimensions
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation,useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Header from 'components/Header';
 import ticketService from 'services/apiTicketService';
 import { AuthContext } from 'context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from 'utils/toastUtil';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import { Dimensions } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const TicketListScreen = () => {
   const navigation = useNavigation();
   const { token } = useContext(AuthContext);
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [tempSearchTerm, setTempSearchTerm] = useState('');
-  const [tempStatusFilter, setTempStatusFilter] = useState('All');
+  const [tickets,setTickets] = useState([]);
+  const [loading,setLoading] = useState(false);
+  const [refreshing,setRefreshing] = useState(false);
+  const [error,setError] = useState(null);
+  const [statusFilter,setStatusFilter] = useState('All');
+  const [searchTerm,setSearchTerm] = useState('');
+
+  const validStatuses = ['open','inprogress','resolved'];
+  const statusOptions = ['All',...validStatuses.map(status => status.charAt(0).toUpperCase() + status.slice(1))];
 
   const fetchTickets = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     setError(null);
     try {
       const params = {};
-      if (statusFilter && statusFilter !== 'All') params.Status = statusFilter;
-      if (searchTerm && searchTerm.trim() !== '') params.SearchTerm = searchTerm.trim();
+      if (statusFilter !== 'All') params.Status = statusFilter.toLowerCase();
+      if (searchTerm.trim() !== '') params.SearchTerm = searchTerm.trim();
       const data = await ticketService.getMyTickets(params);
       const ticketsArr = Array.isArray(data.tickets) ? data.tickets : [];
-      const validTickets = ticketsArr.filter(
-        (item) => item && (item.id || item.ticketId) && item.title && item.status && item.createdAt
-      ).map(t => ({ ...t, id: t.id || t.ticketId }));
+      const validTickets = ticketsArr
+        .filter(
+          (item) =>
+            item &&
+            (item.id || item.ticketId) &&
+            item.title &&
+            item.status &&
+            item.createdAt &&
+            validStatuses.includes(item.status.toLowerCase())
+        )
+        .map((t) => ({ ...t,id: t.id || t.ticketId }));
       setTickets(validTickets);
       if (validTickets.length !== ticketsArr.length) {
-        setError('Some tickets are missing required fields');
-        showErrorFetchAPI('Some tickets are missing required fields');
+        setError('Some tickets are missing required fields or have invalid statuses');
+        showErrorMessage('Some tickets are missing required fields or have invalid statuses');
       }
     } catch (err) {
       setError(err.message || 'Failed to load tickets');
       setTickets([]);
-      showErrorFetchAPI(err?.message || 'Failed to load tickets');
+      showErrorFetchAPI(err);
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -64,7 +71,7 @@ const TicketListScreen = () => {
   useFocusEffect(
     React.useCallback(() => {
       fetchTickets();
-    }, [statusFilter, searchTerm])
+    },[statusFilter,searchTerm])
   );
 
   const onRefresh = async () => {
@@ -73,41 +80,40 @@ const TicketListScreen = () => {
     setRefreshing(false);
   };
 
-  const openFilterModal = () => {
-    setTempSearchTerm(searchTerm);
-    setTempStatusFilter(statusFilter);
-    setShowFilterModal(true);
-  };
-
-  const applyFilters = () => {
-    setSearchTerm(tempSearchTerm);
-    setStatusFilter(tempStatusFilter);
-    setShowFilterModal(false);
-  };
-
-  const clearFilters = () => {
-    setTempSearchTerm('');
-    setTempStatusFilter('All');
-  };
-
-  const closeModal = () => {
-    setShowFilterModal(false);
-  };
-
   const statusConfig = {
-    Open: { color: '#10B981', icon: 'radio-button-on', bgColor: '#ECFDF5' },
-    Pending: { color: '#F59E0B', icon: 'time', bgColor: '#FFFBEB' },
-    Closed: { color: '#EF4444', icon: 'close-circle', bgColor: '#FEF2F2' },
-    Resolved: { color: '#8B5CF6', icon: 'checkmark-circle', bgColor: '#F3E8FF' },
-    InProgress: { color: '#3B82F6', icon: 'play-circle', bgColor: '#EFF6FF' },
+    All: {
+      color: '#6B7280',
+      icon: 'list-circle',
+      bgColor: '#F3F4F6',
+    },
+    Open: {
+      color: '#10B981',
+      icon: 'radio-button-on',
+      bgColor: '#ECFDF5',
+    },
+    Inprogress: {
+      color: '#3B82F6',
+      icon: 'play-circle',
+      bgColor: '#EFF6FF',
+    },
+    Resolved: {
+      color: '#8B5CF6',
+      icon: 'checkmark-circle',
+      bgColor: '#F3E8FF',
+    },
   };
+
 
   const getPriorityColor = (priority) => {
     switch (priority?.toLowerCase()) {
-      case 'high': return '#EF4444';
-      case 'medium': return '#F59E0B';
-      case 'low': return '#10B981';
-      default: return '#6B7280';
+      case 'high':
+        return '#EF4444';
+      case 'medium':
+        return '#F59E0B';
+      case 'low':
+        return '#10B981';
+      default:
+        return '#6B7280';
     }
   };
 
@@ -116,23 +122,23 @@ const TicketListScreen = () => {
     const now = new Date();
     const diffTime = Math.abs(now - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    return date.toLocaleDateString('en-US',{
+      month: 'short',
       day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     });
   };
 
   const renderItem = ({ item }) => {
-    const statusInfo = statusConfig[item.status] || statusConfig.Open;
-    
+    const statusInfo = statusConfig[item.status.charAt(0).toUpperCase() + item.status.slice(1)] || statusConfig.Open;
+
     return (
       <TouchableOpacity
         style={styles.ticketCard}
-        onPress={() => navigation.navigate('TicketDetail', { ticketId: item.id })}
+        onPress={() => navigation.navigate('TicketDetail',{ ticketId: item.id })}
         activeOpacity={0.7}
       >
         <View style={styles.cardHeader}>
@@ -142,10 +148,10 @@ const TicketListScreen = () => {
             </Text>
             <Text style={styles.ticketId}>#{item.id}</Text>
           </View>
-          <View style={[styles.statusContainer, { backgroundColor: statusInfo.bgColor }]}>
+          <View style={[styles.statusContainer,{ backgroundColor: statusInfo.bgColor }]}>
             <Icon name={statusInfo.icon} size={14} color={statusInfo.color} />
-            <Text style={[styles.statusText, { color: statusInfo.color }]}>
-              {item.status}
+            <Text style={[styles.statusText,{ color: statusInfo.color }]}>
+              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
             </Text>
           </View>
         </View>
@@ -156,22 +162,22 @@ const TicketListScreen = () => {
               {item.description}
             </Text>
           )}
-          
+
           <View style={styles.metaContainer}>
             <View style={styles.metaRow}>
               <Icon name="calendar-outline" size={14} color="#6B7280" />
               <Text style={styles.metaText}>{formatDate(item.createdAt)}</Text>
             </View>
-            
+
             {item.priority && (
               <View style={styles.metaRow}>
                 <Icon name="flag-outline" size={14} color={getPriorityColor(item.priority)} />
-                <Text style={[styles.metaText, { color: getPriorityColor(item.priority) }]}>
+                <Text style={[styles.metaText,{ color: getPriorityColor(item.priority) }]}>
                   {item.priority}
                 </Text>
               </View>
             )}
-            
+
             {item.category && (
               <View style={styles.metaRow}>
                 <Icon name="folder-outline" size={14} color="#6B7280" />
@@ -184,8 +190,6 @@ const TicketListScreen = () => {
     );
   };
 
-  const statusOptions = ['All', 'Open', 'Pending', 'InProgress', 'Resolved', 'Closed'];
-
   const getActiveFiltersCount = () => {
     let count = 0;
     if (searchTerm.trim() !== '') count++;
@@ -195,49 +199,74 @@ const TicketListScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with sort/filter icon using shared Header.js */}
       <Header
         title="My Tickets"
-        subtitle={`${tickets.length} ${tickets.length === 1 ? 'ticket' : 'tickets'}${getActiveFiltersCount() > 0 ? ` • ${getActiveFiltersCount()} filter${getActiveFiltersCount() > 1 ? 's' : ''}` : ''}`}
+        subtitle={`${tickets.length} ${tickets.length === 1 ? 'ticket' : 'tickets'}${getActiveFiltersCount() > 0 ? ` • ${getActiveFiltersCount()} filter${getActiveFiltersCount() > 1 ? 's' : ''}` : ''
+          }`}
         onBack={() => navigation.goBack()}
-        rightActions={[
-          <TouchableOpacity
-            key="filter"
-            style={[
-              styles.menuButton,
-              getActiveFiltersCount() > 0 && styles.menuButtonActive,
-              { backgroundColor: 'transparent' }
-            ]}
-            onPress={openFilterModal}
-          >
-            <Icon name="options" size={24} color="#0056d2" />
-            {getActiveFiltersCount() > 0 && (
-              <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{getActiveFiltersCount()}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ]}
         absolute
       />
-      <View style={{ height: 90 }} />
+      <View style={{ height: 65 }} />
 
-      {/* Create Button */}
+      <View style={styles.filterContainer}>
+        <View style={styles.searchContainer}>
+          <Icon name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search tickets..."
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+            returnKeyType="search"
+            onSubmitEditing={() => fetchTickets()}
+          />
+          {searchTerm.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchTerm('')}>
+              <Icon name="close-circle" size={20} color="#6B7280" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.statusFilterContainer}>
+          {statusOptions.map((status) => {
+            const isActive = statusFilter === status;
+            const statusInfo = statusConfig[status] || { color: '#6B7280',bgColor: '#F9FAFB' };
+
+            return (
+              <TouchableOpacity
+                key={status}
+                style={[
+                  styles.statusOption,
+                  isActive && styles.statusOptionActive,
+                  isActive && statusInfo && { backgroundColor: statusInfo.color,borderColor: statusInfo.color },
+                ]}
+                onPress={() => setStatusFilter(status)}
+              >
+                {statusInfo && isActive && (
+                  <Icon name={statusInfo.icon} size={16} color="#FFFFFF" style={styles.statusIcon} />
+                )}
+                <Text style={[styles.statusOptionText,isActive && styles.statusOptionTextActive]}>
+                  {status}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       <TouchableOpacity
-        style={[styles.createButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', shadowColor: 'transparent', elevation: 0 }]}
+        style={styles.createButton}
         onPress={() => navigation.navigate('CreateTicket')}
         activeOpacity={0.85}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12 }}>
-          <Icon name="add" size={20} color="#222" />
-          <Text style={[styles.createButtonText, { color: '#1F2937', marginLeft: 8 }]}>Create New Ticket</Text>
-        </View>
+        <LinearGradient colors={["#4A90E2","#0056D2"]} style={styles.createButtonGradient}>
+          <Icon name="add" size={20} color="#FFFFFF" />
+          <Text style={styles.createButtonText}>Create New Ticket</Text>
+        </LinearGradient>
       </TouchableOpacity>
 
-      {/* Content */}
       <View style={styles.content}>
         {loading ? (
-          <Loading />
+          <CommonSkeleton />
         ) : error ? (
           <View style={styles.errorContainer}>
             <Icon name="alert-circle" size={48} color="#EF4444" />
@@ -252,10 +281,10 @@ const TicketListScreen = () => {
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderItem}
             refreshControl={
-              <RefreshControl 
-                refreshing={refreshing} 
+              <RefreshControl
+                refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={["#4F46E5"]}
+                colors={['#4F46E5']}
                 tintColor="#4F46E5"
               />
             }
@@ -264,10 +293,9 @@ const TicketListScreen = () => {
                 <Icon name="document-text-outline" size={64} color="#D1D5DB" />
                 <Text style={styles.emptyTitle}>No Tickets Found</Text>
                 <Text style={styles.emptySubtitle}>
-                  {searchTerm || statusFilter !== 'All' 
+                  {searchTerm || statusFilter !== 'All'
                     ? 'Try adjusting your search or filter criteria'
-                    : 'Create your first ticket to get started'
-                  }
+                    : 'Create your first ticket to get started'}
                 </Text>
               </View>
             }
@@ -276,101 +304,6 @@ const TicketListScreen = () => {
           />
         )}
       </View>
-
-      {/* Filter Modal */}
-      <Modal
-        visible={showFilterModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Search & Filter</Text>
-              <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-                <Icon name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search Section */}
-            <View style={styles.modalSection}>
-              <Text style={styles.sectionTitle}>Search Tickets</Text>
-              <View style={styles.searchContainer}>
-                <Icon name="search" size={20} color="#6B7280" style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Enter keywords..."
-                  value={tempSearchTerm}
-                  onChangeText={setTempSearchTerm}
-                  returnKeyType="search"
-                />
-                {tempSearchTerm.length > 0 && (
-                  <TouchableOpacity onPress={() => setTempSearchTerm('')}>
-                    <Icon name="close-circle" size={20} color="#6B7280" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
-            {/* Status Filter Section */}
-            <View style={styles.modalSection}>
-              <Text style={styles.sectionTitle}>Filter by Status</Text>
-              <View style={styles.statusGrid}>
-                {statusOptions.map((status) => {
-                  const isActive = tempStatusFilter === status;
-                  const statusInfo = statusConfig[status];
-                  
-                  return (
-                    <TouchableOpacity
-                      key={status}
-                      style={[
-                        styles.statusOption,
-                        isActive && styles.statusOptionActive,
-                        isActive && statusInfo && { backgroundColor: statusInfo.color, borderColor: statusInfo.color }
-                      ]}
-                      onPress={() => setTempStatusFilter(status)}
-                    >
-                      {statusInfo && isActive && (
-                        <Icon name={statusInfo.icon} size={16} color="#FFFFFF" style={styles.statusIcon} />
-                      )}
-                      <Text style={[
-                        styles.statusOptionText,
-                        isActive && styles.statusOptionTextActive
-                      ]}>
-                        {status}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Modal Actions */}
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
-                <Text style={styles.clearButtonText}>Clear All</Text>
-              </TouchableOpacity>
-              
-              <View style={styles.actionButtons}>
-                <TouchableOpacity style={styles.cancelButton} onPress={closeModal}>
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
-                  <LinearGradient
-                    colors={["#4F46E5", "#6366F1"]}
-                    style={styles.applyButtonGradient}
-                  >
-                    <Text style={styles.applyButtonText}>Apply Filters</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -380,74 +313,77 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  header: {
-    paddingTop: 10,
-    paddingBottom: 20,
+  filterContainer: {
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  headerContent: {
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
   },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  searchIcon: {
+    marginRight: 8,
   },
-  headerTitleContainer: {
+  searchInput: {
     flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    height: 44,
+    fontSize: 16,
     color: '#1F2937',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 2,
+  statusFilterContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  menuButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    position: 'relative',
-  },
-  menuButtonActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
+  statusOption: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  filterBadgeText: {
+  statusOptionActive: {
+    borderColor: 'transparent',
+  },
+  statusIcon: {
+    marginRight: 6,
+  },
+  statusOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  statusOptionTextActive: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   createButton: {
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    elevation: 0,
-    shadowColor: 'transparent',
   },
-  // Removed createButtonGradient, replaced with View inline style
+  createButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
   createButtonText: {
-    color: '#1F2937',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -466,7 +402,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     borderWidth: 1,
@@ -527,17 +463,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginLeft: 4,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 12,
-  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -581,146 +506,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    width: width - 40,
-    maxHeight: height * 0.8,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  modalSection: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  statusGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  statusOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 8,
-  },
-  statusOptionActive: {
-    borderColor: 'transparent',
-  },
-  statusIcon: {
-    marginRight: 6,
-  },
-  statusOptionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  statusOptionTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  modalActions: {
-    padding: 20,
-  },
-  clearButton: {
-    alignSelf: 'flex-start',
-    marginBottom: 16,
-  },
-  clearButtonText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textDecorationLine: 'underline',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  applyButton: {
-    flex: 1,
-    borderRadius: 12,
-  },
-  applyButtonGradient: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
 });
 

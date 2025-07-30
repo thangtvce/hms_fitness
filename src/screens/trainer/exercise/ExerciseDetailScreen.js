@@ -19,10 +19,13 @@ import { AuthContext } from 'context/AuthContext';
 import { useNavigation,useRoute } from '@react-navigation/native';
 import { trainerService } from 'services/apiTrainerService';
 import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
-import { RichEditor } from 'react-native-pell-rich-editor';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { Video } from 'expo-av';
+import { StatusBar } from 'expo-status-bar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
+import Header from 'components/Header';
+import RenderHTML from 'react-native-render-html';
 
 const { width,height } = Dimensions.get('window');
 
@@ -189,7 +192,7 @@ const ExerciseDetailScreen = () => {
       <DynamicStatusBar backgroundColor="#F8FAFC" />
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0056D2" />
-        <Text style={styles.loadingText}>Loading exercise details...</Text>
+        <CommonSkeleton />
       </View>
     </SafeAreaView>
   );
@@ -390,18 +393,19 @@ const ExerciseDetailScreen = () => {
         </View>
         {exerciseData?.description ? (
           <View style={styles.descriptionContainer}>
-            <RichEditor
-              ref={null}
-              initialContentHTML={typeof exerciseData.description === 'string' ? exerciseData.description : ''}
-              disabled={true}
-              style={styles.richEditor}
-              editorStyle={{
-                backgroundColor: '#FFFFFF',
-                color: '#1E293B',
-                fontSize: 16,
-                fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-                lineHeight: 24,
-                padding: 16,
+            <RenderHTML
+              source={{
+                html:
+                  exerciseData.description || "N/A"
+              }}
+              tagsStyles={{
+                p: {
+                  fontSize: 14,
+                  color: "#64748B",
+                  margin: 0,
+                  lineHeight: 20,
+                  fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
+                },
               }}
             />
           </View>
@@ -475,19 +479,20 @@ const ExerciseDetailScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <DynamicStatusBar backgroundColor="#F8FAFC" />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} accessibilityLabel="Go Back">
-            <Ionicons name="arrow-back" size={24} color="#0056D2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>#EXERCISE{exerciseData?.exerciseId || 'Exercise'}</Text>
-          </View>
-          <TouchableOpacity style={styles.filterButton} onPress={handleEdit} accessibilityLabel="Edit Exercise">
-            <Ionicons name="pencil-outline" size={24} color="#0056D2" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header
+        title={`#EXERCISE${exerciseData?.exerciseId || 'Exercise'}`}
+        onBack={() => navigation.goBack()}
+        backIconColor="#0056D2"
+        rightActions={[
+          {
+            icon: "pencil-outline",
+            onPress: handleEdit,
+            color: "#0056D2",
+            accessibilityLabel: "Edit Exercise",
+          },
+        ]}
+      />
+
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
@@ -544,6 +549,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+    marginTop: 60
   },
   scrollContent: {
     padding: 20,

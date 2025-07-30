@@ -1,5 +1,5 @@
-
-import { useEffect, useState } from "react"
+import React,{ useEffect,useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -11,43 +11,44 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
-} from "react-native"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+} from "react-native";
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil";
 
-import { LinearGradient } from "expo-linear-gradient"
-import { LineChart, BarChart, PieChart } from "react-native-chart-kit"
-import { foodService } from "services/apiFoodService"
-import dayjs from "dayjs"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { StatusBar } from "expo-status-bar"
+import { LinearGradient } from "expo-linear-gradient";
+import { LineChart,BarChart,PieChart } from "react-native-chart-kit";
+import { foodService } from "services/apiFoodService";
+import dayjs from "dayjs";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import Header from "components/Header";
-import Loading from "components/Loading"
+import Loading from "components/Loading";
 
-import Icon from "react-native-vector-icons/MaterialIcons"
-import IconCommunity from "react-native-vector-icons/MaterialCommunityIcons"
-import IconFeather from "react-native-vector-icons/Feather"
+import Icon from "react-native-vector-icons/MaterialIcons";
+import IconCommunity from "react-native-vector-icons/MaterialCommunityIcons";
+import IconFeather from "react-native-vector-icons/Feather";
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton";
 
-const { width } = Dimensions.get("window")
+const { width } = Dimensions.get("window");
 
-const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Other"]
+const MEAL_TYPES = ["Breakfast","Lunch","Dinner","Other"];
 const TIME_PERIODS = [
-  { key: "7d", label: "7D", days: 7 },
-  { key: "1m", label: "1M", days: 30 },
-  { key: "3m", label: "3M", days: 90 },
-  { key: "6m", label: "6M", days: 180 },
-  { key: "1y", label: "1Y", days: 365 },
-]
+  { key: "7d",label: "7D",days: 7 },
+  { key: "1m",label: "1M",days: 30 },
+  { key: "3m",label: "3M",days: 90 },
+  { key: "6m",label: "6M",days: 180 },
+  { key: "1y",label: "1Y",days: 365 },
+];
 
 const FoodLogHistoryScreen = ({ navigation }) => {
-  const [logs, setLogs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("overview")
-  const [showFilters, setShowFilters] = useState(false)
-  const [expandedDays, setExpandedDays] = useState({})
-  const [selectedTimePeriod, setSelectedTimePeriod] = useState("7d")
+  const [logs,setLogs] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [activeTab,setActiveTab] = useState("overview");
+  const [showFilters,setShowFilters] = useState(false);
+  const [expandedDays,setExpandedDays] = useState({});
+  const [selectedTimePeriod,setSelectedTimePeriod] = useState("7d");
+  const [filteredLogs,setFilteredLogs] = useState([]);
 
-  // Filter states
-  const [filters, setFilters] = useState({
+  const [filters,setFilters] = useState({
     pageNumber: 1,
     pageSize: 30,
     startDate: "",
@@ -56,180 +57,184 @@ const FoodLogHistoryScreen = ({ navigation }) => {
     mealType: "",
     minCalories: "",
     maxCalories: "",
-    sortBy: "date",
-    sortOrder: "desc",
-  })
-
-  const [filteredLogs, setFilteredLogs] = useState([])
+  });
 
   const fetchLogs = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const res = await foodService.getMyNutritionLogs({
         pageNumber: filters.pageNumber,
         pageSize: filters.pageSize,
-      })
+      });
       if (res.statusCode === 200) {
-        setLogs(res.data.nutritionLogs || [])
+        setLogs(res.data.nutritionLogs || []);
       } else {
-        setLogs([])
+        setLogs([]);
       }
     } catch (e) {
-      setLogs([])
+      showErrorFetchAPI(e);
+      setLogs([]);
     }
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    fetchLogs()
-  }, [])
+    fetchLogs();
+  },[]);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchLogs();
+    },[filters.pageNumber,filters.pageSize])
+  );
 
   useEffect(() => {
-    applyFilters()
-  }, [logs, filters])
+    applyFilters();
+  },[logs,filters]);
 
   const applyFilters = () => {
-    let filtered = [...logs]
+    let filtered = [...logs];
 
     if (filters.startDate) {
       filtered = filtered.filter((log) =>
-        dayjs(log.consumptionDate).isAfter(dayjs(filters.startDate).subtract(1, "day")),
-      )
+        dayjs(log.consumptionDate).isAfter(dayjs(filters.startDate).subtract(1,"day"))
+      );
     }
 
     if (filters.endDate) {
-      filtered = filtered.filter((log) => dayjs(log.consumptionDate).isBefore(dayjs(filters.endDate).add(1, "day")))
+      filtered = filtered.filter((log) => dayjs(log.consumptionDate).isBefore(dayjs(filters.endDate).add(1,"day")));
     }
 
     if (filters.searchTerm) {
-      filtered = filtered.filter((log) => log.foodName.toLowerCase().includes(filters.searchTerm.toLowerCase()))
+      filtered = filtered.filter((log) => log.foodName.toLowerCase().includes(filters.searchTerm.toLowerCase()));
     }
 
     if (filters.mealType) {
-      filtered = filtered.filter((log) => log.mealType === filters.mealType)
+      filtered = filtered.filter((log) => log.mealType === filters.mealType);
     }
 
     if (filters.minCalories) {
-      filtered = filtered.filter((log) => (log.calories || 0) >= Number.parseInt(filters.minCalories))
+      filtered = filtered.filter((log) => (log.calories || 0) >= Number.parseInt(filters.minCalories));
     }
 
     if (filters.maxCalories) {
-      filtered = filtered.filter((log) => (log.calories || 0) <= Number.parseInt(filters.maxCalories))
+      filtered = filtered.filter((log) => (log.calories || 0) <= Number.parseInt(filters.maxCalories));
     }
 
-    filtered.sort((a, b) => {
-      let aValue, bValue
-
-      switch (filters.sortBy) {
-        case "calories":
-          aValue = a.calories || 0
-          bValue = b.calories || 0
-          break
-        case "protein":
-          aValue = a.protein || 0
-          bValue = b.protein || 0
-          break
-        default:
-          aValue = dayjs(a.consumptionDate).unix()
-          bValue = dayjs(b.consumptionDate).unix()
-      }
-
-      return filters.sortOrder === "asc" ? aValue - bValue : bValue - aValue
-    })
-
-    setFilteredLogs(filtered)
-  }
+    setFilteredLogs(filtered);
+  };
 
   const handleDeleteDayLog = async (date) => {
-    const dayLogs = []
+    const dayLogs = [];
     MEAL_TYPES.forEach((meal) => {
-      grouped[date][meal].forEach((log) => dayLogs.push(log))
-    })
+      grouped[date][meal].forEach((log) => dayLogs.push(log));
+    });
 
     Alert.alert(
       "Delete Day Log",
-      `Are you sure you want to delete all food logs for ${dayjs(date).format("MMM DD, YYYY")}? This will remove ${dayLogs.length} food entries.`,
+      `Are you sure you want to delete all food logs for ${dayjs(date).format("MMM DD, YYYY")}? This will remove ${dayLogs.length
+      } food entries.`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Cancel",style: "cancel" },
         {
           text: "Delete All",
           style: "destructive",
           onPress: async () => {
             try {
               const deletePromises = dayLogs.map((log) => {
-                const logId = log.logId || log.id
+                const logId = log.logId || log.id;
                 return foodService
                   .deleteNutritionLog(logId)
                   .then((res) => res)
                   .catch((err) => {
-                    throw err
-                  })
-              })
+                    throw err;
+                  });
+              });
 
-              const results = await Promise.allSettled(deletePromises)
+              const results = await Promise.allSettled(deletePromises);
               const allSuccess = results.every(
-                (r) => r.status === "fulfilled" && (!r.value || r.value.statusCode === 200),
-              )
+                (r) => r.status === "fulfilled" && (!r.value || r.value.statusCode === 200)
+              );
 
               if (allSuccess) {
-                showSuccessMessage(`All food logs for ${dayjs(date).format("MMM DD, YYYY")} have been deleted!`)
+                showSuccessMessage(`All food logs for ${dayjs(date).format("MMM DD, YYYY")} have been deleted!`);
               } else {
-                showErrorFetchAPI(`Some logs may not have been deleted. Check console for details.`)
+                showErrorMessage(`Some logs may not have been deleted. Check console for details.`);
               }
 
-              fetchLogs()
+              fetchLogs();
             } catch (error) {
-              showErrorFetchAPI(`Failed to delete day logs: ${error?.message || error}`)
+              showErrorFetchAPI(error);
             }
           },
         },
-      ],
-    )
-  }
+      ]
+    );
+  };
 
-  const handleEditLog = (log) => {
-    navigation.navigate("EditFoodLog", { log, onUpdate: fetchLogs })
-  }
-
-  const handleViewDayDetails = (date, dayStats) => {
-    navigation.navigate("DayDetailsScreen", { date, dayStats, grouped: grouped[date] })
-  }
+  const handleViewDayDetails = (date,dayStats) => {
+    navigation.navigate("DayDetailsScreen",{ date,dayStats,grouped: grouped[date],onRefresh: fetchLogs });
+  };
 
   const toggleDayExpansion = (date) => {
     setExpandedDays((prev) => ({
       ...prev,
       [date]: !prev[date],
-    }))
-  }
+    }));
+  };
 
-  // Group logs by date and mealType
-  const grouped = {}
+  // Group logs by date and meal type, aggregating by foodId and foodName
+  const grouped = {};
   filteredLogs.forEach((log) => {
-    if (!grouped[log.consumptionDate]) {
-      grouped[log.consumptionDate] = { Breakfast: [], Lunch: [], Dinner: [], Other: [] }
+    const date = log.consumptionDate;
+    const meal = MEAL_TYPES.includes(log.mealType) ? log.mealType : "Other";
+    if (!grouped[date]) {
+      grouped[date] = { Breakfast: [],Lunch: [],Dinner: [],Other: [] };
     }
-    const meal = MEAL_TYPES.includes(log.mealType) ? log.mealType : "Other"
-    grouped[log.consumptionDate][meal].push(log)
-  })
 
-  // Calculate statistics
+    const mealLogs = grouped[date][meal];
+    const existingLog = mealLogs.find(
+      (l) => l.foodId === log.foodId && l.foodName === log.foodName
+    );
+
+    if (existingLog) {
+      existingLog.logIds.push(log.logId || log.id);
+      existingLog.quantity = (existingLog.quantity || 1) + (log.quantity || 1);
+      existingLog.calories += log.calories || 0;
+      existingLog.protein += log.protein || 0;
+      existingLog.carbs += log.carbs || 0;
+      existingLog.fats += log.fats || 0;
+      existingLog.count += 1;
+      if (log.satisfactionRating) {
+        existingLog.satisfactionRating = log.satisfactionRating;
+        existingLog.notes = log.notes || "";
+      }
+    } else {
+      mealLogs.push({
+        ...log,
+        logIds: [log.logId || log.id],
+        quantity: log.quantity || 1,
+        count: 1,
+      });
+    }
+  });
+
   const calculateDailyStats = () => {
-    const dailyStats = {}
+    const dailyStats = {};
     Object.keys(grouped).forEach((date) => {
-      const dayData = grouped[date]
-      let totalCalories = 0
-      let totalProtein = 0
-      let totalCarbs = 0
-      let totalFats = 0
+      const dayData = grouped[date];
+      let totalCalories = 0;
+      let totalProtein = 0;
+      let totalCarbs = 0;
+      let totalFats = 0;
 
       MEAL_TYPES.forEach((meal) => {
         dayData[meal].forEach((log) => {
-          totalCalories += log.calories || 0
-          totalProtein += log.protein || 0
-          totalCarbs += log.carbs || 0
-          totalFats += log.fats || 0
-        })
-      })
+          totalCalories += log.calories || 0;
+          totalProtein += log.protein || 0;
+          totalCarbs += log.carbs || 0;
+          totalFats += log.fats || 0;
+        });
+      });
 
       dailyStats[date] = {
         calories: totalCalories,
@@ -237,29 +242,28 @@ const FoodLogHistoryScreen = ({ navigation }) => {
         carbs: totalCarbs,
         fats: totalFats,
         meals: {
-          breakfast: dayData.Breakfast.reduce((sum, log) => sum + (log.calories || 0), 0),
-          lunch: dayData.Lunch.reduce((sum, log) => sum + (log.calories || 0), 0),
-          dinner: dayData.Dinner.reduce((sum, log) => sum + (log.calories || 0), 0),
-          other: dayData.Other.reduce((sum, log) => sum + (log.calories || 0), 0),
+          breakfast: dayData.Breakfast.reduce((sum,log) => sum + (log.calories || 0),0),
+          lunch: dayData.Lunch.reduce((sum,log) => sum + (log.calories || 0),0),
+          dinner: dayData.Dinner.reduce((sum,log) => sum + (log.calories || 0),0),
+          other: dayData.Other.reduce((sum,log) => sum + (log.calories || 0),0),
         },
-      }
-    })
+      };
+    });
 
-    return dailyStats
-  }
+    return dailyStats;
+  };
 
-  const dailyStats = calculateDailyStats()
-  const sortedDates = Object.keys(dailyStats).sort((a, b) => dayjs(a).unix() - dayjs(b).unix())
+  const dailyStats = calculateDailyStats();
+  const sortedDates = Object.keys(dailyStats).sort((a,b) => dayjs(a).unix() - dayjs(b).unix());
 
   const getFilteredDataByPeriod = () => {
-    const selectedPeriod = TIME_PERIODS.find((p) => p.key === selectedTimePeriod)
-    const cutoffDate = dayjs().subtract(selectedPeriod.days, "day")
+    const selectedPeriod = TIME_PERIODS.find((p) => p.key === selectedTimePeriod);
+    const cutoffDate = dayjs().subtract(selectedPeriod.days,"day");
 
-    return sortedDates.filter((date) => dayjs(date).isAfter(cutoffDate))
-  }
+    return sortedDates.filter((date) => dayjs(date).isAfter(cutoffDate));
+  };
 
-  const filteredDatesByPeriod = getFilteredDataByPeriod()
-
+  const filteredDatesByPeriod = getFilteredDataByPeriod();
 
   const chartDates = filteredDatesByPeriod.slice(-20);
   const chartData = {
@@ -273,7 +277,6 @@ const FoodLogHistoryScreen = ({ navigation }) => {
     ],
   };
 
-  // Protein chart data
   const proteinChartData = {
     labels: chartDates.map((date) => dayjs(date).format("MM/DD")),
     datasets: [
@@ -296,14 +299,18 @@ const FoodLogHistoryScreen = ({ navigation }) => {
     ],
   };
 
-  const totalDays = filteredDatesByPeriod.length
+  const totalDays = filteredDatesByPeriod.length;
   const avgNutrition = {
     protein: Math.round(
-      filteredDatesByPeriod.reduce((sum, date) => sum + dailyStats[date].protein, 0) / totalDays || 0,
+      filteredDatesByPeriod.reduce((sum,date) => sum + dailyStats[date].protein,0) / totalDays || 0
     ),
-    carbs: Math.round(filteredDatesByPeriod.reduce((sum, date) => sum + dailyStats[date].carbs, 0) / totalDays || 0),
-    fats: Math.round(filteredDatesByPeriod.reduce((sum, date) => sum + dailyStats[date].fats, 0) / totalDays || 0),
-  }
+    carbs: Math.round(
+      filteredDatesByPeriod.reduce((sum,date) => sum + dailyStats[date].carbs,0) / totalDays || 0
+    ),
+    fats: Math.round(
+      filteredDatesByPeriod.reduce((sum,date) => sum + dailyStats[date].fats,0) / totalDays || 0
+    ),
+  };
 
   const pieData = [
     {
@@ -327,75 +334,78 @@ const FoodLogHistoryScreen = ({ navigation }) => {
       legendFontColor: "#374151",
       legendFontSize: 14,
     },
-  ]
+  ];
 
   // Overall statistics
   const avgCalories =
-    totalDays > 0 ? filteredDatesByPeriod.reduce((sum, date) => sum + dailyStats[date].calories, 0) / totalDays : 0
-  const maxCalories = Math.max(...filteredDatesByPeriod.map((date) => dailyStats[date].calories), 0)
-  const minCalories = Math.min(...filteredDatesByPeriod.map((date) => dailyStats[date].calories), 0)
+    totalDays > 0
+      ? filteredDatesByPeriod.reduce((sum,date) => sum + dailyStats[date].calories,0) / totalDays
+      : 0;
+  const maxCalories = Math.max(...filteredDatesByPeriod.map((date) => dailyStats[date].calories),0);
+  const minCalories = Math.min(...filteredDatesByPeriod.map((date) => dailyStats[date].calories),0);
 
   // Calculate percentage changes
-  const getPercentageChange = (current, previous) => {
-    if (previous === 0) return 0
-    return (((current - previous) / previous) * 100).toFixed(1)
-  }
+  const getPercentageChange = (current,previous) => {
+    if (previous === 0) return 0;
+    return (((current - previous) / previous) * 100).toFixed(1);
+  };
 
-  const currentPeriodAvg = avgCalories
+  const currentPeriodAvg = avgCalories;
   const previousPeriodDates = sortedDates.filter((date) => {
-    const selectedPeriod = TIME_PERIODS.find((p) => p.key === selectedTimePeriod)
-    const cutoffDate = dayjs().subtract(selectedPeriod.days * 2, "day")
-    const startDate = dayjs().subtract(selectedPeriod.days, "day")
-    return dayjs(date).isAfter(cutoffDate) && dayjs(date).isBefore(startDate)
-  })
+    const selectedPeriod = TIME_PERIODS.find((p) => p.key === selectedTimePeriod);
+    const cutoffDate = dayjs().subtract(selectedPeriod.days * 2,"day");
+    const startDate = dayjs().subtract(selectedPeriod.days,"day");
+    return dayjs(date).isAfter(cutoffDate) && dayjs(date).isBefore(startDate);
+  });
 
   const previousPeriodAvg =
     previousPeriodDates.length > 0
-      ? previousPeriodDates.reduce((sum, date) => sum + dailyStats[date].calories, 0) / previousPeriodDates.length
-      : 0
+      ? previousPeriodDates.reduce((sum,date) => sum + dailyStats[date].calories,0) /
+      previousPeriodDates.length
+      : 0;
 
-  const caloriesChange = getPercentageChange(currentPeriodAvg, previousPeriodAvg)
+  const caloriesChange = getPercentageChange(currentPeriodAvg,previousPeriodAvg);
 
   const getMealIcon = (meal) => {
     switch (meal) {
       case "Breakfast":
-        return "wb-sunny"
+        return "wb-sunny";
       case "Lunch":
-        return "wb-sunny"
+        return "restaurant";
       case "Dinner":
-        return "brightness-3"
+        return "brightness-3";
       default:
-        return "restaurant"
+        return "fastfood";
     }
-  }
+  };
 
   const getMealColor = (meal) => {
     switch (meal) {
       case "Breakfast":
-        return "#F59E0B"
+        return "#F59E0B";
       case "Lunch":
-        return "#3B82F6"
+        return "#3B82F6";
       case "Dinner":
-        return "#8B5CF6"
+        return "#8B5CF6";
       default:
-        return "#6B7280"
+        return "#6B7280";
     }
-  }
+  };
 
-  const renderTabButton = (tabName, title, iconName, iconFamily = "MaterialIcons") => {
+  const renderTabButton = (tabName,title,iconName,iconFamily = "MaterialIcons") => {
     const IconComponent =
-      iconFamily === "MaterialCommunityIcons" ? IconCommunity : iconFamily === "Feather" ? IconFeather : Icon
+      iconFamily === "MaterialCommunityIcons" ? IconCommunity : iconFamily === "Feather" ? IconFeather : Icon;
 
     return (
       <TouchableOpacity
-        style={[styles.tabButton, activeTab === tabName && styles.activeTab]}
+        style={[styles.tabButton,activeTab === tabName && styles.activeTab]}
         onPress={() => setActiveTab(tabName)}
       >
         <IconComponent name={iconName} size={18} color={activeTab === tabName ? "#4F46E5" : "#6B7280"} />
-        <Text style={[styles.tabText, activeTab === tabName && styles.activeTabText]}>{title}</Text>
+        <Text style={[styles.tabText,activeTab === tabName && styles.activeTabText]}>{title}</Text>
       </TouchableOpacity>
-    )
-  }
+    );
+  };
 
   const renderTimePeriodSelector = () => (
     <View style={styles.timePeriodContainer}>
@@ -404,17 +414,17 @@ const FoodLogHistoryScreen = ({ navigation }) => {
         return (
           <TouchableOpacity
             key={period.key}
-            style={[styles.timePeriodButton, isActive && { backgroundColor: '#0056d2' }]}
+            style={[styles.timePeriodButton,isActive && { backgroundColor: "#0056d2" }]}
             onPress={() => setSelectedTimePeriod(period.key)}
           >
-            <Text style={[styles.timePeriodText, isActive && { color: '#fff', fontWeight: 'bold' }]}>
+            <Text style={[styles.timePeriodText,isActive && { color: "#fff",fontWeight: "bold" }]}>
               {period.label}
             </Text>
           </TouchableOpacity>
         );
       })}
     </View>
-  )
+  );
 
   const renderOverviewTab = () => (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.tabContent}>
@@ -430,7 +440,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                 size={16}
                 color={caloriesChange >= 0 ? "#22C55E" : "#EF4444"}
               />
-              <Text style={[styles.changeText, { color: caloriesChange >= 0 ? "#22C55E" : "#EF4444" }]}>
+              <Text style={[styles.changeText,{ color: caloriesChange >= 0 ? "#22C55E" : "#EF4444" }]}>
                 {Math.abs(caloriesChange)}%
               </Text>
             </View>
@@ -449,8 +459,8 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             <Text style={styles.tradingCardValue}>{maxCalories.toLocaleString()}</Text>
             <Text style={styles.tradingCardLabel}>Highest Day</Text>
             <View style={styles.tradingCardChange}>
-              <Text style={[styles.tradingCardChangeText, { color: "#22C55E" }]}>
-                +{(((maxCalories - avgCalories) / avgCalories) * 100).toFixed(1)}%
+              <Text style={[styles.tradingCardChangeText,{ color: "#22C55E" }]}>
+                {(((maxCalories - avgCalories) / avgCalories) * 100).toFixed(1)}%
               </Text>
             </View>
           </View>
@@ -463,7 +473,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             <Text style={styles.tradingCardValue}>{minCalories.toLocaleString()}</Text>
             <Text style={styles.tradingCardLabel}>Lowest Day</Text>
             <View style={styles.tradingCardChange}>
-              <Text style={[styles.tradingCardChangeText, { color: "#EF4444" }]}>
+              <Text style={[styles.tradingCardChangeText,{ color: "#EF4444" }]}>
                 -{(((avgCalories - minCalories) / avgCalories) * 100).toFixed(1)}%
               </Text>
             </View>
@@ -479,7 +489,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             <Text style={styles.tradingCardValue}>{avgNutrition.protein}g</Text>
             <Text style={styles.tradingCardLabel}>Daily Average</Text>
             <View style={styles.tradingCardChange}>
-              <Text style={[styles.tradingCardChangeText, { color: "#EF4444" }]}>
+              <Text style={[styles.tradingCardChangeText,{ color: "#EF4444" }]}>
                 {(
                   (avgNutrition.protein / (avgNutrition.protein + avgNutrition.carbs + avgNutrition.fats)) *
                   100
@@ -497,9 +507,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             <Text style={styles.tradingCardValue}>{avgNutrition.carbs}g</Text>
             <Text style={styles.tradingCardLabel}>Daily Average</Text>
             <View style={styles.tradingCardChange}>
-              <Text style={[styles.tradingCardChangeText, { color: "#22C55E" }]}>
+              <Text style={[styles.tradingCardChangeText,{ color: "#22C55E" }]}>
                 {((avgNutrition.carbs / (avgNutrition.protein + avgNutrition.carbs + avgNutrition.fats)) * 100).toFixed(
-                  1,
+                  1
                 )}
                 %
               </Text>
@@ -517,7 +527,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
 
         <View style={styles.portfolioGrid}>
           <View style={styles.portfolioItem}>
-            <View style={[styles.portfolioIndicator, { backgroundColor: "#EF4444" }]} />
+            <View style={[styles.portfolioIndicator,{ backgroundColor: "#EF4444" }]} />
             <View style={styles.portfolioInfo}>
               <Text style={styles.portfolioLabel}>Protein</Text>
               <Text style={styles.portfolioValue}>{avgNutrition.protein}g</Text>
@@ -532,13 +542,13 @@ const FoodLogHistoryScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.portfolioItem}>
-            <View style={[styles.portfolioIndicator, { backgroundColor: "#22C55E" }]} />
+            <View style={[styles.portfolioIndicator,{ backgroundColor: "#22C55E" }]} />
             <View style={styles.portfolioInfo}>
               <Text style={styles.portfolioLabel}>Carbs</Text>
               <Text style={styles.portfolioValue}>{avgNutrition.carbs}g</Text>
               <Text style={styles.portfolioPercent}>
                 {((avgNutrition.carbs / (avgNutrition.protein + avgNutrition.carbs + avgNutrition.fats)) * 100).toFixed(
-                  1,
+                  1
                 )}
                 %
               </Text>
@@ -546,13 +556,13 @@ const FoodLogHistoryScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.portfolioItem}>
-            <View style={[styles.portfolioIndicator, { backgroundColor: "#F59E0B" }]} />
+            <View style={[styles.portfolioIndicator,{ backgroundColor: "#F59E0B" }]} />
             <View style={styles.portfolioInfo}>
               <Text style={styles.portfolioLabel}>Fats</Text>
               <Text style={styles.portfolioValue}>{avgNutrition.fats}g</Text>
               <Text style={styles.portfolioPercent}>
                 {((avgNutrition.fats / (avgNutrition.protein + avgNutrition.carbs + avgNutrition.fats)) * 100).toFixed(
-                  1,
+                  1
                 )}
                 %
               </Text>
@@ -576,7 +586,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             <TouchableOpacity
               key={date}
               style={styles.activityItem}
-              onPress={() => handleViewDayDetails(date, dailyStats[date])}
+              onPress={() => handleViewDayDetails(date,dailyStats[date])}
             >
               <View style={styles.activityLeft}>
                 <Text style={styles.activityDate}>{dayjs(date).format("MMM DD")}</Text>
@@ -609,7 +619,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
           ))}
       </View>
     </ScrollView>
-  )
+  );
 
   const renderChartsTab = () => (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.tabContent}>
@@ -635,9 +645,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             width={width - 40}
             height={220}
             chartConfig={{
-              backgroundColor: "#fff", // Changed to white
-              backgroundGradientFrom: "#fff", // Changed to white
-              backgroundGradientTo: "#fff", // Changed to white
+              backgroundColor: "#fff",
+              backgroundGradientFrom: "#fff",
+              backgroundGradientTo: "#fff",
               decimalPlaces: 0,
               color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
               labelColor: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
@@ -675,7 +685,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             <Text style={styles.chartSubtitle}>Daily protein consumption</Text>
           </View>
           <View style={styles.chartStats}>
-            <Text style={[styles.chartStatValue, { color: "#EF4444" }]}>{avgNutrition.protein}g</Text>
+            <Text style={[styles.chartStatValue,{ color: "#EF4444" }]}>{avgNutrition.protein}g</Text>
             <Text style={styles.chartStatLabel}>AVG</Text>
           </View>
         </View>
@@ -686,9 +696,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             width={width - 40}
             height={220}
             chartConfig={{
-              backgroundColor: "#fff", 
-              backgroundGradientFrom: "#fff", 
-              backgroundGradientTo: "#fff", 
+              backgroundColor: "#fff",
+              backgroundGradientFrom: "#fff",
+              backgroundGradientTo: "#fff",
               decimalPlaces: 0,
               color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
               labelColor: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
@@ -726,7 +736,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             <Text style={styles.chartSubtitle}>Daily carbs consumption</Text>
           </View>
           <View style={styles.chartStats}>
-            <Text style={[styles.chartStatValue, { color: "#22C55E" }]}>{avgNutrition.carbs}g</Text>
+            <Text style={[styles.chartStatValue,{ color: "#22C55E" }]}>{avgNutrition.carbs}g</Text>
             <Text style={styles.chartStatLabel}>AVG</Text>
           </View>
         </View>
@@ -737,9 +747,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             width={width - 40}
             height={220}
             chartConfig={{
-              backgroundColor: "#fff", // Changed to white
-              backgroundGradientFrom: "#fff", // Changed to white
-              backgroundGradientTo: "#fff", // Changed to white
+              backgroundColor: "#fff",
+              backgroundGradientFrom: "#fff",
+              backgroundGradientTo: "#fff",
               decimalPlaces: 0,
               color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
               labelColor: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
@@ -779,7 +789,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
         </View>
 
         {pieData.some((item) => item.population > 0) && (
-          <View style={[styles.pieChartWrapper, { backgroundColor: '#fff', borderRadius: 16 }]}> 
+          <View style={[styles.pieChartWrapper,{ backgroundColor: "#fff",borderRadius: 16 }]}>
             <PieChart
               data={pieData}
               width={width - 80}
@@ -788,7 +798,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                 color: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
               }}
               accessor="population"
-              backgroundColor="#fff" 
+              backgroundColor="#fff"
               paddingLeft="15"
               absolute
               hasLegend={false}
@@ -797,9 +807,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
 
             {/* Custom Legend with Values */}
             <View style={styles.customLegendContainer}>
-              {pieData.map((item, index) => (
+              {pieData.map((item,index) => (
                 <View key={index} style={styles.customLegendItem}>
-                  <View style={[styles.customLegendDot, { backgroundColor: item.color }]} />
+                  <View style={[styles.customLegendDot,{ backgroundColor: item.color }]} />
                   <View style={styles.customLegendInfo}>
                     <Text style={styles.customLegendLabel}>{item.name}</Text>
                     <Text style={styles.customLegendValue}>{item.population}g</Text>
@@ -826,18 +836,18 @@ const FoodLogHistoryScreen = ({ navigation }) => {
           </View>
           <View style={styles.performanceIndicators}>
             <View style={styles.performanceItem}>
-              <View style={[styles.performanceDot, { backgroundColor: "#22C55E" }]} />
+              <View style={[styles.performanceDot,{ backgroundColor: "#22C55E" }]} />
               <Text style={styles.performanceText}>Above Avg</Text>
             </View>
             <View style={styles.performanceItem}>
-              <View style={[styles.performanceDot, { backgroundColor: "#EF4444" }]} />
+              <View style={[styles.performanceDot,{ backgroundColor: "#EF4444" }]} />
               <Text style={styles.performanceText}>Below Avg</Text>
             </View>
           </View>
         </View>
 
         {filteredDatesByPeriod.length > 0 && (
-          <View style={[styles.barChartWrapper, { backgroundColor: '#fff', borderRadius: 16 }]}> 
+          <View style={[styles.barChartWrapper,{ backgroundColor: "#fff",borderRadius: 16 }]}>
             <BarChart
               data={{
                 labels: filteredDatesByPeriod.slice(-7).map((date) => dayjs(date).format("MM/DD")),
@@ -849,7 +859,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                         (opacity = 1) =>
                           dailyStats[date].calories > avgCalories
                             ? `rgba(34, 197, 94, ${opacity})`
-                            : `rgba(239, 68, 68, ${opacity})`,
+                            : `rgba(239, 68, 68, ${opacity})`
                     ),
                   },
                 ],
@@ -857,9 +867,9 @@ const FoodLogHistoryScreen = ({ navigation }) => {
               width={width - 80}
               height={260}
               chartConfig={{
-                backgroundColor: "#fff", // Changed to white
-                backgroundGradientFrom: "#fff", // Changed to white
-                backgroundGradientTo: "#fff", // Changed to white
+                backgroundColor: "#fff",
+                backgroundGradientFrom: "#fff",
+                backgroundGradientTo: "#fff",
                 decimalPlaces: 0,
                 color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
                 labelColor: (opacity = 1) => `rgba(55, 65, 81, ${opacity})`,
@@ -891,7 +901,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                     260 -
                     (avgCalories /
                       Math.max(...filteredDatesByPeriod.slice(-7).map((date) => dailyStats[date].calories))) *
-                      200,
+                    200,
                 },
               ]}
             >
@@ -902,7 +912,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
         )}
       </View>
     </ScrollView>
-  )
+  );
 
   const renderHistoryTab = () => (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.tabContent}>
@@ -914,21 +924,21 @@ const FoodLogHistoryScreen = ({ navigation }) => {
         </View>
       ) : (
         Object.keys(grouped)
-          .sort((a, b) => dayjs(b).unix() - dayjs(a).unix())
+          .sort((a,b) => dayjs(b).unix() - dayjs(a).unix())
           .map((date) => {
-            const dayLogs = []
+            const dayLogs = [];
             MEAL_TYPES.forEach((meal) => {
-              grouped[date][meal].forEach((log) => dayLogs.push({ ...log, meal }))
-            })
+              grouped[date][meal].forEach((log) => dayLogs.push({ ...log,meal }));
+            });
 
-            const isExpanded = expandedDays[date] || dayLogs.length <= 3
-            const displayLogs = isExpanded ? dayLogs : dayLogs.slice(0, 3)
+            const isExpanded = expandedDays[date] || dayLogs.length <= 3;
+            const displayLogs = isExpanded ? dayLogs : dayLogs.slice(0,3);
 
             return (
               <View key={date} style={styles.historyDateContainer}>
                 <TouchableOpacity
                   style={styles.historyDateHeader}
-                  onPress={() => handleViewDayDetails(date, dailyStats[date])}
+                  onPress={() => handleViewDayDetails(date,dailyStats[date])}
                 >
                   <View style={styles.dateInfo}>
                     <Text style={styles.historyDate}>{dayjs(date).format("dddd")}</Text>
@@ -942,8 +952,8 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.deleteDayButton}
                     onPress={(e) => {
-                      e.stopPropagation()
-                      handleDeleteDayLog(date)
+                      e.stopPropagation();
+                      handleDeleteDayLog(date);
                     }}
                   >
                     <IconFeather name="trash-2" size={16} color="#EF4444" />
@@ -956,13 +966,20 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                     {Object.keys(grouped[date]).filter((meal) => grouped[date][meal].length > 0).length} meals
                   </Text>
 
-                  {displayLogs.map((log, idx) => (
+                  {displayLogs.map((log,idx) => (
                     <View key={idx} style={styles.simpleFoodItem}>
-                      <View style={[styles.mealIndicator, { backgroundColor: getMealColor(log.meal) }]} />
+                      <View style={[styles.mealIndicator,{ backgroundColor: getMealColor(log.meal) }]} />
                       <View style={styles.simpleFoodInfo}>
-                        <Text style={styles.simpleFoodName}>{log.foodName}</Text>
+                        <View style={styles.foodNameContainer}>
+                          <Text style={styles.simpleFoodName}>{log.foodName}</Text>
+                          {log.count > 1 && (
+                            <View style={styles.countTag}>
+                              <Text style={styles.countTagText}>+{log.count}</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={styles.simpleFoodDetails}>
-                          {log.meal} • {Math.round(log.calories || 0)} kcal
+                          {log.meal} • {Math.round(log.calories || 0)} kcal • Quantity: {log.quantity.toFixed(1)}
                         </Text>
                       </View>
                     </View>
@@ -978,11 +995,11 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 )}
               </View>
-            )
+            );
           })
       )}
     </ScrollView>
-  )
+  );
 
   const renderFiltersModal = () => (
     <Modal visible={showFilters} animationType="slide" transparent={true} onRequestClose={() => setShowFilters(false)}>
@@ -1009,7 +1026,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                 style={styles.filterInput}
                 placeholder="Enter food name..."
                 value={filters.searchTerm}
-                onChangeText={(text) => setFilters((prev) => ({ ...prev, searchTerm: text }))}
+                onChangeText={(text) => setFilters((prev) => ({ ...prev,searchTerm: text }))}
                 placeholderTextColor="#9CA3AF"
               />
             </View>
@@ -1025,7 +1042,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                   style={styles.filterInput}
                   placeholder="YYYY-MM-DD"
                   value={filters.startDate}
-                  onChangeText={(text) => setFilters((prev) => ({ ...prev, startDate: text }))}
+                  onChangeText={(text) => setFilters((prev) => ({ ...prev,startDate: text }))}
                   placeholderTextColor="#9CA3AF"
                 />
               </View>
@@ -1038,7 +1055,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                   style={styles.filterInput}
                   placeholder="YYYY-MM-DD"
                   value={filters.endDate}
-                  onChangeText={(text) => setFilters((prev) => ({ ...prev, endDate: text }))}
+                  onChangeText={(text) => setFilters((prev) => ({ ...prev,endDate: text }))}
                   placeholderTextColor="#9CA3AF"
                 />
               </View>
@@ -1051,14 +1068,14 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                 <Text style={styles.filterLabel}>Meal Type</Text>
               </View>
               <View style={styles.mealTypeButtons}>
-                {["", ...MEAL_TYPES].map((mealType) => (
+                {["",...MEAL_TYPES].map((mealType) => (
                   <TouchableOpacity
                     key={mealType}
-                    style={[styles.mealTypeButton, filters.mealType === mealType && styles.activeMealType]}
-                    onPress={() => setFilters((prev) => ({ ...prev, mealType }))}
+                    style={[styles.mealTypeButton,filters.mealType === mealType && styles.activeMealType]}
+                    onPress={() => setFilters((prev) => ({ ...prev,mealType }))}
                   >
                     <Text
-                      style={[styles.mealTypeButtonText, filters.mealType === mealType && styles.activeMealTypeText]}
+                      style={[styles.mealTypeButtonText,filters.mealType === mealType && styles.activeMealTypeText]}
                     >
                       {mealType || "All"}
                     </Text>
@@ -1078,7 +1095,7 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                   style={styles.filterInput}
                   placeholder="0"
                   value={filters.minCalories}
-                  onChangeText={(text) => setFilters((prev) => ({ ...prev, minCalories: text }))}
+                  onChangeText={(text) => setFilters((prev) => ({ ...prev,minCalories: text }))}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -1092,61 +1109,10 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                   style={styles.filterInput}
                   placeholder="1000"
                   value={filters.maxCalories}
-                  onChangeText={(text) => setFilters((prev) => ({ ...prev, maxCalories: text }))}
+                  onChangeText={(text) => setFilters((prev) => ({ ...prev,maxCalories: text }))}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
-              </View>
-            </View>
-
-            {/* Sort Options */}
-            <View style={styles.filterRow}>
-              <View style={styles.filterHalf}>
-                <View style={styles.filterLabelContainer}>
-                  <Icon name="sort" size={16} color="#374151" />
-                  <Text style={styles.filterLabel}>Sort By</Text>
-                </View>
-                <View style={styles.sortButtons}>
-                  {[
-                    { key: "date", label: "Date" },
-                    { key: "calories", label: "Calories" },
-                    { key: "protein", label: "Protein" },
-                  ].map((sort) => (
-                    <TouchableOpacity
-                      key={sort.key}
-                      style={[styles.sortButton, filters.sortBy === sort.key && styles.activeSortButton]}
-                      onPress={() => setFilters((prev) => ({ ...prev, sortBy: sort.key }))}
-                    >
-                      <Text style={[styles.sortButtonText, filters.sortBy === sort.key && styles.activeSortButtonText]}>
-                        {sort.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              <View style={styles.filterHalf}>
-                <View style={styles.filterLabelContainer}>
-                  <Icon name="swap-vert" size={16} color="#374151" />
-                  <Text style={styles.filterLabel}>Order</Text>
-                </View>
-                <View style={styles.sortButtons}>
-                  {[
-                    { key: "desc", label: "Desc" },
-                    { key: "asc", label: "Asc" },
-                  ].map((order) => (
-                    <TouchableOpacity
-                      key={order.key}
-                      style={[styles.sortButton, filters.sortOrder === order.key && styles.activeSortButton]}
-                      onPress={() => setFilters((prev) => ({ ...prev, sortOrder: order.key }))}
-                    >
-                      <Text
-                        style={[styles.sortButtonText, filters.sortOrder === order.key && styles.activeSortButtonText]}
-                      >
-                        {order.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
               </View>
             </View>
           </ScrollView>
@@ -1164,8 +1130,6 @@ const FoodLogHistoryScreen = ({ navigation }) => {
                   mealType: "",
                   minCalories: "",
                   maxCalories: "",
-                  sortBy: "date",
-                  sortOrder: "desc",
                 })
               }
             >
@@ -1175,77 +1139,79 @@ const FoodLogHistoryScreen = ({ navigation }) => {
             <TouchableOpacity
               style={styles.modalApplyButton}
               onPress={() => {
-                fetchLogs()
-                setShowFilters(false)
+                fetchLogs();
+                setShowFilters(false);
               }}
             >
-              <Icon name="check" size={16} color="#FFFFFF" />
-              <Text style={styles.modalApplyText}>Apply Filters</Text>
+              <LinearGradient
+                colors={["#4A90E2","#0056D2","#4A90E2"]}
+                style={styles.modalApplyGradient}
+              >
+                <Icon name="check" size={16} color="#FFFFFF" />
+                <Text style={styles.modalApplyText}>Apply Filters</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
       </View>
     </Modal>
-  )
+  );
 
   const handleExportCSV = () => {
-    navigation.navigate('ExportHistory', { logs: filteredLogs })
-  }
+    navigation.navigate("ExportHistory",{ logs: filteredLogs });
+  };
 
   if (loading) {
-    return (
-      <Loading backgroundColor="rgba(255,255,255,0.8)" logoSize={120} text={"Loading your nutrition data...\nPlease wait a moment"} />
-    )
+    return <CommonSkeleton />;
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      {/* Header dùng chuẩn component Header */}
       <Header
         title="Nutrition Analytics"
         onBack={() => navigation?.goBack()}
-        rightActions={[{ icon: "options-outline", onPress: () => setShowFilters(true), color: "#111827" }]}
+        rightActions={[{ icon: "options-outline",onPress: () => setShowFilters(true),color: "#111827" }]}
         subtitle="Track your nutrition journey"
       />
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        {renderTabButton("overview", "Overview", "analytics")}
-        {renderTabButton("charts", "Charts", "show-chart")}
-        {renderTabButton("history", "History", "history")}
+        {renderTabButton("overview","Overview","analytics")}
+        {renderTabButton("charts","Charts","show-chart")}
+        {renderTabButton("history","History","history")}
       </View>
-  {/* Custom navigation buttons for new screens & export */}
-  <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 12 }}>
-    <TouchableOpacity
-      style={{ backgroundColor: '#0056d2', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 }}
-      onPress={() => navigation.navigate('TopFoodsByMeal', { logs: filteredLogs })}
-    >
-      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Top Foods By Meal</Text>
-    </TouchableOpacity>
-    <TouchableOpacity
-      style={{ backgroundColor: '#0056d2', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 }}
-      onPress={() => navigation.navigate('Trends', { logs: filteredLogs })}
-    >
-      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Trends</Text>
-    </TouchableOpacity>
-    <TouchableOpacity
-      style={{ backgroundColor: '#0056d2', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 }}
-      onPress={handleExportCSV}
-    >
-      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Export CSV</Text>
-    </TouchableOpacity>
-  </View>
+      {/* Custom navigation buttons for new screens & export */}
+      <View style={{ flexDirection: "row",justifyContent: "space-around",marginVertical: 12 }}>
+        <TouchableOpacity
+          style={{ backgroundColor: "#0056d2",paddingVertical: 8,paddingHorizontal: 16,borderRadius: 8 }}
+          onPress={() => navigation.navigate("TopFoodsByMeal",{ logs: filteredLogs })}
+        >
+          <Text style={{ color: "#fff",fontWeight: "bold" }}>Top Foods By Meal</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ backgroundColor: "#0056d2",paddingVertical: 8,paddingHorizontal: 16,borderRadius: 8 }}
+          onPress={() => navigation.navigate("Trends",{ logs: filteredLogs })}
+        >
+          <Text style={{ color: "#fff",fontWeight: "bold" }}>Trends</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ backgroundColor: "#0056d2",paddingVertical: 8,paddingHorizontal: 16,borderRadius: 8 }}
+          onPress={handleExportCSV}
+        >
+          <Text style={{ color: "#fff",fontWeight: "bold" }}>Export CSV</Text>
+        </TouchableOpacity>
+      </View>
       {/* Content */}
       <View style={styles.content}>
         {activeTab === "overview" && renderOverviewTab()}
         {activeTab === "charts" && renderChartsTab()}
         {activeTab === "history" && renderHistoryTab()}
       </View>
-      {/* Modal filter luôn nằm trên, không ảnh hưởng tab hay header */}
+      {/* Modal filter */}
       {renderFiltersModal()}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -1302,7 +1268,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
-    marginTop:30,
+    marginTop: 70,
   },
   tabButton: {
     flex: 1,
@@ -1354,7 +1320,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
   },
-
   // Trading Style Components
   tradingHeader: {
     marginBottom: 20,
@@ -1364,7 +1329,7 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -1398,7 +1363,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 4,
   },
-
   tradingCardsContainer: {
     marginBottom: 20,
   },
@@ -1413,7 +1377,7 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -1448,14 +1412,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-
   marketOverview: {
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -1507,14 +1470,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B7280",
   },
-
   recentActivityContainer: {
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -1587,7 +1549,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 4,
   },
-
   // Time Period Selector
   timePeriodContainer: {
     flexDirection: "row",
@@ -1596,7 +1557,7 @@ const styles = StyleSheet.create({
     padding: 4,
     marginBottom: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0,height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
@@ -1607,18 +1568,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 8,
   },
-  activeTimePeriod: {
-    backgroundColor: "#111827",
-  },
   timePeriodText: {
     fontSize: 14,
     color: "#6B7280",
     fontWeight: "600",
   },
-  activeTimePeriodText: {
-    color: "#FFFFFF",
-  },
-
   // Chart Styles
   chartContainer: {
     borderRadius: 16,
@@ -1626,7 +1580,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -1667,7 +1621,6 @@ const styles = StyleSheet.create({
   chart: {
     borderRadius: 16,
   },
-
   // Modern Chart Styles
   modernChartContainer: {
     borderRadius: 20,
@@ -1675,29 +1628,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0,height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
-  },
-  chartLegendContainer: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
   },
   pieChartWrapper: {
     alignItems: "center",
@@ -1789,7 +1723,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 4,
   },
-
   // History Styles
   historyDateContainer: {
     borderRadius: 16,
@@ -1797,7 +1730,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -1877,11 +1810,27 @@ const styles = StyleSheet.create({
   simpleFoodInfo: {
     flex: 1,
   },
+  foodNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
   simpleFoodName: {
     fontSize: 14,
     fontWeight: "500",
     color: "#111827",
-    marginBottom: 2,
+  },
+  countTag: {
+    backgroundColor: "#E0E7FF",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  countTagText: {
+    fontSize: 10,
+    color: "#2563EB",
+    fontWeight: "600",
   },
   simpleFoodDetails: {
     fontSize: 11,
@@ -1912,7 +1861,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0,height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -1930,7 +1879,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
-
   // Modal Styles
   modalOverlay: {
     flex: 1,
@@ -1943,7 +1891,7 @@ const styles = StyleSheet.create({
     maxHeight: "90%",
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0,height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
@@ -2033,33 +1981,7 @@ const styles = StyleSheet.create({
   },
   activeMealTypeText: {
     color: "#111827",
-    fontWeight: 'bold',
-  },
-  sortButtons: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  sortButton: {
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-  },
-  activeSortButton: {
-    backgroundColor: "#4F46E5",
-    borderColor: "#4F46E5",
-  },
-  sortButtonText: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  activeSortButtonText: {
-    color: "#FFFFFF",
+    fontWeight: "bold",
   },
   modalButtons: {
     flexDirection: "row",
@@ -2087,12 +2009,14 @@ const styles = StyleSheet.create({
   },
   modalApplyButton: {
     flex: 2,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  modalApplyGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
-    borderRadius: 12,
-    backgroundColor: "#111827",
     gap: 6,
   },
   modalApplyText: {
@@ -2100,6 +2024,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
-})
+});
 
-export default FoodLogHistoryScreen
+export default FoodLogHistoryScreen;

@@ -1,4 +1,4 @@
-import React,{ useState } from 'react';
+import React,{ useContext,useState } from 'react';
 import {
   View,
   Text,
@@ -11,21 +11,22 @@ import {
   Dimensions,
 } from 'react-native';
 import Loading from 'components/Loading';
-import { showErrorFetchAPI, showSuccessMessage } from 'utils/toastUtil';
+import { showErrorFetchAPI,showSuccessMessage } from 'utils/toastUtil';
 import { Ionicons } from '@expo/vector-icons';
 import { bodyMeasurementService } from 'services/apiBodyMeasurementService';
-import { useAuth } from 'context/AuthContext';
+import { AuthContext,useAuth } from 'context/AuthContext';
 import { theme } from 'theme/color';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
 import Header from 'components/Header';
 import FloatingMenuButton from 'components/FloatingMenuButton';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { handleDailyCheckin } from 'utils/checkin';
 
 const { width,height } = Dimensions.get("window")
 
 export default function AddBodyMeasurementScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user } = useContext(AuthContext);
   const [formData,setFormData] = useState({
     weight: '',
     height: '',
@@ -51,7 +52,7 @@ export default function AddBodyMeasurementScreen({ navigation }) {
         navigation.replace('Login');
         return;
       }
-      const userId = parseInt(user.userId, 10);
+      const userId = parseInt(user.userId,10);
       if (isNaN(userId) || userId <= 0) {
         showErrorFetchAPI('UserId must be a positive integer.');
         return;
@@ -164,6 +165,14 @@ export default function AddBodyMeasurementScreen({ navigation }) {
 
       if (response.statusCode === 201) {
         showSuccessMessage('Body measurement added successfully.');
+        showSuccessMessage('Weight recorded successfully.');
+        try {
+          if (user?.userId) {
+            await handleDailyCheckin(user?.userId,"body_measurement_log");
+          }
+        } catch (e) {
+          console.log(e);
+        }
         navigation.goBack();
       } else {
         showErrorFetchAPI(response.message || 'Failed to add body measurement.');
@@ -285,7 +294,7 @@ export default function AddBodyMeasurementScreen({ navigation }) {
 
           <TouchableOpacity
             onPress={handleSubmit}
-            style={[styles.submitButton, { backgroundColor: '#0056d2' }]}
+            style={[styles.submitButton,{ backgroundColor: '#0056d2' }]}
             disabled={isSubmitting}
           >
             <Ionicons name="save-outline" size={20} color="#FFFFFF" style={styles.submitIcon} />
@@ -312,7 +321,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    marginTop: 90,
+    marginTop: 80,
   },
   header: {
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,

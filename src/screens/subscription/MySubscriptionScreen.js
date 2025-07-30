@@ -13,7 +13,8 @@ import {
     Dimensions
 
 } from "react-native"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil";
+import { showErrorFetchAPI,showSuccessMessage } from "utils/toastUtil";
+import { Alert } from "react-native";
 import Loading from "components/Loading";
 import { LinearGradient } from "expo-linear-gradient"
 import Header from "components/Header"
@@ -25,6 +26,7 @@ import DynamicStatusBar from "screens/statusBar/DynamicStatusBar";
 import { theme } from "theme/color"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import SkeletonCard from "components/SkeletonCard/SkeletonCard";
 
 const { width } = Dimensions.get("window")
 
@@ -133,7 +135,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                 setHasMore(false)
             }
         } catch (error) {
-            showErrorFetchAPI(error.message || "An error occurred while loading subscriptions.");
+            showErrorFetchAPI(error);
             setSubscriptions([])
             setTotalPages(1)
             setTotalCount(0)
@@ -209,6 +211,10 @@ const MySubscriptionScreen = ({ navigation }) => {
         }
     }
 
+    const handleSubscriptionPress = (item) => {
+        navigation.navigate("SubscriptionDetail",{ subscription: item });
+    };
+
     const renderSubscription = ({ item,index }) => {
         const statusInfo = getStatusInfo(item.status)
         const isExpired = new Date(item.endDate) < new Date()
@@ -225,7 +231,7 @@ const MySubscriptionScreen = ({ navigation }) => {
             >
                 <TouchableOpacity
                     activeOpacity={0.95}
-                    onPress={() => navigation.navigate("SubscriptionDetail",{ subscription: item })}
+                    onPress={() => handleSubscriptionPress(item)}
                 >
                     <LinearGradient colors={["#FFFFFF","#FAFBFF"]} style={styles.cardGradient}>
                         {/* Card Header */}
@@ -580,7 +586,7 @@ const MySubscriptionScreen = ({ navigation }) => {
                     if (searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) {
                         resetTempFilters()
                     } else {
-                        navigation.navigate("ServicePackages")
+                        navigation.navigate("ServicePackage")
                     }
                 }}
             >
@@ -605,16 +611,16 @@ const MySubscriptionScreen = ({ navigation }) => {
             <DynamicStatusBar backgroundColor="#0056d2" />
             <Header
                 title="My Subscriptions"
-                onBack={() => navigation.goBack()}
+                onBack={() => navigation.navigate("Settings")}
                 subtitle={
                     totalCount > 0
                         ? `${totalCount} subscription${totalCount > 1 ? "s" : ""}`
                         : "Manage your packages"
                 }
-                style={{ backgroundColor: '#0056d2', paddingTop: Platform.OS === "android" ? 40 : 20, paddingBottom: 10 }}
+                style={{ backgroundColor: '#0056d2',paddingTop: Platform.OS === "android" ? 40 : 20,paddingBottom: 10 }}
             />
             {/* Filter button below header for visibility */}
-            <View style={{ alignItems: 'flex-end', paddingHorizontal: 16, marginTop: 8 }}>
+            <View style={{ alignItems: 'flex-end',paddingHorizontal: 16,marginTop: 16 }}>
                 <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
                     <Ionicons name="options" size={24} color="#FFFFFF" />
                     {(searchTerm || filters.status !== "active" || filters.startDate || filters.endDate) && (
@@ -662,7 +668,11 @@ const MySubscriptionScreen = ({ navigation }) => {
 
             {/* Content */}
             {loading && pageNumber === 1 ? (
-                <Loading />
+                <View style={styles.listContent}>
+                    {[...Array(3)].map((_,index) => (
+                        <SkeletonCard key={index} />
+                    ))}
+                </View>
             ) : (
                 <FlatList
                     data={subscriptions}

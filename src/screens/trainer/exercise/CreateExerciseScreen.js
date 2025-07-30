@@ -29,15 +29,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { RichEditor,RichToolbar,actions } from 'react-native-pell-rich-editor';
+import { WebView } from 'react-native-webview';
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from 'utils/toastUtil';
 import { Video } from 'expo-av';
 import YoutubePlayer from 'react-native-youtube-iframe';
-import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from 'utils/toastUtil';
+import Header from 'components/Header';
 
 const { width,height } = Dimensions.get('window');
 const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/bmp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4','video/quicktime','video/x-msvideo','video/x-matroska','video/webm'];
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 const GENDER_OPTIONS = ['Male','Female','Other'];
 const DEFAULT_VIDEO_BACKGROUND = 'https://via.placeholder.com/600x400.png?text=Video+Placeholder';
 const DEFAULT_IMAGE_BACKGROUND = 'https://via.placeholder.com/600x400.png?text=Image+Placeholder';
@@ -82,7 +83,7 @@ const CreateExerciseScreen = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
-  const richText = useRef();
+  const webViewRef = useRef();
   const scrollViewRef = useRef();
   const containerRef = useRef();
 
@@ -97,6 +98,76 @@ const CreateExerciseScreen = () => {
       },
     })
   ).current;
+
+  const ckEditorHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <script src="https://cdn.ckeditor.com/ckeditor5/39.0.0/classic/ckeditor.js"></script>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: #FFFFFF;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        }
+        #editor-container {
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .ck-editor__top {
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          background: #F9FAFB;
+          border-bottom: 1px solid #E5E7EB;
+        }
+        .ck-editor__editable {
+          min-height: 140px;
+          padding: 16px;
+          background: #FFFFFF;
+        }
+        .ck-content {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+          font-size: 16px;
+          color: #000000;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="editor-container">
+        <div id="editor"></div>
+      </div>
+      <script>
+        ClassicEditor
+          .create( document.querySelector( '#editor' ), {
+            toolbar: {
+              items: [
+                'undo', 'redo',
+                '|',
+                'bold', 'italic', 'underline',
+                '|',
+                'bulletedList', 'numberedList',
+                '|',
+                'sourceEditing'
+              ]
+            },
+            language: 'en',
+            initialData: ''
+          } )
+          .then( editor => {
+            editor.model.document.on( 'change:data', () => {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content', data: editor.getData() }));
+            } );
+          } )
+          .catch( error => {
+            console.error( error );
+          } );
+      </script>
+    </body>
+    </html>
+  `;
 
   useEffect(() => {
     if (authLoading) return;
@@ -170,7 +241,7 @@ const CreateExerciseScreen = () => {
     } else if (exerciseData.exerciseName.length < 3 || exerciseData.exerciseName.length > 255) {
       errors.exerciseName = 'Exercise name must be between 3 and 255 characters.';
     }
-    if (exerciseData.description && exerciseData.description.length > 500) {
+    if (exerciseData.description && exerciseData.description.replace(/<[^>]*>/g,'').length > 500) {
       errors.description = 'Description cannot exceed 500 characters.';
     }
     if (!exerciseData.categoryId) {
@@ -179,7 +250,10 @@ const CreateExerciseScreen = () => {
     if (exerciseData.genderSpecific && !GENDER_OPTIONS.includes(exerciseData.genderSpecific)) {
       errors.genderSpecific = 'Gender must be Male, Female, or Other.';
     }
-    if (exerciseData.caloriesBurnedPerMin && (isNaN(parseFloat(exerciseData.caloriesBurnedPerMin)) || parseFloat(exerciseData.caloriesBurnedPerMin) < 0)) {
+    if (
+      exerciseData.caloriesBurnedPerMin &&
+      (isNaN(parseFloat(exerciseData.caloriesBurnedPerMin)) || parseFloat(exerciseData.caloriesBurnedPerMin) < 0)
+    ) {
       errors.caloriesBurnedPerMin = 'Calories burned per minute must be a non-negative number.';
     }
     if (exerciseData.mediaUrl && exerciseData.mediaUrl.length > 1000) {
@@ -287,16 +361,20 @@ const CreateExerciseScreen = () => {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0];
-        if (selectedAsset.base64) {
-          const base64Image = `data:image/jpeg;base64,${selectedAsset.base64}`;
-          setThumbnail(base64Image);
-          setCloudImageUrl('');
-          handleInputChange('imageUrl',base64Image);
+        if (ALLOWED_TYPES.includes(selectedAsset.type)) {
+          if (selectedAsset.base64) {
+            const base64Image = `data:image/jpeg;base64,${selectedAsset.base64}`;
+            setThumbnail(base64Image);
+            setCloudImageUrl('');
+            handleInputChange('imageUrl',base64Image);
+          } else {
+            setThumbnail(selectedAsset.uri);
+            setCloudImageUrl('');
+            handleInputChange('imageUrl',selectedAsset.uri);
+            showErrorMessage('Base64 not available. Using local URI, which may not persist.');
+          }
         } else {
-          setThumbnail(selectedAsset.uri);
-          setCloudImageUrl('');
-          handleInputChange('imageUrl',selectedAsset.uri);
-          showErrorFetchAPI(new Error('Base64 not available. Using local URI, which may not persist.'));
+          showErrorMessage(`Invalid image type. Allowed: ${ALLOWED_TYPES.join(', ')}`);
         }
       }
     } catch (error) {
@@ -330,16 +408,20 @@ const CreateExerciseScreen = () => {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0];
-        if (selectedAsset.base64) {
-          const base64Image = `data:image/jpeg;base64,${selectedAsset.base64}`;
-          setThumbnail(base64Image);
-          setCloudImageUrl('');
-          handleInputChange('imageUrl',base64Image);
+        if (ALLOWED_TYPES.includes(selectedAsset.type)) {
+          if (selectedAsset.base64) {
+            const base64Image = `data:image/jpeg;base64,${selectedAsset.base64}`;
+            setThumbnail(base64Image);
+            setCloudImageUrl('');
+            handleInputChange('imageUrl',base64Image);
+          } else {
+            setThumbnail(selectedAsset.uri);
+            setCloudImageUrl('');
+            handleInputChange('imageUrl',selectedAsset.uri);
+            showErrorMessage('Base64 not available. Using local URI, which may not persist.');
+          }
         } else {
-          setThumbnail(selectedAsset.uri);
-          setCloudImageUrl('');
-          handleInputChange('imageUrl',selectedAsset.uri);
-          showErrorFetchAPI(new Error('Base64 not available. Using local URI, which may not persist.'));
+          showErrorMessage(`Invalid image type. Allowed: ${ALLOWED_TYPES.join(', ')}`);
         }
       }
     } catch (error) {
@@ -404,11 +486,16 @@ const CreateExerciseScreen = () => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0];
         if (ALLOWED_VIDEO_TYPES.includes(selectedAsset.type)) {
+          if (selectedAsset.fileSize && selectedAsset.fileSize > MAX_VIDEO_SIZE) {
+            showErrorMessage(`Video size exceeds ${MAX_VIDEO_SIZE / (1024 * 1024)}MB limit.`);
+            setMediaUploading(false);
+            return;
+          }
           setVideoThumbnail(selectedAsset.uri);
           setCloudVideoUrl('');
           handleInputChange('mediaUrl',selectedAsset.uri);
         } else {
-          showErrorFetchAPI(new Error(`Invalid video type. Allowed: ${ALLOWED_VIDEO_TYPES.join(', ')}`));
+          showErrorMessage(`Invalid video type. Allowed: ${ALLOWED_VIDEO_TYPES.join(', ')}`);
         }
       }
     } catch (error) {
@@ -490,7 +577,7 @@ const CreateExerciseScreen = () => {
 
   const handleCreate = async () => {
     if (!validateForm()) {
-      showErrorFetchAPI(new Error('Please fix the errors before creating the exercise.'));
+      showErrorMessage('Please fix the errors before creating the exercise.');
       return;
     }
 
@@ -506,7 +593,7 @@ const CreateExerciseScreen = () => {
           finalImageUrl = uploadResult.imageUrl;
           setCloudImageUrl(uploadResult.imageUrl);
         } else {
-          showErrorFetchAPI(new Error('Image upload failed. Please try selecting the image again.'));
+          showErrorMessage('Image upload failed. Please try selecting the image again.');
           setCreating(false);
           return;
         }
@@ -519,7 +606,7 @@ const CreateExerciseScreen = () => {
           finalVideoUrl = uploadResult.videoUrl;
           setCloudVideoUrl(uploadResult.videoUrl);
         } else {
-          showErrorFetchAPI(new Error('Video upload failed. Please try selecting the video again.'));
+          showErrorMessage('Video upload failed. Please try selecting the video again.');
           setCreating(false);
           return;
         }
@@ -539,6 +626,8 @@ const CreateExerciseScreen = () => {
 
       if (payload.imageUrl && payload.imageUrl.length > 1000) {
         showErrorMessage('Image URL cannot exceed 1000 characters.');
+        setCreating(false);
+        return;
       }
 
       const response = await trainerService.createFitnessExercise(payload);
@@ -728,7 +817,7 @@ const CreateExerciseScreen = () => {
           </View>
           {maxLength && (
             <Text style={styles.fieldCounter}>
-              {value.replace(/<[^>]*>/g,'').length}/{maxLength}
+              {value.length}/{maxLength}
             </Text>
           )}
         </View>
@@ -772,41 +861,34 @@ const CreateExerciseScreen = () => {
           <Ionicons name="document-text-outline" size={16} color="#0056D2" style={styles.fieldIcon} />
           <Text style={styles.fieldLabel}>Description</Text>
         </View>
-        <Text style={styles.fieldCounter}>{exerciseData.description.replace(/<[^>]*>/g,'').length}/500</Text>
+        <Text style={styles.fieldCounter}>
+          {exerciseData.description.replace(/<[^>]*>/g,'').length}/500
+        </Text>
       </View>
       <View style={[styles.richEditorContainer,errors.description && styles.inputError]}>
-        <RichToolbar
-          editor={richText}
-          actions={[
-            actions.setBold,
-            actions.setItalic,
-            actions.setUnderline,
-            actions.insertBulletsList,
-            actions.insertOrderedList,
-            actions.undo,
-            actions.redo,
-          ]}
-          iconTint="#374151"
-          selectedIconTint="#0056D2"
-          style={styles.richToolbar}
-          iconSize={18}
-        />
-        <RichEditor
-          ref={richText}
-          onChange={(text) => handleInputChange('description',text)}
-          onFocus={() => handleInputFocus('description')}
-          onBlur={() => handleInputBlur('description')}
-          placeholder="Describe the exercise..."
+        <WebView
+          ref={webViewRef}
+          originWhitelist={['*']}
+          source={{ html: ckEditorHtml }}
           style={styles.richEditor}
-          initialContentHTML={exerciseData.description}
-          editorStyle={{
-            backgroundColor: '#FFFFFF',
-            color: '#1E293B',
-            fontSize: 16,
-            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-            lineHeight: 24,
-            padding: 16,
+          onMessage={(event) => {
+            const message = JSON.parse(event.nativeEvent.data);
+            if (message.type === 'content') {
+              handleInputChange('description',message.data);
+              if (touched.description) {
+                setErrors((prev) => ({ ...prev,description: null }));
+              }
+            }
           }}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          startInLoadingState={true}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          scrollEnabled={false}
+          scalesPageToFit={false}
+          automaticallyAdjustContentInsets={false}
+          contentInset={{ top: 0,left: 0,bottom: 0,right: 0 }}
         />
       </View>
       {errors.description && (
@@ -873,15 +955,13 @@ const CreateExerciseScreen = () => {
         <Text style={styles.input}>{exerciseData.genderSpecific || 'Select Gender'}</Text>
         <Ionicons name="chevron-down" size={20} color="#6B7280" style={styles.dropdownIcon} />
       </TouchableOpacity>
-      {
-        errors.genderSpecific && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={14} color="#EF4444" />
-            <Text style={styles.errorText}>{errors.genderSpecific}</Text>
-          </View>
-        )
-      }
-    </Animated.View >
+      {errors.genderSpecific && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={14} color="#EF4444" />
+          <Text style={styles.errorText}>{errors.genderSpecific}</Text>
+        </View>
+      )}
+    </Animated.View>
   );
 
   const renderPrivacySelector = () => (
@@ -1174,18 +1254,13 @@ const CreateExerciseScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#0056D2" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Create Exercise</Text>
-            <Text style={styles.headerSubtitle}>Add a new fitness exercise</Text>
-          </View>
-          <View style={styles.headerRight} />
-        </View>
-      </View>
+      <Header
+        title="Create Exercise"
+        subtitle="Add a new fitness exercise"
+        onBack={() => navigation.goBack()}
+        backIconColor="#0056D2"
+      />
+
       <View style={styles.mainContainer} ref={containerRef} {...panResponder.panHandlers}>
         <KeyboardAvoidingView
           style={styles.keyboardContainer}
@@ -1337,6 +1412,7 @@ const styles = StyleSheet.create({
   },
   mainContainer: {
     flex: 1,
+    marginTop: 60
   },
   keyboardContainer: {
     flex: 1,
@@ -1563,15 +1639,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  richToolbar: {
-    backgroundColor: '#F9FAFB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
   richEditor: {
-    minHeight: 140,
+    height: 180,
     backgroundColor: '#FFFFFF',
   },
   errorContainer: {

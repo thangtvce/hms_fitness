@@ -22,6 +22,7 @@ import { trainerService } from 'services/apiTrainerService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { showErrorFetchAPI } from 'utils/toastUtil';
 import DynamicStatusBar from 'screens/statusBar/DynamicStatusBar';
+import CommonSkeleton from 'components/CommonSkeleton/CommonSkeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -539,10 +540,7 @@ const TrainerUserManagementScreen = () => {
                 </View>
             </Animated.View>
             {loading && pageNumber === 1 ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#0056D2" />
-                    <Text style={styles.loadingText}>Loading users...</Text>
-                </View>
+                <CommonSkeleton />
             ) : (
                 <FlatList
                     data={displayedUsers}

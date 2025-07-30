@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React,{ useEffect,useState } from "react"
 import {
   View,
   Text,
@@ -10,43 +10,43 @@ import {
   TextInput,
   Modal,
   Dimensions,
-  ImageBackground,
-  StatusBar,
+  ImageBackground
 } from "react-native"
 import Loading from "components/Loading"
-import { showErrorFetchAPI, showSuccessMessage } from "utils/toastUtil"
+import { showErrorFetchAPI,showErrorMessage,showSuccessMessage } from "utils/toastUtil"
 import { Ionicons } from "@expo/vector-icons"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { useNavigation, useFocusEffect } from "@react-navigation/native"
+import { useNavigation,useFocusEffect } from "@react-navigation/native"
 import { workoutService } from "services/apiWorkoutService"
 import { useAuth } from "context/AuthContext"
+import CommonSkeleton from "components/CommonSkeleton/CommonSkeleton"
+import { StatusBar } from "expo-status-bar"
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
-const FALLBACK_IMAGE = "https://source.unsplash.com/400x250/?fitness,workout"
+const { width: screenWidth,height: screenHeight } = Dimensions.get("window")
+const FALLBACK_IMAGE = require("../../../assets/images/workout-hero.jpeg")
 const ITEMS_PER_PAGE = 8
 
-const ExerciseImage = ({ uri, name, style }) => {
-  const [error, setError] = useState(false)
-  const fallbackUrl = FALLBACK_IMAGE + (name ? `,${encodeURIComponent(name)}` : "")
+const ExerciseImage = ({ uri,style }) => {
+  const [error,setError] = useState(false)
   return (
     <Image
-      source={{ uri: !error && uri ? uri : fallbackUrl }}
-      style={[styles.exerciseImage, style]}
+      source={(!error && uri) ? { uri } : FALLBACK_IMAGE}
+      style={[styles.exerciseImage,style]}
       onError={() => setError(true)}
       resizeMode="cover"
     />
   )
 }
 
-const FilterChip = ({ label, isActive, onPress, icon }) => (
-  <TouchableOpacity style={[styles.filterChip, isActive && styles.filterChipActive]} onPress={onPress}>
+const FilterChip = ({ label,isActive,onPress,icon }) => (
+  <TouchableOpacity style={[styles.filterChip,isActive && styles.filterChipActive]} onPress={onPress}>
     {icon && <Ionicons name={icon} size={16} color={isActive ? "#fff" : "#64748B"} />}
-    <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>{label}</Text>
+    <Text style={[styles.filterChipText,isActive && styles.filterChipTextActive]}>{label}</Text>
   </TouchableOpacity>
 )
 
-const ExerciseDetailModal = ({ visible, exercise, onClose, onRemove }) => {
+const ExerciseDetailModal = ({ visible,exercise,onClose,onRemove }) => {
   if (!exercise) return null
 
   return (
@@ -128,28 +128,28 @@ export default function WorkoutPlanExerciseSessionScreen() {
   const navigation = useNavigation()
   const { user } = useAuth()
 
-  const [exercises, setExercises] = useState([])
-  const [filteredExercises, setFilteredExercises] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [totalCalories, setTotalCalories] = useState(0)
-  const [totalDuration, setTotalDuration] = useState(0)
+  const [exercises,setExercises] = useState([])
+  const [filteredExercises,setFilteredExercises] = useState([])
+  const [loading,setLoading] = useState(true)
+  const [totalCalories,setTotalCalories] = useState(0)
+  const [totalDuration,setTotalDuration] = useState(0)
 
   // Pagination states
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [currentPage,setCurrentPage] = useState(1)
+  const [totalPages,setTotalPages] = useState(1)
 
   // Modal state
-  const [selectedExercise, setSelectedExercise] = useState(null)
-  const [modalVisible, setModalVisible] = useState(false)
+  const [selectedExercise,setSelectedExercise] = useState(null)
+  const [modalVisible,setModalVisible] = useState(false)
 
   useEffect(() => {
     loadExercises()
-  }, [])
+  },[])
 
   useFocusEffect(
     React.useCallback(() => {
       loadExercises()
-    }, []),
+    },[]),
   )
 
   useEffect(() => {
@@ -158,12 +158,12 @@ export default function WorkoutPlanExerciseSessionScreen() {
     if (currentPage > totalFilteredPages && totalFilteredPages > 0) {
       setCurrentPage(1)
     }
-  }, [filteredExercises])
+  },[filteredExercises])
 
   const loadExercises = async () => {
     setLoading(true)
     try {
-      const stored = await AsyncStorage.getItem("scheduledExercises")
+      const stored = await AsyncStorage.getItem("scheduledExercisesWorkout")
       const arr = stored ? JSON.parse(stored) : []
 
       const detailed = await Promise.all(
@@ -223,14 +223,14 @@ export default function WorkoutPlanExerciseSessionScreen() {
 
   const removeExercise = async (exerciseId) => {
     const filtered = exercises.filter((ex) => ex.exerciseId !== exerciseId)
-    await AsyncStorage.setItem("scheduledExercises", JSON.stringify(filtered))
+    await AsyncStorage.setItem("scheduledExercisesWorkout",JSON.stringify(filtered))
     // Reload full data to ensure UI and pagination update correctly
     await loadExercises()
   }
 
   const clearAll = async () => {
     // No confirmation dialog, just clear and show success toast
-    await AsyncStorage.removeItem("scheduledExercises")
+    await AsyncStorage.removeItem("scheduledExercisesWorkout")
     setExercises([])
     setFilteredExercises([])
     setTotalCalories(0)
@@ -240,14 +240,14 @@ export default function WorkoutPlanExerciseSessionScreen() {
 
   const handleStartSession = () => {
     if (!user?.userId) {
-      showErrorFetchAPI("User information not found. Please log in again!")
+      showErrorMessage("User information not found. Please log in again!")
       return
     }
     if (exercises.length === 0) {
-      showErrorFetchAPI("Please add exercises to start!")
+      showErrorMessage("Please add exercises to start!")
       return
     }
-    navigation.navigate("WorkoutSessionActiveScreen", { exercises, userId: user.userId })
+    navigation.navigate("WorkoutSessionActiveScreen",{ exercises,userId: user.userId })
   }
 
   const handleExercisePress = (exercise) => {
@@ -258,12 +258,12 @@ export default function WorkoutPlanExerciseSessionScreen() {
   const getPaginatedData = () => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
     const endIndex = startIndex + ITEMS_PER_PAGE
-    return filteredExercises.slice(startIndex, endIndex)
+    return filteredExercises.slice(startIndex,endIndex)
   }
 
-  const renderExerciseItem = ({ item, index }) => (
+  const renderExerciseItem = ({ item,index }) => (
     <View style={styles.exerciseCard}>
-      <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => handleExercisePress(item)} activeOpacity={0.8}>
+      <TouchableOpacity style={{ flex: 1,flexDirection: 'row',alignItems: 'center' }} onPress={() => handleExercisePress(item)} activeOpacity={0.8}>
         <View style={styles.exerciseImageContainer}>
           <ExerciseImage uri={item.mediaUrl} name={item.exerciseName} style={styles.exerciseItemImage} />
         </View>
@@ -299,8 +299,8 @@ export default function WorkoutPlanExerciseSessionScreen() {
     return (
       <View style={styles.paginationContainer}>
         <TouchableOpacity
-          style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
-          onPress={() => setCurrentPage(Math.max(1, currentPage - 1))}
+          style={[styles.pageButton,currentPage === 1 && styles.pageButtonDisabled]}
+          onPress={() => setCurrentPage(Math.max(1,currentPage - 1))}
           disabled={currentPage === 1}
         >
           <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#CBD5E1" : "#64748B"} />
@@ -311,8 +311,8 @@ export default function WorkoutPlanExerciseSessionScreen() {
         </Text>
 
         <TouchableOpacity
-          style={[styles.pageButton, currentPage === totalPages && styles.pageButtonDisabled]}
-          onPress={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+          style={[styles.pageButton,currentPage === totalPages && styles.pageButtonDisabled]}
+          onPress={() => setCurrentPage(Math.min(totalPages,currentPage + 1))}
           disabled={currentPage === totalPages}
         >
           <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#CBD5E1" : "#64748B"} />
@@ -324,7 +324,7 @@ export default function WorkoutPlanExerciseSessionScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Loading />
+        <CommonSkeleton />
       </SafeAreaView>
     )
   }
@@ -344,11 +344,8 @@ export default function WorkoutPlanExerciseSessionScreen() {
                 </TouchableOpacity>
 
                 <View style={styles.heroActions}>
-                  <TouchableOpacity style={styles.heroButton}>
-                    <Ionicons name="heart-outline" size={24} color="#fff" />
-                  </TouchableOpacity>
                   <TouchableOpacity onPress={clearAll} style={styles.heroButton}>
-                    <Ionicons name="help-circle-outline" size={24} color="#fff" />
+                    <Ionicons name="trash-outline" size={24} color="#fff" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -414,13 +411,8 @@ export default function WorkoutPlanExerciseSessionScreen() {
 
       {/* Bottom Section with Settings and Start Button */}
       <SafeAreaView style={styles.bottomSection}>
-        <TouchableOpacity style={styles.settingsButton}>
-          <Ionicons name="settings-outline" size={24} color="#666" />
-          <Text style={styles.settingsText}>Settings</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
-          style={[styles.startButton, (!user?.userId || exercises.length === 0) && styles.startButtonDisabled]}
+          style={[styles.startButton,(!user?.userId || exercises.length === 0) && styles.startButtonDisabled]}
           onPress={handleStartSession}
           disabled={!user?.userId || exercises.length === 0}
         >
@@ -589,7 +581,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#F1F5F9",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     gap: 12, // giảm gap
   },
   settingsButton: {
